@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../models.dart';
 import 'cloud.dart';
+import 'context_window.dart';
 import 'house_rules.dart';
 import 'stream_policy.dart';
 
@@ -158,7 +159,8 @@ class LlmClient {
       } on TimeoutException {
         throw LlmException(StreamPolicy.textFor('busy'), status: 503, code: 'busy');
       }
-      Cloud.readHeaders(resp.headers);
+      // CB-23: a reply to pictures or tools may name a bigger window than plain text has.
+      Cloud.readHeaders(resp.headers, filtered: (tools != null && tools.isNotEmpty) || ContextWindow.hasImages(messages));
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         final text = await resp.stream.bytesToString();
         final e = _cloudError(resp.statusCode, text);
@@ -289,7 +291,7 @@ class LlmClient {
     } on SocketException {
       throw LlmException('You\'re offline. Check your connection and try again.');
     }
-    Cloud.readHeaders(resp.headers);
+    Cloud.readHeaders(resp.headers, filtered: ContextWindow.hasImages(messages));
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       final e = _cloudError(resp.statusCode, resp.body);
       throw LlmException(e.message, status: e.status, code: e.code, retryAfter: parseRetryAfter(resp.headers['retry-after']));
