@@ -949,14 +949,18 @@ class _MainHooks extends CoreHooks {
       ];
 
   /// Every model call's true usage is counted here, also replies without tool calls (often a run's biggest output)
-  /// and replies a finish gate sent back: the bot's daily budget and Bot Activity, and the task's own size.
+  /// and replies a finish gate sent back: the bot's daily budget (its own work only) and Bot Activity, and the task's
+  /// own size.
   @override
   void usage(Reply r) {
     final t = tracer;
     if (t != null) {
-      if (r.tokens > 0) {
-        t.addTokens(r.tokens);
-        BotTraces.I.tokens(t.id, r.tokens);
+      // CB-20: billing units (uncached×0.3 + cached×0.1 + out×1, as the server counts them), and only the bot's own
+      // work (a wake, team work) goes to its daily budget; what the owner types to it never does.
+      final units = UsageUnits.of(r.tokensIn, r.tokensOut, cached: r.tokensCached, fallback: r.tokens);
+      if (units > 0) {
+        if (UsageSource.isBotWork(app._usageSource(convId, side: side))) t.addTokens(units);
+        BotTraces.I.tokens(t.id, units);
       }
       return;
     }

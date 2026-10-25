@@ -590,7 +590,8 @@ extension AppStateBots on AppState {
       source: 'office',
       onDelta: (_) {},
     );
-    if (r.tokens > 0) b.addTokens(r.tokens);
+    final units = UsageUnits.ofResult(r); // CB-20: billing units, as the server counts them
+    if (units > 0) b.addTokens(units);
     unawaited(Bots.I.save());
     return r;
   }

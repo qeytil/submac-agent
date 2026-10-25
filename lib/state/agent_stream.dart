@@ -68,6 +68,21 @@ extension AppStateAgentStream on AppState {
     return list.sublist(i);
   }
 
+  /// CB-45: the `x-submac-source` of a run's model call. A bot's own wake (or an office job) is bot work; what the
+  /// owner types to a bot is `bot-chat`, billed to the owner's chat bucket, never the bots' share.
+  String _usageSource(String convId, {bool side = false}) => UsageSource.pick(
+      officeJob: _officeCtx.containsKey(convId),
+      botConv: Bots.I.byConv(convId) != null,
+      botWork: _backgroundLane(convId),
+      sideRun: side);
+
+  @visibleForTesting
+  String usageSourceForTest(String convId, {bool side = false}) => _usageSource(convId, side: side);
+
+  /// Tests: mark a chat as a bot's own wake ('work', 'call', 'office', 'chat'...), as _botWake does.
+  @visibleForTesting
+  Map<String, String> get botWakeConvsForTest => _botWakeConvs;
+
   /// One model call with the app's time limits (PLAN 1.3): 10 s for headers and 30 s of silence (in [LlmClient]),
   /// one quiet retry before any output, and at 45 s with no word a clear "SubMac is busy. Tap to try again." (the
   /// user's message stays). The server already moves to another model or key when one fails, so the phone never
@@ -89,6 +104,7 @@ extension AppStateAgentStream on AppState {
     var redo = redoFrom;
     LlmException late() => LlmException(StreamPolicy.busyText, status: 503, code: 'busy_wait');
     var retries = 0;
+    var source = UsageSource.agent;
     watch.start();
     try {
       while (true) {
@@ -108,13 +124,14 @@ extension AppStateAgentStream on AppState {
             ..chatId = run.convId
             ..background = _backgroundLane(run.convId);
           run.client = client;
+          source = _usageSource(run.convId, side: run.side);
           final r = await client.streamChat(
             provider: route.provider,
             model: route.model,
             messages: payload,
             tools: useTools,
             effort: effort,
-            source: _officeCtx.containsKey(run.convId) ? 'office' : (Bots.I.byConv(run.convId) != null ? 'bot' : (run.side ? 'side' : 'agent')),
+            source: source,
             onDelta: (d) {
               watch.heard();
               final before = redo;
@@ -149,6 +166,11 @@ extension AppStateAgentStream on AppState {
           return r;
         } on LlmException catch (e) {
           if (e.code == 'busy_wait') rethrow;
+          // CB-45: a server that does not know `bot-chat` yet: this call (and every later one) goes as `agent`.
+          if (UsageSource.refusedBotChat(source, e) && !UsageSource.botChatRefused && asst.content.isEmpty && !run.cancelled) {
+            UsageSource.botChatRefused = true;
+            continue;
+          }
           if (watch.fired && !run.cancelled && run.client?.steered != true) throw late();
           // Something was already shown, the user stopped it, or it restarts to hear them: never start over here.
           if (run.cancelled || asst.content.isNotEmpty || watch.gotWord || run.client?.steered == true) rethrow;
