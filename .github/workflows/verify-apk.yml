@@ -18,25 +18,37 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.dl.outputs.found }}
     steps:
       - uses: actions/checkout@v4
       - name: Download release APKs
+        id: dl
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # qeytil copy: tolerate release tags that do not exist here (skip them instead of failing).
           TAGS="${{ inputs.tags || 'build-12 build-15' }}"
-          for t in $TAGS; do mkdir -p apks/$t; gh release download $t -R ${{ github.repository }} -p app-release.apk -D apks/$t; done
-          gh api repos/${{ github.repository }}/releases --jq '.[] | .tag_name + " " + (.assets[] | .name + " size=" + (.size|tostring) + " " + (.digest // ""))'
-          sha256sum apks/*/app-release.apk
+          FOUND=true
+          for t in $TAGS; do
+            mkdir -p apks/$t
+            if ! gh release download $t -R ${{ github.repository }} -p app-release.apk -D apks/$t; then
+              echo "::warning::release $t (or its app-release.apk) not found - skipping"
+              rm -rf apks/$t; FOUND=false
+            fi
+          done
+          echo "found=$FOUND" >> $GITHUB_OUTPUT
+          gh api repos/${{ github.repository }}/releases --jq '.[] | .tag_name + " " + (.assets[] | .name + " size=" + (.size|tostring) + " " + (.digest // ""))' || true
+          ls apks/*/app-release.apk >/dev/null 2>&1 && sha256sum apks/*/app-release.apk || echo "no release APKs downloaded"
       - name: Inspect
-        run: for a in apks/*/app-release.apk; do bash tools/verify_apk.sh $a; done
-      - uses: actions/upload-artifact@v4
-        with:
-          name: apks
-          path: apks
+        run: |
+          shopt -s nullglob
+          for a in apks/*/app-release.apk; do bash tools/verify_apk.sh $a; done
 
   emulator:
     needs: inspect
+    # Only when every requested release exists (qeytil copy may not have them).
+    if: ${{ needs.inspect.outputs.found == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -45,10 +57,12 @@ jobs:
         image: ['google_apis', 'google_apis_ps16k']
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: apks
-          path: apks
+      - name: Download release APKs (straight from the releases, no artifacts)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAGS="${{ inputs.tags || 'build-12 build-15' }}"
+          for t in $TAGS; do mkdir -p apks/$t; gh release download $t -R ${{ github.repository }} -p app-release.apk -D apks/$t; done
       - name: Free disk space for the emulator
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL /usr/share/swift || true
@@ -74,6 +88,7 @@ jobs:
             bash tools/emu_conflicts.sh apks/build-12/app-release.apk apks/build-15/app-release.apk
       - uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
         with:
           name: shots-${{ matrix.image }}
           path: /tmp/shot_*.png
