@@ -11,6 +11,7 @@ import 'full_access.dart';
 import 'house_rules.dart';
 import 'no_reply.dart';
 import 'system_bridge.dart';
+import 'team_run.dart';
 import 'tools.dart';
 
 /// Offices, shown as Teams since 1.13.28 (plan 5: "a team with a lead"): a team of bots the user puts together, led
@@ -614,6 +615,32 @@ class Offices extends ChangeNotifier {
   Future<void> Function(Office o, Bot b, String text)? notify;
   /// Set by AppState: true while this bot is working right now (so it is not "quiet").
   bool Function(String botId)? isWorking;
+  /// Set by AppState (CB-34): true while a member runs an office job for this office right now.
+  bool Function(String officeId)? jobsRunning;
+  /// Set by AppState (CB-34): stops the office jobs running for this office right now (their replies are not posted).
+  void Function(String officeId)? stopRunning;
+
+  /// When the owner last stopped each office's work, so a reply that lands after the stop is not posted.
+  final Map<String, DateTime> _stoppedAt = {};
+
+  /// CB-34: whether office [officeId] has member jobs waiting in the queue or running now (replies started by
+  /// [askBot] among them).
+  bool jobsFor(String officeId) => queue.any((j) => j.officeId == officeId) || (jobsRunning?.call(officeId) ?? false);
+
+  /// CB-34: drops every queued job of office [officeId] and stops the ones running.
+  void stopJobs(String officeId) {
+    _stoppedAt[officeId] = DateTime.now();
+    final had = queue.length;
+    queue.removeWhere((j) => j.officeId == officeId);
+    stopRunning?.call(officeId);
+    if (queue.length != had) saveSoon();
+  }
+
+  /// Whether the owner stopped office [officeId]'s work after [start] (a job that started then posts nothing).
+  bool stoppedSince(String officeId, DateTime start) {
+    final t = _stoppedAt[officeId];
+    return t != null && !t.isBefore(start);
+  }
 
   Office? byId(String id) => offices.where((o) => o.id == id).firstOrNull;
   Iterable<Approval> get pending => approvals.where((a) => a.status == 'pending');
@@ -905,10 +932,14 @@ class Offices extends ChangeNotifier {
     await arm(o);
     // A new team never starts work by itself (owner, 2026-10-24): it waits for a task in its chat. Even a team set to
     // work on its own makes its first plan only at its first check, never at the moment it is created.
-    post(o, 'system', 'The team waits for you: write a task in the chat. ${_botName(chiefId)} will suggest a plan and wait for your go-ahead.',
-        kind: 'system');
+    // CB-36 (owner, 2026-10-24): teams start right away after the lead's plan; they wait only when the lead must ask.
+    post(o, 'system', introText(_botName(chiefId)), kind: 'system');
     return o;
   }
+
+  /// The new team's first line (CB-36): the lead posts a plan and the team starts; it asks only when something is unclear.
+  static String introText(String lead) =>
+      'The team waits for you: write a task in the chat. $lead posts a plan and the team starts right away. $lead asks you first only if something is unclear.';
 
   /// A shareable copy of the office: its setup and its team (each bot without its chats or private notes).
   Map<String, dynamic> export(Office o) {
@@ -969,7 +1000,12 @@ class Offices extends ChangeNotifier {
     return o;
   }
 
+  /// Closes a team. CB-60: its work stops first (the team run, its member jobs, a waiting plan) and its asks go, so
+  /// nothing keeps spending or posting into a team that is gone.
   Future<void> remove(Office o) async {
+    TeamRun.I.halt(o);
+    TeamRun.I.forget(o.id);
+    await expireForOffice(o.id);
     await disarm(o);
     offices.remove(o);
     queue.removeWhere((j) => j.officeId == o.id);
@@ -1197,6 +1233,18 @@ class Offices extends ChangeNotifier {
     if (convId.isEmpty) return;
     var changed = false;
     for (final a in approvals.where((a) => a.status == 'pending' && a.convId == convId).toList()) {
+      a.status = 'expired';
+      _complete(a.id, false);
+      changed = true;
+    }
+    if (changed) await save();
+  }
+
+  /// CB-60: every ask still waiting for office [officeId] goes (the team is closed or stopped).
+  Future<void> expireForOffice(String officeId) async {
+    if (officeId.isEmpty) return;
+    var changed = false;
+    for (final a in approvals.where((a) => a.status == 'pending' && a.officeId == officeId).toList()) {
       a.status = 'expired';
       _complete(a.id, false);
       changed = true;
