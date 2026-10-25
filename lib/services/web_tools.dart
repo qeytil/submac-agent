@@ -133,6 +133,16 @@ class WebTools {
       return 'Error: web search found nothing${errors.isEmpty ? '' : ' (${errors.join('; ')})'}. '
           'Try different words, or read a known site with fetch_url.';
     }
+    // CB-38: with no search key and DuckDuckGo failing, only Wikipedia answered. Said plainly, so the model never takes
+    // encyclopedia titles for web results (it looped through searches and costly browser tasks).
+    if (engine == 'Wikipedia') {
+      return jsonEncode({
+        'query': q,
+        'engine': engine,
+        'warning': wikiOnlyWarning,
+        'results': results.take(n).toList(),
+      });
+    }
     return jsonEncode({
       'query': q,
       'engine': engine,
@@ -140,6 +150,11 @@ class WebTools {
       'note': 'Show the sources you used to the user as a links card.',
     });
   }
+
+  /// CB-38: the label on results that came only from Wikipedia because web search failed.
+  static const wikiOnlyWarning = 'Web search unavailable; these are encyclopedia results only (Wikipedia), not web results. '
+      'They will not have prices, news, opening hours or shop pages. Read a known site with fetch_url instead, '
+      'or answer with what you already have.';
 
   static String _strip(String html) => _decode(html.replaceAll(RegExp(r'<[^>]+>'), '')).replaceAll(RegExp(r'\s+'), ' ').trim();
 

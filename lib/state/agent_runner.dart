@@ -1142,6 +1142,16 @@ class _MainHooks extends CoreHooks {
           run.status = 'Checking the work';
           return (note: await app._finishCheckNote(run), hold: true);
         },
+        // CB-39: a file card and a few words, for a request that never asked for a file: one round to answer in the chat.
+        (r) async {
+          if (r.blank || r.cutOff || run.wrapUpAt >= 0 || AppState._waitsOnUser(r.text)) return null;
+          final ask = lastUserText ?? '';
+          if (ask.startsWith(botWakeMark)) return null;
+          if (!InlineAnswer.needsInline(reply: _prefix + r.text, userText: ask, rounds: run.inlineFixes)) return null;
+          run.inlineFixes++;
+          run.status = 'Writing the answer';
+          return (note: InlineAnswer.note, hold: false);
+        },
         // The reply's cards must be valid (typed Hark-style blocks checked against their schema); one fix round.
         (r) async {
           if (r.blank || r.cutOff || run.formatFixes >= 1) return null;
@@ -1275,7 +1285,10 @@ class _MainHooks extends CoreHooks {
         }
       }
       if (g.blocked != null) return g.blocked!;
-      return await _recovering(g, tc, args);
+      // CB-38: a second read-only browser task is not started; weak searches past the budget carry a stop note.
+      final capped = run.search.before(tc.name, args);
+      if (capped != null) return capped;
+      return run.search.after(tc.name, await _recovering(g, tc, args));
     } finally {
       run.pendingCalls.remove(tc.id);
     }
