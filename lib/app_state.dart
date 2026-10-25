@@ -77,6 +77,7 @@ import 'services/quick_lane.dart';
 import 'services/offices.dart';
 import 'services/team_run.dart';
 import 'widgets/chat/reply_quote.dart' show ReplyRef, ReplyCodec;
+import 'widgets/composer.dart' show Composer;
 import 'services/roles.dart';
 import 'services/full_access.dart';
 import 'services/trust.dart';
@@ -283,6 +284,10 @@ class AppState extends ChangeNotifier {
   /// Bot chats with a wake running now (and the kind of wake).
   final Map<String, String> _botWakeConvs = {};
 
+  /// CB-17: the rows the running (or just finished) wake in each bot chat wrote itself. A silent wake removes only
+  /// these, never what the owner typed meanwhile or the quick replies to it.
+  final Map<String, Set<String>> _wakeRows = {};
+
   /// Where the phone's Back goes from a bot's chat: the chat that was open before the first bot chat
   /// (null = a new chat). Set only while a bot chat is open (see backFromBotChat).
   String? _backFromBot;
@@ -467,6 +472,14 @@ class AppState extends ChangeNotifier {
 
   /// One run per chat, claimed at the top of send() before any await (PLAN 1.4).
   final SendGate _sendGate = SendGate();
+
+  /// CB-22: chats whose "Try again" is removing the old reply and has not started its run yet. Claimed synchronously,
+  /// so a second tap in the same frame does nothing.
+  final Set<String> _regenerating = {};
+
+  /// Test seam: when set, _runAgent registers the run (guards included) and then runs this instead of the model loop.
+  @visibleForTesting
+  static Future<void> Function(AppState app, AgentRun run)? debugRunAgent;
 
   /// Each picture goes to the model once; later steps get a one-line note (PLAN 1.4).
   final ImageOnce _imagesOnce = ImageOnce();
@@ -1196,6 +1209,13 @@ class AgentRun {
     client?.cancel();
     onStop?.call();
   }
+
+  /// CB-17: ids of the chat rows this run added itself (its replies, tool results and says).
+  final Set<String> wrote = {};
+
+  /// Completes when the run has fully ended (its last write is done), so delete-all can wait for it (CB-18).
+  final Completer<void> finished = Completer<void>();
+  Future<void> get whenFinished => finished.future;
 }
 
 /// Something a running task needs from the user.

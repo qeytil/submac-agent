@@ -135,14 +135,40 @@ extension AppStateChat on AppState {
     conversations.removeWhere((e) => e.id == id);
     if (currentId == id) newChat();
     _notify();
-    await repo.deleteConversation(id);
+    // A bot keeps its chat id, so its next wake may write there again; any other deleted chat stays deleted (CB-18).
+    await repo.deleteConversation(id, keepWritable: Bots.I.isBotConv(id));
   }
 
+  /// CB-18: every run is stopped and waited for first (side replies and bot wakes too), so none of them writes a
+  /// row afterwards and brings a deleted chat back as a ghost that syncs to the backup again.
   Future<void> deleteAllConversations() async {
+    final ids = {for (final c in conversations) c.id, ..._lists.keys, for (final r in runs) r.convId};
     newChat();
     conversations = [];
+    final live = runs.toList();
+    for (final r in live) {
+      stopRun(r);
+    }
+    for (final id in ids) {
+      _dropApprovalsFor(id);
+    }
+    for (final a in asks.toList()) {
+      answerAsk(a, null);
+    }
     _notify();
-    await repo.deleteAllConversations();
+    try {
+      await Future.wait([for (final r in live) r.whenFinished]).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // A step that never returns: the repo guard below still ignores its late writes.
+    }
+    _imagesOnce.clear();
+    _regenerating.clear();
+    _skillNotes.clear();
+    _resumeNotes.clear();
+    _lists.clear();
+    Composer.drafts.clear();
+    Bots.I.forgetDrafts();
+    await repo.deleteAllConversations(keepWritable: botConvIds);
   }
 
   /// Deletes the account on the server and everything SubMac kept on this phone. Returns an error, or null when done.
@@ -466,20 +492,30 @@ extension AppStateChat on AppState {
 
   Future<void> regenerate() async {
     // Any run here, the quick side reply too: its late reply would land under the new one (ISSUES T-17).
-    if (busy || anyRunHere || currentId == null) return;
+    // CB-22: also a "Try again" still removing the old reply (a second tap in the same frame).
+    final convId = currentId;
+    if (busy || anyRunHere || convId == null || _regenerating.contains(convId)) return;
     final lastUser = messages.lastIndexWhere((m) => m.role == 'user');
     if (lastUser < 0) return;
+    // Claimed before the first await; released once the run has registered itself (synchronously in _runAgent).
+    _regenerating.add(convId);
     final removed = messages.sublist(lastUser + 1);
     messages.removeRange(lastUser + 1, messages.length);
     final awaitId = messages[lastUser].id;
-    _imagesOnce.unsend(currentId!, awaitId);
+    _imagesOnce.unsend(convId, awaitId);
     awaitingReply = awaitId;
     _notify();
     try {
       await repo.deleteMessages(removed.map((e) => e.id).toList());
     } catch (_) {}
+    Future<void> run;
     try {
-      await _runAgent(currentId!);
+      run = _runAgent(convId);
+    } finally {
+      _regenerating.remove(convId);
+    }
+    try {
+      await run;
     } finally {
       _clearAwaiting(awaitId);
     }

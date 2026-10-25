@@ -18,7 +18,12 @@ extension AppStateAgentRunner on AppState {
         break;
       }
     }
+    // CB-22: one main run per chat. A second start (two "Try again" taps, a wake racing a send) never runs a second
+    // agent on the same chat (double answers, double spend). Side replies are separate and stay allowed.
+    if (!side && runs.any((r) => r.convId == convId && !r.side)) return;
     final run = AgentRun(convId: convId, side: side, title: _shortTitle(lastUserText ?? 'Task'));
+    // CB-17: a bot wake remembers which rows it wrote, so a silent wake can remove exactly those.
+    if (!side && _botWakeConvs.containsKey(convId)) _wakeRows[convId] = run.wrote;
     // The user's own requirements, kept where the finish check can re-read them.
     if (lastUserText != null) run.contract.addAll(PromptContract.extract(lastUserText));
     // The request in the user's own words (app-made wakes carry their own job text) and its hard constraints.
@@ -27,6 +32,17 @@ extension AppStateAgentRunner on AppState {
     run.must = ConstraintReader.read(userAsk);
     runs.add(run);
     _notify();
+    final testRun = AppState.debugRunAgent;
+    if (testRun != null) {
+      try {
+        await testRun(this, run);
+      } finally {
+        runs.remove(run);
+        if (!run.finished.isCompleted) run.finished.complete();
+        _notify();
+      }
+      return;
+    }
     // The task line is on screen before anything slow happens (app tool lists can take a few seconds to load).
     if (!side) await ensureMcpTools();
     // Every bot run is written down step by step, so the owner can see exactly what it did.
@@ -219,6 +235,7 @@ extension AppStateAgentRunner on AppState {
       try {
         await repo.updateConversation(convId, {'model': model});
       } catch (_) {}
+      if (!run.finished.isCompleted) run.finished.complete();
     }
   }
 
@@ -588,6 +605,7 @@ class _MainHooks extends CoreHooks {
     _asst = asst;
     _keep = false;
     list.add(asst);
+    run.wrote.add(asst.id);
     run.inModel = true;
     app._notify();
   }
@@ -663,6 +681,7 @@ class _MainHooks extends CoreHooks {
     if (asst == null || !list.contains(asst)) {
       asst = ChatMessage(id: _uuid.v4(), role: 'assistant');
       list.add(asst);
+      run.wrote.add(asst.id);
     }
     asst.streaming = false;
     // A steer is never shown as an error word ("steered").
@@ -1066,6 +1085,7 @@ class _MainHooks extends CoreHooks {
       if (said.isNotEmpty) {
         final sm = ChatMessage(id: _uuid.v4(), role: 'assistant', content: said)..animateIn = true;
         list.add(sm);
+        run.wrote.add(sm.id);
         Future<void>.delayed(const Duration(seconds: 2), () => sm.animateIn = false);
         await app._save(convId, sm);
       }
@@ -1192,6 +1212,7 @@ class _MainHooks extends CoreHooks {
     final content = _inline.contains(tc.name) ? output : ToolRecovery.withHint(tc.name, output);
     final tm = ChatMessage(id: _uuid.v4(), role: 'tool', content: content, toolCallId: tc.id, name: tc.name);
     list.add(tm);
+    run.wrote.add(tm.id);
     app._notify();
     await app._save(convId, tm);
     // A picture, sound or video a tool made (IMAGE_SAVED ...) is kept in the account for the user's other phones.
