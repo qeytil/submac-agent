@@ -60,6 +60,16 @@ extension AppStateSystem on AppState {
       final bot = Bots.I.byId(id);
       return bot != null && bot.convId.isNotEmpty && runs.any((r) => r.convId == bot.convId && !r.side);
     };
+    Offices.I.jobsRunning = (officeId) => _officeBusyIn.values.contains(officeId);
+    Offices.I.stopRunning = (officeId) {
+      for (final id in [for (final e in _officeBusyIn.entries) if (e.value == officeId) e.key]) {
+        final bot = Bots.I.byId(id);
+        if (bot == null || bot.convId.isEmpty) continue;
+        for (final r in runs.where((r) => r.convId == bot.convId && !r.side).toList()) {
+          stopRun(r);
+        }
+      }
+    };
     Offices.I.notify = (o, bot, text) async {
       if (bot.quietNow()) return;
       await _officeNotify(o, bot, text);
@@ -72,7 +82,15 @@ extension AppStateSystem on AppState {
       ..toolsFor = _memberTools
       ..runTool = _memberTool
       ..approvalFor = _memberApproval
-      ..answer = _memberAnswer;
+      ..answer = _memberAnswer
+      // CB-62: a team holds the phone awake while it works; letting go never cuts other work still running.
+      ..keepAlive = (on, {String text = ''}) async {
+        if (on) {
+          await SystemBridge.I.keepAlive(true, text: text);
+        } else if (!runs.any((r) => !r.side) && _officeBusy.isEmpty) {
+          await SystemBridge.I.keepAlive(false);
+        }
+      };
     Bots.I.resolveModel = resolveModelHint;
     Bots.I.isAppConnected = botAppConnected;
     b.onPhoneStop = () {
@@ -141,6 +159,8 @@ extension AppStateSystem on AppState {
     } catch (_) {}
     try {
       await Offices.I.init();
+      // CB-64: a team job that was running when SubMac closed says so once ("go" restarts it).
+      await TeamRun.I.restore();
       _officePump();
     } catch (_) {}
     await sideInits;

@@ -817,6 +817,8 @@ extension AppStateBots on AppState {
   /// One bot does one piece of office work in its own chat, with all its tools, and posts the result to the office.
   Future<void> _officeRun(Office o, Bot b, OfficeJob j) async {
     _officeBusy.add(b.id);
+    _officeBusyIn[b.id] = o.id;
+    final startedAt = DateTime.now();
     _notify();
     var reserved = j.kind != 'reply';
     void unreserve() {
@@ -876,7 +878,8 @@ extension AppStateBots on AppState {
       // Small talk in the office gets an instant answer in character.
       if (j.kind == 'reply' && QuickLane.laneFor(j.instruction) == QuickLane.quick) {
         final text = await _officeQuick(o, b, j.instruction);
-        if (text.isNotEmpty) Offices.I.post(o, b.id, text);
+        if (Offices.I.stoppedSince(o.id, startedAt)) return; // CB-34: the owner stopped the team meanwhile
+        Offices.I.post(o, b.id, text.isNotEmpty ? text : BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)), kind: text.isNotEmpty ? 'chat' : 'system');
         return;
       }
       final convId = b.convId;
@@ -956,6 +959,12 @@ extension AppStateBots on AppState {
       final mustAnswer = j.kind == 'reply' || j.kind == 'task';
       if (out.text.trim().isEmpty || (out.kind == 'silent' && !mustAnswer)) {
         if (j.kind == 'chief' || j.kind == 'digest' || j.kind == 'mention') await _dropWakeTurn(convId);
+        // CB-37: a direct request that ended with nothing to show says so (it used to leave the owner waiting).
+        if (j.kind == 'reply' && finished && !Offices.I.stoppedSince(o.id, startedAt)) {
+          Offices.I.post(o, 'system', BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)), kind: 'system');
+        }
+      } else if (Offices.I.stoppedSince(o.id, startedAt)) {
+        // CB-34: stopped by the owner; nothing more goes into the team chat.
       } else {
         final visible = BotOutcome.visible(reply);
         final list = _lists[convId];
@@ -1001,6 +1010,7 @@ extension AppStateBots on AppState {
       unreserve();
       _officeCtx.remove(b.convId);
       _officeBusy.remove(b.id);
+      _officeBusyIn.remove(b.id);
       Offices.I.saveSoon();
       _notify();
       Future<void>.delayed(const Duration(milliseconds: 300), _officePump);
