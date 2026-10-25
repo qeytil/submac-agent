@@ -275,6 +275,13 @@ abstract class CoreHooks {
   /// A reply that a finish gate sent back: it leaves the chat (or is held on screen until the next reply replaces it).
   Future<void> discard(Reply r, {bool hold = false}) async {}
 
+  /// The words of the current model call that already reached the screen (CB-2): what a stopped call gives back.
+  String partialText() => '';
+
+  /// The user stopped the run while a model call was streaming (CB-2). Called instead of [commit]: the reply is not
+  /// final, and the app decides what stays (the words already shown are kept; an empty bubble goes).
+  Future<void> onStopped(Reply r) async {}
+
   /// Runs one tool (approval, when needed, was already given: [approved]).
   Future<String> runTool(ToolCall call, Map<String, dynamic> args, {Object? approved});
 
@@ -473,6 +480,11 @@ class CommitMiddleware extends GenerateMiddleware {
     if (resp.custom?['halt'] != null || resp.message == null) return resp;
     final r = replyOf(resp, step: state.step - 1);
     _last = r;
+    // CB-2: a call cut by Stop is not this turn's reply; committing it replaced the streamed words with nothing.
+    if (resp.finishReason == FinishReason.aborted) {
+      await hooks.onStopped(r);
+      return resp;
+    }
     await hooks.commit(r);
     await log.modelStep(r);
     // Independent reads of this turn start now, together; each call still reports in order.
@@ -577,9 +589,11 @@ class AgentCore {
     if (!_stopped.isCompleted) _stopped.complete();
   }
 
+  /// One model call that Stop ends at once. A stopped call gives back the words already shown (CB-2), not ''.
   Future<LlmResult> _send(Turn t) {
-    if (_stopped.isCompleted) return Future.value(LlmResult('', const [], 'cancelled'));
-    return Future.any([transport(t), _stopped.future.then((_) => LlmResult('', const [], 'cancelled'))]);
+    LlmResult stoppedResult() => LlmResult(hooks.partialText(), const [], 'cancelled');
+    if (_stopped.isCompleted) return Future.value(stoppedResult());
+    return Future.any([transport(t), _stopped.future.then((_) => stoppedResult())]);
   }
 
   Future<RunResult> run() async {

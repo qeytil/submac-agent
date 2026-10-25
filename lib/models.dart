@@ -150,6 +150,10 @@ class ChatMessage {
   /// True for replies created in this session, so their blocks animate in once.
   bool animateIn = false;
 
+  /// The user stopped this reply while it was being written (CB-2): it holds only the words that had arrived.
+  /// This session only, like [animateIn].
+  bool stopped = false;
+
   ChatMessage({
     required this.id,
     required this.role,
