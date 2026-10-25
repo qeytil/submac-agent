@@ -33,6 +33,9 @@ class BotStatus extends ChangeNotifier {
   final List<Listenable> _sources = [];
   bool _loaded = false;
 
+  /// Bots workspaces on the navigation stack now (CB-16: a bot notification tapped then opens the bot in place).
+  int workspaces = 0;
+
   /// The chat on screen right now (`b:<id>` or `t:<id>`): finishing there is read at once.
   String? _viewing;
   String? get viewing => _viewing;
@@ -170,6 +173,7 @@ class BotStatus extends ChangeNotifier {
     _working = {};
     _unread.clear();
     _viewing = null;
+    workspaces = 0;
     _loaded = true;
     _telling = false;
   }

@@ -216,7 +216,16 @@ extension AppStateBots on AppState {
 
   /// Wakes a bot to work on its own. It decides at the end whether to stay silent, keep a note, message or call.
   Future<void> _botWake(Bot b, String reason, String instruction, String kind) async {
-    if (activeProvider == null) return;
+    // CB-46: an alarm can start SubMac before it is ready (no account restored yet). The wake waits a little, and is
+    // otherwise kept and run once SubMac is ready, never dropped without a word.
+    final key = Bots.I.wakeKey(b) ?? '${b.id}|$reason|$instruction';
+    if (!await _awaitWakeReady()) {
+      if (kind != 'chat' && await Bots.I.holdWake(b, key, reason, instruction, kind)) {
+        b.log('note', 'Woken for $reason before SubMac was ready. I will do it as soon as SubMac is ready.');
+        await Bots.I.save();
+      }
+      return;
+    }
     // A check-in that was put off (busy, offline) is still a check-in: it gets the cheap "anything to do?" question
     // first, not a full wake told to "Do this now: Heartbeat check" (BUGHUNT 2026-10-23 #4).
     // A retried one keeps its "(retry)" mark for the outcome, so it is retried once only.
@@ -295,6 +304,43 @@ extension AppStateBots on AppState {
     if (err != null) {
       if (_botWakeConvs[b.convId] == kind) _botWakeConvs.remove(b.convId); // only our own mark
       if (!runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
+    }
+  }
+
+  /// CB-46: a bot wake can run: a model provider and a signed-in account.
+  bool get _wakeReady {
+    if (activeProvider == null) return false;
+    try {
+      return repo.userId != null;
+    } catch (_) {
+      return false; // the account is not set up yet (a cold start)
+    }
+  }
+
+  /// Waits up to [Bots.readyWait] for [_wakeReady].
+  Future<bool> _awaitWakeReady() async {
+    if (_wakeReady) return true;
+    final wait = Bots.readyWait;
+    final step = wait < const Duration(milliseconds: 250) ? wait : const Duration(milliseconds: 250);
+    final until = DateTime.now().add(wait);
+    while (DateTime.now().isBefore(until)) {
+      await Future<void>.delayed(step);
+      if (_wakeReady) return true;
+    }
+    return _wakeReady;
+  }
+
+  /// CB-46: runs the wakes that came before SubMac was ready, once each (at the start, and after signing in).
+  Future<void> _runHeldWakes() async {
+    if (!_wakeReady) return;
+    for (final w in await Bots.I.takeHeldWakes()) {
+      final b = Bots.I.byId(w.bot);
+      if (b == null || !b.active) continue;
+      try {
+        await _botWake(b, w.reason, w.instruction, w.kind);
+      } catch (e) {
+        debugPrint('held wake: $e');
+      }
     }
   }
 
@@ -996,6 +1042,10 @@ extension AppStateBots on AppState {
 
   @visibleForTesting
   Future<void> botOutcomeForTest(Bot b, String reply, String kind) => _botOutcome(b, reply, kind);
+  @visibleForTesting
+  Future<void> botWakeForTest(Bot b, String reason, String instruction, String kind) => _botWake(b, reason, instruction, kind);
+  @visibleForTesting
+  Future<void> runHeldWakesForTest() => _runHeldWakes();
   @visibleForTesting
   Map<String, Set<String>> get wakeRowsForTest => _wakeRows;
 

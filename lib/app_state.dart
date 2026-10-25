@@ -77,6 +77,7 @@ import 'services/doc_maker.dart';
 import 'services/life_tools.dart';
 import 'services/quick_lane.dart';
 import 'services/offices.dart';
+import 'services/bot_status.dart';
 import 'services/team_run.dart';
 import 'widgets/chat/reply_quote.dart' show ReplyRef, ReplyCodec;
 import 'widgets/composer.dart' show Composer;
