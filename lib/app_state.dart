@@ -89,6 +89,7 @@ import 'services/trust.dart';
 import 'services/context_window.dart';
 import 'services/image_once.dart';
 import 'services/photo_prep.dart';
+import 'services/vision_follow_up.dart';
 import 'services/send_gate.dart';
 import 'services/session_rules.dart';
 import 'services/stream_policy.dart';
@@ -493,6 +494,9 @@ class AppState extends ChangeNotifier {
 
   /// Each picture goes to the model once; later steps get a one-line note (PLAN 1.4).
   final ImageOnce _imagesOnce = ImageOnce();
+
+  /// CB-23: the picture keys the request being built carries again (a follow-up about the latest photo).
+  Set<String> _visionAgain = const {};
 
   /// How long each finished task worked, by the id of its final reply ("Worked for 1m 12s"). This session only.
   final Map<String, Duration> workedFor = {};
@@ -969,6 +973,9 @@ class AppState extends ChangeNotifier {
   String livePromptForTest() => _liveBasePrompt(null);
   @visibleForTesting
   List<Map<String, dynamic>> payloadForTest(List<ChatMessage> list, {String? convId}) => _payload(list, convId: convId);
+  /// The step built last for [convId] got its answer (what the runner does after a model call).
+  @visibleForTesting
+  void imagesSentForTest(String convId) => _imagesOnce.commit(convId);
   @visibleForTesting
   Map<String, List<ChatMessage>> get listsForTest => _lists;
   @visibleForTesting

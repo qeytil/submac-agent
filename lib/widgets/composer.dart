@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -16,6 +17,7 @@ import '../services/browser_jobs.dart';
 import 'browser_card.dart';
 import '../models.dart';
 import '../screens/live_screen.dart';
+import '../services/attach_limits.dart';
 import '../services/doc_tools.dart';
 import '../theme.dart';
 import 'chat_extras.dart';
@@ -156,15 +158,25 @@ class _ComposerState extends State<Composer> {
     final text = [(m['subject'] ?? '').toString(), (m['text'] ?? '').toString()].where((e) => e.trim().isNotEmpty).join('\n');
     final files = [for (final f in (m['files'] as List? ?? const [])) f.toString()];
     final added = <Attachment>[];
+    // CB-26: sizes first, so a huge shared file is refused before it is read into memory.
+    final found = <File>[], sizes = <int>[];
     for (final path in files) {
       try {
         final f = File(path);
         if (!await f.exists()) continue;
-        final name = path.split('/').last;
-        added.add(Attachment(name: name, mime: Attachment.mimeFor(name), bytes: await f.readAsBytes()));
+        sizes.add(await f.length());
+        found.add(f);
+      } catch (_) {}
+    }
+    final fit = AttachLimits.check(sizes, already: _attachedBytes);
+    for (final i in fit.ok) {
+      try {
+        final name = found[i].path.split('/').last;
+        added.add(Attachment(name: name, mime: Attachment.mimeFor(name), bytes: await found[i].readAsBytes()));
       } catch (_) {}
     }
     if (!mounted) return;
+    _limitNotice(fit);
     setState(() {
       _attachments.addAll(added);
       if (text.isNotEmpty) {
@@ -189,6 +201,11 @@ class _ComposerState extends State<Composer> {
   Future<void> _camera() async {
     final x = await _shoot();
     if (x == null) return;
+    final fit = AttachLimits.check([await x.length()], already: _attachedBytes);
+    if (fit.ok.isEmpty) {
+      _limitNotice(fit);
+      return;
+    }
     final bytes = await x.readAsBytes();
     if (!mounted) return;
     final name = 'photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -289,18 +306,52 @@ class _ComposerState extends State<Composer> {
   }
 
   Future<void> _pick({bool images = false}) async {
+    // CB-26: files are streamed, not read whole by the picker, and only the ones within the limits are read.
     final res = await FilePicker.pickFiles(
       allowMultiple: true,
-      withData: true,
+      withData: false,
+      withReadStream: true,
       type: images ? FileType.image : FileType.any,
     );
     if (res == null || !mounted) return;
-    setState(() {
-      for (final f in res.files) {
-        if (f.bytes == null) continue;
-        _attachments.add(Attachment(name: f.name, mime: Attachment.mimeFor(f.name), bytes: f.bytes));
+    final fit = AttachLimits.check([for (final f in res.files) f.size], already: _attachedBytes);
+    final added = <Attachment>[];
+    for (final i in fit.ok) {
+      final f = res.files[i];
+      final bytes = await _readPicked(f);
+      if (bytes == null) continue;
+      added.add(Attachment(name: f.name, mime: Attachment.mimeFor(f.name), bytes: bytes));
+    }
+    if (!mounted) return;
+    _limitNotice(fit);
+    setState(() => _attachments.addAll(added));
+  }
+
+  /// What the message already carries, in bytes (CB-26).
+  int get _attachedBytes => _attachments.fold(0, (s, a) => s + (a.bytes?.length ?? 0));
+
+  /// Tells the user a file was left out for its size (CB-26).
+  void _limitNotice(AttachCheck fit) {
+    final n = AttachLimits.notice(fit);
+    if (n == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(n)));
+  }
+
+  /// A picked file's bytes, read from its stream (never more than [AttachLimits.perFile]).
+  static Future<Uint8List?> _readPicked(PlatformFile f) async {
+    try {
+      if (f.bytes != null) return f.bytes;
+      final stream = f.readStream ?? (f.path != null ? File(f.path!).openRead() : null);
+      if (stream == null) return null;
+      final b = BytesBuilder(copy: false);
+      await for (final chunk in stream) {
+        b.add(chunk);
+        if (b.length > AttachLimits.perFile) return null;
       }
-    });
+      return b.takeBytes();
+    } catch (_) {
+      return null;
+    }
   }
 
   void _plusMenu() {

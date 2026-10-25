@@ -445,6 +445,8 @@ extension AppStateAgentPrompt on AppState {
     final cid = convOf ?? currentId ?? '';
     final allOpen = _allToolsNow.contains(cid);
     _imagesOnce.begin(cid);
+    // CB-23: a follow-up about the latest photo carries a smaller copy again, so it reaches a route that can see.
+    _visionAgain = VisionFollowUp.again(list, countsAsTurn: (m) => !m.content.startsWith(botWakeMark));
     // Prompt cache order: never-changing text first (SubMac's rules, the bot's identity), then what changes rarely
     // (open tool guides, profile, project, skills, memory), then what changes every step (summary, desk, time, notes).
     final persona = Bots.I.promptFor(convOf);
@@ -605,7 +607,16 @@ extension AppStateAgentPrompt on AppState {
     final text = StringBuffer(m.content);
     for (var ai = 0; ai < m.attachments.length; ai++) {
       final a = m.attachments[ai];
-      if (a.isImage && a.bytes != null && !_imagesOnce.take(conv, ImageOnce.keyOf(m.id, ai))) {
+      final key = ImageOnce.keyOf(m.id, ai);
+      final seen = a.isImage && a.bytes != null && !_imagesOnce.take(conv, key);
+      if (seen && _visionAgain.contains(key)) {
+        // CB-23: sent already, but this turn is about it: a smaller copy goes along so a route that can see answers.
+        final copy = VisionFollowUp.smallCopy(key, a.bytes!);
+        parts.add({
+          'type': 'image_url',
+          'image_url': {'url': 'data:${VisionFollowUp.mimeOf(copy, a.mime)};base64,${base64Encode(copy)}'},
+        });
+      } else if (seen) {
         // Sent once already (PLAN 1.4): a one-line note instead of the picture again.
         text.write('\n\n${ImageOnce.note(a.name, a.localPath)}');
       } else if (a.isImage && a.bytes != null) {

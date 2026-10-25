@@ -247,6 +247,7 @@ void main() {
       expect(ContextWindow.note('0'), isFalse);
       ContextWindow.note('1000');
       expect(ContextWindow.tokens, ContextWindow.min);
+      ContextWindow.reset(); // a smaller reading holds the window for 10 minutes (CB-23)
       ContextWindow.note('99999999');
       expect(ContextWindow.tokens, ContextWindow.max);
       ContextWindow.reset();
