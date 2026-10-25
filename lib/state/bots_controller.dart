@@ -1080,17 +1080,22 @@ extension AppStateBots on AppState {
       }
     }
     final task = runs.where((r) => r.convId == convId && !r.side).firstOrNull;
-    if (task != null) {
-      task.inbox.add(text.trim());
-      return;
-    }
     final list = _lists[convId]!;
     final m = ChatMessage(id: _uuid.v4(), role: 'user', content: text.trim());
+    // CB-1: the reply is in the chat (and saved) also when a task is running; the task hears it at its next step, a
+    // final answer already streaming is followed by an answer to it, and a step still waiting restarts to hear it.
     list.add(m);
     try {
       await repo.insertMessage(convId, m);
     } catch (_) {}
     Bots.I.userReplied(convId);
+    if (task != null && !task.cancelled && runs.contains(task)) {
+      task.inbox.add(text.trim());
+      task.status = 'Reading your message';
+      if (task.inModel) task.client?.cancelForSteer();
+      _notify();
+      return;
+    }
     _notifyConvs.add(convId);
     await SystemBridge.I.keepAlive(true, text: 'Replying');
     _notify();

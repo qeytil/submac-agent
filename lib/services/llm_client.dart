@@ -23,7 +23,8 @@ class LlmException implements Exception {
   /// Today's allowance is used up (or the account is paused): waiting a minute won't help.
   /// Includes the Contract A codes limit_daily / limit_total / no_plan / blocked.
   bool get isFinal =>
-      const {'daily_limit', 'background_paused', 'blocked', 'paused', 'auth', 'too_large', 'payments_pending'}.contains(code) ||
+      // too_long (CB-30): the same request is just as long the second time, so it is never re-sent as it is.
+      const {'daily_limit', 'background_paused', 'blocked', 'paused', 'auth', 'too_large', 'too_long', 'payments_pending'}.contains(code) ||
       StreamPolicy.finalCodes.contains(code);
   /// The message is too long for the model: compact the chat instead of retrying the same thing.
   bool get isTooLong => code == 'too_long' || code == 'too_large';
@@ -90,6 +91,9 @@ class LlmClient {
     _abortNow();
   }
 
+  /// What a stream that closed without its end mark says (CB-24). Status 0: retryable, so the runner re-sends the step.
+  static const droppedText = 'The connection dropped. Please try again.';
+
   /// Longest silence allowed inside a stream before it counts as dropped. The server pings every 10 s (`: ping`),
   /// so 30 s of nothing is a dead line (PLAN 1.3).
   static Duration get idleTimeout => StreamPolicy.silence;
@@ -151,6 +155,9 @@ class LlmClient {
     final calls = <int, ToolCall>{};
     String? finish;
     int? usedIn, usedOut;
+    // CB-24: the server always ends a reply with a finish_reason and `data: [DONE]`. A stream that just stops (a proxy or
+    // gateway cut, a radio switch) is a dropped line, never the whole answer.
+    var ended = false;
     try {
       final http.StreamedResponse resp;
       try {
@@ -190,7 +197,10 @@ class LlmClient {
         final data = line.substring(5).trim();
         if (data.isEmpty) continue;
         // Read on to the end instead of breaking, so the connection goes back to the pool for the next step.
-        if (data == '[DONE]') continue;
+        if (data == '[DONE]') {
+          ended = true;
+          continue;
+        }
         Map<String, dynamic> j;
         try {
           j = jsonDecode(data) as Map<String, dynamic>;
@@ -246,7 +256,13 @@ class LlmClient {
           }
         }
         final fr = choice['finish_reason'];
-        if (fr is String) finish = fr;
+        if (fr is String) {
+          finish = fr;
+          ended = true;
+        }
+      }
+      if (!ended && !_cancelled) {
+        throw LlmException(droppedText, code: 'dropped');
       }
     } on LlmException {
       rethrow;

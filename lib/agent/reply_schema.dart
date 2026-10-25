@@ -177,11 +177,29 @@ class ReplySchema {
     }
   }
 
+  /// Two or more markdown table rows in a row with no separator line under any of them: a table's body without its
+  /// header (CB-10). Checked only where [_mdTable] found no real table.
+  static bool _bareRows(String text) {
+    var run = 0;
+    for (final l in text.split('\n')) {
+      if (_sep.hasMatch(l)) return false;
+      if (_row.hasMatch(l) && '|'.allMatches(l).length >= 3) {
+        if (++run >= 2) return true;
+      } else {
+        run = 0;
+      }
+    }
+    return false;
+  }
+
   /// The problems in a reply, in plain words the model can act on. Empty = valid.
   static List<String> problems(String reply) {
     final out = <String>[];
     if (_mdTable.hasMatch(_outsideFences(reply))) {
       out.add('It has a markdown table (| a | b |). Use a ```table card with JSON {"title","columns":[...],"rows":[[...]]} instead.');
+    } else if (_bareRows(_outsideFences(reply))) {
+      // CB-10: the rest of a table cut off by the length limit (rows without their header) shows as raw "| a | b |".
+      out.add('It has table rows without a header (| a | b | lines). Put the whole table in one ```table card with JSON {"title","columns":[...],"rows":[[...]]}.');
     }
     for (final b in parse(reply)) {
       if (b.type == 'text') continue;

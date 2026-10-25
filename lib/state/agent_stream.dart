@@ -80,10 +80,13 @@ extension AppStateAgentStream on AppState {
     required ChatMessage asst,
     String lane = QuickLane.full,
     String? effort,
+    /// CB-24: [asst] still shows a dropped call's words; the first new word replaces them (this text stays before it).
+    String? redoFrom,
   }) async {
     final baseStatus = run.status;
     final useTools = AppState._capTools(tools);
     final watch = FirstWordWatch(() => run.client?.cancel());
+    var redo = redoFrom;
     LlmException late() => LlmException(StreamPolicy.busyText, status: 503, code: 'busy_wait');
     var retries = 0;
     watch.start();
@@ -114,7 +117,13 @@ extension AppStateAgentStream on AppState {
             source: _officeCtx.containsKey(run.convId) ? 'office' : (Bots.I.byConv(run.convId) != null ? 'bot' : (run.side ? 'side' : 'agent')),
             onDelta: (d) {
               watch.heard();
-              asst.content += d;
+              final before = redo;
+              if (before != null) {
+                asst.content = before + d;
+                redo = null;
+              } else {
+                asst.content += d;
+              }
               _throttledNotify();
             },
             // A thinking model is working before its first word: say so, so the line never looks frozen.
