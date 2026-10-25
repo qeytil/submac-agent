@@ -1,0 +1,95 @@
+name: Chat bug hunt on emulator
+
+# Investigation only (2026-10-25): runs on the chat-bughunt branch and by hand. Never on main, dev or a release.
+on:
+  push:
+    branches: [chat-bughunt]
+    paths: ['integration_test/chat_bughunt_test.dart', 'tools/chatbug_*', '.github/workflows/chat-bughunt-emu.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chat-bughunt-emu
+  cancel-in-progress: true
+
+jobs:
+  emu:
+    if: github.ref == 'refs/heads/chat-bughunt'
+    runs-on: ubuntu-latest
+    timeout-minutes: 170
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL /usr/share/swift || true
+      - name: Release build-62 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/rel
+          gh release download build-62 --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --dir /tmp/rel
+          ls -la /tmp/rel
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.submac --project-name agent --platforms android,ios .
+          rm -f test/widget_test.dart
+      - name: Make it SubMac
+        run: python3 tools/patch_android.py
+      - run: flutter pub get
+      - name: Throwaway account (deleted after the run)
+        run: |
+          TS=$(date +%s)
+          echo "QA_EMAIL=chatbugs-emu-$TS@example.com" >> $GITHUB_ENV
+          echo "QA_PW=EmuProbe!$TS" >> $GITHUB_ENV
+          ANON=$(grep -o "eyJ[^']*" lib/config.dart | head -1)
+          curl -s -o /dev/null -w "signup %{http_code}\n" -X POST "https://moeemacbvsueekuvfjbo.supabase.co/auth/v1/signup" \
+            -H "apikey: $ANON" -H "Content-Type: application/json" -d "{\"email\":\"chatbugs-emu-$TS@example.com\",\"password\":\"EmuProbe!$TS\",\"data\":{\"consent_v\":2,\"age_18\":true,\"consent_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}"
+      - name: Pre-build the drive (same defines, so flutter drive reuses it)
+        run: flutter build apk --debug -t integration_test/chat_bughunt_test.dart --dart-define=QA_EMAIL="$QA_EMAIL" --dart-define=QA_PW="$QA_PW"
+      - name: Free memory for the emulator
+        run: |
+          (cd android && ./gradlew --stop) || true
+          pkill -f GradleDaemon || true
+          pkill -f kotlin-daemon || true
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          ram-size: 3072M
+          disk-size: 6144M
+          cores: 2
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          disable-animations: true
+          script: bash tools/chatbug_capture.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chatbug-shots
+          path: out/shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chatbug-logs
+          path: out/logs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chatbug-recordings
+          path: out/rec
