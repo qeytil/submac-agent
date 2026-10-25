@@ -1,0 +1,85 @@
+name: Chat bug hunt 4 TEAMS on emulator
+
+# Investigation only (2026-10-25): round 4, TEAMS part. Runs only on pushes to chat-bughunt-4-teams that touch the harness.
+# The job signs up a throwaway account (chatbugs4t-emu-*); its allowance is raised and the account deleted outside the job.
+on:
+  push:
+    branches: [chat-bughunt-4-teams]
+    paths: ['integration_test/chat_bughunt4_teams_test.dart', 'tools/chatbug4t_capture.sh', '.github/workflows/chat-bughunt4-teams-emu.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chat-bughunt4-teams-emu
+  cancel-in-progress: true
+
+jobs:
+  emu:
+    if: github.ref == 'refs/heads/chat-bughunt-4-teams'
+    runs-on: ubuntu-latest
+    timeout-minutes: 140
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL /usr/share/swift || true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.submac --project-name agent --platforms android,ios .
+          rm -f test/widget_test.dart
+      - name: Make it SubMac
+        run: python3 tools/patch_android.py
+      - run: flutter pub get
+      - name: Throwaway account (allowance raised and account deleted outside the job)
+        run: |
+          TS=$(date +%s)
+          echo "QA_EMAIL=chatbugs4t-emu-$TS@example.com" >> $GITHUB_ENV
+          echo "QA_PW=TeamEmu4!$TS" >> $GITHUB_ENV
+          ANON=$(grep -o "eyJ[^']*" lib/config.dart | head -1)
+          curl -s -o /dev/null -w "signup %{http_code}\n" -X POST "https://moeemacbvsueekuvfjbo.supabase.co/auth/v1/signup" \
+            -H "apikey: $ANON" -H "Content-Type: application/json" -d "{\"email\":\"chatbugs4t-emu-$TS@example.com\",\"password\":\"TeamEmu4!$TS\"}"
+          echo "account chatbugs4t-emu-$TS@example.com"
+      - name: Pre-build the drive (same defines, so flutter drive reuses it)
+        run: flutter build apk --debug -t integration_test/chat_bughunt4_teams_test.dart --dart-define=QA_EMAIL="$QA_EMAIL" --dart-define=QA_PW="$QA_PW"
+      - name: Free memory for the emulator
+        run: |
+          (cd android && ./gradlew --stop) || true
+          pkill -f GradleDaemon || true
+          pkill -f kotlin-daemon || true
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 110
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          ram-size: 3072M
+          disk-size: 6144M
+          cores: 2
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          disable-animations: true
+          script: bash tools/chatbug4t_capture.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chatbug4t-shots
+          path: out/shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chatbug4t-logs
+          path: out/logs
