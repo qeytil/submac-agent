@@ -1,0 +1,35 @@
+name: Analyze and test (no APK)
+
+# Checks my feature branch without building an APK: flutter analyze + unit tests. Runs on pushes to that branch only.
+on:
+  push:
+    branches: [feature/site-publish]
+    paths-ignore: ['tools/**', 'docs/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: analyze-only-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.submac --project-name agent --platforms android .
+          rm -f test/widget_test.dart
+      - run: flutter pub get
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Unit tests
+        run: flutter test

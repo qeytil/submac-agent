@@ -1,0 +1,23 @@
+# Lints for SubMac Agent (bug hunt L3, 2026-10-24). flutter_lints was a dev dependency but never applied.
+# CI runs `flutter analyze --no-fatal-infos --no-fatal-warnings`; keep errors at 0 and fix new warnings.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+
+linter:
+  rules:
+    # Switched off on purpose: these flag house style, not bugs, in ~150 places that other branches are editing, so a
+    # mass rewrite would only make merges harder. Revisit after the open PRs land.
+    unnecessary_underscores: false # `(_, __)` callback parameters are the house style
+    unintended_html_in_doc_comment: false # doc comments name types like List<String> and tags like <a> in plain words
+    use_null_aware_elements: false # `if (x != null) x` in collections reads clearer to the team than `?x`
+    prefer_interpolation_to_compose_strings: false # long prompt texts are built with + on purpose (line by line)
+    avoid_renaming_method_parameters: false # short parameter names in small overrides
+    library_private_types_in_public_api: false # private State types returned from createState
+    no_leading_underscores_for_local_identifiers: false # local helper closures named like private methods
+    prefer_initializing_formals: false # constructors that clean a value before keeping it
+    # Kept on top of flutter_lints: real bugs.
+    cancel_subscriptions: true
+    use_build_context_synchronously: true

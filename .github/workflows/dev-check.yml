@@ -1,0 +1,85 @@
+name: Dev check (no release)
+
+on:
+  push:
+    branches: [dev]
+    paths-ignore: ['.github/workflows/verify-apk.yml', '.github/workflows/inspect-apk.yml', 'tools/**']
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dev-check
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+
+      - name: Pinned signing key (never regenerate - a new key breaks updates)
+        run: |
+          test -f keys/debug.keystore || { echo "::error::keys/debug.keystore missing - refusing to sign with a new key"; exit 1; }
+          keytool -list -v -keystore keys/debug.keystore -storepass android | grep -E "SHA256" | tee /tmp/k.txt
+          grep -qi "4D:6D:11:6E" /tmp/k.txt || { echo "::error::keystore is not the pinned SubMac key"; exit 1; }
+
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.submac --project-name agent --platforms android,ios .
+          rm -f test/widget_test.dart
+
+      - name: Make it SubMac (manifest, native code, resources, gradle)
+        run: |
+          python3 tools/patch_android.py
+          cat android/app/src/main/AndroidManifest.xml
+          tail -40 android/app/build.gradle.kts
+
+      - run: flutter pub get
+
+      - run: dart run flutter_launcher_icons
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Unit tests
+        run: flutter test
+
+      - name: Somali tests
+        run: flutter test test/somali_test.dart test/somali_knowledge_test.dart test/live_retranscribe_test.dart
+
+      - name: Build APK
+        timeout-minutes: 40
+        run: |
+          # Memory and load once a minute, so a slow or stuck build says why in its log.
+          (while true; do sleep 60; echo "[watch] mem $(free -m | awk '/Mem/{print $3"/"$2" MB"}') swap $(free -m | awk '/Swap/{print $3" MB"}') load $(cut -d' ' -f1 /proc/loadavg)"; done) &
+          flutter build apk --release
+
+      - name: Verify APK (manifest, signature, 16 KB alignment)
+        run: STRICT=1 bash tools/verify_apk.sh build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Read version
+        id: ver
+        run: |
+          V=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
+          echo "version=$V" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: submac-agent-dev-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+

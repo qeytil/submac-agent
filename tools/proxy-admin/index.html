@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SubMac Proxy Admin</title>
+<meta name="robots" content="noindex" />
+<style>
+  :root { --bg:#0d1016; --panel:#151a23; --line:#232b38; --text:#e6e9ef; --mute:#8b95a7; --acc:#6ea8fe; --ok:#3ecf8e; --warn:#f5b84b; --bad:#f2555a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; align-items:center; gap:16px; padding:14px 22px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:5; }
+  header h1 { font-size:16px; margin:0; font-weight:650; letter-spacing:.2px; }
+  header .sp { flex:1; }
+  nav { display:flex; gap:4px; flex-wrap:wrap; }
+  nav button { background:none; border:0; color:var(--mute); padding:7px 12px; border-radius:8px; cursor:pointer; font:inherit; }
+  nav button.on { background:var(--panel); color:var(--text); }
+  main { padding:22px; max-width:1200px; margin:0 auto; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .card h2 { font-size:15px; margin:0 0 12px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+  .stat { background:#10141c; border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .stat b { display:block; font-size:22px; margin-top:4px; }
+  .stat span { color:var(--mute); font-size:12px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:8px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  th { color:var(--mute); font-weight:500; font-size:12px; }
+  input, select, textarea { background:#0f131a; border:1px solid var(--line); color:var(--text); border-radius:8px; padding:7px 9px; font:inherit; }
+  textarea { width:100%; min-height:70px; }
+  input[type=checkbox] { width:16px; height:16px; }
+  button.b { background:#1f2733; border:1px solid var(--line); color:var(--text); padding:6px 11px; border-radius:8px; cursor:pointer; font:inherit; }
+  button.b:hover { border-color:#3a4658; }
+  button.p { background:var(--acc); color:#0b1220; border-color:var(--acc); font-weight:600; }
+  button.d { color:var(--bad); }
+  .pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; background:#1f2733; color:var(--mute); }
+  .pill.ok { background:rgba(62,207,142,.14); color:var(--ok); }
+  .pill.warn { background:rgba(245,184,75,.14); color:var(--warn); }
+  .pill.bad { background:rgba(242,85,90,.14); color:var(--bad); }
+  .mute { color:var(--mute); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12.5px; }
+  .login { max-width:380px; margin:12vh auto; }
+  .toast { position:fixed; bottom:20px; right:20px; background:#1f2733; border:1px solid var(--line); padding:10px 14px; border-radius:10px; display:none; max-width:420px; z-index:20; }
+  .route { display:flex; align-items:center; gap:8px; padding:7px 8px; border:1px solid var(--line); border-radius:9px; margin-bottom:6px; background:#10141c; }
+  .route .n { width:22px; color:var(--mute); text-align:right; }
+  .route .m { flex:1; }
+  details summary { cursor:pointer; }
+  .hide { display:none !important; }
+</style>
+</head>
+<body>
+<div id="login" class="login card hide">
+  <h2>SubMac Proxy Admin</h2>
+  <p class="mute">Sign in with your admin email and password.</p>
+  <form onsubmit="event.preventDefault(); signIn();">
+    <div class="row"><input id="email" type="email" autocomplete="username" placeholder="you@example.com" style="flex:1" required /></div>
+    <div class="row" style="margin-top:8px"><input id="password" type="password" autocomplete="current-password" placeholder="Password" style="flex:1" required /><button class="b p" type="submit">Sign in</button></div>
+  </form>
+  <p id="loginMsg" class="mute"></p>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <h1>SubMac Proxy</h1>
+    <nav id="tabs"></nav>
+    <span class="sp"></span>
+    <span id="who" class="mute"></span>
+    <button class="b" onclick="signOut()">Sign out</button>
+  </header>
+  <main id="view"></main>
+</div>
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const SB_URL = "__SB_URL__";
+const SB_ANON = "__SB_ANON__";
+const sb = createClient(SB_URL, SB_ANON, { auth: { persistSession: true, detectSessionInUrl: true } });
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let S = { tab: "overview", data: null, stats: null, hours: 24 };
+window.S = S;
+
+function toast(msg, bad) { const t = $("#toast"); t.textContent = msg; t.style.borderColor = bad ? "var(--bad)" : "var(--line)"; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = "none"), 4000); }
+
+async function api(action, body = {}) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch(SB_URL + "/functions/v1/ai-admin", {
+    method: "POST",
+    headers: { "content-type": "application/json", apikey: SB_ANON, authorization: "Bearer " + session?.access_token },
+    body: JSON.stringify({ action, ...body }),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok || j.error) throw new Error(j.error || res.statusText);
+  return j;
+}
+window.api = api;
+
+window.signIn = async () => {
+  const email = $("#email").value.trim();
+  const password = $("#password").value;
+  if (!email || !password) return;
+  $("#loginMsg").textContent = "Signing in…";
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  $("#password").value = "";
+  $("#loginMsg").textContent = error ? (/invalid/i.test(error.message) ? "Wrong email or password." : error.message) : "";
+};
+window.signOut = async () => { await sb.auth.signOut(); location.reload(); };
+
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { $("#login").classList.remove("hide"); return; }
+  try {
+    const me = await api("me");
+    $("#who").textContent = me.email;
+  } catch (e) {
+    $("#login").classList.remove("hide");
+    $("#loginMsg").textContent = "This account isn't an admin.";
+    await sb.auth.signOut();
+    return;
+  }
+  $("#app").classList.remove("hide");
+  renderTabs();
+  await load();
+}
+sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_IN" && $("#app").classList.contains("hide")) { $("#login").classList.add("hide"); boot(); } });
+
+const TABS = [["overview", "Overview"], ["aliases", "Models users get"], ["providers", "Providers, keys & models"], ["live", "Live calls"], ["users", "Users"], ["safety", "Safety"], ["messages", "Messages"], ["rewards", "Rewards"], ["events", "Events"], ["updates", "Updates"], ["settings", "Settings"]];
+function renderTabs() {
+  $("#tabs").innerHTML = TABS.map(([k, l]) => `<button class="${S.tab === k ? "on" : ""}" onclick="go('${k}')">${l}</button>`).join("");
+}
+window.go = async (t) => { S.tab = t; renderTabs(); render(); };
+
+async function load() {
+  const [d, st] = await Promise.all([api("get_all"), api("stats", { hours: S.hours })]);
+  S.data = d; S.stats = st; render();
+}
+window.reload = async () => { if (S.tab === "live") await loadLive(); S.ulist = null; S.udata = null; S.rew = null; S.msgs = null; S.flags = null; S.ev = null; S.upd = null; await load(); toast("Refreshed"); };
+
+const setting = (k, dflt) => { const r = S.data.settings.find((x) => x.key === k); return r ? r.value : dflt; };
+const prov = (id) => S.data.providers.find((p) => p.id === id);
+const model = (id) => S.data.models.find((m) => m.id === id);
+const fmt = (n, d = 0) => (n == null ? "–" : Number(n).toLocaleString(undefined, { maximumFractionDigits: d }));
+
+function render() {
+  const v = $("#view");
+  if (!S.data) { v.innerHTML = "Loading…"; return; }
+  if (S.tab === "live" && !S.live) { v.innerHTML = "Loading…"; loadLive().then(render).catch((e) => { v.innerHTML = '<div class="card">' + esc(e.message) + "</div>"; }); return; }
+  v.innerHTML = ({ overview, aliases, providers, live, users, safety, messages, rewards, events, updates, settings })[S.tab]();
+}
+// Inline onclick handlers run in the page's global scope, so they need render on window (Updates edit, Events refresh).
+window.render = render;
+
+// ---------- Overview ----------
+function grade(ttft, tps) {
+  const b = setting("baseline", { ttft_p95_ms: 1500, tps_min: 40 });
+  if (ttft == null) return '<span class="pill">no data</span>';
+  const okT = ttft <= b.ttft_p95_ms, okS = tps == null || tps >= b.tps_min;
+  if (okT && okS) return '<span class="pill ok">on baseline</span>';
+  if (ttft <= b.ttft_p95_ms * 2) return '<span class="pill warn">slow</span>';
+  return '<span class="pill bad">too slow</span>';
+}
+function overview() {
+  const t = S.stats.totals || {}; const b = setting("baseline", {});
+  const appRoutes = S.stats.routes.filter((r) => r.source !== "bench");
+  const benchRoutes = S.stats.routes.filter((r) => r.source === "bench");
+  const rows = (list) => list.map((r) => `<tr><td>${esc(r.provider)}</td><td class="mono">${esc(r.model)}</td><td>${fmt(r.n)}</td><td>${r.n ? Math.round((100 * r.ok) / r.n) : 0}%</td>
+    <td>${fmt(r.ttft_p50)} / ${fmt(r.ttft_p95)} ms</td><td>${fmt(r.tps_p50)}</td><td>${fmt(r.total_p50)} ms</td><td>${r.pin ? Math.round((100 * (r.pcached || 0)) / r.pin) : 0}%</td><td>${grade(r.ttft_p95, r.tps_p50)}</td></tr>`).join("") || '<tr><td colspan="9" class="mute">No data yet.</td></tr>';
+  const head = "<tr><th>Provider</th><th>Model</th><th>Calls</th><th>Success</th><th>First token p50 / p95</th><th>Tokens/s p50</th><th>Full reply p50</th><th title='Share of prompt tokens served from the provider cache'>Cached</th><th>Baseline</th></tr>";
+  return `
+  <div class="card"><div class="row"><h2 style="margin:0;flex:1">Last ${S.hours} hours</h2>
+    <select onchange="S.hours=+this.value;reload()">${[1, 6, 24, 72, 168].map((h) => `<option ${h === S.hours ? "selected" : ""} value="${h}">${h}h</option>`).join("")}</select>
+    <button class="b" onclick="reload()">Refresh</button><button class="b" onclick="runBench(this)">Run benchmark now</button><button class="b" onclick="testLive(this)">Test Live voice</button></div>
+    <div class="grid" style="margin-top:12px">
+      <div class="stat"><span>User requests</span><b>${fmt(t.requests)}</b></div>
+      <div class="stat"><span>Success rate</span><b>${t.requests ? Math.round((100 * t.ok) / t.requests) : 0}%</b></div>
+      <div class="stat"><span>Active users</span><b>${fmt(t.users)}</b></div>
+      <div class="stat"><span>Tokens in / out</span><b>${fmt(t.prompt_tokens)} / ${fmt(t.completion_tokens)}</b></div>
+      <div class="stat"><span>Prompt served from cache</span><b>${t.prompt_tokens ? Math.round((100 * (t.cached_tokens || 0)) / t.prompt_tokens) : 0}%</b></div>
+      <div class="stat"><span>First token p50 / p95</span><b>${fmt(t.ttft_p50)} / ${fmt(t.ttft_p95)} ms</b></div>
+      <div class="stat"><span>Baseline target</span><b>${fmt(b.ttft_p95_ms)} ms · ${fmt(b.tps_min)} t/s</b></div>
+    </div></div>
+  <div class="card"><h2>Real user traffic by model</h2><table>${head}${rows(appRoutes)}</table></div>
+  <div class="card"><h2>Hourly benchmark by model</h2><p class="mute">Same fixed prompts every hour. Models that fail or are much slower than the baseline are marked unhealthy and used only as a last resort.</p><table>${head}${rows(benchRoutes)}</table></div>
+  <div class="card"><h2>Recent errors</h2><table><tr><th>When</th><th>Provider</th><th>Model</th><th>Status</th><th>Error</th></tr>
+    ${S.stats.errors.map((e) => `<tr><td>${new Date(e.created_at).toLocaleString()}</td><td>${esc(e.provider)}</td><td class="mono">${esc(e.model)}</td><td>${esc(e.status)}</td><td class="mono mute">${esc((e.error || "").slice(0, 140))}</td></tr>`).join("") || '<tr><td colspan="5" class="mute">None 🎉</td></tr>'}
+  </table></div>`;
+}
+window.testLive = async (btn) => { const o = btn.textContent; btn.textContent = "Testing…"; try { const r = await api("test_live"); toast(r.ok ? `Live voice works (${r.model}, ready in ${r.ms} ms)` : "Live failed: " + r.error, !r.ok); } catch (e) { toast(e.message, true); } btn.textContent = o; };
+window.runBench = async (btn) => { btn.disabled = true; btn.textContent = "Running… (about a minute)"; try { await api("bench"); await load(); toast("Benchmark done"); } catch (e) { toast(e.message, true); } btn.disabled = false; btn.textContent = "Run benchmark now"; };
+
+// ---------- Aliases (what users get) ----------
+function aliases() {
+  const allModels = S.data.models.filter((m) => m.enabled);
+  const opts = allModels.map((m) => `<option value="${m.id}">${esc(prov(m.provider_id)?.name)} · ${esc(m.model_id)}</option>`).join("");
+  return `<div class="card"><p class="mute" style="margin:0">The app only knows these names. Each one tries its models top to bottom and moves to the next on any error, limit or slowness. Changes go live within a minute, with no app update.</p></div>` +
+  S.data.aliases.map((a) => {
+    const routes = S.data.routes.filter((r) => r.alias === a.alias).sort((x, y) => x.priority - y.priority);
+    return `<div class="card" data-alias="${esc(a.alias)}">
+      <div class="row"><h2 style="margin:0;flex:1"><span class="mono">${esc(a.alias)}</span> <span class="mute" style="font-weight:400">${esc(a.description || "")}</span></h2>
+        <label class="row"><input type="checkbox" ${a.enabled ? "checked" : ""} onchange="saveAlias('${esc(a.alias)}',{enabled:this.checked})"> on</label></div>
+      <div style="margin-top:10px">${routes.map((r, i) => { const m = model(r.model_ref) || {}; return `<div class="route">
+        <span class="n">${i + 1}</span><span class="m">${esc(prov(m.provider_id)?.name)} · <span class="mono">${esc(m.model_id)}</span>
+        ${m.healthy === false ? '<span class="pill bad">unhealthy</span>' : ""} ${m.enabled === false ? '<span class="pill warn">model off</span>' : ""} ${m.vision ? '<span class="pill">vision</span>' : ""} ${windowWarn(a, m)}</span>
+        <label class="row mute"><input type="checkbox" ${r.enabled ? "checked" : ""} onchange="routeToggle('${esc(a.alias)}','${r.id}',this.checked)"> on</label>
+        <button class="b" onclick="routeMove('${esc(a.alias)}',${i},-1)">↑</button><button class="b" onclick="routeMove('${esc(a.alias)}',${i},1)">↓</button>
+        <button class="b" onclick="testModel('${r.model_ref}',this)">Test</button>
+        <button class="b d" onclick="routeRemove('${esc(a.alias)}','${r.id}')">Remove</button></div>`; }).join("") || '<p class="mute">No models yet.</p>'}</div>
+      <div class="row" style="margin-top:8px"><select id="add_${esc(a.alias)}" style="flex:1">${opts}</select><button class="b" onclick="routeAdd('${esc(a.alias)}')">Add model</button></div>
+      <details style="margin-top:12px"><summary class="mute">Reply length and style</summary>
+        <div class="row" style="margin-top:8px"><label>Max reply tokens <input type="number" value="${a.max_output_tokens}" id="mx_${esc(a.alias)}" style="width:110px"></label>
+          <label style="flex:1">Description <input value="${esc(a.description || "")}" id="ds_${esc(a.alias)}" style="width:100%"></label></div>
+        <p class="mute" style="margin:8px 0 4px">Style note added to every request (keeps replies short and natural):</p>
+        <textarea id="hn_${esc(a.alias)}">${esc(a.system_hint || "")}</textarea>
+        <div class="row" style="margin-top:8px"><button class="b p" onclick="saveAlias('${esc(a.alias)}')">Save</button></div>
+      </details></div>`;
+  }).join("") + `<div class="card"><h2>Add a name</h2><div class="row"><input id="newAlias" placeholder="submac-something"><input id="newAliasDesc" placeholder="What it's for" style="flex:1"><button class="b" onclick="newAlias()">Add</button></div>
+    <p class="mute">The app must ask for a name to use it. The four built-in names are what the app uses today.</p></div>`;
+}
+// The app plans every request against a fixed 48k window (ContextWindow). A model in submac-smart or
+// submac-vision with a smaller window than that budget plus the reply would make swaps fail, so flag it.
+const APP_BUDGET = 48000;
+function windowWarn(a, m) {
+  if (!["submac-smart", "submac-vision"].includes(a.alias) || !m.context_window) return "";
+  const need = APP_BUDGET + (a.max_output_tokens || 0);
+  return m.context_window < need ? `<span class="pill bad" title="Needs at least ${need} tokens">window too small (${Math.round(m.context_window / 1000)}k)</span>` : "";
+}
+function aliasRoutes(alias) { return S.data.routes.filter((r) => r.alias === alias).sort((x, y) => x.priority - y.priority); }
+async function pushRoutes(alias, list) { await api("set_routes", { alias, routes: list.map((r) => ({ model_ref: r.model_ref, enabled: r.enabled })) }); await load(); toast("Saved. Live within a minute."); }
+window.routeMove = async (alias, i, d) => { const l = aliasRoutes(alias); const j = i + d; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; await pushRoutes(alias, l); };
+window.routeToggle = async (alias, id, on) => { const l = aliasRoutes(alias).map((r) => (r.id === id ? { ...r, enabled: on } : r)); await pushRoutes(alias, l); };
+window.routeRemove = async (alias, id) => { if (!confirm("Remove this model from " + alias + "?")) return; await pushRoutes(alias, aliasRoutes(alias).filter((r) => r.id !== id)); };
+window.routeAdd = async (alias) => { const mid = document.getElementById("add_" + alias).value; const l = aliasRoutes(alias); if (l.some((r) => r.model_ref === mid)) return toast("Already in the list", true); l.push({ model_ref: mid, enabled: true }); await pushRoutes(alias, l); };
+window.saveAlias = async (alias, patch) => {
+  const a = S.data.aliases.find((x) => x.alias === alias);
+  const body = patch ? { ...a, ...patch } : { ...a, max_output_tokens: +document.getElementById("mx_" + alias).value, description: document.getElementById("ds_" + alias).value, system_hint: document.getElementById("hn_" + alias).value };
+  try { await api("upsert_alias", { alias: body }); await load(); toast("Saved"); } catch (e) { toast(e.message, true); }
+};
+window.newAlias = async () => { const alias = $("#newAlias").value.trim(); if (!alias) return; await api("upsert_alias", { alias: { alias, description: $("#newAliasDesc").value, max_output_tokens: 1000 } }); await load(); };
+window.testModel = async (ref, btn) => { const o = btn.textContent; btn.textContent = "…"; try { const r = await api("test_model", { model_ref: ref }); toast(r.ok ? `OK in ${r.ttft_ms} ms first token, ${Math.round(r.tps || 0)} t/s: "${(r.text || "").slice(0, 80)}"` : "Failed: " + (r.error || r.status), !r.ok); } catch (e) { toast(e.message, true); } btn.textContent = o; };
+
+// ---------- Providers ----------
+function providers() {
+  return S.data.providers.map((p) => {
+    const keys = S.data.keys.filter((k) => k.provider_id === p.id);
+    const models = S.data.models.filter((m) => m.provider_id === p.id);
+    const now = Date.now();
+    return `<div class="card">
+      <div class="row"><h2 style="margin:0;flex:1">${esc(p.name)} ${p.enabled ? "" : '<span class="pill warn">off</span>'}</h2>
+        <label class="row"><input type="checkbox" ${p.enabled ? "checked" : ""} onchange="saveProv('${p.id}',{enabled:this.checked})"> on</label>
+        <button class="b d" onclick="delProv('${p.id}','${esc(p.name)}')">Delete</button></div>
+      <div class="row" style="margin-top:8px"><label style="flex:1">Base URL <input id="bu_${p.id}" value="${esc(p.base_url)}" style="width:100%" class="mono"></label>
+        <label style="flex:1">Notes <input id="nt_${p.id}" value="${esc(p.notes || "")}" style="width:100%"></label><button class="b" onclick="saveProv('${p.id}')">Save</button></div>
+      <h3 style="font-size:13px;margin:16px 0 6px">Keys (${keys.length})</h3>
+      <table><tr><th>Label</th><th>Key</th><th>Status</th><th>Last error</th><th></th></tr>
+      ${keys.map((k) => { const cool = k.cooldown_until && Date.parse(k.cooldown_until) > now; const st = !k.enabled ? '<span class="pill">off</span>' : cool ? `<span class="pill warn">resting until ${new Date(k.cooldown_until).toLocaleTimeString()}</span>` : k.fail_count > 2 ? '<span class="pill bad">failing</span>' : '<span class="pill ok">ready</span>';
+        return `<tr><td>${esc(k.label)}</td><td class="mono">${esc(k.key_preview)}</td><td>${st}</td><td class="mono mute">${esc((k.last_error || "").slice(0, 70))}</td>
+        <td class="row" style="justify-content:flex-end"><button class="b" onclick="testKey('${k.id}',this)">Test</button>
+        <button class="b" onclick="keyPatch('${k.id}',{enabled:${!k.enabled}})">${k.enabled ? "Turn off" : "Turn on"}</button>
+        ${cool || k.fail_count ? `<button class="b" onclick="keyPatch('${k.id}',{clear_cooldown:true})">Reset</button>` : ""}
+        <button class="b" onclick="replaceKey('${k.id}')">Replace</button><button class="b d" onclick="delKey('${k.id}')">Delete</button></td></tr>`; }).join("") || '<tr><td colspan="5" class="mute">No keys.</td></tr>'}
+      </table>
+      <div class="row" style="margin-top:8px"><input id="kl_${p.id}" placeholder="Label" style="width:140px"><input id="kv_${p.id}" type="password" placeholder="Paste API key" style="flex:1" class="mono"><button class="b" onclick="addKey('${p.id}')">Add key</button></div>
+      <h3 style="font-size:13px;margin:16px 0 6px">Models (${models.length})</h3>
+      <table><tr><th>Model ID</th><th>On</th><th>Vision</th><th>Tools</th><th>Context</th><th>Health</th><th>Extra settings (JSON)</th><th></th></tr>
+      ${models.map((m) => `<tr><td class="mono">${esc(m.model_id)}</td>
+        <td><input type="checkbox" ${m.enabled ? "checked" : ""} onchange="saveModel('${m.id}',{enabled:this.checked})"></td>
+        <td><input type="checkbox" ${m.vision ? "checked" : ""} onchange="saveModel('${m.id}',{vision:this.checked})"></td>
+        <td><input type="checkbox" ${m.tools ? "checked" : ""} onchange="saveModel('${m.id}',{tools:this.checked})"></td>
+        <td><input type="number" value="${m.context_window}" style="width:100px" onchange="saveModel('${m.id}',{context_window:+this.value})"></td>
+        <td>${m.healthy ? '<span class="pill ok">healthy</span>' : '<span class="pill bad">unhealthy</span>'}</td>
+        <td><input class="mono" value="${esc(m.extra_body ? JSON.stringify(m.extra_body) : "")}" placeholder='{"reasoning_effort":"low"}' onchange="saveModelJson('${m.id}',this.value)" style="width:190px"></td>
+        <td class="row" style="justify-content:flex-end"><button class="b" onclick="testModel('${m.id}',this)">Test</button><button class="b d" onclick="delModel('${m.id}')">Delete</button></td></tr>`).join("") || '<tr><td colspan="8" class="mute">No models.</td></tr>'}
+      </table>
+      <div class="row" style="margin-top:8px"><input id="mi_${p.id}" list="ml_${p.id}" placeholder="model id" style="flex:1" class="mono"><datalist id="ml_${p.id}"></datalist>
+        <button class="b" onclick="fetchModels('${p.id}',this)">Load list from provider</button><label class="row"><input type="checkbox" id="mv_${p.id}"> vision</label><button class="b" onclick="addModel('${p.id}')">Add model</button></div>
+    </div>`;
+  }).join("") + `<div class="card"><h2>Add a provider</h2><p class="mute">Any OpenAI-compatible API (base URL ending in /v1 or similar).</p>
+    <div class="row"><input id="np_name" placeholder="Name"><input id="np_url" placeholder="https://api.example.com/v1" style="flex:1" class="mono"><button class="b p" onclick="newProv()">Add provider</button></div></div>`;
+}
+window.saveProv = async (id, patch) => { const p = prov(id); const body = patch ? { ...p, ...patch } : { ...p, base_url: document.getElementById("bu_" + id).value.trim(), notes: document.getElementById("nt_" + id).value }; try { await api("upsert_provider", { provider: body }); await load(); toast("Saved"); } catch (e) { toast(e.message, true); } };
+window.delProv = async (id, name) => { if (prompt(`Type ${name} to delete this provider with all its keys and models`) !== name) return; await api("delete_provider", { id }); await load(); toast("Deleted"); };
+window.newProv = async () => { const name = $("#np_name").value.trim(), base_url = $("#np_url").value.trim(); if (!name || !base_url) return; try { await api("upsert_provider", { provider: { name, base_url } }); await load(); toast("Added. Now add a key and models."); } catch (e) { toast(e.message, true); } };
+window.addKey = async (pid) => { const key = document.getElementById("kv_" + pid).value.trim(); if (!key) return; await api("add_key", { provider_id: pid, label: document.getElementById("kl_" + pid).value.trim() || "key", key }); await load(); toast("Key added and encrypted"); };
+window.replaceKey = async (id) => { const key = prompt("Paste the new key"); if (!key) return; await api("replace_key", { id, key }); await load(); toast("Key replaced"); };
+window.delKey = async (id) => { if (!confirm("Delete this key?")) return; await api("delete_key", { id }); await load(); toast("Deleted"); };
+window.keyPatch = async (id, patch) => { await api("update_key", { id, ...patch }); await load(); };
+window.testKey = async (id, btn) => { const o = btn.textContent; btn.textContent = "…"; try { const r = await api("test_key", { id }); toast(r.ok ? `Key works (${r.model}, ${r.ttft_ms} ms)` : "Key failed: " + (r.error || r.status), !r.ok); await load(); } catch (e) { toast(e.message, true); } btn.textContent = o; };
+window.saveModel = async (id, patch) => { try { await api("upsert_model", { model: { ...model(id), ...patch } }); await load(); toast("Saved"); } catch (e) { toast(e.message, true); } };
+window.saveModelJson = async (id, txt) => { let v = null; if (txt.trim()) { try { v = JSON.parse(txt); } catch { return toast("Not valid JSON", true); } } await window.saveModel(id, { extra_body: v }); };
+window.delModel = async (id) => { if (!confirm("Delete this model? It is removed from every name that uses it.")) return; await api("delete_model", { id }); await load(); };
+window.addModel = async (pid) => { const model_id = document.getElementById("mi_" + pid).value.trim(); if (!model_id) return; try { await api("upsert_model", { model: { provider_id: pid, model_id, vision: document.getElementById("mv_" + pid).checked } }); await load(); toast("Model added. Test it, then add it to a name."); } catch (e) { toast(e.message, true); } };
+window.fetchModels = async (pid, btn) => { btn.textContent = "Loading…"; try { const r = await api("list_remote_models", { provider_id: pid }); document.getElementById("ml_" + pid).innerHTML = r.ids.map((i) => `<option value="${esc(i)}">`).join(""); toast(r.ids.length + " models found. Start typing in the box."); } catch (e) { toast(e.message, true); } btn.textContent = "Load list from provider"; };
+
+// ---------- Live calls (Plan 6 item 2): Live model, Live key pool, call minutes ----------
+// Key values are never shown: the pool only lists label, model, order and health.
+const LIVE_MODELS = ["gemini-3.8-live", "gemini-2.5-flash-native-audio-latest"];
+async function loadLive() {
+  const [l, m, t] = await Promise.all([api("live_list"), api("live_minutes_get"), api("live_minutes_today")]);
+  S.live = { routes: l.routes || [], model: l.live_model, minutes: m.live_daily_minutes, today: t || {} };
+}
+async function liveDo(action, body, msg) {
+  try { const r = await api(action, body); await loadLive(); render(); if (msg) toast(msg); return r; } catch (e) { toast(e.message, true); }
+}
+const mins = (sec) => (sec == null ? "–" : (Math.round(Number(sec) / 6) / 10).toLocaleString());
+function liveStatus(r) {
+  const rest = r.cooldown_until && Date.parse(r.cooldown_until) > Date.now();
+  if (!r.enabled) return '<span class="pill">off</span>';
+  if (rest) return '<span class="pill warn">resting until ' + esc(new Date(r.cooldown_until).toLocaleTimeString()) + "</span>";
+  if (r.fail_count > 2) return '<span class="pill bad">failing</span>';
+  return '<span class="pill ok">ready</span>';
+}
+function live() {
+  const L = S.live;
+  const dl = '<datalist id="liveModels">' + LIVE_MODELS.map((m) => '<option value="' + esc(m) + '">').join("") + "</datalist>";
+  const routeRows = L.routes.map((r, i) => {
+    const rest = r.cooldown_until && Date.parse(r.cooldown_until) > Date.now();
+    return `<tr><td>${i + 1}</td><td><input id="lr_lb_${r.id}" value="${esc(r.label)}" style="width:130px" onchange="liveUpd('${r.id}',{label:this.value})"></td>
+      <td><input id="lr_md_${r.id}" class="mono" list="liveModels" value="${esc(r.model || "")}" placeholder="default" style="width:210px" onchange="liveUpd('${r.id}',{model:this.value.trim()})"></td>
+      <td><input type="number" value="${esc(r.priority)}" style="width:70px" onchange="liveUpd('${r.id}',{priority:+this.value})"></td>
+      <td><input type="checkbox" ${r.enabled ? "checked" : ""} onchange="liveUpd('${r.id}',{enabled:this.checked})"></td>
+      <td>${liveStatus(r)}</td><td>${fmt(r.fail_count)}</td>
+      <td class="mono mute" title="${esc(r.last_error || "")}">${esc((r.last_error || "").slice(0, 60))}</td>
+      <td class="row" style="justify-content:flex-end;flex-wrap:nowrap">
+        <button class="b" onclick="liveMove(${i},-1)">↑</button><button class="b" onclick="liveMove(${i},1)">↓</button>
+        <button class="b" onclick="liveTest('${r.id}',this)">Test</button>
+        ${rest || r.fail_count ? `<button class="b" onclick="liveUpd('${r.id}',{clear_rest:true})">Clear rest</button>` : ""}
+        <button class="b" onclick="liveCopy('${r.id}')">Copy with model</button>
+        <button class="b" onclick="liveReplace('${r.id}')">Replace key</button>
+        <button class="b d" onclick="liveDel('${r.id}')">Delete</button></td></tr>`;
+  }).join("") || '<tr><td colspan="9" class="mute">No Live keys yet. Calls fail until one is added.</td></tr>';
+  const T = L.today || {};
+  const users = T.users || [];
+  const userRows = users.map((u) => `<tr><td>${esc(u.email || u.user_id)}</td><td>${mins(u.used_seconds)} min</td><td>${fmt(u.calls)}</td>
+      <td>${fmt(u.limit_minutes)} min</td><td>${mins(u.seconds_left)} min</td>
+      <td>${u.in_call ? '<span class="pill ok">in call</span>' : ""}</td>
+      <td>${u.override_minutes == null ? '<span class="mute">default</span>' : fmt(u.override_minutes) + " min"}${u.enabled === false ? ' <span class="pill bad">Live off</span>' : ""}${u.note ? ' <span class="mute">' + esc(u.note) + "</span>" : ""}</td>
+      <td class="row" style="justify-content:flex-end;flex-wrap:nowrap">${liveUserBtns(u)}</td></tr>`).join("") || '<tr><td colspan="8" class="mute">Nobody has called today and no one has an override.</td></tr>';
+  return `${dl}
+  <div class="card"><div class="row"><h2 style="margin:0;flex:1">Live model</h2><button class="b" onclick="reload()">Refresh</button></div>
+    <p class="mute" style="margin:6px 0 10px">Used by every Live key whose model is empty (shown as default). Pick a suggestion or type any model id.</p>
+    <div class="row"><input id="liveModel" class="mono" list="liveModels" value="${esc(L.model || "")}" style="flex:1;max-width:420px">
+      <button class="b p" onclick="liveSetModel()">Save</button><button class="b" onclick="liveTest('',this)">Test first key</button>
+      <span class="mute">Now: <span class="mono">${esc(L.model || "not set")}</span></span></div></div>
+  <div class="card"><h2>Live key pool</h2>
+    <p class="mute" style="margin:0 0 10px">Only Live calls use these keys (chat keys are separate). Lower priority is tried first; equal numbers share the load; a failed key rests and the next one is tried. Arrows set a strict order (10, 20, 30 ...).</p>
+    <table><tr><th>#</th><th>Label</th><th>Model</th><th>Priority</th><th>On</th><th>Status</th><th>Fails</th><th>Last error</th><th></th></tr>${routeRows}</table>
+    <div class="row" style="margin-top:10px"><input id="lnLabel" placeholder="Label" style="width:140px">
+      <input id="lnKey" type="password" autocomplete="off" placeholder="Paste Gemini API key" class="mono" style="flex:1">
+      <input id="lnModel" class="mono" list="liveModels" placeholder="model (empty = default)" style="width:230px">
+      <input id="lnPrio" type="number" placeholder="priority" style="width:90px">
+      <button class="b" onclick="liveAdd()">Add key</button></div></div>
+  <div class="card"><h2>Call minutes</h2>
+    <div class="row"><label>Daily minutes per user <input id="liveMin" type="number" min="0" max="1440" value="${esc(L.minutes)}" style="width:90px"></label>
+      <button class="b p" onclick="liveSetMinutes()">Save</button><span class="mute">Resets at midnight UTC. Per-user overrides below win over this.</span></div></div>
+  <div class="card"><h2>Calls today <span class="mute" style="font-weight:400">${esc(T.day || "")} UTC · default ${fmt(T.default_minutes)} min</span></h2>
+    <table><tr><th>User</th><th>Used</th><th>Calls</th><th>Limit</th><th>Left</th><th>In call</th><th>Override</th><th></th></tr>${userRows}</table></div>
+  <div class="card"><h2>Look up a user</h2>
+    <div class="row"><input id="luEmail" type="email" placeholder="email" style="flex:1;max-width:340px"><button class="b" onclick="liveLookup()">Look up</button></div>
+    <div id="luOut" style="margin-top:10px"></div></div>`;
+}
+function liveUserBtns(u) {
+  const id = esc(u.user_id);
+  return `<button class="b" onclick="liveUserMinutes('${id}')">Set minutes</button>
+    ${u.override_minutes == null ? "" : `<button class="b" onclick="liveUserDefault('${id}')">Use default</button>`}
+    <button class="b" onclick="liveUserLive('${id}',${u.enabled === false})">${u.enabled === false ? "Turn Live on" : "Turn Live off"}</button>
+    <button class="b" onclick="liveUserReset('${id}')">Reset today</button>
+    ${u.override_minutes != null || u.enabled === false || u.note ? `<button class="b d" onclick="liveUserClear('${id}')">Clear override</button>` : ""}`;
+}
+window.liveSetModel = async () => { const model = $("#liveModel").value.trim(); if (!model) return toast("Type a model id", true); await liveDo("live_set_model", { model }, "Live model saved. New calls use it."); };
+window.liveUpd = async (id, patch) => { await liveDo("live_update", { id, ...patch }, "Saved"); };
+window.liveMove = async (i, d) => { const ids = S.live.routes.map((r) => r.id); const j = i + d; if (j < 0 || j >= ids.length) return; [ids[i], ids[j]] = [ids[j], ids[i]]; await liveDo("live_order", { ids }, "Order saved"); };
+window.liveAdd = async () => {
+  const key = $("#lnKey").value.trim(); if (!key) return toast("Paste a key", true);
+  const p = $("#lnPrio").value.trim();
+  const body = { key, label: $("#lnLabel").value.trim() || "live key", model: $("#lnModel").value.trim() };
+  if (p !== "") body.priority = +p;
+  $("#lnKey").value = "";
+  await liveDo("live_add", body, "Live key added and encrypted");
+};
+window.liveCopy = async (id) => { const model = prompt("Model for the copy of this key (empty = default)", "gemini-2.5-flash-native-audio-latest"); if (model === null) return; const p = prompt("Priority for the copy (higher = later fallback; empty = same as the original)", ""); if (p === null) return; const body = { copy_from: id, model: model.trim() }; if (p.trim() !== "") body.priority = +p; await liveDo("live_add", body, "Copy added"); };
+window.liveReplace = async (id) => { const key = prompt("Paste the new key"); if (!key || !key.trim()) return; await liveDo("live_replace_key", { id, key: key.trim() }, "Key replaced"); };
+window.liveDel = async (id) => { if (!confirm("Delete this Live key?")) return; await liveDo("live_delete", { id }, "Deleted"); };
+window.liveTest = async (id, btn) => {
+  const o = btn.textContent; btn.textContent = "Testing…"; btn.disabled = true;
+  try { const r = await api("live_test", id ? { id } : {}); toast(r.ok ? "Live works (" + r.model + ", ready in " + r.ms + " ms)" : "Live failed: " + r.error, !r.ok); await loadLive(); render(); } catch (e) { toast(e.message, true); }
+  btn.textContent = o; btn.disabled = false;
+};
+window.liveSetMinutes = async () => { const m = $("#liveMin").value.trim(); if (m === "") return; await liveDo("live_minutes_set", { minutes: +m }, "Daily minutes saved"); };
+window.liveUserMinutes = async (user_id) => { const m = prompt("Daily call minutes for this user (empty = back to the default)", ""); if (m === null) return; await liveDo("live_user_set", { user_id, minutes: m.trim() === "" ? null : +m }, "Saved"); liveRelook(); };
+window.liveUserDefault = async (user_id) => { await liveDo("live_user_set", { user_id, minutes: null }, "Back to the default"); liveRelook(); };
+window.liveUserLive = async (user_id, on) => { if (!on && !confirm("Turn Live calls off for this user?")) return; await liveDo("live_user_set", { user_id, enabled: on }, on ? "Live on" : "Live off"); liveRelook(); };
+window.liveUserReset = async (user_id) => { if (!confirm("Reset this user's call minutes for today?")) return; await liveDo("live_reset_user_today", { user_id }, "Reset"); liveRelook(); };
+window.liveUserClear = async (user_id) => { await liveDo("live_user_clear", { user_id }, "Override cleared"); liveRelook(); };
+function liveRelook() { if (S.luEmail) window.liveLookup(true); }
+window.liveLookup = async (again) => {
+  const email = again === true ? S.luEmail : $("#luEmail").value.trim(); if (!email) return;
+  S.luEmail = email;
+  const out = $("#luOut"); if (!out) return;
+  if (again === true) $("#luEmail").value = email;
+  try {
+    const r = await api("live_user_minutes", { email });
+    const u = { user_id: r.user_id, email, override_minutes: r.override_minutes, enabled: r.enabled };
+    out.innerHTML = `<table><tr><th>User</th><th>Used</th><th>Calls</th><th>Limit</th><th>Left</th><th>Override</th><th></th></tr>
+      <tr><td>${esc(email)}</td><td>${mins(r.used_seconds)} min</td><td>${fmt(r.calls)}</td><td>${fmt(r.limit_minutes)} min</td><td>${mins(r.seconds_left)} min</td>
+      <td>${r.override_minutes == null ? '<span class="mute">default</span>' : fmt(r.override_minutes) + " min"}${r.enabled === false ? ' <span class="pill bad">Live off</span>' : ""}</td>
+      <td class="row" style="justify-content:flex-end;flex-wrap:nowrap">${liveUserBtns(u)}</td></tr></table>`;
+  } catch (e) { out.innerHTML = '<span class="mute">' + esc(e.message) + "</span>"; }
+};
+
+// ---------- Users (people, their container, actions) ----------
+// Privacy line: the admin sees counts, times, usage, safety flags (category + short reason), rewards and public Bot Store
+// content. Never the text of private chats, memories or files (the server does not send it).
+const FLAG_NAMES = { fraud_scam: "Fraud / scam", illegal: "Illegal", abuse_harassment: "Abuse / harassment", minor_sexual: "Sexual content involving minors",
+  self_harm: "Self-harm", spam_automation: "Spam / automation abuse", reward_farming: "Reward farming", multi_account: "Many accounts", cap_hits: "Cap hits", other: "Other" };
+const sevPill = (s) => `<span class="pill ${s === "high" ? "bad" : s === "medium" ? "warn" : ""}">${esc(s)}</span>`;
+const when = (t) => (t ? new Date(t).toLocaleString() : "–");
+const ago = (t) => { if (!t) return "never"; const m = (Date.now() - Date.parse(t)) / 60000; if (m < 2) return "just now"; if (m < 60) return Math.round(m) + " min ago"; if (m < 1440) return Math.round(m / 60) + " h ago"; return Math.round(m / 1440) + " d ago"; };
+const kfmt = (n) => (n == null ? "–" : n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M" : n >= 1000 ? Math.round(n / 1000) + "k" : String(n));
+S.sel = S.sel || new Set();
+
+async function loadUsers() { S.ulist = await api("users_list", { search: S.usearch || "" }); }
+function users() {
+  if (S.uid) return userPanel();
+  if (!S.ulist) { loadUsers().then(render).catch((e) => toast(e.message, true)); return "Loading…"; }
+  const rows = S.ulist.map((u) => {
+    const c = u.cap || {}; const pct = c.cap ? Math.round((100 * u.tokens_today) / c.cap) : 0;
+    return `<tr><td><input type="checkbox" ${S.sel.has(u.user_id) ? "checked" : ""} onchange="selUser('${u.user_id}',this.checked)"></td>
+      <td><a href="#" onclick="openUser('${u.user_id}');return false">${esc(u.email || u.user_id)}</a>
+        ${u.suspended ? ' <span class="pill bad">suspended</span>' : ""}${u.open_flags ? ` <span class="pill ${u.top_severity >= 3 ? "bad" : u.top_severity === 2 ? "warn" : ""}">${u.open_flags} flag${u.open_flags === 1 ? "" : "s"}</span>` : ""}</td>
+      <td class="mute">${new Date(u.created_at).toLocaleDateString()}</td><td>${ago(u.last_active)}</td><td class="mono">${esc(u.app_version || "–")}</td>
+      <td>${kfmt(u.tokens_today)} / ${kfmt(c.cap)} <span class="mute">(${pct}%)</span>${c.bonus ? ` <span class="pill ok">+${kfmt(c.bonus)}</span>` : ""}</td>
+      <td>${fmt(u.rewards_active)}</td><td>${fmt(u.bots_published)} / ${fmt(u.cloud_bots)}</td><td>${fmt(u.conversations)} / ${fmt(u.messages)}</td>
+      <td>${u.push ? '<span class="pill ok">push</span>' : '<span class="pill">no push</span>'}</td>
+      <td><button class="b" onclick="openUser('${u.user_id}')">Open</button></td></tr>`;
+  }).join("") || '<tr><td colspan="11" class="mute">No users found.</td></tr>';
+  const cap = +setting("daily_cap_tokens", 200000);
+  return `<div class="card"><div class="row"><h2 style="margin:0;flex:1">Users <span class="mute" style="font-weight:400">${S.ulist.length}</span></h2>
+      <input id="usearch" placeholder="Search email or id" value="${esc(S.usearch || "")}" onkeydown="if(event.key==='Enter')userSearch()" style="width:260px"><button class="b" onclick="userSearch()">Search</button>
+      <button class="b" onclick="S.ulist=null;render()">Refresh</button>
+      <button class="b p" onclick="messageSelected()" ${S.sel.size ? "" : "disabled"}>Message ${S.sel.size || ""} selected</button></div>
+    <p class="mute" style="margin:6px 0 10px">Open a user to see everything about their account. Private chats, memories and files are never shown; safety flags tell you when something looks wrong.</p>
+    <table><tr><th><input type="checkbox" onchange="selAll(this.checked)"></th><th>User</th><th>Joined</th><th>Last active</th><th>App</th><th>Today / cap</th><th>Rewards</th><th>Bots (store / cloud)</th><th>Chats / messages</th><th>Device</th><th></th></tr>${rows}</table></div>
+  <div class="card"><h2>Today's heaviest users</h2><table><tr><th>User</th><th>Tokens today</th><th>Of default allowance</th><th>Requests</th><th></th></tr>
+    ${S.stats.top_users.map((u) => `<tr><td><a href="#" onclick="openUser('${u.user_id}');return false">${esc(u.email || u.user_id)}</a></td><td>${fmt(u.tokens)}</td><td>${Math.round((100 * u.tokens) / cap)}%</td><td>${fmt(u.requests)}</td>
+      <td class="row" style="justify-content:flex-end"><button class="b" onclick="resetUser('${u.user_id}')">Reset today</button></td></tr>`).join("") || '<tr><td colspan="5" class="mute">No usage today.</td></tr>'}
+  </table></div>`;
+}
+window.userSearch = async () => { S.usearch = $("#usearch").value.trim(); S.ulist = null; render(); };
+window.selUser = (id, on) => { if (on) S.sel.add(id); else S.sel.delete(id); render(); };
+window.selAll = (on) => { S.sel = new Set(on ? S.ulist.map((u) => u.user_id) : []); render(); };
+window.messageSelected = () => { S.compose = { ...(S.compose || {}), audience: "selected", ids: [...S.sel] }; go("messages"); };
+window.openUser = async (id) => { S.uid = id; S.udata = null; if (S.tab !== "users") { S.tab = "users"; renderTabs(); } render(); };
+window.closeUser = () => { S.uid = null; S.udata = null; render(); };
+async function loadUser() { S.udata = await api("user_detail", { user_id: S.uid }); }
+async function userDo(action, body, msg) { try { const r = await api(action, body); await loadUser(); S.ulist = null; render(); if (msg) toast(msg); return r; } catch (e) { toast(e.message, true); } }
+window.resetUser = async (user_id) => { await api("reset_user_today", { user_id }); await load(); toast("Reset"); };
+
+function userPanel() {
+  if (!S.udata) { loadUser().then(render).catch((e) => { toast(e.message, true); S.uid = null; render(); }); return "Loading…"; }
+  const d = S.udata, pr = d.profile || {}, c = d.cap || {}, a = d.activity || {}, uid = S.uid;
+  const today = (d.usage || [])[0]; const todayStr = new Date().toISOString().slice(0, 10);
+  const usedToday = today && String(today.day).slice(0, 10) === todayStr ? today.tokens : 0;
+  const liveBy = Object.fromEntries((d.live || []).map((l) => [String(l.day).slice(0, 10), l]));
+  const usageRows = (d.usage || []).map((u) => { const k = String(u.day).slice(0, 10); const l = liveBy[k]; return `<tr><td>${esc(k)}</td><td>${fmt(u.tokens)}</td><td>${fmt(u.bg_tokens)}</td><td>${fmt(u.requests)}</td><td>${l ? mins(l.seconds) + " min · " + l.calls + " calls" : "–"}</td></tr>`; }).join("") || '<tr><td colspan="5" class="mute">No AI use in the last 30 days.</td></tr>';
+  const flagRows = (d.flags || []).map((f) => `<tr><td>${when(f.created_at)}</td><td>${esc(FLAG_NAMES[f.category] || f.category)}</td><td>${sevPill(f.severity)}</td><td class="mute">${esc(f.source)}</td>
+      <td>${esc(f.reason)}${f.meta && f.meta.repeats ? ` <span class="mute">×${esc(f.meta.repeats)}</span>` : ""}</td><td>${f.resolved ? '<span class="pill ok">resolved</span>' : '<span class="pill warn">open</span>'}</td>
+      <td><button class="b" onclick="flagResolve('${f.id}',${!f.resolved})">${f.resolved ? "Reopen" : "Resolve"}</button></td></tr>`).join("") || '<tr><td colspan="7" class="mute">No flags. Nothing suspicious found.</td></tr>';
+  const rewardRows = (d.rewards || []).map((r) => `<tr><td>${esc(r.kind)}</td><td>+${kfmt(r.amount_per_day)}/day × ${r.days} d</td><td>${when(r.created_at)}</td><td>${when(r.expires_at)}</td>
+      <td>${r.state === "active" ? '<span class="pill ok">active</span>' : r.state === "revoked" ? '<span class="pill bad">revoked</span>' : '<span class="pill">expired</span>'}</td>
+      <td class="mute">${esc(r.note || "")}${r.revoke_reason ? " · revoked: " + esc(r.revoke_reason) : ""}</td>
+      <td>${r.revoked ? `<button class="b" onclick="rewardRestore('${r.id}')">Restore</button>` : `<button class="b d" onclick="rewardRevoke('${r.id}')">Revoke</button>`}</td></tr>`).join("") || '<tr><td colspan="7" class="mute">No rewards yet.</td></tr>';
+  const refRows = [...(d.referrals_made || []).map((r) => ({ ...r, dir: r.kind === "invite" ? "Invited" : "Hired their bot" })), ...(d.referred_by || []).map((r) => ({ ...r, dir: r.kind === "invite" ? "Was invited by" : "Hired a bot of" }))]
+    .map((r) => `<tr><td>${esc(r.dir)}</td><td>${r.other_id ? `<a href="#" onclick="openUser('${r.other_id}');return false">${esc(r.other || r.other_id)}</a>` : "–"}</td><td>${esc(r.bot || "")}</td><td class="mute">${esc(r.source)}</td>
+      <td>${r.status === "rewarded" ? '<span class="pill ok">rewarded</span>' : `<span class="pill warn">refused: ${esc(r.reason || "")}</span>`}</td><td>${when(r.at)}</td></tr>`).join("") || '<tr><td colspan="6" class="mute">No referrals.</td></tr>';
+  const botRows = (d.store_bots || []).map((b) => `<tr><td><b>${esc(b.name)}</b> <span class="mute">${esc(b.role || "")}</span><div class="mute" style="font-size:12px">${esc(b.blurb || "")}</div>
+      ${b.published && (b.instructions || b.persona) ? `<details><summary class="mute">Public setup</summary><pre class="mono" style="white-space:pre-wrap;max-height:260px;overflow:auto">${esc((b.persona ? b.persona + "\n\n" : "") + (b.instructions || ""))}</pre></details>` : ""}</td>
+      <td>${b.published ? '<span class="pill ok">in Store</span>' : `<span class="pill">unlisted${b.share_code ? " · code" : ""}</span>`}</td><td>${fmt(b.hires)}</td><td>${when(b.created_at)}</td>
+      <td>${b.published ? `<button class="b d" onclick="botUnpublish('${b.id}')">Unpublish</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="5" class="mute">No Bot Store bots.</td></tr>';
+  const cloudRows = (d.cloud_bots || []).map((b) => `<tr><td>${esc(b.name || b.bot_id)}</td><td>${b.deleted ? '<span class="pill">deleted</span>' : b.cloud_enabled ? '<span class="pill ok">works in cloud</span>' : '<span class="pill">phone only</span>'}</td><td>${fmt(b.jobs)}</td><td>${when(b.last_run_at)}</td><td>${when(b.next_run_at)}</td></tr>`).join("") || '<tr><td colspan="5" class="mute">No synced bots.</td></tr>';
+  const evRows = (d.events || []).map((e) => `<tr><td>${when(e.at)}</td><td>${esc(e.kind)}</td><td class="mono mute">${esc(e.bot_id || "")}</td><td class="mono mute">${esc(e.props && Object.keys(e.props).length ? JSON.stringify(e.props) : "")}</td></tr>`).join("") || '<tr><td colspan="4" class="mute">No events.</td></tr>';
+  const inboxRows = (d.inbox || []).map((i) => `<tr><td>${when(i.at)}</td><td>${esc(i.kind)}</td><td>${esc(i.title)}${i.deleted ? ' <span class="pill">deleted</span>' : ""}</td>
+      <td>${i.in_chat ? "chat " : ""}${i.push ? "push" + (i.push_status ? " (" + esc(i.push_status) + ")" : "") : ""}</td><td>${i.read_at ? '<span class="pill ok">read</span>' : '<span class="pill">unread</span>'}</td></tr>`).join("") || '<tr><td colspan="5" class="mute">Nothing sent yet.</td></tr>';
+  const noteRows = (d.notes || []).map((n) => `<div class="route"><span class="m">${esc(n.note)} <span class="mute" style="font-size:12px">· ${esc(n.by)} · ${when(n.at)}</span></span><button class="b d" onclick="noteDel('${n.id}')">Delete</button></div>`).join("") || '<p class="mute">No notes.</p>';
+  const devRows = (d.devices || []).map((v) => `<tr><td class="mono">${esc(v.device)}</td><td>${esc(v.platform)}</td><td class="mono">${esc(v.app_version || "–")}</td><td>${when(v.first_seen)}</td><td>${ago(v.last_seen)}</td>
+      <td>${v.other_accounts ? `<span class="pill warn">${v.other_accounts} other account${v.other_accounts === 1 ? "" : "s"}</span>` : ""}</td></tr>`).join("") || '<tr><td colspan="6" class="mute">No device seen yet (app older than 1.13.24).</td></tr>';
+  const reqRows = (d.recent_requests || []).slice(0, 25).map((r) => `<tr><td>${when(r.at)}</td><td>${esc(r.source)}</td><td class="mono">${esc(r.alias || "")}</td><td>${esc(r.status)}</td><td>${fmt(r.prompt_tokens)} / ${fmt(r.completion_tokens)}</td></tr>`).join("") || '<tr><td colspan="5" class="mute">None.</td></tr>';
+  const mbd = (a.messages_by_day || []).map((x) => `${esc(String(x.day).slice(5, 10))}: ${x.n}`).join(" · ");
+  return `<div class="card"><div class="row"><button class="b" onclick="closeUser()">← All users</button>
+      <h2 style="margin:0;flex:1">${esc(pr.email || uid)} ${d.suspended ? '<span class="pill bad">suspended</span>' : '<span class="pill ok">active</span>'}</h2>
+      <button class="b" onclick="S.udata=null;render()">Refresh</button>
+      <button class="b p" onclick="messageUser('${uid}')">Send message</button>
+      ${d.suspended ? `<button class="b" onclick="userUnsuspend()">Unsuspend</button>` : `<button class="b d" onclick="userSuspend()">Suspend</button>`}</div>
+    ${d.suspended ? `<p class="mute">Suspended ${when(d.suspended.since)}${d.suspended.reason ? ": " + esc(d.suspended.reason) : ""}. The AI refuses every request from this account.</p>` : ""}
+    <div class="grid" style="margin-top:12px">
+      <div class="stat"><span>Joined</span><b style="font-size:15px">${when(pr.created_at)}</b></div>
+      <div class="stat"><span>Last sign-in</span><b style="font-size:15px">${ago(pr.last_sign_in_at)}</b></div>
+      <div class="stat"><span>Last active (device)</span><b style="font-size:15px">${ago((d.devices || [])[0]?.last_seen)}</b></div>
+      <div class="stat"><span>App version</span><b style="font-size:15px" class="mono">${esc((d.devices || [])[0]?.app_version || "–")}</b></div>
+      <div class="stat"><span>Push</span><b style="font-size:15px">${d.push?.tokens ? d.push.tokens + " device" + (d.push.tokens === 1 ? "" : "s") : "none"}</b></div>
+      <div class="stat"><span>Invite code</span><b style="font-size:15px" class="mono">${esc(d.invite_code || "–")}</b></div>
+      <div class="stat"><span>User id</span><b style="font-size:11px" class="mono">${esc(uid)}</b></div>
+    </div></div>
+  <div class="card"><h2>Allowance today</h2>
+    <div class="grid"><div class="stat"><span>Used today</span><b>${kfmt(usedToday)}</b></div><div class="stat"><span>Base cap${c.override != null ? " (override)" : ""}</span><b>${kfmt(c.base)}</b></div>
+      <div class="stat"><span>Bonus from rewards</span><b>+${kfmt(c.bonus)}</b></div><div class="stat"><span>Cap today</span><b>${kfmt(c.cap)}</b></div>
+      <div class="stat"><span>Active rewards</span><b style="font-size:15px">${fmt(c.active?.referral)} invite · ${fmt(c.active?.creator)} creator · ${fmt(c.active?.admin_grant)} gift</b></div></div>
+    <div class="row" style="margin-top:12px"><button class="b" onclick="userCap()">Set daily cap</button>${c.override != null ? `<button class="b" onclick="userDo('user_set_cap',{user_id:'${uid}',cap:null},'Back to the default cap')">Use default cap</button>` : ""}
+      <button class="b" onclick="userDo('reset_user_today',{user_id:'${uid}'},'Today reset')">Reset today's use</button></div>
+    <h3 style="font-size:13px;margin:16px 0 6px">Grant a reward</h3>
+    <div class="row"><label>Tokens per day <input id="ugAmt" type="number" value="50000" style="width:110px"></label><label>Days <input id="ugDays" type="number" value="7" style="width:70px"></label>
+      <input id="ugNote" placeholder="Reason / note" style="flex:1"><label class="row mute"><input type="checkbox" id="ugShow"> show the note to the user</label>
+      <button class="b p" onclick="userGrant()">Grant</button></div></div>
+  <div class="card"><h2>Safety flags</h2><p class="mute" style="margin:0 0 8px">From the automatic check on new messages (only the category and a short reason are kept, never the message) and from usage patterns.</p>
+    <table><tr><th>When</th><th>Category</th><th>Severity</th><th>Source</th><th>Reason</th><th>Status</th><th></th></tr>${flagRows}</table>
+    <div class="row" style="margin-top:8px"><select id="ufCat">${Object.entries(FLAG_NAMES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select>
+      <select id="ufSev"><option>low</option><option>medium</option><option>high</option></select><input id="ufReason" placeholder="Why (internal)" style="flex:1"><button class="b" onclick="flagAdd()">Add flag</button></div></div>
+  <div class="card"><h2>Activity</h2><p class="mute" style="margin:0 0 8px">Counts and times only. Private chats, memories and files are never shown.</p>
+    <div class="grid"><div class="stat"><span>Chats</span><b>${fmt(a.conversations)}</b></div><div class="stat"><span>Messages (theirs)</span><b>${fmt(a.messages)} (${fmt(a.user_messages)})</b></div>
+      <div class="stat"><span>Messages last 7 days</span><b>${fmt(a.messages_7d)}</b></div><div class="stat"><span>Last message</span><b style="font-size:15px">${ago(a.last_message_at)}</b></div>
+      <div class="stat"><span>Memories</span><b>${fmt(a.memories)}</b></div><div class="stat"><span>Files</span><b>${fmt(a.files)}</b></div><div class="stat"><span>Bots hired from Store</span><b>${fmt(d.hired)}</b></div></div>
+    ${mbd ? `<p class="mute" style="margin-top:10px">Messages per day: ${mbd}</p>` : ""}</div>
+  <div class="card"><h2>Usage (last 30 days)</h2><table><tr><th>Day (UTC)</th><th>Tokens</th><th>Background lane</th><th>Requests</th><th>Live calls</th></tr>${usageRows}</table>
+    <details style="margin-top:10px"><summary class="mute">Recent requests (no content)</summary><table><tr><th>When</th><th>Source</th><th>Model name</th><th>Status</th><th>Tokens in / out</th></tr>${reqRows}</table></details></div>
+  <div class="card"><h2>Rewards</h2><table><tr><th>Kind</th><th>Amount</th><th>Given</th><th>Ends</th><th>State</th><th>Note</th><th></th></tr>${rewardRows}</table>
+    <h3 style="font-size:13px;margin:16px 0 6px">Referrals</h3><table><tr><th></th><th>User</th><th>Bot</th><th>Source</th><th>Result</th><th>When</th></tr>${refRows}</table></div>
+  <div class="card"><h2>Bots</h2><h3 style="font-size:13px;margin:0 0 6px">Bot Store (public setup shown for published bots)</h3><table><tr><th>Bot</th><th>Status</th><th>Hires</th><th>Created</th><th></th></tr>${botRows}</table>
+    <h3 style="font-size:13px;margin:16px 0 6px">Synced bots (cloud)</h3><table><tr><th>Name</th><th>Status</th><th>Cloud jobs</th><th>Last run</th><th>Next run</th></tr>${cloudRows}</table></div>
+  <div class="card"><h2>Devices</h2><table><tr><th>Install</th><th>Platform</th><th>App</th><th>First seen</th><th>Last seen</th><th></th></tr>${devRows}</table></div>
+  <div class="card"><h2>Messages sent to this user</h2><table><tr><th>When</th><th>Kind</th><th>Title</th><th>Delivery</th><th>Read</th></tr>${inboxRows}</table></div>
+  <div class="card"><h2>Events</h2><table><tr><th>When</th><th>Event</th><th>Bot</th><th>Details</th></tr>${evRows}</table></div>
+  <div class="card"><h2>Admin notes</h2><p class="mute" style="margin:0 0 8px">Internal. The user never sees these.</p>${noteRows}
+    <div class="row" style="margin-top:8px"><input id="unote" placeholder="Add a note" style="flex:1"><button class="b" onclick="noteAdd()">Add</button></div></div>`;
+}
+window.userSuspend = async () => { const reason = prompt("Suspend this account? The AI will refuse every request. Reason (internal):", ""); if (reason === null) return; await userDo("user_suspend", { user_id: S.uid, reason }, "Suspended"); };
+window.userUnsuspend = async () => { await userDo("user_unsuspend", { user_id: S.uid }, "Unsuspended"); };
+window.userCap = async () => { const v = prompt("Daily cap in tokens for this user (empty = default " + setting("daily_cap_tokens", 200000) + ")", S.udata?.cap?.override ?? ""); if (v === null) return; await userDo("user_set_cap", { user_id: S.uid, cap: v.trim() === "" ? null : +v }, "Cap saved"); };
+window.userGrant = async () => { await userDo("reward_grant", { user_id: S.uid, amount_per_day: +$("#ugAmt").value, days: +$("#ugDays").value, note: $("#ugNote").value.trim(), show_note: $("#ugShow").checked }, "Reward granted. The user sees it in From SubMac."); };
+window.rewardRevoke = async (id) => { const reason = prompt("Revoke this reward? Reason (internal):", ""); if (reason === null) return; if (S.tab === "rewards") return rewardsDo("reward_revoke", { id, reason }, "Revoked"); await userDo("reward_revoke", { id, reason }, "Revoked"); };
+window.rewardRestore = async (id) => { if (S.tab === "rewards") return rewardsDo("reward_restore", { id }, "Restored"); await userDo("reward_restore", { id }, "Restored"); };
+window.flagResolve = async (id, resolved) => { if (S.tab === "safety") return safetyDo("flag_resolve", { id, resolved }); await userDo("flag_resolve", { id, resolved }, resolved ? "Resolved" : "Reopened"); };
+window.flagAdd = async () => { await userDo("flag_add", { user_id: S.uid, category: $("#ufCat").value, severity: $("#ufSev").value, reason: $("#ufReason").value.trim() }, "Flag added"); };
+window.botUnpublish = async (id) => { const reason = prompt("Remove this bot from the Bot Store? It stays on its owner's phone. Reason (internal):", ""); if (reason === null) return; await userDo("bot_unpublish", { id, reason }, "Unpublished"); };
+window.noteAdd = async () => { const note = $("#unote").value.trim(); if (!note) return; await userDo("user_note_add", { user_id: S.uid, note }, "Note added"); };
+window.noteDel = async (id) => { if (!confirm("Delete this note?")) return; await userDo("user_note_delete", { id }, "Deleted"); };
+window.messageUser = (id) => { S.compose = { ...(S.compose || {}), audience: "selected", ids: [id] }; go("messages"); };
+
+// ---------- Rewards (Plan 2.4) ----------
+const REWARD_KEYS = [
+  ["reward_enabled", "Rewards on", "true / false. Off = nobody earns new rewards (gifts still work)."],
+  ["reward_referral_tokens", "Invite reward, tokens per day", "Extra daily allowance for the inviter when a new person signs up with their link or code."],
+  ["reward_referral_days", "Invite reward, days", "How many days the invite reward lasts."],
+  ["reward_creator_tokens", "Creator reward, tokens per day", "Extra daily allowance when someone hires the creator's published bot for the first time."],
+  ["reward_creator_days", "Creator reward, days", "How many days the creator reward lasts."],
+  ["reward_max_bonus_per_day", "Max earned bonus per day", "Cap on extra tokens per day from earned rewards, per person (gifts come on top)."],
+  ["reward_max_lifetime", "Max earned rewards ever", "Earned rewards per person, ever (revoked ones don't count)."],
+  ["reward_max_new_per_day", "Max new rewards per day", "Earned rewards a person can get in 24 hours."],
+  ["reward_invite_window_days", "New-account window, days", "An invite only counts if the new account is at most this many days old."],
+];
+async function loadRewards() { const [list, st] = await Promise.all([api("rewards_list", { state: S.rstate || "all" }), api("rewards_settings")]); S.rew = { list, st }; }
+async function rewardsDo(action, body, msg) { try { const r = await api(action, body); await loadRewards(); render(); if (msg) toast(msg); return r; } catch (e) { toast(e.message, true); } }
+function rewards() {
+  if (!S.rew) { loadRewards().then(render).catch((e) => toast(e.message, true)); return "Loading…"; }
+  const R = S.rew;
+  const totals = { active: 0, tokens: 0 }; for (const r of R.list) if (r.state === "active") { totals.active++; totals.tokens += r.amount_per_day; }
+  const rows = R.list.map((r) => `<tr><td><a href="#" onclick="openUser('${r.user_id}');return false">${esc(r.email)}</a></td><td>${esc(r.kind)}</td>
+      <td>+${kfmt(r.amount_per_day)}/day × ${r.days} d</td><td class="mute">${r.from_email ? (r.kind === "creator" ? "hired by " : "joined: ") + esc(r.from_email) : ""}${r.bot ? " · " + esc(r.bot) : ""}${r.note && r.kind === "admin_grant" ? esc(r.note) : ""}${r.kind === "admin_grant" ? " · by " + esc(r.created_by) : ""}</td>
+      <td>${when(r.created_at)}</td><td>${when(r.expires_at)}</td>
+      <td>${r.state === "active" ? '<span class="pill ok">active</span>' : r.state === "revoked" ? `<span class="pill bad" title="${esc(r.revoke_reason || "")}">revoked</span>` : '<span class="pill">expired</span>'}</td>
+      <td>${r.revoked ? `<button class="b" onclick="rewardRestore('${r.id}')">Restore</button>` : `<button class="b d" onclick="rewardRevoke('${r.id}')">Revoke</button>`}</td></tr>`).join("") || '<tr><td colspan="8" class="mute">No rewards yet.</td></tr>';
+  return `<div class="card"><div class="row"><h2 style="margin:0;flex:1">Reward settings</h2><button class="b" onclick="S.rew=null;render()">Refresh</button></div>
+    <p class="mute" style="margin:6px 0 10px">Live within a minute, no app update. Also on the Settings tab.</p>
+    <table>${REWARD_KEYS.map(([k, l, d]) => `<tr><td style="width:240px">${esc(l)}<div class="mono mute" style="font-size:11px">${k}</div></td><td><input id="rw_${k}" class="mono" style="width:160px" value="${esc(JSON.stringify(R.st[k] ?? null))}"><div class="mute" style="font-size:12px;margin-top:3px">${esc(d)}</div></td>
+      <td style="width:80px"><button class="b" onclick="rewardSetting('${k}')">Save</button></td></tr>`).join("")}</table></div>
+  <div class="card"><h2>Grant a reward</h2><div class="row"><input id="rgEmail" type="email" placeholder="user email" style="width:260px"><label>Tokens per day <input id="rgAmt" type="number" value="50000" style="width:110px"></label>
+      <label>Days <input id="rgDays" type="number" value="7" style="width:70px"></label><input id="rgNote" placeholder="Reason / note" style="flex:1"><label class="row mute"><input type="checkbox" id="rgShow"> show note to user</label><button class="b p" onclick="rewardGrant()">Grant</button></div>
+    <p class="mute" style="margin:8px 0 0">Shows in the user's From SubMac inbox and adds to their daily allowance right away. Not limited by the caps above.</p></div>
+  <div class="card"><div class="row"><h2 style="margin:0;flex:1">Ledger <span class="mute" style="font-weight:400">${totals.active} active · +${kfmt(totals.tokens)}/day in total</span></h2>
+      <select onchange="S.rstate=this.value;S.rew=null;render()">${["all", "active", "expired", "revoked"].map((x) => `<option ${x === (S.rstate || "all") ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+    <table style="margin-top:8px"><tr><th>User</th><th>Kind</th><th>Amount</th><th>From</th><th>Given</th><th>Ends</th><th>State</th><th></th></tr>${rows}</table></div>`;
+}
+window.rewardSetting = async (k) => { let v; try { v = JSON.parse(document.getElementById("rw_" + k).value); } catch { return toast("Not valid JSON", true); } await api("set_setting", { key: k, value: v }); await load(); await rewardsDo("rewards_settings", {}, "Saved. Live within a minute."); };
+window.rewardGrant = async () => { const email = $("#rgEmail").value.trim(); if (!email) return toast("Type the user's email", true); await rewardsDo("reward_grant", { email, amount_per_day: +$("#rgAmt").value, days: +$("#rgDays").value, note: $("#rgNote").value.trim(), show_note: $("#rgShow").checked }, "Reward granted"); };
+
+// ---------- Messages to users ("From SubMac") ----------
+async function loadMessages() { S.msgs = await api("messages_list"); }
+function messages() {
+  if (!S.msgs) { loadMessages().then(render).catch((e) => toast(e.message, true)); return "Loading…"; }
+  const C = S.compose = S.compose || { audience: "one", delivery: "both", title: "", body: "", ids: [] };
+  const who = C.audience === "all" ? "Everyone" : C.audience === "selected" ? `${(C.ids || []).length} selected user${(C.ids || []).length === 1 ? "" : "s"}` : "One user (by email)";
+  const sent = S.msgs.map((m) => S.editMsg === m.id ? `<tr><td colspan="7"><div class="row"><input id="em_t" value="${esc(m.title)}" style="flex:1"></div><textarea id="em_b" style="margin-top:6px">${esc(m.body)}</textarea>
+      <div class="row" style="margin-top:6px"><button class="b p" onclick="msgSaveEdit('${m.id}')">Save edit</button><button class="b" onclick="S.editMsg=null;render()">Cancel</button><span class="mute">Edits show in the app's From SubMac and chat. A push already shown on a phone can't change.</span></div></td></tr>`
+    : `<tr><td>${when(m.created_at)}${m.edited_at ? ' <span class="mute">(edited)</span>' : ""}</td><td><b>${esc(m.title)}</b><div class="mute" style="font-size:12px;max-width:420px;white-space:pre-wrap">${esc(m.body.slice(0, 240))}</div></td>
+      <td>${esc(m.delivery)}</td><td>${m.audience === "all" ? "everyone" : esc((m.to || []).join(", "))}${m.recipients > 5 && m.audience !== "all" ? " …" : ""} <span class="mute">(${m.recipients})</span></td>
+      <td>${m.delivery !== "chat" ? `${m.push_sent} sent · ${m.push_no_device} no device · ${m.push_failed} failed` : "–"}</td><td>${fmt(m.read)} / ${fmt(m.recipients)}</td>
+      <td>${m.deleted_at ? '<span class="pill">deleted</span>' : `<button class="b" onclick="S.editMsg='${m.id}';render()">Edit</button><button class="b d" onclick="msgDelete('${m.id}')">Delete</button>`}</td></tr>`).join("") || '<tr><td colspan="7" class="mute">Nothing sent yet.</td></tr>';
+  return `<div class="card"><h2>Send a message</h2>
+    <div class="row"><label>To <select id="mAud" onchange="cmp('audience',this.value)">${[["one", "One user (email)"], ["selected", "Selected users"], ["all", "Everyone"]].map(([k, l]) => `<option value="${k}" ${C.audience === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      ${C.audience === "one" ? `<input id="mEmail" type="email" placeholder="user email" value="${esc(C.email || "")}" oninput="S.compose.email=this.value" style="width:260px">` : ""}
+      ${C.audience === "selected" ? `<span class="mute">${(C.ids || []).length} selected · pick people on the Users tab</span><button class="b" onclick="S.uid=null;go('users')">Choose users</button>` : ""}
+      <label>Where <select id="mDel" onchange="cmp('delivery',this.value)">${[["both", "Phone notification + in chat"], ["push", "Phone notification only"], ["chat", "In chat only"]].map(([k, l]) => `<option value="${k}" ${C.delivery === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
+    <div class="row" style="margin-top:8px"><input id="mTitle" placeholder="Title" value="${esc(C.title)}" oninput="cmpLive('title',this.value)" style="flex:1" maxlength="200"></div>
+    <textarea id="mBody" placeholder="Message" oninput="cmpLive('body',this.value)" maxlength="4000" style="margin-top:8px;min-height:110px">${esc(C.body)}</textarea>
+    <p class="mute" style="margin:6px 0">Every message also lands in the user's From SubMac inbox. In chat it shows as a "SubMac team" card. You can edit or delete it after sending.</p>
+    <h3 style="font-size:13px;margin:12px 0 6px">Preview</h3><div id="mPrev">${msgPreview(C)}</div>
+    <div class="row" style="margin-top:12px"><button class="b p" onclick="msgSend(this)">Send to ${esc(who)}</button><button class="b" onclick="S.compose={audience:'one',delivery:'both',title:'',body:'',ids:[]};render()">Clear</button></div></div>
+  <div class="card"><div class="row"><h2 style="margin:0;flex:1">Sent</h2><button class="b" onclick="S.msgs=null;render()">Refresh</button></div>
+    <table style="margin-top:8px"><tr><th>When</th><th>Message</th><th>Where</th><th>To</th><th>Push</th><th>Read</th><th></th></tr>${sent}</table></div>`;
+}
+function msgPreview(C) {
+  const t = esc(C.title || "Title"), b = esc(C.body || "Your message").replace(/\n/g, "<br>");
+  return `<div class="row" style="align-items:flex-start;gap:16px">
+    ${C.delivery !== "chat" ? `<div class="stat" style="width:320px"><span>Phone notification</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span style="color:var(--text);font-size:13px">${esc((C.body || "Your message").slice(0, 120))}</span></div></div>` : ""}
+    ${C.delivery !== "push" ? `<div class="stat" style="width:360px;border-color:var(--acc)"><span style="color:var(--acc);font-weight:600">✓ SubMac team</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span style="color:var(--text);font-size:13px">${b}</span></div></div>` : ""}
+    <div class="stat" style="width:300px"><span>From SubMac inbox</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span class="mute" style="font-size:12px">SubMac team · now</span></div></div></div>`;
+}
+window.cmp = (k, v) => { S.compose[k] = v; render(); };
+window.cmpLive = (k, v) => { S.compose[k] = v; const p = $("#mPrev"); if (p) p.innerHTML = msgPreview(S.compose); };
+window.msgSend = async (btn) => {
+  const C = S.compose; if (!C.title.trim()) return toast("Write a title", true);
+  const body = { title: C.title, body: C.body, delivery: C.delivery };
+  if (C.audience === "all") { if (prompt("Send to EVERY user? Type SEND to confirm") !== "SEND") return; body.audience = "all"; }
+  else if (C.audience === "selected") { if (!(C.ids || []).length) return toast("Pick users on the Users tab first", true); body.user_ids = C.ids; }
+  else { if (!(C.email || "").trim()) return toast("Type the user's email", true); body.email = C.email.trim(); }
+  btn.disabled = true; btn.textContent = "Sending…";
+  try { const r = await api("message_send", body); toast(`Sent to ${r.recipients}` + (C.delivery !== "chat" ? ` · push: ${r.push_sent} sent, ${r.push_no_device} no device, ${r.push_failed} failed` : "")); S.compose = { audience: "one", delivery: C.delivery, title: "", body: "", ids: [] }; S.sel = new Set(); await loadMessages(); render(); }
+  catch (e) { toast(e.message, true); btn.disabled = false; btn.textContent = "Send"; }
+};
+window.msgSaveEdit = async (id) => { try { await api("message_edit", { id, title: $("#em_t").value, body: $("#em_b").value }); S.editMsg = null; await loadMessages(); render(); toast("Edited. The app shows the new text."); } catch (e) { toast(e.message, true); } };
+window.msgDelete = async (id) => { if (!confirm("Delete this message? It disappears from users' inbox and chat.")) return; try { await api("message_delete", { id }); await loadMessages(); render(); toast("Deleted"); } catch (e) { toast(e.message, true); } };
+
+// ---------- Safety (flags across all users) ----------
+async function loadSafety() { S.flags = await api("flags_list", { open: S.flagsAll ? false : true }); }
+async function safetyDo(action, body, msg) { try { await api(action, body); await loadSafety(); render(); if (msg) toast(msg); } catch (e) { toast(e.message, true); } }
+function safety() {
+  if (!S.flags) { loadSafety().then(render).catch((e) => toast(e.message, true)); return "Loading…"; }
+  const rows = S.flags.map((f) => `<tr><td>${when(f.created_at)}</td><td><a href="#" onclick="openUser('${f.user_id}');return false">${esc(f.email || f.user_id)}</a></td><td>${esc(FLAG_NAMES[f.category] || f.category)}</td>
+      <td>${sevPill(f.severity)}</td><td class="mute">${esc(f.source)}</td><td>${esc(f.reason)}${f.meta && f.meta.repeats ? ` <span class="mute">×${esc(f.meta.repeats)}</span>` : ""}</td>
+      <td>${f.resolved ? '<span class="pill ok">resolved</span>' : `<button class="b" onclick="flagResolve('${f.id}',true)">Resolve</button>`}</td></tr>`).join("") || '<tr><td colspan="7" class="mute">No open flags.</td></tr>';
+  return `<div class="card"><div class="row"><h2 style="margin:0;flex:1">Safety flags</h2>
+      <label class="row mute"><input type="checkbox" ${S.flagsAll ? "checked" : ""} onchange="S.flagsAll=this.checked;S.flags=null;render()"> include resolved</label>
+      <button class="b" onclick="runScan(this)">Scan usage now</button><button class="b" onclick="S.flags=null;render()">Refresh</button></div>
+    <p class="mute" style="margin:6px 0 10px">New messages get a quick keyword check; a hit is confirmed by a small model and only the category and a short reason are saved, never the message. Usage patterns (cap hits, many accounts on one phone, reward farming, bursts) are scanned every hour.</p>
+    <table><tr><th>When</th><th>User</th><th>Category</th><th>Severity</th><th>Source</th><th>Reason</th><th></th></tr>${rows}</table></div>`;
+}
+window.runScan = async (btn) => { btn.disabled = true; try { const r = await api("anomaly_scan"); toast("Scan done: " + r.flags_touched + " flag(s) raised or updated"); S.flags = null; render(); } catch (e) { toast(e.message, true); } btn.disabled = false; };
+
+// ---------- Events (plan 2.6: how bots are doing; ai-admin events_summary) ----------
+// Counts only: the events table never holds names, text, codes or emails.
+const EVENT_KINDS = [
+  ["hired", "Bots hired", "Someone added a bot to their team (from the Store, a shared link or their own)."],
+  ["first_result", "Bots that showed a first result", "A newly hired bot delivered its first visible result (a message, note or call)."],
+  ["replied", "Owner answered a bot", "The owner wrote back in the bot's chat within 24 hours of a bot message."],
+  ["ignored", "Bot message left unanswered", "No answer from the owner within 24 hours of a bot message."],
+  ["kept_7d", "Still hired after 7 days", "The bot was still on the team a week after it was hired."],
+  ["shared", "Bots shared", "A creator published a bot to the Store or made a share code."],
+  ["hired_from_share", "Hired from a share", "A bot was hired through a share code or a link to its page."],
+];
+async function loadEvents() { S.ev = await api("events_summary", { days: S.evDays || 7 }); }
+const evPct = (a, b) => (b ? Math.round((100 * a) / b) + "%" : "–");
+function events() {
+  if (!S.ev) { loadEvents().then(render).catch((e) => toast(e.message, true)); return "Loading…"; }
+  const E = S.ev || {}; const K = E.kinds || {}; const days = E.days || S.evDays || 7;
+  const n = (k, f = "events") => Number((K[k] || {})[f] || 0);
+  const known = new Set(EVENT_KINDS.map((x) => x[0]));
+  const extra = Object.keys(K).filter((k) => !known.has(k)).sort().map((k) => [k, k.replace(/_/g, " "), "Newer event kind (no plain-language label yet)."]);
+  const rows = [...EVENT_KINDS, ...extra].map(([k, l, d]) => `<tr><td><b>${esc(l)}</b><div class="mono mute" style="font-size:11px">${esc(k)}</div></td><td class="mute" style="font-size:12.5px;max-width:420px">${esc(d)}</td>
+      <td>${fmt(n(k))}</td><td>${fmt(n(k, "users"))}</td><td>${fmt(n(k, "bots"))}</td></tr>`).join("");
+  const rr = E.reply_rate == null ? "–" : Math.round(Number(E.reply_rate) * 100) + "%";
+  return `<div class="card"><div class="row"><h2 style="margin:0;flex:1">How bots are doing · last ${esc(days)} days</h2>
+      <select onchange="S.evDays=+this.value;S.ev=null;render()">${[7, 30].map((d) => `<option value="${d}" ${d === days ? "selected" : ""}>${d} days</option>`).join("")}</select>
+      <button class="b" onclick="S.ev=null;render()">Refresh</button></div>
+    <div class="grid" style="margin-top:12px">
+      <div class="stat"><span>All events</span><b>${fmt(E.total)}</b></div>
+      <div class="stat"><span>Bots hired</span><b>${fmt(n("hired"))}</b></div>
+      <div class="stat" title="Owner answered ÷ (answered + left unanswered)"><span>Owners answer their bots</span><b>${esc(rr)}</b></div>
+      <div class="stat" title="First results ÷ hires in the same window (rough)"><span>Hires with a first result</span><b>${esc(evPct(n("first_result"), n("hired")))}</b></div>
+      <div class="stat" title="Hired from a share ÷ bots shared in the same window (rough)"><span>Hires per share</span><b>${n("shared") ? esc((n("hired_from_share") / n("shared")).toFixed(1)) : "–"}</b></div>
+    </div>
+    <p class="mute" style="margin:10px 0 0">Counted from the app (sent in small batches, so the last minutes may be missing). The ratios compare counts in the same window, so they are rough. "Still hired after 7 days" counts bots hired a week earlier, and only bots hired on app 1.13.23 or newer.</p></div>
+  <div class="card"><h2>Per event</h2><table><tr><th>Event</th><th>What it means</th><th>Times</th><th>People</th><th>Bots</th></tr>${rows}</table></div>`;
+}
+
+// ---------- Updates (in-app updates: ai-admin releases_*; files in Cloudflare R2 through this Worker's /api/updates/*) ----------
+// The build is streamed to the Worker in 32 MiB parts (R2 multipart upload) and becomes ONE public file; the phone
+// downloads it and checks sha256. Older releases may still be Supabase parts ("parts" in the list).
+const UPD_PART = 32 * 1024 * 1024;
+async function updApi(op, body) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch("/api/updates/" + op, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + session?.access_token }, body: JSON.stringify(body || {}) });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok || j.error) throw new Error(j.error || res.statusText);
+  return j;
+}
+const updTz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return "local"; } })();
+const mb = (b) => (Number(b || 0) / 1048576).toFixed(1) + " MB";
+async function loadUpdates() { S.upd = await api("releases_list"); }
+
+// Reads versionCode / versionName / package straight from the file's AndroidManifest.xml (zip + binary XML).
+async function apkInfo(file) {
+  const tailLen = Math.min(file.size, 65557 + 22);
+  const tail = new DataView(await file.slice(file.size - tailLen).arrayBuffer());
+  let eocd = -1;
+  for (let i = tail.byteLength - 22; i >= 0; i--) if (tail.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("This is not an Android app file.");
+  const n = tail.getUint16(eocd + 10, true), cdSize = tail.getUint32(eocd + 12, true), cdOff = tail.getUint32(eocd + 16, true);
+  const cd = new DataView(await file.slice(cdOff, cdOff + cdSize).arrayBuffer());
+  const td = new TextDecoder();
+  let p = 0, ent = null;
+  for (let k = 0; k < n && p + 46 <= cd.byteLength; k++) {
+    if (cd.getUint32(p, true) !== 0x02014b50) break;
+    const method = cd.getUint16(p + 10, true), csize = cd.getUint32(p + 20, true);
+    const nl = cd.getUint16(p + 28, true), xl = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true), lho = cd.getUint32(p + 42, true);
+    const name = td.decode(new Uint8Array(cd.buffer, p + 46, nl));
+    if (name === "AndroidManifest.xml") { ent = { method, csize, lho }; break; }
+    p += 46 + nl + xl + cl;
+  }
+  if (!ent) throw new Error("This file has no Android manifest.");
+  const lh = new DataView(await file.slice(ent.lho, ent.lho + 30).arrayBuffer());
+  const start = ent.lho + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
+  const blob = file.slice(start, start + ent.csize);
+  const buf = ent.method === 8 ? await new Response(blob.stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer() : await blob.arrayBuffer();
+  const v = new DataView(buf);
+  let strings = [], resIds = [], off = 8;
+  const str = (i) => (i >= 0 && i < strings.length ? strings[i] : null);
+  while (off + 8 <= v.byteLength) {
+    const type = v.getUint16(off, true), hsize = v.getUint16(off + 2, true), size = v.getUint32(off + 4, true);
+    if (!size) break;
+    if (type === 0x0001) {
+      const count = v.getUint32(off + 8, true), flags = v.getUint32(off + 16, true), sStart = v.getUint32(off + 20, true);
+      const utf8 = (flags & 0x100) !== 0;
+      for (let i = 0; i < count; i++) {
+        let q = off + sStart + v.getUint32(off + hsize + i * 4, true);
+        if (utf8) {
+          q += v.getUint8(q) & 0x80 ? 2 : 1;
+          let len = v.getUint8(q); if (len & 0x80) { len = ((len & 0x7f) << 8) | v.getUint8(q + 1); q += 2; } else q += 1;
+          strings.push(td.decode(new Uint8Array(buf, q, len)));
+        } else {
+          let len = v.getUint16(q, true); if (len & 0x8000) { len = ((len & 0x7fff) << 16) | v.getUint16(q + 2, true); q += 4; } else q += 2;
+          let s = ""; for (let c = 0; c < len; c++) s += String.fromCharCode(v.getUint16(q + c * 2, true));
+          strings.push(s);
+        }
+      }
+    } else if (type === 0x0180) {
+      for (let q = off + hsize; q < off + size; q += 4) resIds.push(v.getUint32(q, true));
+    } else if (type === 0x0102) {
+      if (str(v.getUint32(off + 20, true)) === "manifest") {
+        const aStart = v.getUint16(off + 24, true), aSize = v.getUint16(off + 26, true), aCount = v.getUint16(off + 28, true);
+        const out = {};
+        for (let a = 0; a < aCount; a++) {
+          const q = off + 16 + aStart + a * aSize;
+          const ni = v.getUint32(q + 4, true), raw = v.getUint32(q + 8, true), dt = v.getUint8(q + 15), data = v.getUint32(q + 16, true);
+          const nm = str(ni) || "", rid = resIds[ni];
+          const sval = raw !== 0xffffffff ? str(raw) : dt === 0x03 ? str(data) : String(data);
+          if (nm === "versionCode" || rid === 0x0101021b) out.versionCode = dt >= 0x10 && dt <= 0x11 ? data : Number(sval);
+          else if (nm === "versionName" || rid === 0x0101021c) out.versionName = sval;
+          else if (nm === "package") out.package = sval;
+        }
+        return out;
+      }
+    }
+    off += size;
+  }
+  throw new Error("Could not read the version from this file.");
+}
+
+function updRequired(r) {
+  if (!r.required_at) return '<span class="pill">optional</span>';
+  const t = new Date(r.required_at);
+  return t <= new Date() ? '<span class="pill bad">required now</span>' : `<span class="pill warn">required from ${esc(t.toLocaleString())}</span>`;
+}
+const updLocalInput = (iso) => { if (!iso) return ""; const d = new Date(iso); const z = (x) => String(x).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
+function updReqPicker(prefix, iso) {
+  const mode = !iso ? "never" : new Date(iso) <= new Date() ? "now" : "at";
+  return `<div class="row">
+    <label><input type="radio" name="${prefix}_req" value="now" ${mode === "now" ? "checked" : ""}> Now (the app is blocked until people update)</label>
+    <label><input type="radio" name="${prefix}_req" value="at" ${mode === "at" ? "checked" : ""}> From</label>
+    <input id="${prefix}_at" type="datetime-local" value="${esc(mode === "at" ? updLocalInput(iso) : "")}" onfocus="document.querySelector('input[name=${prefix}_req][value=at]').checked=true">
+    <label><input type="radio" name="${prefix}_req" value="never" ${mode === "never" ? "checked" : ""}> Never (people may skip)</label>
+  </div><div class="mute" style="font-size:12px;margin-top:4px">Until it is required people can tap Later; the window comes back every time the app starts. Times are in ${esc(updTz)}.</div>`;
+}
+function updReqValue(prefix) {
+  const m = (document.querySelector(`input[name=${prefix}_req]:checked`) || {}).value || "never";
+  if (m === "now") return "now";
+  if (m === "never") return null;
+  const v = document.getElementById(prefix + "_at").value;
+  if (!v) throw new Error("Pick the date and time it becomes required.");
+  return new Date(v).toISOString();
+}
+
+function updates() {
+  if (!S.upd) { loadUpdates().then(render).catch((e) => toast(e.message, true)); return "Loading…"; }
+  const U = S.upd; const F = S.updFile || {};
+  const top = (U.releases || [])[0];
+  const rows = (U.releases || []).map((r) => {
+    if (S.updEdit === r.id) return `<tr><td colspan="7"><b>${esc(r.version_name)}</b> <span class="mute">(build ${r.version_code})</span>
+      <div style="margin-top:6px"><textarea id="ue_notes">${esc(r.notes)}</textarea></div><div style="margin-top:6px">${updReqPicker("ue", r.required_at)}</div>
+      <div class="row" style="margin-top:8px"><button class="b p" onclick="updSaveEdit('${r.id}')">Save</button><button class="b" onclick="S.updEdit=null;render()">Cancel</button></div></td></tr>`;
+    return `<tr><td><b>${esc(r.version_name)}</b><div class="mute mono" style="font-size:11px">build ${r.version_code}</div></td>
+      <td>${r.published ? '<span class="pill ok">published</span>' : '<span class="pill">draft</span>'}</td><td>${updRequired(r)}</td>
+      <td>${mb(r.size_bytes)}<div class="mute" style="font-size:11px">${r.storage === "r2" ? "one file" : (r.parts || []).length + " parts"}</div></td>
+      <td class="mute" style="max-width:340px;white-space:pre-wrap;font-size:12.5px">${esc((r.notes || "").slice(0, 300))}</td>
+      <td class="mute" style="font-size:12px">${esc(new Date(r.created_at).toLocaleString())}<div>${esc(r.created_by || "")}</div></td>
+      <td style="white-space:nowrap">${r.published ? `<button class="b" onclick="updDo('release_unpublish','${r.id}')">Unpublish</button>` : `<button class="b p" onclick="updDo('release_publish','${r.id}')">Publish</button>`}
+        <button class="b" onclick="S.updEdit='${r.id}';render()">Edit</button>
+        <button class="b d" onclick="updDelete('${r.id}','${esc(r.version_name)}')">Delete</button></td></tr>`;
+  }).join("") || '<tr><td colspan="7" class="mute">No updates yet.</td></tr>';
+  const dev = (U.devices || []).map((d) => `<tr><td class="mono">${esc(d.app_version)}</td><td>${fmt(d.devices)}</td><td>${fmt(d.seen_7d)}</td></tr>`).join("") || '<tr><td colspan="3" class="mute">No devices yet.</td></tr>';
+  const warn = [];
+  if (F.info && F.info.package && F.info.package !== "com.submac.agent") warn.push("This file is not SubMac Agent (" + esc(F.info.package) + ").");
+  if (F.info && top && Number(F.info.versionCode) <= top.version_code) warn.push(`Build ${esc(F.info.versionCode)} is not newer than the latest release (build ${top.version_code}). Phones only offer a higher build.`);
+  return `<div class="card"><h2>Publish a new update</h2>
+    <p class="mute" style="margin-top:0">Pick the signed app file (the <span class="mono">app-release.apk</span> from the build). Phones on an older version see an update window on every start until they update.</p>
+    <div class="row"><input id="u_file" type="file" accept=".apk,application/vnd.android.package-archive" onchange="updPick(this)" ${S.updBusy ? "disabled" : ""}>
+      <span class="mute">${F.file ? esc(F.file.name) + " · " + mb(F.file.size) : ""}</span></div>
+    ${F.status ? `<div class="mute" style="margin-top:6px">${esc(F.status)}</div>` : ""}
+    ${warn.length ? `<div style="margin-top:6px;color:var(--warn)">${warn.join("<br>")}</div>` : ""}
+    <div class="row" style="margin-top:10px"><label>Version <input id="u_name" value="${esc(F.name ?? (F.info?.versionName || ""))}" placeholder="1.13.51" style="width:120px"></label>
+      <label>Build <input id="u_code" type="number" value="${esc(F.code ?? (F.info?.versionCode || ""))}" placeholder="84" style="width:100px"></label>
+      <span class="mute mono" style="font-size:11px">${F.sha ? "sha256 " + esc(F.sha.slice(0, 16)) + "…" : ""}</span></div>
+    <div style="margin-top:10px"><div class="mute" style="font-size:12px;margin-bottom:4px">What's new (people see this in the update window; plain words)</div>
+      <textarea id="u_notes" placeholder="Faster answers, a new Settings page…">${esc(F.notes || "")}</textarea></div>
+    <div style="margin-top:10px"><div class="mute" style="font-size:12px;margin-bottom:4px">When does it become required?</div>${updReqPicker("u", F.req === undefined ? null : F.req)}</div>
+    <div class="row" style="margin-top:10px"><label><input id="u_pub" type="checkbox" ${F.pub === false ? "" : "checked"}> Publish right away (otherwise saved as a draft)</label></div>
+    <div class="row" style="margin-top:10px"><button class="b p" onclick="updUpload(this)" ${S.updBusy || !F.sha ? "disabled" : ""}>Upload and save</button>
+      <div style="flex:1;max-width:420px;height:8px;background:#10141c;border:1px solid var(--line);border-radius:99px;overflow:hidden"><div id="u_bar" style="height:100%;width:${S.updPct || 0}%;background:var(--acc)"></div></div>
+      <span id="u_pct" class="mute">${S.updBusy ? (S.updPct || 0) + "%" : ""}</span></div></div>
+  <div class="card"><div class="row"><h2 style="margin:0;flex:1">Updates</h2><button class="b" onclick="S.upd=null;render()">Refresh</button></div>
+    <p class="mute" style="margin:6px 0 10px">Phones offer the newest published build above their own. If any newer published build is required, the earliest required time wins. Unpublish to stop offering a build.</p>
+    <table><tr><th>Version</th><th>State</th><th>Required</th><th>Size</th><th>What's new</th><th>Added</th><th></th></tr>${rows}</table></div>
+  <div class="card"><h2>Devices by app version</h2><table><tr><th>Version</th><th>Devices</th><th>Seen in 7 days</th></tr>${dev}</table></div>`;
+}
+function updKeepForm() {
+  const F = S.updFile || (S.updFile = {});
+  const g = (id) => document.getElementById(id);
+  if (g("u_name")) F.name = g("u_name").value;
+  if (g("u_code")) F.code = g("u_code").value;
+  if (g("u_notes")) F.notes = g("u_notes").value;
+  if (g("u_pub")) F.pub = g("u_pub").checked;
+  try { F.req = updReqValue("u"); } catch { /* keep */ }
+  if (F.req === "now") F.req = new Date(Date.now() - 1000).toISOString();
+}
+window.updPick = async (input) => {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  updKeepForm();
+  S.updFile = { ...S.updFile, file, info: null, sha: null, name: undefined, code: undefined, status: "Reading the file…" };
+  render();
+  try {
+    let info = {};
+    try { info = await apkInfo(file); } catch (e) {
+      const m = /(\d+\.\d+\.\d+)[+_-](\d+)/.exec(file.name);
+      info = m ? { versionName: m[1], versionCode: Number(m[2]) } : {};
+      S.updFile.status = "Could not read the version from inside the file (" + e.message + "). " + (m ? "Taken from the file name." : "Type it below.");
+    }
+    S.updFile.info = info;
+    S.updFile.status = (S.updFile.status && !S.updFile.status.startsWith("Reading") ? S.updFile.status + " " : "") + "Checking the file…";
+    render();
+    const h = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    S.updFile.sha = [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    S.updFile.status = info.versionCode ? `Read from the file: version ${info.versionName || "?"}, build ${info.versionCode}${info.package ? " (" + info.package + ")" : ""}.` : (S.updFile.status || "").replace(" Checking the file…", "");
+  } catch (e) { S.updFile.status = "Could not read the file: " + e.message; }
+  render();
+};
+function updPut(url, blob, token, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("PUT", url);
+    x.setRequestHeader("content-type", "application/octet-stream");
+    x.setRequestHeader("authorization", "Bearer " + token);
+    x.upload.onprogress = (e) => onProgress(e.loaded);
+    x.onload = () => {
+      if (x.status < 200 || x.status >= 300) return reject(new Error("Upload failed (" + x.status + "): " + (x.responseText || "").slice(0, 160)));
+      try { resolve(JSON.parse(x.responseText)); } catch { reject(new Error("Upload failed (bad answer).")); }
+    };
+    x.onerror = () => reject(new Error("Upload failed (network)."));
+    x.send(blob);
+  });
+}
+function updSetPct(p) { S.updPct = p; const b = document.getElementById("u_bar"), t = document.getElementById("u_pct"); if (b) b.style.width = p + "%"; if (t) t.textContent = p + "%"; }
+window.updUpload = async (btn) => {
+  updKeepForm();
+  const F = S.updFile || {};
+  if (!F.file || !F.sha) return toast("Pick the file first.", true);
+  const code = Number(F.code), name = String(F.name || "").trim();
+  if (!Number.isInteger(code) || code <= 0) return toast("Build number is missing.", true);
+  if (!name) return toast("Version is missing.", true);
+  let req; try { req = updReqValue("u"); } catch (e) { return toast(e.message, true); }
+  const top = (S.upd?.releases || [])[0];
+  if (top && code <= top.version_code && !confirm(`Build ${code} is not newer than build ${top.version_code}. Phones will not offer it. Upload anyway?`)) return;
+  if (req === "now" && F.pub !== false && !confirm("Required now: everyone on an older version is blocked until they update. Continue?")) return;
+  S.updBusy = true; S.updPct = 0; btn.disabled = true; render();
+  let up = null, uploaded = false;
+  try {
+    up = await updApi("start", { version_code: code, size_bytes: F.file.size });
+    const size = up.part_size || UPD_PART, n = Math.max(1, Math.ceil(F.file.size / size));
+    const done = new Array(n).fill(0);
+    const parts = [];
+    for (let i = 0; i < n; i++) {
+      const blob = F.file.slice(i * size, Math.min(F.file.size, (i + 1) * size));
+      const q = `/api/updates/part?key=${encodeURIComponent(up.key)}&upload_id=${encodeURIComponent(up.upload_id)}&n=${i + 1}`;
+      for (let attempt = 1; ; attempt++) {
+        try {
+          const { data: { session } } = await sb.auth.getSession(); // fresh sign-in for every part (big files take a while)
+          const r = await updPut(q, blob, session?.access_token, (l) => { done[i] = l; updSetPct(Math.min(99, Math.floor((100 * done.reduce((a, b) => a + b, 0)) / F.file.size))); });
+          parts.push({ partNumber: r.partNumber, etag: r.etag });
+          break;
+        } catch (e) { if (attempt >= 2) throw e; }
+      }
+      done[i] = blob.size;
+    }
+    const fin = await updApi("complete", { key: up.key, upload_id: up.upload_id, parts });
+    uploaded = true;
+    if (Number(fin.size) !== F.file.size) throw new Error("The uploaded file size does not match. Upload it again.");
+    await api("release_create", { storage: "r2", file_key: up.key, version_code: code, version_name: name, notes: F.notes || "", size_bytes: F.file.size, sha256: F.sha, required_at: req, published: F.pub !== false });
+    updSetPct(100);
+    toast(F.pub !== false ? "Published. Phones see it on their next start." : "Saved as a draft.");
+    S.updFile = null; S.upd = null;
+  } catch (e) {
+    toast(e.message, true);
+    if (up && !uploaded) updApi("abort", { key: up.key, upload_id: up.upload_id }).catch(() => {});
+    if (up && uploaded) updApi("delete_file", { key: up.key }).catch(() => {});
+  }
+  S.updBusy = false; S.updPct = 0; render();
+};
+window.updDo = async (action, id) => {
+  if (action === "release_publish") {
+    const r = (S.upd?.releases || []).find((x) => x.id === id);
+    if (r && r.required_at && new Date(r.required_at) <= new Date() && !confirm("This update is required now: publishing blocks everyone on an older version until they update. Continue?")) return;
+  }
+  try { await api(action, { id }); S.upd = null; render(); toast("Done"); } catch (e) { toast(e.message, true); }
+};
+window.updSaveEdit = async (id) => {
+  let req; try { req = updReqValue("ue"); } catch (e) { return toast(e.message, true); }
+  try { await api("release_edit", { id, notes: document.getElementById("ue_notes").value, required_at: req }); S.updEdit = null; S.upd = null; render(); toast("Saved"); } catch (e) { toast(e.message, true); }
+};
+window.updDelete = async (id, name) => {
+  if (!confirm(`Delete update ${name} and its file? Phones that already downloaded it can still install it until they check again.`)) return;
+  try { await updApi("delete_release", { id }); S.upd = null; render(); toast("Deleted"); } catch (e) { toast(e.message, true); }
+};
+
+// ---------- Settings ----------
+const SETTINGS = [
+  ["kill_switch", "Pause the AI for everyone (true/false). Users see a friendly 'short break' message."],
+  ["daily_cap_tokens", "Daily tokens per user before replies turn lighter."],
+  ["soft_notice_ratio", "Share of the allowance (0 to 1) where the app shows a gentle heads-up."],
+  ["background_share", "Share of the daily allowance (0 to 1) bots and offices may use per day (default 0.3). When it is used they pause until tomorrow; the user's own chats keep the whole allowance."],
+  ["grace_tokens", "Extra tokens after the cap, served by the light name below, before the friendly daily limit."],
+  ["grace_alias", "Name used after the cap (e.g. \"submac-lite\")."],
+  ["grace_max_output_tokens", "Max reply length after the cap."],
+  ["limit_message", "Text users see at the very end of the day's allowance."],
+  ["first_byte_timeout_ms", "If a model hasn't started answering in this many ms, try the next one."],
+  ["max_attempts", "Most models/keys tried for one request."],
+  ["baseline", "Speed targets: {\"ttft_p95_ms\":1500,\"tps_min\":40,\"locked\":false}."],
+  ["input_weight", "How much one prompt token counts against the allowance (system prompt, tools and history repeat every step). 0.3 = 30%."],
+  ["output_weight", "How much one reply token counts. 1 = full."],
+  ["cached_weight", "How much a cached prompt token counts, when the model reports one."],
+  ["user_rpm", "Most successful requests per user per minute (stops scripts and loops). 0 = off."],
+  ["max_prompt_tokens", "Largest single request accepted, in tokens."],
+  ["live_provider", "Provider whose keys are used for meeting transcription only (e.g. \"Google Gemini\"). Live calls use their own key pool in the Live calls tab."],
+  ["live_model", "Default Live voice model (e.g. \"gemini-3.8-live\"). Also set in the Live calls tab."],
+  ["live_session_minutes", "How long one Live call pass lasts."],
+  ["live_session_tokens", "Not used any more: Live calls have their own daily minutes (Live calls tab)."],
+  ["transcribe_models", "Models tried in order for meeting transcription (JSON list)."],
+  ["live_enabled", "Turn Live voice on or off for everyone (true/false)."],
+  ["transcribe_enabled", "Turn meeting transcription on or off (true/false)."],
+  ["reward_enabled", "Rewards (plan 2.4) on or off (true/false). Off = nobody earns new invite/creator rewards; gifts from the dashboard still work."],
+  ["reward_referral_tokens", "Invite reward: extra tokens per day for the inviter when a NEW person signs up with their link or code (default 30000)."],
+  ["reward_referral_days", "Invite reward: how many days it lasts (default 7)."],
+  ["reward_creator_tokens", "Creator reward: extra tokens per day when someone hires the creator's published Bot Store bot for the first time (default 30000)."],
+  ["reward_creator_days", "Creator reward: how many days it lasts (default 7)."],
+  ["reward_max_bonus_per_day", "Cap on extra tokens per day one person can have from earned rewards (default 150000). Gifts come on top."],
+  ["reward_max_lifetime", "Earned rewards one person can get, ever (default 20; revoked ones don't count)."],
+  ["reward_max_new_per_day", "Earned rewards one person can get in 24 hours (default 5)."],
+  ["reward_invite_window_days", "An invite only counts if the new account is at most this many days old (default 7)."],
+  ["moderation_enabled", "Safety check on new user messages (true/false). Keeps only a category and a short reason, never the message."],
+  ["moderation_model_check", "Confirm keyword hits with a small model before flagging (true/false). Off = flag every keyword hit as low severity."],
+];
+function settings() {
+  return `<div class="card"><h2>Settings</h2><p class="mute">Values are JSON: numbers as 200000, text in quotes, true/false.</p><table>
+    ${SETTINGS.map(([k, d]) => `<tr><td class="mono" style="width:220px">${k}</td><td><input id="st_${k}" class="mono" style="width:100%" value="${esc(JSON.stringify(setting(k, null)))}"><div class="mute" style="font-size:12px;margin-top:3px">${esc(d)}</div></td>
+      <td style="width:80px"><button class="b" onclick="saveSetting('${k}')">Save</button></td></tr>`).join("")}
+  </table></div>`;
+}
+window.saveSetting = async (k) => { let v; try { v = JSON.parse(document.getElementById("st_" + k).value); } catch { return toast("Not valid JSON", true); } await api("set_setting", { key: k, value: v }); await load(); toast("Saved. Live within a minute."); };
+
+boot();
+</script>
+</body>
+</html>

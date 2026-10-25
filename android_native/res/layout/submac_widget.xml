@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/submac_widget_bg" android:orientation="horizontal"
+    android:gravity="center_vertical" android:paddingStart="18dp" android:paddingEnd="8dp">
+    <LinearLayout android:id="@+id/w_ask" android:layout_width="0dp" android:layout_weight="1"
+        android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:layout_width="10dp" android:layout_height="10dp" android:src="@drawable/submac_dot"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="10dp" android:text="Ask SubMac" android:textColor="#6E685C"
+            android:textSize="16sp" android:fontFamily="serif"/>
+    </LinearLayout>
+    <TextView android:id="@+id/w_scan" android:layout_width="wrap_content" android:layout_height="40dp"
+        android:gravity="center" android:paddingStart="14dp" android:paddingEnd="14dp"
+        android:text="Scan" android:textColor="#17150F" android:textSize="14sp"/>
+    <TextView android:id="@+id/w_live" android:layout_width="wrap_content" android:layout_height="40dp"
+        android:background="@drawable/submac_widget_pill" android:gravity="center"
+        android:paddingStart="18dp" android:paddingEnd="18dp"
+        android:text="Live" android:textColor="#FFFFFF" android:textSize="14sp"/>
+</LinearLayout>

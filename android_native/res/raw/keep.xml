@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/submac_wake,@raw/submac_done,@layout/submac_notif_small,@layout/submac_notif_big,@xml/submac_a11y,@string/submac_a11y_desc" />

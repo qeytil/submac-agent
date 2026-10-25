@@ -1,0 +1,301 @@
+[
+  {
+    "text": "hi",
+    "lane": "quick",
+    "fastStart": true,
+    "groups": [],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Iska warran",
+    "lane": "quick",
+    "fastStart": true,
+    "groups": [],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "no",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "nope",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "maya",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "no thanks",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "thanks!",
+    "lane": "quick",
+    "fastStart": true,
+    "groups": [],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Give me 3 ideas for a coffee shop name, no emoji",
+    "lane": "light",
+    "fastStart": false,
+    "groups": [
+      "browser",
+      "cards"
+    ],
+    "must": "Must (from the user's words; check each before you reply): count: 3 ideas · avoid: no emoji",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Translate this to Somali: good morning",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "schedule"
+    ],
+    "must": "Must (from the user's words; check each before you reply): language: Translate this to Somali",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Write a short email to my landlord in English, don't mention the rent",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "apps"
+    ],
+    "must": "Must (from the user's words; check each before you reply): language: in English · format: short email · avoid: don't mention the rent",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Saddex fikradood ii soo qor oo af Soomaali ah",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "files"
+    ],
+    "must": "Must (from the user's words; check each before you reply): language: af Soomaali · count: Saddex fikradood",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Warqad codsi shaqo ii qor, ha ku darin lambarkayga",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "files"
+    ],
+    "must": "Must (from the user's words; check each before you reply): avoid: ha ku darin lambarkayga",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Only the price please",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "browser"
+    ],
+    "must": "Must (from the user's words; check each before you reply): only: Only the price please",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Make a table of 5 phones under $300",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "cards"
+    ],
+    "must": "Must (from the user's words; check each before you reply): count: 5 phones · limit: under $300 · format: Make a table",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "summarize this in 2 lines",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "cards"
+    ],
+    "must": "Must (from the user's words; check each before you reply): count: 2 lines",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "What is the capital of Kenya? And also what is its population?",
+    "lane": "light",
+    "fastStart": false,
+    "groups": [],
+    "must": "Must (from the user's words; check each before you reply): answer all 2 parts",
+    "parts": 2,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Find flights to Nairobi then book the cheapest one without bags",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "browser"
+    ],
+    "must": "Must (from the user's words; check each before you reply): avoid: without bags · answer all 2 parts",
+    "parts": 2,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "kaliya magaca ii sheeg",
+    "lane": "light",
+    "fastStart": false,
+    "groups": [],
+    "must": "Must (from the user's words; check each before you reply): only: kaliya magaca ii sheeg",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Hotel Mogadishu raadi",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "browser"
+    ],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "faylka PDF-ka ah ii fur",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "files"
+    ],
+    "must": "Must (from the user's words; check each before you reply): format: PDF",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "sawir gaari ah ii samee",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "files",
+      "media"
+    ],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "fariintan Axmed u dir",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "phone"
+    ],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "xisaabi 15% of 2400",
+    "lane": "light",
+    "fastStart": true,
+    "groups": [
+      "cards",
+      "files",
+      "life"
+    ],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "bog ganacsi ii samee",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [
+      "browser",
+      "business",
+      "cards",
+      "files"
+    ],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Is it hot in Hargeisa today?",
+    "lane": "full",
+    "fastStart": false,
+    "groups": [],
+    "must": "",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  },
+  {
+    "text": "Explain photosynthesis without using jargon, in 3 sentences",
+    "lane": "light",
+    "fastStart": false,
+    "groups": [
+      "cards"
+    ],
+    "must": "Must (from the user's words; check each before you reply): count: 3 sentences · avoid: without using jargon, in 3 sentences",
+    "parts": 1,
+    "userLastStep0": true,
+    "userLastStep1": true
+  }
+]

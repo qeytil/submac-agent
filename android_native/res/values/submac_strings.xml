@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="submac_a11y_desc">Lets SubMac read the screen and tap, type and scroll for you, only when you ask it to. SubMac asks before anything that sends, buys or deletes.</string>
+    <string name="submac_a11y_label">SubMac phone control</string>
+    <string name="submac_widget_desc">Ask SubMac, scan a page or start Live from your home screen.</string>
+</resources>

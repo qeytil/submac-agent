@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SubMac notification, opened: more air, a larger serif headline, a hairline, one quiet line. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="2dp"
+    android:paddingBottom="6dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="7dp"
+            android:layout_height="7dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/submac_dot"
+            android:contentDescription="@null" />
+
+        <TextView
+            android:id="@+id/sm_kicker"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#C2361B"
+            android:textSize="10sp"
+            android:letterSpacing="0.18"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:text="SUBMAC" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/sm_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textAppearance="@android:style/TextAppearance.Material.Notification.Title"
+        android:fontFamily="serif"
+        android:textSize="22sp"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:lineSpacingMultiplier="1.05" />
+
+    <ImageView
+        android:layout_width="36dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="9dp"
+        android:src="@drawable/submac_hairline"
+        android:scaleType="fitXY"
+        android:contentDescription="@null" />
+
+    <TextView
+        android:id="@+id/sm_line"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="@android:style/TextAppearance.Material.Notification"
+        android:fontFamily="serif"
+        android:textStyle="italic"
+        android:textSize="14sp"
+        android:alpha="0.75"
+        android:maxLines="2"
+        android:ellipsize="end" />
+</LinearLayout>

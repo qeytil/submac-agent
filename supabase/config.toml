@@ -1,0 +1,33 @@
+# Supabase CLI config for project "submac-agent" (ref moeemacbvsueekuvfjbo). PLAN.md 1.8: verify_jwt pinned per function
+# so a deploy never flips it. Matches the live settings on 2026-10-23.
+project_id = "submac-agent"
+
+[functions.ai-chat]
+verify_jwt = true # the gateway checks the token, and ai-chat checks it again itself (ai-chat/jwt_verify.ts)
+
+[functions.ai-admin]
+verify_jwt = true
+
+[functions.account-delete]
+verify_jwt = true
+
+[functions.push-send]
+verify_jwt = true
+
+[functions.bot-run]
+verify_jwt = true # pg_cron sends the anon key; bot-run also requires x-bot-run-secret
+
+[functions.site-preview]
+verify_jwt = true
+
+[functions.billing-checkout]
+verify_jwt = true
+
+[functions.billing-webhook]
+verify_jwt = false # called by Sifalo; the payment is always re-verified with Sifalo
+
+[functions.billing-return]
+verify_jwt = false # browser return link from the checkout page
+
+[functions.billing-reconcile]
+verify_jwt = true # pg_cron; also requires x-cron-secret

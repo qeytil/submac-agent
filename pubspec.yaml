@@ -1,0 +1,109 @@
+name: agent
+description: SubMac Agent - an agentic chat app.
+publish_to: 'none'
+version: 1.13.102+172
+
+environment:
+  sdk: '>=3.12.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.18.3
+  provider: ^6.1.2
+  http: ^1.5.0
+  shared_preferences: ^2.3.2
+  flutter_secure_storage: ^10.3.4
+  flutter_markdown: ^0.7.4
+  markdown: ^7.2.2
+  flutter_highlight: ^0.7.0
+  highlight: ^0.7.0
+  file_picker: ^11.0.3
+  path_provider: ^2.1.4
+  uuid: ^4.5.1
+  url_launcher: ^6.3.0
+  # 12.x: permission_handler_android 14 needs compileSdk 37, which AGP 8.13 does not support (see dependency_overrides).
+  permission_handler: 12.0.1
+  speech_to_text: ^7.5.0
+  flutter_tts: ^4.2.5
+  share_plus: ^12.0.2
+  record: ^7.1.2
+  flutter_pcm_sound: ^3.3.3
+  web_socket_channel: ^3.0.1
+  # v1.4: camera, on-device text reading, PDF text
+  image_picker: ^1.2.4
+  google_mlkit_text_recognition: ^0.17.1
+  syncfusion_flutter_pdf: ^33.2.13
+  # v1.5: in-app browser the agent drives
+  flutter_inappwebview: ^6.1.5
+  image: ^4.12.0
+  # v1.6: email over IMAP/SMTP with app passwords
+  enough_mail: ^2.1.7
+  crypto: ^3.0.3
+  # v1.7: SubMac's own icon set (assets/icons)
+  flutter_svg: ^2.3.0
+  qr_flutter: ^4.1.0
+  flutter_math_fork: ^0.7.4
+  archive: ^4.5.2
+  # v1.13.50 (ECO): readable web pages and office files (Word/Excel/PowerPoint/OpenDocument/EPUB) as text, on the phone.
+  html: ^0.15.4
+  xml: ^6.5.0
+  # v1.13.12: FCM push (plan 2.1). Firebase options are set in Dart (no google-services plugin).
+  firebase_core: ^4.15.2
+  firebase_messaging: ^16.7.1
+  # v1.13.92: videos play inline in the chat.
+  video_player: ^2.14.1
+  # v1.14: the agent loop runs on Genkit Dart (stable core only: generate, tools, interrupts, middleware).
+  genkit: ^1.0.1
+  schemantic: ^1.0.0
+
+dependency_overrides:
+  # The newest Android side that compiles against SDK 36 (13.0.2 uses Android 17's ACCESS_LOCAL_NETWORK).
+  permission_handler_android: 13.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/bg/
+    - assets/logos/
+    - assets/bots/
+    - assets/knowledge/somali/
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/Geist-Regular.ttf
+        - asset: assets/fonts/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Geist-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Geist-Bold.ttf
+          weight: 700
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/GeistMono-Regular.ttf
+        - asset: assets/fonts/GeistMono-Medium.ttf
+          weight: 500
+    - family: InstrumentSerif
+      fonts:
+        - asset: assets/fonts/InstrumentSerif-Regular.ttf
+        - asset: assets/fonts/InstrumentSerif-Italic.ttf
+          style: italic
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: assets/icon.png
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: assets/icon_fg.png
