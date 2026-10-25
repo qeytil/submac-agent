@@ -91,6 +91,7 @@ import 'services/tool_scope.dart';
 import 'services/agent_loop.dart';
 import 'services/constraints.dart';
 import 'services/house_rules.dart';
+import 'services/outbound_guard.dart';
 import 'widgets/chat_logic.dart' show dropRepeatPageCards;
 
 part 'state/agent_prompt.dart';
@@ -1033,6 +1034,7 @@ class AppState extends ChangeNotifier {
     'browser_task': 'Opening the browser',
     'schedule_task': 'Setting it up',
     'email_send': 'Writing the email',
+    'email_draft': 'Writing the email',
     'whatsapp': 'Opening WhatsApp',
     'read_pdf': 'Reading the PDF',
     'get_weather': 'Checking the weather',
@@ -1252,8 +1254,8 @@ class ToolGate {
   final Office? office;
   final bool whatsapp;
 
-  /// What the model reads when the user said no.
-  final String refusal;
+  /// What the model reads when the user said no (or, set by presentApproval, when nobody answered in time).
+  String refusal;
   final ActionRequest? req;
 
   /// The interrupt data the agent core carries for this ask (also written to the run journal).

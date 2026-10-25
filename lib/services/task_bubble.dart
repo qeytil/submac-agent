@@ -120,6 +120,12 @@ class TaskBubble {
     return r;
   }
 
+  /// The ask [req] got no answer in time (CB-42): the bubble stops asking it.
+  void dropConfirm(ActionRequest req) {
+    final c = _confirm;
+    if (c != null && identical(c.req, req)) c.answer(false);
+  }
+
   bool _waiting(String id) {
     if (_confirm?.convId == id) return true;
     final app = _app;

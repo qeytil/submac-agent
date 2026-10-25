@@ -31,6 +31,8 @@ extension AppStateToolCatalog on AppState {
           ...DocTools.definitions,
           ...DocMaker.definitions,
           ...ConnectorCatalog.definitions(),
+          // CB-42: with no mail account connected, an email to send is a draft card with a Send button (mail app).
+          if (ConnectorCatalog.connectedEmails().isEmpty) OutboundGuard.draftToolDef,
           ConnectorCatalog.apiCallTool,
           ...SetupTools.definitions,
           AppState.askUserTool,
