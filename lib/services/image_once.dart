@@ -78,6 +78,7 @@ class ImageOnce {
   void clear() {
     _sent.clear();
     _pending.clear();
+    _save();
   }
 
   void forget(String conv) {
