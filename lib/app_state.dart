@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'agent/core.dart';
 import 'agent/reply_schema.dart';
+import 'services/error_copy.dart';
 import 'services/choices.dart';
 import 'agent/run_journal.dart';
 import 'package:flutter/services.dart';

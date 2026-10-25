@@ -866,9 +866,8 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
             // The browser agent's live checklist: what is done, what is next.
             SubFold(
               open: _open && canOpen,
-              child: AnimatedSize(
-                duration: SubMotion.of(context, SubMotion.quick),
-                curve: SubMotion.settle,
+              child: SubSize(
+                duration: SubMotion.quick,
                 alignment: AlignmentDirectional.topStart,
                 child: Padding(
                       padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),

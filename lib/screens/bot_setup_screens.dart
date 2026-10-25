@@ -363,9 +363,8 @@ class _TellItState extends State<_TellIt> {
           hintText: 'e.g. Always answer in short bullet points. Ask for the country before giving legal advice. Never book anything without asking me.',
         ),
       ),
-      AnimatedSize(
-        duration: SubMotion.of(context, SubMotion.quick),
-        curve: SubMotion.settle,
+      SubSize(
+        duration: SubMotion.quick,
         alignment: AlignmentDirectional.topStart,
         child: changed
             ? Align(

@@ -43,6 +43,25 @@ void main() {
     expect(problems, isEmpty, reason: problems.join('\n'));
   });
 
+  // CB-12 (PR-7): a zero-length AnimatedSize finishes inside its own layout and re-dirties itself, which throws under
+  // "Remove animations" ("RenderAnimatedSize was mutated in its own performLayout"). Anything that can go to zero length
+  // uses SubSize (no AnimatedSize at all when motion is off); a plain AnimatedSize takes a fixed SubMotion/LuxMotion time.
+  test('no AnimatedSize can be zero-length under reduced motion (use SubSize)', () {
+    final fixed = RegExp(r'^(SubMotion|LuxMotion)\.[a-z]\w*$');
+    final problems = <String>[];
+    for (final f in uiFiles()) {
+      final lines = File(f).readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        if (!lines[i].split('//').first.contains('AnimatedSize(')) continue;
+        final call = lines.sublist(i, (i + 6).clamp(0, lines.length)).join(' ');
+        final m = RegExp(r'duration:\s*([^,)]+)').firstMatch(call);
+        final d = m?.group(1)?.trim() ?? '';
+        if (!fixed.hasMatch(d)) problems.add('$f:${i + 1}: AnimatedSize(duration: $d) can be zero-length; use SubSize');
+      }
+    }
+    expect(problems, isEmpty, reason: problems.join('\n'));
+  });
+
   test('every bottom sheet uses the shared sheet motion', () {
     final call = RegExp(r'showModalBottomSheet\s*[<(]');
     final problems = <String>[];
