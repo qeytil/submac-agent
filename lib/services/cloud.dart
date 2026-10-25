@@ -14,6 +14,7 @@ import 'events.dart';
 import 'billing/billing_models.dart';
 import 'billing/billing_service.dart';
 import 'house_rules.dart';
+import 'usage_accounting.dart';
 
 /// Where today's allowance stands, in plain terms for the UI.
 class CloudUsage {
@@ -326,6 +327,7 @@ class Cloud {
       _readCalls(j['calls']);
       // Billing block only when the server's billing flag is on; otherwise the wallet stays hidden.
       Billing.I.noteStatus(j['billing']);
+      UsageUnits.noteStatus(j); // CB-20: the billing weights, when the server sends them (defaults otherwise)
       final b = j['background'];
       if (b is Map) {
         background.value = BackgroundShare(

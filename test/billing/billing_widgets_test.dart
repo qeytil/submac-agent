@@ -340,18 +340,22 @@ void main() {
       });
     }
 
-    testWidgets('error card opens the sheet once for a fresh notice', (t) async {
+    testWidgets('error card raises the banner once for a fresh notice (CB-40: never a modal sheet)', (t) async {
       final n = notice('limit_daily');
       b.noteNotice(n);
-      await t.pumpWidget(app(Scaffold(body: BillingNoticeCard(notice: n, isLast: true, billing: b))));
-      await t.pumpAndSettle();
-      expect(find.byType(BillingNoticeSheet), findsOneWidget);
-      Navigator.of(t.element(find.byType(BillingNoticeSheet))).pop();
-      await t.pumpAndSettle();
-      // Rebuilt card (scrolling back): no second auto-open.
-      await t.pumpWidget(app(Scaffold(body: BillingNoticeCard(key: UniqueKey(), notice: n, isLast: true, billing: b))));
+      Widget screen({Key? key}) => app(Scaffold(
+          body: Column(children: [BillingNoticeCard(key: key, notice: n, isLast: true, billing: b), BillingNoticeBanner(billing: b)])));
+      await t.pumpWidget(screen());
       await t.pumpAndSettle();
       expect(find.byType(BillingNoticeSheet), findsNothing);
+      expect(find.byKey(const ValueKey('billing-notice-banner')), findsOneWidget);
+      await t.tap(find.byKey(const ValueKey('billing-banner-close')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('billing-notice-banner')), findsNothing);
+      // Rebuilt card (scrolling back): no second banner.
+      await t.pumpWidget(screen(key: UniqueKey()));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('billing-notice-banner')), findsNothing);
       expect(find.text('Get more'), findsOneWidget);
     });
   });
