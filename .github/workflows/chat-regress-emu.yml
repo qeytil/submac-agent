@@ -1,0 +1,187 @@
+name: Chat regression on emulator
+
+# PR-H (qa/chat-regress): the chat/bots/teams regression harness, integration_test/chat_regress_test.dart, on an
+# Android emulator against production ai-chat. Test infrastructure only; it never builds or publishes the app.
+# Runs on a push that touches the harness (workflow_dispatch only works for workflow files on the default branch).
+# To re-run it on any branch without changing the harness, push a change to .github/chat-regress.run.
+on:
+  push:
+    branches: ['qa/**', 'dev', 'fix/**', 'release/**']
+    paths:
+      - 'integration_test/chat_regress_test.dart'
+      - 'tools/chat_regress_capture.sh'
+      - 'tools/qa_allowance.sh'
+      - '.github/workflows/chat-regress-emu.yml'
+      - '.github/chat-regress.run'
+
+permissions:
+  contents: write   # logs and screenshots go up as release assets (the account's artifact quota is full)
+
+concurrency:
+  group: chat-regress-emu
+  cancel-in-progress: false
+
+env:
+  QA_PHASES: ABC
+  FAIL_ON_CB: '0'          # set to '1' once the fix PRs are in, so a CB-xx FAIL also fails the job
+  ALLOWANCE_WAIT_MIN: '12' # with no DB credential in secrets, wait this long for an operator to add the allowance
+
+jobs:
+  emu:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 165
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL /usr/share/swift || true
+
+      # ---------------------------------------------------------------- account
+      # Secrets QA_EMAIL + QA_PW when set; otherwise a throwaway account for this run only, deleted at the end.
+      - name: Test account
+        env:
+          S_EMAIL: ${{ secrets.QA_EMAIL }}
+          S_PW: ${{ secrets.QA_PW }}
+        run: |
+          set -euo pipefail
+          BASE=$(grep -o "https://[a-z0-9]*\.supabase\.co" lib/config.dart | head -1)
+          ANON=$(grep -o "eyJ[^']*" lib/config.dart | head -1)
+          if [ -n "$S_EMAIL" ] && [ -n "$S_PW" ]; then
+            KIND=secret; EMAIL="$S_EMAIL"; PW="$S_PW"
+            R=$(curl -sS -X POST "$BASE/auth/v1/token?grant_type=password" -H "apikey: $ANON" -H "Content-Type: application/json" \
+              -d "$(python3 -c 'import json,sys; print(json.dumps({"email": sys.argv[1], "password": sys.argv[2]}))' "$EMAIL" "$PW")")
+            UID_=$(echo "$R" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("user") or {}).get("id",""))')
+          else
+            KIND=throwaway; EMAIL="qa-regress-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.com"; PW="QaR!$(openssl rand -hex 12)"
+            R=$(curl -sS -X POST "$BASE/auth/v1/signup" -H "apikey: $ANON" -H "Content-Type: application/json" \
+              -d "$(python3 -c 'import json,sys; print(json.dumps({"email": sys.argv[1], "password": sys.argv[2]}))' "$EMAIL" "$PW")")
+            UID_=$(echo "$R" | python3 -c 'import json,sys; j=json.load(sys.stdin); print(j.get("id") or (j.get("user") or {}).get("id",""))')
+          fi
+          echo "::add-mask::$PW"
+          [ -n "$UID_" ] || { echo "::error::could not get a uid for the $KIND account: ${R:0:200}"; exit 1; }
+          { echo "QA_EMAIL=$EMAIL"; echo "QA_PW=$PW"; echo "QA_UID=$UID_"; echo "QA_KIND=$KIND"; } >> "$GITHUB_ENV"
+          echo "account: $KIND $EMAIL uid=$UID_"
+      - name: Allowance (add a per-uid billing.token_balances row)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: bash tools/qa_allowance.sh add "$QA_UID"
+
+      # ---------------------------------------------------------------- build
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.submac --project-name agent --platforms android,ios .
+          rm -f test/widget_test.dart
+      - name: Make it SubMac
+        run: python3 tools/patch_android.py
+      - run: flutter pub get
+      - name: Pre-build the drive (same defines, so flutter drive reuses it)
+        run: flutter build apk --debug -t integration_test/chat_regress_test.dart --dart-define=QA_EMAIL="$QA_EMAIL" --dart-define=QA_PW="$QA_PW" --dart-define=QA_PHASES="$QA_PHASES"
+      - name: Allowance check
+        run: bash tools/qa_allowance.sh wait
+      - name: Free memory for the emulator
+        run: |
+          (cd android && ./gradlew --stop) || true
+          pkill -f GradleDaemon || true
+          pkill -f kotlin-daemon || true
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+
+      # ---------------------------------------------------------------- run (job 165 min, emulator step 130, drive 110, test 95)
+      - uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 130
+        env:
+          DRIVE_MIN: '110'
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          ram-size: 3072M
+          disk-size: 6144M
+          cores: 2
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          disable-animations: true
+          script: bash tools/chat_regress_capture.sh
+
+      # ---------------------------------------------------------------- cleanup (always)
+      - name: Allowance (revert)
+        if: always() && env.QA_UID != ''
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: bash tools/qa_allowance.sh revert "$QA_UID"
+      - name: Delete the throwaway account (service role)
+        if: always() && env.QA_KIND == 'throwaway'
+        env:
+          SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          BASE=$(grep -o "https://[a-z0-9]*\.supabase\.co" lib/config.dart | head -1)
+          if [ -z "$SERVICE_ROLE" ]; then
+            echo "::warning::no SUPABASE_SERVICE_ROLE_KEY secret: delete $QA_EMAIL (uid $QA_UID) from outside the job"
+            exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE "$BASE/auth/v1/admin/users/$QA_UID" -H "apikey: $SERVICE_ROLE" -H "Authorization: Bearer $SERVICE_ROLE")
+          echo "delete $QA_EMAIL -> HTTP $code"
+          [ "$code" = "200" ] || [ "$code" = "204" ] || echo "::warning::account delete returned $code; delete $QA_EMAIL from outside the job"
+
+      # ---------------------------------------------------------------- results
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Chat regression ($QA_PHASES) on ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}"
+            echo '```'; cat out/logs/verdict.env 2>/dev/null || echo "no verdict (the capture script did not finish)"; echo '```'
+            echo '### Phases'; echo '```'; grep -hoE "PHASE [ABCK]:.*" out/logs/drive.txt 2>/dev/null || true; echo '```'
+            echo '### CB results'; echo '```'; sort -V out/logs/cb.txt 2>/dev/null | cut -c1-220 || true; echo '```'
+            echo '### Harness errors'; echo '```'; grep -h "QAERR:" out/logs/drive.txt 2>/dev/null | head -40 || true; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -hoE "CB-[0-9]+[ab]? (PASS|FAIL|SKIP)" out/logs/cb.txt 2>/dev/null | sort -V || true
+      - name: Logs and screenshots as a release asset
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -d out ] || exit 0
+          python3 - <<'PY'
+          import glob, os
+          pw = os.environ.get("QA_PW", "")
+          for f in glob.glob("out/logs/*.txt"):
+              s = open(f, errors="replace").read()
+              if pw and pw in s:
+                  open(f, "w").write(s.replace(pw, "<pw>"))
+          PY
+          TAG="qa-regress-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          tar czf "$TAG.tgz" out
+          gh release create "$TAG" "$TAG.tgz" out/logs/cb.txt out/logs/summary.txt --prerelease --target "$GITHUB_SHA" \
+            --title "QA chat regression run ${GITHUB_RUN_ID}" --notes "Logs and screenshots of run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. Not an app release." \
+            || echo "::warning::release upload failed"
+          # keep only the newest 5 harness releases
+          gh release list --limit 100 --json tagName,createdAt -q '.[] | select(.tagName | startswith("qa-regress-")) | .tagName' | tail -n +6 |
+            while read -r t; do gh release delete "$t" --yes --cleanup-tag || true; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: chat-regress-logs
+          path: out/logs
+          retention-days: 1
+      - name: Verdict
+        if: always()
+        run: |
+          [ -f out/logs/verdict.env ] || { echo "::error::no verdict: the harness did not finish"; exit 1; }
+          . out/logs/verdict.env
+          echo "drive=$DRIVE QAERR=$QAERR STEPFAIL=$STEPFAIL FATAL=$FATAL UNCAUGHT=$UNCAUGHT done=$HARNESS_DONE CB pass=$CB_PASS fail=$CB_FAIL skip=$CB_SKIP"
+          if [ "$BAD" != "0" ]; then echo "::error::chat regression failed (drive=$DRIVE QAERR=$QAERR STEPFAIL=$STEPFAIL FATAL=$FATAL UNCAUGHT=$UNCAUGHT done=$HARNESS_DONE)"; exit 1; fi
