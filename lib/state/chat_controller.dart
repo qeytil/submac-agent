@@ -523,30 +523,58 @@ extension AppStateChat on AppState {
     }
   }
 
-  Future<void> editAndResend(ChatMessage msg, String newText) async {
+  /// CB-13: an edit can start here now: no run in this chat (the quick side reply too), no "Try again" or edit still
+  /// removing the old turn, and no message still saving. The screen asks this before it opens the edit box.
+  bool get canEditHere {
+    final convId = currentId;
+    return convId != null && !anyRunHere && !_regenerating.contains(convId) && _sendGate.openOn(convId) == null;
+  }
+
+  /// Replaces [msg] (and everything after it) with [newText] and answers it again. Returns false when nothing was sent,
+  /// so the screen can say why instead of the tap doing nothing (CB-13).
+  Future<bool> editAndResend(ChatMessage msg, String newText) async {
     newText = AiKeys.redact(newText).text;
-    if (busy || anyRunHere || currentId == null) return;
+    // CB-13/CB-22: checked and claimed before the first await, like regenerate(): two quick Send taps on the edit box
+    // (or an edit racing "Try again") used to pass this check twice and send the message twice.
+    if (!canEditHere || newText.trim().isEmpty) return false;
+    final convId = currentId!;
     final idx = messages.indexOf(msg);
-    if (idx < 0) return;
+    if (idx < 0) return false;
+    _regenerating.add(convId);
+    // A message typed while this edit saves waits on the claim and then joins this edit's task (as in send()).
+    final claim = _sendGate.claim(convId);
     final removed = messages.sublist(idx);
     messages.removeRange(idx, messages.length);
-    _notify();
-    try {
-      await repo.deleteMessages(removed.map((e) => e.id).toList());
-    } catch (_) {}
-    final convId = currentId!;
-    final m = ChatMessage(id: _uuid.v4(), role: 'user', content: newText.trim(), attachments: msg.attachments);
+    // CB-13: a reply keeps its quote. The edit box shows only the user's own words (ReplyCodec.bodyOf), so the
+    // original link goes back on top of the new words.
+    final ref = ReplyCodec.decode(msg.content).ref;
+    final content = ref != null ? ReplyCodec.encode(ref, newText) : newText.trim();
+    final m = ChatMessage(id: _uuid.v4(), role: 'user', content: content, attachments: msg.attachments);
+    // Added before anything is awaited, so it stays above a message sent while this edit saves.
     messages.add(m);
     awaitingReply = m.id;
     _notify();
+    Future<void> run;
     try {
-      await repo.insertMessage(convId, m);
-    } catch (_) {}
+      try {
+        await repo.deleteMessages(removed.map((e) => e.id).toList());
+      } catch (_) {}
+      try {
+        await repo.insertMessage(convId, m);
+      } catch (_) {}
+      // The task registers itself synchronously in _runAgent, before a message that waited on the claim goes on.
+      claim.open(convId);
+      run = _runAgent(convId);
+    } finally {
+      claim.open(convId);
+      _regenerating.remove(convId);
+    }
     try {
-      await _runAgent(convId);
+      await run;
     } finally {
       _clearAwaiting(m.id);
     }
+    return true;
   }
 
   /// CB-30: the user picks how a too-long paste goes: as a file (its first words stay the message), or as a file to be
