@@ -76,15 +76,29 @@ class BrowserGate {
   /// Returns (title, label) of the press that needs approval, or null.
   ///
   /// [labels] are the element labels from the task's latest view; [page] is that view.
-  static ({String title, String label})? check(String tool, Map<String, dynamic> args, Map<int, String> labels, PageSnapshot page) {
+  /// [readOnly]: the task only looks things up (PageRisk.readOnlyGoal), so plain flow buttons on a money page don't
+  /// ask (CB-44). Card fields, money words and risky words still ask.
+  static ({String title, String label})? check(String tool, Map<String, dynamic> args, Map<int, String> labels, PageSnapshot page,
+      {bool readOnly = false}) {
     final about = '${args['about'] ?? ''}'.trim();
     final money = page.moneyPage;
     String lab(dynamic id) => (labels[BrowserAction._int(id)] ?? '').replaceAll('"', '');
     String kindOf(dynamic id) => page.byId(BrowserAction._int(id))?.kind ?? '';
+    // A cookie / consent banner's own button (the one the page script found, or a consent button in a dialog).
+    bool consentOf(dynamic id, String l) {
+      final b = page.banner;
+      if (b != null && BrowserAction._int(b['id']) == BrowserAction._int(id) && BrowserAction._int(id) >= 0) return true;
+      if (b == null && !page.modal) return false;
+      if (!PageRisk.isConsentPress(l)) return false;
+      return !page.cardFields || RegExp(r'cookie|consent|gdpr|privacy', caseSensitive: false).hasMatch(l);
+    }
+
+    bool needs(dynamic id, String l) =>
+        PageRisk.pressNeedsOk(l, moneyPage: money, kind: kindOf(id), consent: consentOf(id, l), readOnly: readOnly, cardFields: page.cardFields);
     switch (tool) {
       case 'browser_click':
         final l = lab(args['id']);
-        if (about.isNotEmpty || PageRisk.pressNeedsOk(l, moneyPage: money, kind: kindOf(args['id']))) {
+        if (about.isNotEmpty || needs(args['id'], l)) {
           return (title: about.isNotEmpty ? about : 'Tap "${l.isEmpty ? 'this button' : l}" on ${page.host.isEmpty ? 'this site' : page.host}?', label: l);
         }
         return null;
@@ -109,7 +123,7 @@ class BrowserGate {
         for (final a in acts) {
           if (a.kind == 'click' || a.kind == 'check') {
             final l = lab(a.id);
-            if (about.isNotEmpty || PageRisk.pressNeedsOk(l, moneyPage: money, kind: kindOf(a.id))) {
+            if (about.isNotEmpty || needs(a.id, l)) {
               return (title: about.isNotEmpty ? about : 'Tap "${l.isEmpty ? 'this button' : l}" on ${page.host.isEmpty ? 'this site' : page.host}?', label: l);
             }
           }

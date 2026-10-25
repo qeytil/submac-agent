@@ -459,7 +459,7 @@ class AssistantMessageView extends StatelessWidget {
                 if (finished && isLast && message.error == null)
                   Builder(builder: (context) {
                     // Only busy / waiting asks matter here (it watched the whole state and rebuilt on every streamed word).
-                    final hold = context.select<AppState, bool>((s) => s.busy || s.asks.isNotEmpty);
+                    final hold = context.select<AppState, bool>((s) => s.busy || s.asks.any((a) => a.convId.isEmpty || a.convId == s.currentId)); // CB-41: this chat's asks only
                     if (hold) return const SizedBox.shrink();
                     final state = context.read<AppState>();
                     return FollowUpChips(options: suggestFollowUps(text), onPick: (t) => state.send(t, const []));

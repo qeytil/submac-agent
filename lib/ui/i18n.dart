@@ -396,6 +396,7 @@ class Strings {
           'Waa la hakiyay ka dib {n} tallaabo, inta ugu badan ee hal hawl. Dir "continue" si ay u sii socoto.',
       'Task finished in "{chat}".': 'Hawshu waxay ku dhammaatay "{chat}".',
       'another chat': 'sheeko kale',
+      'A task in {chat} is waiting for you': 'Hawl ku jirta {chat} ayaa ku sugaysa',
       "Voice calls aren't available right now. Message {name} instead.": 'Wicitaannada codka hadda lama heli karo. U qor {name} fariin.',
       'The team task used its step budget for this round, so it paused. Send "continue" to keep going.':
           'Hawsha kooxda waxay dhammaysay tallaabooyinkii wareeggan, sidaas darteed way hakatay. Dir "continue" si ay u sii socoto.',
@@ -708,6 +709,7 @@ class Strings {
           'توقفت بعد {n} خطوة، وهو الحد الأقصى لمهمة واحدة. أرسل "continue" للمتابعة.',
       'Task finished in "{chat}".': 'انتهت المهمة في "{chat}".',
       'another chat': 'محادثة أخرى',
+      'A task in {chat} is waiting for you': 'مهمة في {chat} بانتظارك',
       "Voice calls aren't available right now. Message {name} instead.": 'المكالمات الصوتية غير متاحة الآن. راسل {name} بدلاً من ذلك.',
       'The team task used its step budget for this round, so it paused. Send "continue" to keep going.':
           'استخدمت مهمة الفريق كل خطوات هذه الجولة فتوقفت. أرسل "continue" للمتابعة.',
