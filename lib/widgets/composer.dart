@@ -42,6 +42,10 @@ class Composer extends StatefulWidget {
   /// Drafts by chat id ('' for a new chat), kept for the app run.
   static final Map<String, String> drafts = {};
 
+  /// Files and photos picked but not sent yet, by chat id like [drafts] (CB-29: a photo picked in one chat never
+  /// goes out in another).
+  static final Map<String, List<Attachment>> attachmentDrafts = {};
+
   @override
   State<Composer> createState() => _ComposerState();
 }
@@ -91,6 +95,11 @@ class _ComposerState extends State<Composer> {
     _draftFor = now;
     final t = Composer.drafts[now] ?? '';
     _ctrl.value = TextEditingValue(text: t, selection: TextSelection.collapsed(offset: t.length));
+    setState(() {
+      _attachments
+        ..clear()
+        ..addAll(Composer.attachmentDrafts[now] ?? const []);
+    });
   }
 
   void _keepDraft() {
@@ -98,6 +107,11 @@ class _ComposerState extends State<Composer> {
       Composer.drafts.remove(_draftFor);
     } else {
       Composer.drafts[_draftFor] = _ctrl.text;
+    }
+    if (_attachments.isEmpty) {
+      Composer.attachmentDrafts.remove(_draftFor);
+    } else {
+      Composer.attachmentDrafts[_draftFor] = List.of(_attachments);
     }
   }
 
@@ -110,6 +124,7 @@ class _ComposerState extends State<Composer> {
       _draftFor = _state.currentId ?? '';
       final t = Composer.drafts[_draftFor] ?? '';
       _ctrl.value = TextEditingValue(text: t, selection: TextSelection.collapsed(offset: t.length));
+      _attachments.addAll(Composer.attachmentDrafts[_draftFor] ?? const []);
       _state.addListener(_swapDraft);
     }
     _state.shareInbox.addListener(_takeShare);
@@ -390,6 +405,10 @@ class _ComposerState extends State<Composer> {
     }
     _ctrl.clear();
     setState(() => _attachments.clear());
+    if (widget.perChatDrafts) {
+      Composer.drafts.remove(_draftFor);
+      Composer.attachmentDrafts.remove(_draftFor);
+    }
     state.send(text, atts);
   }
 
@@ -397,6 +416,8 @@ class _ComposerState extends State<Composer> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final state = context.watch<AppState>();
+    // A chat that changed while another screen covered this one (a sheet, the Bots workspace): swap once it is in front.
+    if (widget.perChatDrafts && (state.currentId ?? '') != _draftFor && (ModalRoute.of(context)?.isCurrent ?? true)) _swapDraft();
     final skill = state.pickedSkill;
     final canSend = _ctrl.text.trim().isNotEmpty || _attachments.isNotEmpty || skill != null;
     // One quiet field: "+" on the start side, the words, and one round button on the end side that is

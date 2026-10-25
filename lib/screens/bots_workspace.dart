@@ -102,11 +102,46 @@ class BotsWorkspaceState extends State<BotsWorkspace> with SingleTickerProviderS
     _share = widget.share;
     unawaited(RailPins.I.load());
     BotStatus.I.attach(_state);
+    BotStatus.I.workspaces++;
+    _state.addListener(_followOpenChat);
     WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+  }
+
+  /// The open chat when the workspace last settled on a chat (see [_followOpenChat]).
+  String? _followed;
+
+  /// CB-16: what you see is where you type. The composer sends to the open chat ([AppState.currentId]), so when that
+  /// changes from outside the rail (a bot's notification tapped, a share sent to a bot), the workspace follows: another
+  /// bot's chat comes on screen in place, and a chat that is not a bot's closes the workspace onto the main chat.
+  void _followOpenChat() {
+    if (!mounted || _leaving || _active.isEmpty) return;
+    final id = _state.currentId;
+    if (id == _followed) return;
+    final b = Bots.I.byConv(id);
+    if (b != null) {
+      _followed = id;
+      final key = BotStatus.botKey(b.id);
+      if (key == _active) return;
+      BotStatus.I.leave(_active);
+      setState(() {
+        // A head tapped a moment ago and still opening loses to the chat that is open now.
+        _pending = key;
+        _active = key;
+      });
+      BotStatus.I.open(key);
+      return;
+    }
+    // A team's chat is not the open chat; a tap still opening a bot changes the open chat on its way.
+    if (_activeBot == null || _pending != _active) return;
+    if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
+    _followed = id;
+    home();
   }
 
   @override
   void dispose() {
+    if (BotStatus.I.workspaces > 0) BotStatus.I.workspaces--;
+    _state.removeListener(_followOpenChat);
     BotStatus.I.leave(_active);
     if (!_leaving) {
       // Closed without Back (another screen took over): the main chat still goes back to where it was, after this
@@ -179,8 +214,9 @@ class BotsWorkspaceState extends State<BotsWorkspace> with SingleTickerProviderS
     } else if (_state.currentId != b.convId || !b.active) {
       await _state.openBot(b);
     }
-    // Another head was tapped meanwhile: that one wins.
+    // Another head was tapped meanwhile (or another chat was opened from outside): that one wins.
     if (!mounted || _pending != key) return;
+    _followed = _state.currentId;
     setState(() => _active = key);
     BotStatus.I.open(key);
   }

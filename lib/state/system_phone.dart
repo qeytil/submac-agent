@@ -136,6 +136,8 @@ extension AppStateSystem on AppState {
       await WhatsAppTools.init();
       await BotTraces.I.init();
       await SkillLibrary.I.init();
+      // CB-46: wakes that came while SubMac could not run them yet.
+      unawaited(_runHeldWakes());
     } catch (_) {}
     try {
       await Offices.I.init();
@@ -153,9 +155,20 @@ extension AppStateSystem on AppState {
       unawaited(answerBotCall(payload.substring(8)));
       return;
     }
-    if (payload.startsWith('botchat/')) {
-      final b = Bots.I.byId(payload.substring(8));
-      if (b != null) unawaited(openBot(b));
+    // CB-16: a bot's chat opens in the Bots workspace, on that bot. One already open follows the open chat in place.
+    final chatBot = payload.startsWith('botchat/')
+        ? Bots.I.byId(payload.substring(8))
+        : payload.startsWith('conv/')
+            ? Bots.I.byConv(payload.substring(5))
+            : null;
+    if (chatBot != null || payload.startsWith('botchat/')) {
+      if (chatBot == null) return;
+      if (BotStatus.I.workspaces > 0 || (!chatBot.active && chatBot.convId.isEmpty)) {
+        unawaited(openBot(chatBot));
+      } else {
+        openRequest.value = null;
+        openRequest.value = 'botchat/${chatBot.id}';
+      }
       return;
     }
     if (payload.startsWith('botring/')) {

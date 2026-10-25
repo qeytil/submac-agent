@@ -186,6 +186,8 @@ extension AppStateSettings on AppState {
     Inbox.I.onChatItems = _mirrorTeamMessages;
     unawaited(Inbox.I.refresh());
     unawaited(BotSync.I.start().catchError((Object e) => debugPrint('bot sync start: $e')));
+    // CB-46: a bot wake that came before the account was restored runs now.
+    unawaited(_runHeldWakes().catchError((Object e) => debugPrint('held wakes: $e')));
     // Scheduled tasks belong to the account: arm only this account's.
     unawaited(Scheduler.I.useAccount(repo.userId ?? '').catchError((Object e) => debugPrint('scheduler: $e')));
     await refreshConversations();
