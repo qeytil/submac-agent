@@ -19,7 +19,7 @@ import {
   budgetFrom, cooldownFor, type Done, type Effort, effortBody, effortOf, type ErrCode, FRIENDLY, keysInOrder, localCooldown,
   clampOut, providerOutCap, retryAfterSecs, type Route, type RouterSnap, runChat, snapFrom, withThoughtSignatures,
 } from "./router.ts";
-import { billSource, BOT_SOURCES, EAT_MS, eatDay, entFromGate, missingFn, nextEatMidnight, resetsAtHeader } from "./billing_gate.ts";
+import { billSource, BOT_SOURCES, chatLane, EAT_MS, eatDay, entFromGate, missingFn, nextEatMidnight, resetsAtHeader } from "./billing_gate.ts";
 import { makeVerifier } from "./jwt_verify.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1239,7 +1239,8 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
   const body: any = parsed === BAD || !parsed || typeof parsed !== "object" ? {} : parsed;
   const source = internal ? "bot-cloud" : (req.headers.get("x-submac-source") ?? "agent").slice(0, 20);
   // Background lane (Plan 2.2): the cloud runner, or app work nobody is watching (bot wakes, office work).
-  const background = !!internal || (req.headers.get("x-submac-lane") ?? "").toLowerCase() === "background";
+  // CB-45: an owner-typed bot chat ('bot-chat') is always the user's lane, never the bot/background share.
+  const background = !!internal || ((req.headers.get("x-submac-lane") ?? "").toLowerCase() === "background" && !chatLane(source));
   const lane = background ? "background" : "user";
   // Sticky chats: scoped to the user so two users' ids can never collide.
   const chatHdr = (req.headers.get("x-submac-chat") ?? "").slice(0, 64);
