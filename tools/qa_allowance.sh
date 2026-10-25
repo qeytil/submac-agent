@@ -3,7 +3,8 @@
 # (billing.is_unlimited() / ai_settings) and never uses billing_adjust() (that posts a reward_grant to the ledger).
 #
 #   tools/qa_allowance.sh add    <uid>   insert one billing.token_balances row (source 'admin', 50M tokens, 1 day)
-#   tools/qa_allowance.sh revert <uid>   delete the harness rows for that uid (only rows with the harness note)
+#   tools/qa_allowance.sh revert <uid>   delete the harness rows for that uid (only rows with the harness note);
+#                                        a row already used by charges is revoked (left 0) instead, see below
 #   tools/qa_allowance.sh sql add|revert <uid>   print the SQL only (run it from anywhere with DB access)
 #   tools/qa_allowance.sh wait           sign in as QA_EMAIL/QA_PW and wait (up to ALLOWANCE_WAIT_MIN minutes,
 #                                        default 0) until billing_usage() shows the harness balance; prints the result
@@ -24,7 +25,9 @@ sql_for() {
   uid_ok "$uid" || { echo "bad uid: '$uid'" >&2; exit 2; }
   case "$op" in
     add) echo "insert into billing.token_balances (user_id, amount, left_tokens, expires_at, source, status, note) select '$uid', $AMOUNT, $AMOUNT, now() + interval '1 day', 'admin', 'active', '$NOTE' where not exists (select 1 from billing.token_balances where user_id = '$uid' and note = '$NOTE') returning id;" ;;
-    revert) echo "delete from billing.token_balances where user_id = '$uid' and note = '$NOTE' returning id;" ;;
+    # A row that paid for charges is referenced by billing.usage_ledger (FK), so it cannot be deleted without deleting
+    # finance history: it is revoked (status 'revoked', left_tokens 0) instead. Unused rows are deleted.
+    revert) echo "with r as (update billing.token_balances b set status = 'revoked', left_tokens = 0 where b.user_id = '$uid' and b.note = '$NOTE' and exists (select 1 from billing.usage_ledger l where l.balance_id = b.id) returning b.id, 'revoked' as how), d as (delete from billing.token_balances b where b.user_id = '$uid' and b.note = '$NOTE' and not exists (select 1 from billing.usage_ledger l where l.balance_id = b.id) returning b.id, 'deleted' as how) select * from r union all select * from d;" ;;
     *) echo "unknown op $op" >&2; exit 2 ;;
   esac
 }

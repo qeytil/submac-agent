@@ -823,15 +823,16 @@ void main() {
       await step('a03_unknown_tool', () async {
         await fresh();
         seam.fakeSent = false;
+        final req0 = seam.requests;
         seam.fakeToolMarker = 'CB3PROBE';
         await type('CB3PROBE: in one sentence, what is the capital of Somalia?');
-        await settle(150, key: 'a03');
+        final ended = await settle(150, key: 'a03');
         seam.fakeToolMarker = null;
         final last = st().messages.where((m) => m.role == 'assistant').lastOrNull;
         final errs = [for (final m in st().messages) if (m.error != null) m.error!];
         final raw = st().messages.any((m) => '${m.content} ${m.error ?? ''}'.contains(RegExp('NOT_FOUND|GenkitException')));
-        final ok = last != null && last.content.trim().isNotEmpty && last.error == null && !raw;
-        cb('CB-3', seam.fakeSent ? ok : null, 'fake "${seam.fakeToolName}" sent=${seam.fakeSent} lastReply="${(last?.content ?? '').replaceAll('\n', ' ').substring(0, math.min(120, (last?.content ?? '').length))}" errors=$errs rawGenkitError=$raw');
+        final ok = ended && last != null && last.content.trim().isNotEmpty && last.error == null && !raw;
+        cb('CB-3', seam.fakeSent ? ok : null, 'fake "${seam.fakeToolName}" sent=${seam.fakeSent} endedOnItsOwn=$ended modelRequests=${seam.requests - req0} lastReply="${(last?.content ?? '').replaceAll('\n', ' ').substring(0, math.min(120, (last?.content ?? '').length))}" errors=$errs rawGenkitError=$raw');
         record('a03_unknown_tool', DateTime.now());
         dump('a03');
         await shot('a03_unknown_tool');
@@ -844,13 +845,13 @@ void main() {
         seam.cutMarker = 'CB10PROBE';
         await type('CB10PROBE: give me a table of 8 African capitals with their country and population, then two sentences about them. No tools.');
         final mine = st().messages.lastWhere((m) => m.role == 'user');
-        await settle(200, key: 'a04');
+        final ended = await settle(200, key: 'a04');
         seam.cutMarker = null;
         final list = st().messages;
         final idx = list.indexWhere((m) => m.id == mine.id);
         final replies = idx < 0 ? <ChatMessage>[] : list.sublist(idx + 1).where((m) => m.role == 'assistant' && m.content.trim().isNotEmpty).toList();
-        cb('CB-10', seam.cutDone ? replies.length == 1 : null,
-            'cut=${seam.cutDone} assistant bubbles after the prompt=${replies.length} tables=${find.byType(TableCard).evaluate().length}');
+        cb('CB-10', seam.cutDone ? ended && replies.length == 1 : null,
+            'cut=${seam.cutDone} endedOnItsOwn=$ended assistant bubbles after the prompt=${replies.length} tables=${find.byType(TableCard).evaluate().length}');
         dump('a04');
         await shot('a04_cut_stream');
       }, limit: 260);
@@ -1618,18 +1619,26 @@ void main() {
       }
 
       Future<void> say(Office o, String text) async {
-        final b = find.byType(TextField);
-        final send = find.byIcon(Icons.arrow_upward_rounded);
-        if (b.evaluate().isNotEmpty && send.evaluate().isNotEmpty) {
+        // Type into the team composer like a person; if the composer is not usable (run 40207082061: enterText threw
+        // "Bad state: No element" in TeamChat), fall back to TeamRun.send so the step still runs.
+        var how = 'ui';
+        try {
+          final b = find.byType(TextField);
+          final send = find.byIcon(Icons.arrow_upward_rounded);
+          if (b.evaluate().isEmpty || send.evaluate().isEmpty) throw 'no team composer on screen';
+          await tester.tap(b.last, warnIfMissed: false);
+          await wait(300);
           await tester.enterText(b.last, text);
           await wait(500);
           await tester.tap(send.last, warnIfMissed: false);
           await wait(800);
-          if (!o.posts.any((p) => p.from == 'you' && p.text == text.trim())) TeamRun.I.send(o, text);
-        } else {
+          if (!o.posts.any((p) => p.from == 'you' && p.text == text.trim())) throw 'UI send did not post';
+        } catch (e) {
+          if (e is String && e.startsWith('step cut off')) rethrow;
+          how = 'TeamRun.send (${e.toString().split('\n').first})';
           TeamRun.I.send(o, text);
         }
-        log('QA: owner said "${text.length > 70 ? text.substring(0, 70) : text}" busy=${TeamRun.I.busy(o)} awaitingGo=${TeamRun.I.awaitingGo(o)}');
+        log('QA: owner said "${text.length > 70 ? text.substring(0, 70) : text}" via $how busy=${TeamRun.I.busy(o)} awaitingGo=${TeamRun.I.awaitingGo(o)}');
       }
 
       /// Waits until the team (TeamRun, the office queue and its members) is quiet for [quietS] seconds.

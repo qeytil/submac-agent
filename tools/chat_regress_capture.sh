@@ -32,8 +32,12 @@ net() { if [ "$1" = off ]; then adb shell cmd connectivity airplane-mode enable;
         else adb shell cmd connectivity airplane-mode disable; adb shell svc wifi enable; adb shell svc data enable; fi; note "net $1"; }
 
 set -o pipefail
-timeout ${DRIVE_MIN}m flutter drive --no-pub --driver=test_driver/integration_test.dart --target=integration_test/chat_regress_test.dart -d emulator-5554 \
+# --keep-app-running: without it flutter drive UNINSTALLS the app at the end (drive_service.dart), which wiped the
+# P2/P3 marker and the app in run 40207082061.
+timeout ${DRIVE_MIN}m flutter drive --no-pub --keep-app-running --driver=test_driver/integration_test.dart --target=integration_test/chat_regress_test.dart -d emulator-5554 \
   --dart-define=QA_EMAIL="$QA_EMAIL" --dart-define=QA_PW="$QA_PW" --dart-define=QA_PHASES="${QA_PHASES:-ABC}" 2>&1 | tee out/logs/drive.txt | while IFS= read -r line; do
+  # Progress and results also go to the job log (screens and full dumps stay in out/logs/drive.txt).
+  case "$line" in *QA:*|*QAWARN*|*QAERR*|*PHASE*|*CB-[0-9]*" PASS|"*|*CB-[0-9]*" FAIL|"*|*CB-[0-9]*" SKIP|"*) echo "$line" | cut -c1-300 ;; esac
   case "$line" in
     *SHOT:*) n=$(echo "$line" | sed 's/.*SHOT:\([A-Za-z0-9_-]*\).*/\1/'); timeout 20 adb exec-out screencap -p > "out/shots/$n.png" ;;
     *ADB:front*) front; note "front" ;;
@@ -89,7 +93,9 @@ kill $LOGC $GRANT 2>/dev/null || true
 
 # ---------------- results
 grep -E "P2:|P3:" out/logs/logcat.txt > out/logs/phases_app.txt || true
-{ grep -oE "CB-[0-9]+[ab]? (PASS|FAIL|SKIP)\|.*" out/logs/drive.txt; grep -oE "CB-[0-9]+[ab]? (PASS|FAIL|SKIP)\|.*" out/logs/logcat.txt; } > out/logs/cb.txt || true
+# CB lines: phases A/B/C from the drive output; P2/P3 (CB-21, CB-46) from logcat, where the cold-started app prints.
+{ grep -oE "CB-[0-9]+[ab]? (PASS|FAIL|SKIP)\|.*" out/logs/drive.txt; grep -oE "CB-(21|46) (PASS|FAIL|SKIP)\|P[23] .*" out/logs/logcat.txt | awk '!seen[$0]++'; } > out/logs/cb.txt || true
+grep -oE "CB-(21|46) (PASS|FAIL|SKIP)" out/logs/cb.txt | awk '{n[$2]++} END {printf "PHASE P: CB pass=%d fail=%d skip=%d\n", n["PASS"], n["FAIL"], n["SKIP"]}' >> out/logs/drive.txt
 grep -E "QA:|QAWARN|QAERR:|CB-[0-9]|PHASE|T:|ADB:" out/logs/drive.txt > out/logs/summary.txt || true
 # A FATAL EXCEPTION counts only when it is SubMac's process.
 grep -A2 "FATAL EXCEPTION" out/logs/logcat.txt | grep -c "Process: $PKG" > out/logs/n_fatal.txt || true
@@ -116,7 +122,7 @@ CB_SKIP=$NSKIP
 BAD=$BAD
 EOF
 cat out/logs/verdict.env
-echo "---- per phase"; grep -E "PHASE [ABCK]:" out/logs/drive.txt | sed 's/.*\(PHASE [ABCK]:\)/\1/'
+echo "---- per phase"; grep -E "PHASE [ABCKP]:" out/logs/drive.txt | sed 's/.*\(PHASE [ABCKP]:\)/\1/'
 echo "---- CB lines"; sed 's/|.*//' out/logs/cb.txt | sort -V | uniq -c
 echo "---- QAERR"; grep "QAERR:" out/logs/drive.txt | head -40
 ls -la out/shots out/logs | tail -40

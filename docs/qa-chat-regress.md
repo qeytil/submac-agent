@@ -11,7 +11,9 @@ FAIL means the bug is still there.
   background, doze, notifications, alarms), then the cold-start phases **P2** (force-stop, CB-21) and **P3** (process kill,
   CB-46), and writes `out/logs/verdict.env`.
 - `tools/qa_allowance.sh add|revert <uid>`: per-uid `billing.token_balances` row (source 'admin', note
-  `qa-regress harness allowance`). No global settings.
+  `qa-regress harness allowance`). No global settings. Revert deletes an unused row; a row that already paid for charges
+  is referenced by `billing.usage_ledger` (FK), so it is revoked (`status 'revoked'`, `left_tokens 0`) instead of
+  deleting finance history.
 - `.github/workflows/chat-regress-emu.yml`.
 
 ## Running it
@@ -41,6 +43,12 @@ FAIL means the bug is still there.
   Flutter exception, or no `QA: done`.
 - CB-3 and CB-10 use a transport seam inside the test (`LlmClient.testClient` wrapper): a fake unknown tool call, and a
   stream cut with `finish_reason: length`. No app code changes.
+
+## Notes from the first run (40207082061, dev 34f75d6)
+- `flutter drive` uninstalls the app when it ends; the capture script now passes `--keep-app-running` so P2/P3 can run.
+- The team composer in `TeamChat` threw `Bad state: No element` on `enterText`; `say()` now falls back to
+  `TeamRun.send` and logs which way it sent.
+- CB-3 and CB-10 now also require the run to end on its own (the unknown-tool case looped on the same request).
 
 ## Results
 - The job summary lists verdict, phases, CB lines and harness errors.
