@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models.dart' show ChatMessage;
 import 'bot_package.dart';
 import 'bot_powers.dart';
 import 'events.dart';
@@ -475,6 +476,25 @@ class Bot {
 }
 
 /// The interruption a wake ended with.
+/// The rows of a bot wake that ended with nothing to show (CB-17).
+class WakeTurn {
+  WakeTurn._();
+
+  /// The rows to remove: the wake's own mark and the rows the wake run wrote ([wrote], tracked by the runner).
+  /// Rows the owner typed during the wake, and the quick side replies to them, always stay. When the wake's rows are
+  /// unknown (null), everything after the mark goes only if nobody else wrote there; otherwise just the mark goes.
+  static List<ChatMessage> rowsToDrop(List<ChatMessage> list, Set<String>? wrote) {
+    final start = list.lastIndexWhere((m) => m.role == 'user' && m.content.startsWith(botWakeMark));
+    if (start < 0) return const [];
+    final after = list.sublist(start + 1);
+    if (wrote == null) {
+      final ownerSpoke = after.any((m) => m.role == 'user' && !m.content.startsWith(botWakeMark));
+      return ownerSpoke ? [list[start]] : list.sublist(start);
+    }
+    return [list[start], ...after.where((m) => wrote.contains(m.id))];
+  }
+}
+
 class BotOutcome {
   BotOutcome(this.kind, this.text);
   /// silent | note | message | call
@@ -592,6 +612,9 @@ class Bots extends ChangeNotifier {
 
   /// Drafts the Chief showed in a chat, waiting for the owner's yes (convId → spec).
   final Map<String, Map<String, dynamic>> _drafts = {};
+
+  /// Every chat was deleted: drafts shown there can no longer be approved.
+  void forgetDrafts() => _drafts.clear();
 
   /// Wakes a bot (set by AppState): [reason] says why, [instruction] what to do, [kind] work | message | call.
   Future<void> Function(Bot bot, String reason, String instruction, String kind)? onWake;

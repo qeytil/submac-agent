@@ -392,18 +392,10 @@ extension AppStateBots on AppState {
       return;
     }
     final out = BotOutcome.parse(reply);
-    // Where this wake began: everything after it belongs to this wake.
-    final start = list.lastIndexWhere((m) => m.role == 'user' && m.content.startsWith(botWakeMark));
-    if (out.kind == 'silent' || (out.text.isEmpty && out.kind != 'call')) {
+    // CB-17: a silence tag stuck to real words is not silence: the words stay (as a quiet note, no notification).
+    if (out.text.isEmpty && out.kind != 'call') {
       b.log('work', 'Checked in: nothing worth your time.');
-      if (start >= 0) {
-        final gone = list.sublist(start);
-        list.removeRange(start, list.length);
-        _notify();
-        try {
-          await repo.deleteMessages([for (final m in gone) m.id]);
-        } catch (_) {}
-      }
+      await _dropWakeTurn(b.convId);
       await Bots.I.save();
       return;
     }
@@ -984,18 +976,27 @@ extension AppStateBots on AppState {
   }
 
   /// Removes the latest wake and everything after it from a bot's chat (a check-in with nothing to say).
+  /// Removes a wake that ended with nothing to show (silent, offline, out of allowance). CB-17: only the rows the
+  /// wake wrote itself go (its mark and its own replies and tool results); what the owner typed during the wake, and
+  /// the quick replies to it, stay.
   Future<void> _dropWakeTurn(String convId) async {
+    final wrote = _wakeRows.remove(convId);
     final list = _lists[convId];
     if (list == null) return;
-    final start = list.lastIndexWhere((m) => m.role == 'user' && m.content.startsWith(botWakeMark));
-    if (start < 0) return;
-    final gone = list.sublist(start);
-    list.removeRange(start, list.length);
+    final gone = WakeTurn.rowsToDrop(list, wrote);
+    if (gone.isEmpty) return;
+    final ids = {for (final m in gone) m.id};
+    list.removeWhere((m) => ids.contains(m.id));
     _notify();
     try {
-      await repo.deleteMessages([for (final m in gone) m.id]);
+      await repo.deleteMessages(ids.toList());
     } catch (_) {}
   }
+
+  @visibleForTesting
+  Future<void> botOutcomeForTest(Bot b, String reply, String kind) => _botOutcome(b, reply, kind);
+  @visibleForTesting
+  Map<String, Set<String>> get wakeRowsForTest => _wakeRows;
 
   /// A one-line instant reply in the office chat, in the bot's own character.
   Future<String> _officeQuick(Office o, Bot b, String text) async {

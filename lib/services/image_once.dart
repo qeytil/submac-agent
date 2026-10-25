@@ -31,6 +31,12 @@ class ImageOnce {
 
   bool wasSent(String conv, String key) => _sent[conv]?.contains(key) ?? false;
 
+  /// Everything forgotten (all chats were deleted).
+  void clear() {
+    _sent.clear();
+    _pending.clear();
+  }
+
   void forget(String conv) {
     _sent.remove(conv);
     _pending.remove(conv);
