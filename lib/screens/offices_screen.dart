@@ -637,9 +637,8 @@ class _TeamActivityState extends State<_TeamActivity> {
     final p = Palette.of(context);
     final state = context.watch<AppState>();
     final rows = state.officeActivity(widget.officeId);
-    return AnimatedSize(
-      duration: SubMotion.of(context, SubMotion.quick),
-      curve: SubMotion.settle,
+    return SubSize(
+      duration: SubMotion.quick,
       alignment: AlignmentDirectional.topStart,
       child: rows.isEmpty
           ? const SizedBox(width: double.infinity)
@@ -859,9 +858,8 @@ class _AnswerViewState extends State<_AnswerView> {
                   ),
                 ),
               ),
-              AnimatedSize(
-                duration: SubMotion.of(context, SubMotion.base),
-                curve: SubMotion.settle,
+              SubSize(
+                duration: SubMotion.base,
                 alignment: AlignmentDirectional.topStart,
                 child: _open.contains(i)
                     ? ExpandableText(

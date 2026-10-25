@@ -666,7 +666,8 @@ class _MainHooks extends CoreHooks {
     }
     asst.streaming = false;
     // A steer is never shown as an error word ("steered").
-    asst.error = AgentCore.isSteer(e) ? AgentCore.steerStopText : e.toString();
+    // Stored with its code and status and without class names, so the card can say it in the app's language (CB-27).
+    asst.error = AgentCore.isSteer(e) ? AgentCore.steerStopText : ErrorCopy.store(AgentCore.causeOf(e));
     app._notify();
     if (asst.content.isNotEmpty) unawaited(app._save(convId, asst));
   }

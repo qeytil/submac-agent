@@ -21,6 +21,7 @@ import '../services/offices.dart';
 import '../services/inbox.dart';
 import '../screens/inbox_screen.dart';
 import 'chat/entrance.dart';
+import '../services/reply_text.dart' show cleanGlyphs;
 
 class Sidebar extends StatefulWidget {
   const Sidebar({super.key});
@@ -367,13 +368,13 @@ class _ChatTile extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(conversation.title,
+                          Text(cleanGlyphs(conversation.title),
                               maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
                           const SizedBox(height: 2),
                           Text('Backed up. Tap to open', style: AppText.captionStyle.copyWith(color: p.muted)),
                         ],
                       )
-                    : Text(conversation.title,
+                    : Text(cleanGlyphs(conversation.title),
                         maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
               ),
             ],
@@ -397,7 +398,7 @@ Future<void> showChatActions(BuildContext context, Conversation c) async {
         children: [
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 8),
-            child: Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+            child: Text(cleanGlyphs(c.title), maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: AppText.leadStyle.copyWith(fontWeight: FontWeight.w600)),
           ),
           ListTile(

@@ -21,7 +21,9 @@ class ReplyBlock {
 }
 
 final _split = RegExp(r'^\s*(---+|\+\+\+)\s*$');
-final _open = RegExp(r'^\s{0,3}(```+|~~~+)\s*([A-Za-z0-9_+-]*)\s*$');
+// Any info string opens a fence (CommonMark): ```c#, ```objective-c, ```python title="x". Before PR-7 (CB-6) only
+// [A-Za-z0-9_+-] words matched, so the CLOSING fence of a ```c# block was read as an opening one and swallowed the rest.
+final _open = RegExp(r'^\s{0,3}(```+|~~~+)\s*([^\s`]*)[^`]*$');
 
 /// Splits a reply into text and card blocks. Card fences only count at the top
 /// level; other code fences stay inside the text so markdown renders them.
@@ -208,9 +210,9 @@ class _ReplyViewState extends State<ReplyView> with SingleTickerProviderStateMix
       // summary card (serif title, faded preview, tap for the reader). Anything else stays plain readable text.
       final split = longReplySplit(b.text);
       final d = SubMotion.of(context, LuxMotion.base);
-      return AnimatedSize(
-        duration: d,
-        curve: SubMotion.settle,
+      // SubSize, never a zero-length AnimatedSize under Remove animations (CB-12).
+      return SubSize(
+        duration: LuxMotion.base,
         alignment: Alignment.topCenter,
         child: AnimatedSwitcher(
           duration: d,
@@ -247,17 +249,17 @@ class _ReplyViewState extends State<ReplyView> with SingleTickerProviderStateMix
     } else {
       child = KeyedSubtree(
         key: const ValueKey('card'),
-        child: buildOutputCard(b.lang!, b.text) ??
-            // A card that came out broken is dropped quietly: people should never see raw JSON.
-            (cardLanguages.contains(b.lang) ? const SizedBox.shrink() : CodeBlock(code: b.text.trimRight(), language: b.lang!)),
+        child: buildOutputCard(b.lang!, b.text, owner: widget.message.id) ??
+            // A card whose JSON is broken beyond repair (CB-7) shows what it holds as plain lines, never raw JSON and
+            // never nothing. A choices card that can't be read is dropped (its answers mean nothing without the card).
+            (cardLanguages.contains(b.lang) ? BrokenCard(lang: b.lang!, body: b.text) : CodeBlock(code: b.text.trimRight(), language: b.lang!)),
       );
     }
     // The shimmer and the finished card cross-fade in one box whose height eases to the card's (the box kept the
     // taller child's height until the fade ended, then snapped to the new one).
     final d = SubMotion.of(context, LuxMotion.base);
-    return AnimatedSize(
-      duration: d,
-      curve: SubMotion.settle,
+    return SubSize(
+      duration: LuxMotion.base,
       alignment: Alignment.topCenter,
       child: AnimatedSwitcher(
         duration: d,
@@ -271,4 +273,62 @@ class _ReplyViewState extends State<ReplyView> with SingleTickerProviderStateMix
       ),
     );
   }
+}
+
+/// What a card that could not be drawn still says (CB-7): its words as plain lines (keys and JSON marks left out), or a
+/// quiet code block when there are no words to show.
+class BrokenCard extends StatelessWidget {
+  const BrokenCard({super.key, required this.lang, required this.body});
+  final String lang;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    if (lang == 'choices' || body.trim().isEmpty) return const SizedBox.shrink();
+    final text = brokenCardText(body);
+    if (text.isEmpty) return CodeBlock(code: body.trimRight(), language: '');
+    // One paragraph per line (a single newline is only a soft break in markdown).
+    return ReplyBubble(child: MessageText(text.split('\n').join('\n\n')));
+  }
+}
+
+/// The words in a broken card body, one line per source line: each string value (keys are skipped) joined with " | ".
+/// A body that is not JSON at all keeps its own non-empty lines.
+String brokenCardText(String body) {
+  final str = RegExp(r'"((?:[^"\\]|\\.)*)"(\s*:)?');
+  final out = <String>[];
+  var sawJson = false;
+  for (final line in body.split('\n')) {
+    final t = line.trim();
+    if (t.isEmpty) continue;
+    if (RegExp(r'^[\[\]{},]+$').hasMatch(t)) {
+      sawJson = true;
+      continue;
+    }
+    final cells = <String>[];
+    for (final m in str.allMatches(t)) {
+      sawJson = true;
+      if (m.group(2) != null) continue; // a key
+      final v = m.group(1)!.replaceAll(r'\"', '"').replaceAll(r'\n', ' ').trim();
+      if (v.isNotEmpty) cells.add(v);
+    }
+    // One line of JSON with many rows: split it by its inner brackets so each row reads as its own line.
+    if (cells.isNotEmpty) {
+      final rows = RegExp(r'\[([^\[\]]*)\]').allMatches(t).toList();
+      if (rows.length > 1) {
+        for (final r in rows) {
+          final rc = [
+            for (final m in str.allMatches(r.group(1)!))
+              if (m.group(2) == null && m.group(1)!.trim().isNotEmpty) m.group(1)!.replaceAll(r'\"', '"').trim()
+          ];
+          if (rc.isNotEmpty) out.add(rc.join(' | '));
+        }
+        continue;
+      }
+      out.add(cells.join(' | '));
+    } else if (!sawJson && !RegExp(r'[{}\[\]]').hasMatch(t)) {
+      out.add(t);
+    }
+  }
+  return out.join('\n');
 }
