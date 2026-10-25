@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
@@ -49,10 +50,21 @@ class McpTool {
   McpTool(this.server, this.name, this.description, this.schema);
 
   /// Name shown to the model: mcp_<server>__<tool>, max 64 chars.
-  String get fnName {
-    var n = 'mcp_${server.slug}__${name.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}';
-    if (n.length > 64) n = n.substring(0, 64);
-    return n;
+  String get fnName => fnNameFor(server.slug, name);
+
+  /// Longest tool name the model APIs take.
+  static const maxName = 64;
+
+  /// CB-33: cutting at 64 made two long tool names from one app identical, so one shadowed the other.
+  /// A long name keeps its first 55 characters, then `_` and 8 hex characters of a hash of the whole name,
+  /// so it stays the same on every phone and two different tools never share it. Dispatch already finds the tool by
+  /// this exact name in the listed tools (`fnName == name`), so the list is the reverse map back to the real tool name.
+  static String fnNameFor(String slug, String tool) {
+    final full = 'mcp_${slug}__$tool';
+    final n = 'mcp_${slug}__${tool.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}';
+    if (n.length <= maxName) return n;
+    final h = sha1.convert(utf8.encode(full)).toString().substring(0, 8);
+    return '${n.substring(0, maxName - 9)}_$h';
   }
 
   Map<String, dynamic> toDefinition() {

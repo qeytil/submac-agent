@@ -171,6 +171,23 @@ class ChatStore {
     }
   }
 
+  /// The saved rows of a chat for menu search (CB-32): from memory when it is open, otherwise read from its file
+  /// without keeping it in memory, so searching many chats doesn't hold them all.
+  Future<List<Map<String, dynamic>>?> rowsForSearch(String id) async {
+    final c = _chats[id];
+    if (c != null) return c.rows;
+    if (_dir == null) return null;
+    try {
+      final f = _chatFile(id);
+      if (!await f.exists()) return null;
+      final j = jsonDecode(await f.readAsString());
+      if (j is! Map) return null;
+      return [for (final r in (j['rows'] as List? ?? const [])) if (r is Map) Map<String, dynamic>.from(r)];
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// The chat on the phone, made if missing (incomplete when the backup may hold older rows).
   Future<LocalChat> chatOrNew(String id, {bool complete = true}) async {
     final c = await chat(id);
