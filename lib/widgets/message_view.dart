@@ -60,6 +60,9 @@ void startReply(BuildContext context, ChatMessage m) {
 /// Your own message: a soft filled bubble on the end side (answers have none). A short message is set in the serif
 /// (it reads like the question at the top of a page); a long one in the reading sans.
 /// Tap for a quiet Copy · Edit row, long-press for the sheet.
+/// Shown when Edit and resend is tapped while a run is going in this chat (CB-13).
+const editBusyNote = 'SubMac is still answering. Stop it first, then edit your message.';
+
 class UserMessageView extends StatelessWidget {
   final ChatMessage message;
   const UserMessageView({super.key, required this.message});
@@ -174,8 +177,12 @@ class UserMessageView extends StatelessWidget {
   }
 
   Future<void> _edit(BuildContext context) async {
-    final ctrl = TextEditingController(text: ReplyCodec.bodyOf(message.content));
     final state = context.read<AppState>();
+    final messenger = ScaffoldMessenger.of(context);
+    // CB-13: while SubMac is still answering, an edit cannot go out. Say so instead of a tap that does nothing.
+    void busyNote() => messenger.showSnackBar(SnackBar(content: Text(tr(editBusyNote))));
+    if (!state.canEditHere) return busyNote();
+    final ctrl = TextEditingController(text: ReplyCodec.bodyOf(message.content));
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -190,7 +197,9 @@ class UserMessageView extends StatelessWidget {
     // Disposed after the dialog's closing animation, which still reads it.
     Future.delayed(const Duration(seconds: 1), ctrl.dispose);
     if (result != null && result.trim().isNotEmpty) {
-      await state.editAndResend(message, result);
+      // A run may have started while the box was open (a reminder, a bot wake): nothing went out, and it says so.
+      final sent = await state.editAndResend(message, result);
+      if (!sent && !state.canEditHere) busyNote();
     }
   }
 }

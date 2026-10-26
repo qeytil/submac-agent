@@ -394,6 +394,7 @@ class Strings {
       // Bug hunt (v1.13.102): keys used but missing, and banners with {holes}. Need a native read.
       'Copy': 'Koobiyee',
       'Copied': 'Waa la koobiyeeyay',
+      'SubMac is still answering. Stop it first, then edit your message.': 'SubMac weli wuu jawaabayaa. Marka hore jooji, kadibna wax ka beddel fariintaada.',
       'Reply': 'Ka jawaab',
       'Select text': 'Dooro qoraalka',
       'Skills': 'Xirfadaha',
@@ -712,6 +713,7 @@ class Strings {
       // Bug hunt (v1.13.102): keys used but missing, and banners with {holes}. Need a native read.
       'Copy': 'نسخ',
       'Copied': 'تم النسخ',
+      'SubMac is still answering. Stop it first, then edit your message.': 'لا يزال SubMac يجيب. أوقفه أولاً، ثم عدّل رسالتك.',
       'Reply': 'رد',
       'Select text': 'تحديد النص',
       'Skills': 'المهارات',
