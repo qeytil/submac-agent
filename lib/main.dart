@@ -179,7 +179,6 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final choice = context.select<AppState, ThemeChoice>((s) => s.themeChoice);
     final easy = context.select<AppState, bool>((s) => s.easyMode);
     // Rebuilds on a language change and when the auto look flips (07:00 / 19:00: twice a day at most). The flip runs
     // through MaterialApp's own theme animation, so it eases like any theme change, and the system bars follow it.
@@ -199,7 +198,8 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
-      themeMode: resolveThemeMode(choice, DayNight.I.brightness),
+      // Always the time-of-day look (light 07:00-19:00, dark at night); there is no theme setting.
+      themeMode: themeModeFor(DayNight.I.brightness),
       // Switching looks eases on SubMac's own curve, in step with the sky's veils (it was a 200 ms linear fade
       // while the sky's veils switched at once).
       themeAnimationDuration: SubMotion.base,

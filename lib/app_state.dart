@@ -466,8 +466,6 @@ class AppState extends ChangeNotifier {
   }
 
   // Preferences
-  /// Settings > Theme. Auto (light 07:00 to 19:00, dark at night) is the default.
-  ThemeChoice themeChoice = ThemeChoice.auto;
   bool agentEnabled = true;
   /// 'ask' = confirm risky actions, 'full' = do everything without asking.
   String approvalMode = 'ask';

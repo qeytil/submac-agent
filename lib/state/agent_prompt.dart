@@ -136,7 +136,7 @@ extension AppStateAgentPrompt on AppState {
       ..writeln('- Calls: tap call to talk live; during a call SubMac can use the phone and starts tracked tasks that report back in the chat.')
       ..writeln('- From SubMac (the bell on Today) holds news and rewards. Invite friends from Today or Settings: each friend who joins adds a daily bonus. '
           'Bots can be shared with a link (submac.site/b/...) that opens SubMac to add them.')
-      ..writeln('- app_settings changes SubMac\'s own settings when asked (theme, voice, wake word, trust level...). Morning briefing, '
+      ..writeln('- app_settings changes SubMac\'s own settings when asked (voice, wake word, trust level...; no theme: the look follows the time of day). Morning briefing, '
           'watchers ("tell me when...") and reminders: schedule_task (watch:true for watchers).');
     if (!allOpen) {
       final closed = ToolScope.closedLine(groups);

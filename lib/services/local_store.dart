@@ -41,11 +41,11 @@ class LocalStore {
     }
   }
 
-  /// Settings > Theme. Nothing stored means the user never picked one (the old default, Ink): they move to Auto (light
-  /// by day, dark at night). An explicit light, dark or system choice is kept.
-  ThemeChoice get themeChoice => themeChoiceFromStored(_prefs.getString('themeMode'));
-
-  set themeChoice(ThemeChoice c) => _prefs.setString('themeMode', c.name);
+  /// Older builds had Settings > Theme (auto/system/light/dark). The look now always follows the time of day, so any
+  /// saved choice is ignored and the stored key is removed.
+  Future<void> clearLegacyThemeMode() async {
+    if (_prefs.containsKey(legacyThemeModeKey)) await _prefs.remove(legacyThemeModeKey);
+  }
 
   bool get agentEnabled => _prefs.getBool('agentEnabled') ?? true;
   set agentEnabled(bool v) => _prefs.setBool('agentEnabled', v);
