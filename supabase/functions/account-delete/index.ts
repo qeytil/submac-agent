@@ -56,7 +56,8 @@ Deno.serve(async (req) => {
     await db.from("user_settings").delete().eq("user_id", uid);
     await db.from("ai_user_daily").delete().eq("user_id", uid);
     await db.from("ai_usage").update({ user_id: null }).eq("user_id", uid);
-    for (const b of ["attachments", "chat-archives"]) await wipeFolder(b, uid);
+    // feedback-screenshots/<uid>/… holds the user's in-app feedback screenshots (the feedback rows cascade with the user).
+    for (const b of ["attachments", "chat-archives", "feedback-screenshots"]) await wipeFolder(b, uid);
     const { error } = await db.auth.admin.deleteUser(uid);
     if (error) throw error;
     return json({ ok: true });

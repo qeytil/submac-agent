@@ -78,8 +78,12 @@ jobs:
           V=$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
           echo "version=$V" >> $GITHUB_OUTPUT
 
+      # The account's artifact storage quota is full ("Artifact storage quota has been hit"), which failed the whole
+      # check after a green Build APK + Verify. The upload is a convenience copy only, so it may fail without failing the check.
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: submac-agent-dev-apk
+          retention-days: 3
           path: build/app/outputs/flutter-apk/app-release.apk
 

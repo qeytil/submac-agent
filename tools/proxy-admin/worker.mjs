@@ -5,7 +5,7 @@ const SEC = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
   "cache-control": "no-store",
-  "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh; connect-src 'self' https://*.supabase.co https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'",
+  "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh; connect-src 'self' https://*.supabase.co https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co; frame-ancestors 'none'",
 };
 
 // ---------- /api/updates/*: app update files into Cloudflare R2 (binding UPDATES -> bucket submac-app-updates) ----------

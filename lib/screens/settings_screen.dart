@@ -17,11 +17,13 @@ import '../widgets/motion.dart';
 import '../theme.dart';
 import '../ui/embed.dart';
 import '../ui/i18n.dart';
+import '../ui/feedback_words.dart';
 import 'files_screen.dart' show FilesScreen, FilesView;
 import '../widgets/sidebar.dart';
 import '../widgets/update_window.dart';
 import 'billing/billing_widgets.dart';
 import 'connectors_screen.dart';
+import 'feedback_screen.dart';
 import 'home_screen.dart' show TodayUsage;
 import 'inbox_screen.dart' show enterInviteCode;
 import 'logins_screen.dart';
@@ -253,7 +255,7 @@ class _AccountPage extends StatelessWidget {
       ]),
       _Group([
         ListTile(
-          title: const Text('Sign out'),
+          title: Text(tr('Sign out')),
           onTap: () async {
             if (!await _confirm(context, 'Sign out?', 'Your chats come back when you sign in again.', 'Sign out')) return;
             if (!context.mounted) return;
@@ -545,7 +547,12 @@ class _HelpPage extends StatelessWidget {
     return _Page('Help', [
       _Group([
         ListTile(
-          title: const Text('Help and feedback'),
+          title: Text(ft('Send feedback')),
+          trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+          onTap: () => _push(context, const FeedbackScreen()),
+        ),
+        ListTile(
+          title: Text(ft('Email us')),
           onTap: () => open('mailto:${AppConfig.supportEmail}?subject=SubMac%20Agent%20${AppConfig.version}'),
         ),
         ListTile(title: Text(tr('Terms')), onTap: () => open(AppConfig.termsUrl)),

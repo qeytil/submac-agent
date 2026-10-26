@@ -38,7 +38,7 @@ void main() {
     await tester.pumpWidget(host(const WorkingLine(key: ValueKey('live'))));
     await tester.pump(const Duration(milliseconds: 50));
     final live = tester.getSize(find.byKey(const ValueKey('live')));
-    final liveText = tester.getTopLeft(find.text('Thinking'));
+    final liveText = tester.getTopLeft(find.text(WorkingLine.lineFor(null)));
     await tester.pumpWidget(host(const WorkSummary(key: ValueKey('done'), steps: [StepLine('Searched the web'), StepLine('Read 3 pages')], worked: Duration(seconds: 42), head: true)));
     final done = tester.getSize(find.byKey(const ValueKey('done')));
     final doneText = tester.getTopLeft(find.textContaining('Worked for 42s'));
@@ -53,10 +53,10 @@ void main() {
   });
 
   testWidgets('right to left: the line starts on the right', (tester) async {
-    await tester.pumpWidget(host(const SizedBox(width: 400, child: WorkingLine(key: ValueKey('live'))), dir: TextDirection.rtl));
+    await tester.pumpWidget(host(const SizedBox(width: 600, child: WorkingLine(key: ValueKey('live'))), dir: TextDirection.rtl));
     await tester.pump(const Duration(milliseconds: 50));
     final box = tester.getRect(find.byKey(const ValueKey('live')));
-    final text = tester.getRect(find.text('Thinking'));
+    final text = tester.getRect(find.text(WorkingLine.lineFor(null)));
     // Plain text only (no mark before it): the word starts right at the line's start edge.
     expect((box.right - text.right).abs(), lessThan(turnMarkSize));
     expect(text.left - box.left, greaterThan(100));

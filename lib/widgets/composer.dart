@@ -784,6 +784,37 @@ class WorkingLine extends StatefulWidget {
   /// The answer's words are appearing right now.
   final bool writing;
 
+  /// The line for [t] (null: the message is still being saved or uploaded), in the app language.
+  static String lineFor(AgentRun? t, {bool writing = false, int more = 0, DateTime? now}) {
+    String key;
+    Map<String, String> args;
+    if (t == null) {
+      key = RunStatus.sending;
+      args = const {};
+    } else {
+      final waited = (now ?? DateTime.now()).difference(t.statusAt).inSeconds;
+      key = RunStatus.shown(t.phase, t.status, waited);
+      args = t.statusArgs;
+      // The reply's words are on screen (a carried-over bubble too) while the run still says it waits: it is writing.
+      if (writing && !t.phone && (t.phase == RunPhase.waiting || t.phase == RunPhase.thinking || t.phase == RunPhase.writing)) {
+        key = RunStatus.writing;
+        args = const {};
+      }
+    }
+    final line = RunStatus.text(key, args);
+    return more > 0 ? '$line  ·  ${RunStatus.text(RunStatus.more, {'n': '$more'})}' : line;
+  }
+
+  /// How the line breathes: waiting/thinking, working (a tool, an approval), or roaming (driving the browser or phone).
+  static ActivityKind kindOf(AgentRun? t) {
+    if (t == null) return ActivityKind.thinking;
+    if (t.browsing || t.phone) return ActivityKind.roaming;
+    return switch (t.phase) {
+      RunPhase.starting || RunPhase.waiting || RunPhase.thinking || RunPhase.retrying => ActivityKind.thinking,
+      _ => ActivityKind.working,
+    };
+  }
+
   @override
   State<WorkingLine> createState() => _WorkingLineState();
 }
@@ -855,29 +886,13 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
         if (t != null && browsing != null) {
           return Padding(padding: turnHeadPad, child: BrowserLiveCard(key: ValueKey('browser-card-${t.convId}'), convId: t.convId));
         }
-        // A long wait on the model says so in plain words, so the line never looks frozen.
-        var now = t?.status ?? 'Thinking';
-        final waited = t == null ? 0 : DateTime.now().difference(t.statusAt).inSeconds;
-        if (t != null && widget.writing && !t.phone) {
-          now = 'Writing';
-        } else if (t != null && t.inModel && (now == 'Thinking' || now == 'Thinking it through')) {
-          if (waited >= 25) {
-            now = 'Taking a little longer than usual';
-          } else if (waited >= 8 && now == 'Thinking') {
-            now = 'Still thinking';
-          }
-        }
-        final status = widget.more > 0 ? '$now  ·  ${widget.more} more' : now;
+        // R2 item 1: the line is the run's real phase (RunStatus), in the app language. Only a long silence in the same
+        // phase changes it by itself ("Still waiting for a response"), never a rotating phrase.
+        final status = WorkingLine.lineFor(t, writing: widget.writing, more: widget.more);
         final el = _elapsed();
         final trail = t?.trail ?? const <RunStep>[];
         final canOpen = widget.showSteps && trail.isNotEmpty;
-        final kind = t == null
-            ? ActivityKind.thinking
-            : (t.browsing || t.phone)
-                ? ActivityKind.roaming
-                : (t.step == 0 || t.status.startsWith('Thinking'))
-                    ? ActivityKind.thinking
-                    : ActivityKind.working;
+        final kind = WorkingLine.kindOf(t);
         final row = SizedBox(
           height: turnHeadHeight,
           child: Row(children: [

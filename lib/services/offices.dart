@@ -646,6 +646,27 @@ class Offices extends ChangeNotifier {
   Iterable<Approval> get pending => approvals.where((a) => a.status == 'pending');
   bool get any => offices.isNotEmpty;
 
+  /// Teams, their job queue and approvals as kept per account at sign-out (R2 item 3). Teams are not in the account.
+  Map<String, dynamic> snapshot() => {
+        'offices': [for (final o in offices) o.toJson()],
+        'queue': [for (final j in queue) j.toJson()],
+      };
+
+  /// Brings back a [snapshot] (a team already here with the same id is replaced), then arms the teams again.
+  Future<void> adopt(Map<String, dynamic> snap) async {
+    _p ??= await SharedPreferences.getInstance();
+    for (final e in (snap['offices'] as List? ?? const [])) {
+      final o = Office.fromJson(Map<String, dynamic>.from(e as Map));
+      offices.removeWhere((x) => x.id == o.id);
+      offices.add(o);
+    }
+    for (final e in (snap['queue'] as List? ?? const [])) {
+      queue.add(OfficeJob.fromJson(Map<String, dynamic>.from(e as Map)));
+    }
+    await save();
+    await armAll();
+  }
+
   Future<void> init() async {
     _p = await SharedPreferences.getInstance();
     offices.clear();

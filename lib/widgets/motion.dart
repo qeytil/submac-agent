@@ -107,62 +107,6 @@ class CardShimmer extends StatelessWidget {
   }
 }
 
-/// A sent message lands: SubMac's send settle (a short rise and a 3 % settle, no overshoot),
-/// growing from its bottom-end corner (the side it was sent from). Plays once.
-class SendIn extends StatefulWidget {
-  const SendIn({super.key, required this.child, this.enabled = true, this.onDone});
-  final Widget child;
-  final bool enabled;
-  final VoidCallback? onDone;
-
-  @override
-  State<SendIn> createState() => _SendInState();
-}
-
-class _SendInState extends State<SendIn> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController.unbounded(vsync: this, value: widget.enabled ? 0 : 1);
-  bool _started = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started || !widget.enabled) return;
-    _started = true;
-    if (reduceMotion(context)) {
-      _c.value = 1;
-      widget.onDone?.call();
-      return;
-    }
-    _c
-        .animateTo(1, duration: SubMotion.enter, curve: SubMotion.settle)
-        .whenComplete(() => widget.onDone?.call());
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      child: widget.child,
-      builder: (context, child) {
-        final v = _c.value;
-        return Opacity(
-          opacity: v.clamp(0.0, 1.0),
-          child: Transform.translate(
-            offset: Offset(0, (1 - v) * SubMotion.sendRise),
-            child: Transform.scale(scale: SubMotion.sendScale + (1 - SubMotion.sendScale) * v, alignment: AlignmentDirectional.bottomEnd, child: child),
-          ),
-        );
-      },
-    );
-  }
-}
-
 /// Keeps a card small until the user wants more: content past [height] is clipped under a soft fade
 /// with a "Show more" pill. Short content shows as is, with no pill.
 class Expandable extends StatefulWidget {

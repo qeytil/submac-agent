@@ -44,6 +44,7 @@ import 'services/mcp_client.dart';
 import 'services/memory_store.dart';
 import 'services/phone_tools.dart';
 import 'services/rate_limiter.dart';
+import 'services/retry_plan.dart';
 import 'services/paste_guard.dart';
 import 'services/web_tools.dart';
 import 'services/browser_agent.dart';
@@ -61,6 +62,8 @@ import 'services/calm.dart';
 import 'services/skills_catalog.dart';
 import 'services/connector_catalog.dart';
 import 'services/tool_output_clean.dart';
+import 'services/run_status.dart';
+export 'services/run_status.dart' show RunPhase, RunStatus;
 import 'ui/i18n.dart' show tr;
 import 'services/apk_build.dart';
 import 'services/design_skills.dart';
@@ -979,6 +982,8 @@ class AppState extends ChangeNotifier {
   @visibleForTesting
   Map<String, List<ChatMessage>> get listsForTest => _lists;
   @visibleForTesting
+  Map<String, String> get resumeNotesForTest => _resumeNotes;
+  @visibleForTesting
   List<Map<String, dynamic>> lightToolsForTest(String convId) => _lightTools(convId);
   @visibleForTesting
   List<Map<String, dynamic>> scopedToolsForTest(String convId) => _scopedTools(convId);
@@ -1049,36 +1054,21 @@ class AppState extends ChangeNotifier {
 
   DateTime _bgLineAt = DateTime(2000);
 
-  /// Labels shown the moment the model picks a step, before its details have arrived (plain words only).
-  static const _earlyLabels = <String, String>{
-    'web_search': 'Searching the web',
-    'fetch_url': 'Reading a web page',
-    'make_document': 'Making your document',
-    'images_to_pdf': 'Making your PDF',
-    'write_file': 'Writing a file',
-    'code_media': 'Drawing',
-    'generate_image': 'Creating an image',
-    'ai_call': 'Calling your model',
-    'generate_media': 'Creating it',
-    'browser_task': 'Opening the browser',
-    'schedule_task': 'Setting it up',
-    'email_send': 'Writing the email',
-    'email_draft': 'Writing the email',
-    'whatsapp': 'Opening WhatsApp',
-    'read_pdf': 'Reading the PDF',
-    'get_weather': 'Checking the weather',
-    'remember': 'Taking a note',
-  };
-
-  /// One line for several read-only steps running together.
+  /// One line for several read-only steps running together (English).
   static String groupLabel(List<ToolCall> calls) {
+    final (k, a) = groupStatus(calls);
+    return RunStatus.english(k, a);
+  }
+
+  /// The same as a status key with its holes (translated on screen).
+  static (String, Map<String, String>) groupStatus(List<ToolCall> calls) {
     final names = calls.map((c) => c.name).toSet();
-    final n = calls.length;
-    if (names.length == 1 && names.first == 'fetch_url') return 'Reading $n pages';
-    if (names.length == 1 && names.first == 'web_search') return 'Searching the web ($n searches)';
-    if (names.every((x) => x == 'web_search' || x == 'fetch_url')) return 'Searching and reading $n sources';
-    if (names.every((x) => x == 'read_file' || x == 'list_dir' || x == 'read_pdf')) return 'Reading $n files';
-    return 'Checking $n things at once';
+    final n = {'n': '${calls.length}'};
+    if (names.length == 1 && names.first == 'fetch_url') return ('Reading {n} pages', n);
+    if (names.length == 1 && names.first == 'web_search') return ('Searching the web ({n} searches)', n);
+    if (names.every((x) => x == 'web_search' || x == 'fetch_url')) return ('Searching and reading {n} sources', n);
+    if (names.every((x) => x == 'read_file' || x == 'list_dir' || x == 'read_pdf')) return ('Reading {n} files', n);
+    return ('Checking {n} things at once', n);
   }
 
 }
@@ -1107,15 +1097,43 @@ class AgentRun {
   final String convId;
   final bool side;
   final String title;
-  String _status = 'Thinking';
+  // R2 item 1: the live line follows the run's real events (lib/services/run_status.dart). [status] is an English key
+  // with {holes} in [statusArgs], shown through the app's i18n.
+  RunPhase _phase = RunPhase.starting;
+  String _status = RunStatus.starting;
+  Map<String, String> _args = const {};
   /// When the status line last changed, so a long wait can say so instead of looking frozen.
   DateTime statusAt = DateTime.now();
+  RunPhase get phase => _phase;
   String get status => _status;
-  set status(String v) {
-    if (v == _status) return;
-    _status = v;
+  Map<String, String> get statusArgs => _args;
+  /// Words only, phase unchanged (a browser job's own progress line).
+  set status(String v) => show(_phase, v);
+
+  /// What the task is doing now: [phase], and the line's key with its holes.
+  void show(RunPhase phase, String key, [Map<String, String> args = const {}]) {
+    if (phase == _phase && key == _status && _sameArgs(args, _args)) return;
+    _phase = phase;
+    _status = key;
+    _args = args;
     statusAt = DateTime.now();
   }
+
+  static bool _sameArgs(Map<String, String> a, Map<String, String> b) =>
+      a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
+
+  /// The line in the app language, and in English (for the model and logs).
+  String get statusText => RunStatus.text(_status, _args);
+  String get statusEnglish => RunStatus.english(_status, _args);
+
+  /// The waiting line of the next model call (a new message to read, a reply sent back, a retry after a drop).
+  (String, Map<String, String>) nextCall = (RunStatus.waiting, const {});
+
+  /// Tool calls running right now with their line (call id → key, holes), oldest first.
+  final Map<String, (String, Map<String, String>)> running = {};
+
+  /// Tool calls of the current model reply that have not returned yet.
+  final Set<String> openCalls = {};
 
   /// The steps this task has taken so far, newest last (plain labels, never tool names).
   final List<RunStep> trail = [];
@@ -1227,6 +1245,8 @@ class AgentRun {
   bool noToolsAfterStop = false;
 
   void stop() {
+    // The line says what happens now (the call or tool in flight is cut), never the last step's label.
+    show(RunPhase.stopping, RunStatus.stopping);
     cancelled = true;
     client?.cancel();
     onStop?.call();

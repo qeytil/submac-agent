@@ -271,7 +271,8 @@ extension AppStateChat on AppState {
     Bots.I.userReplied(convId);
     task.inbox.add(t);
     BrowserJobs.I.userSaid(convId, t);
-    task.status = 'Reading your message';
+    // R2 item 1: only a step that restarts to hear it is "reading"; a tool still running keeps its own line.
+    if (task.inModel) task.show(RunPhase.waiting, RunStatus.reading);
     for (final a in asks.where((a) => a.convId == convId).toList()) {
       answerAsk(a, null);
     }
@@ -421,7 +422,8 @@ extension AppStateChat on AppState {
     if (task != null && !task.cancelled && runs.contains(task)) {
       task.inbox.add(text.trim().isEmpty ? '(sent an attachment)' : content);
       if (text.trim().isNotEmpty) BrowserJobs.I.userSaid(convId, text.trim());
-      task.status = 'Reading your message';
+      // R2 item 1: only a step that restarts to hear it is "reading"; a tool still running keeps its own line.
+    if (task.inModel) task.show(RunPhase.waiting, RunStatus.reading);
       for (final a in asks.where((a) => a.convId == convId).toList()) {
         answerAsk(a, null);
       }
@@ -501,14 +503,32 @@ extension AppStateChat on AppState {
     if (lastUser < 0) return;
     // Claimed before the first await; released once the run has registered itself (synchronously in _runAgent).
     _regenerating.add(convId);
-    final removed = messages.sublist(lastUser + 1);
-    messages.removeRange(lastUser + 1, messages.length);
-    final awaitId = messages[lastUser].id;
-    _imagesOnce.unsend(convId, awaitId);
+    // R2 item 2: only the failed (or last) answer goes. Finished steps and their results stay, and the task resumes
+    // after them; the user's message is never sent again as a new request (RetryPlan).
+    final list = messages;
+    final plan = RetryPlan.of(list.sublist(lastUser + 1));
+    final removed = plan.remove;
+    list.removeWhere((m) => removed.contains(m));
+    for (final m in removed) {
+      workedFor.remove(m.id);
+    }
+    final awaitId = list[lastUser].id;
+    if (plan.resume) {
+      // A cut-off call gets its result first (the model needs one for every call); nothing is run again here.
+      for (final e in plan.settle.entries) {
+        final tm = ChatMessage(id: _uuid.v4(), role: 'tool', content: e.value, toolCallId: e.key.id, name: e.key.name);
+        list.add(tm);
+        await _save(convId, tm);
+      }
+      _resumeNotes[convId] = RetryPlan.note(settled: plan.settle.length);
+    } else {
+      // Nothing was done yet: the answer is made again from the same message (its pictures go along once more).
+      _imagesOnce.unsend(convId, awaitId);
+    }
     awaitingReply = awaitId;
     _notify();
     try {
-      await repo.deleteMessages(removed.map((e) => e.id).toList());
+      if (removed.isNotEmpty) await repo.deleteMessages(removed.map((e) => e.id).toList());
     } catch (_) {}
     Future<void> run;
     try {

@@ -20,7 +20,8 @@ import 'package:flutter/material.dart';
 ///   settle on [settle], staggered by [stagger] and never more than [maxStagger].
 /// * [Breath]: the calm breathing of the plain-text status word ("Thinking", "Working"), opacity only.
 /// * [sheet]: the quiet reveal of the tap/hold action sheets.
-/// * [SendSettle]: your message lands with a short rise and a 3 % settle when you send it.
+/// * [MessageArrive]: every new chat message (yours, SubMac's, a bot's) arrives over [arrive] (1 s): a fade with a
+///   slight rise and scale, ease-out ([arriveEase]). Once per message, only for messages new this session.
 /// * [SubPageTransitions]: screens arrive with a fade and a small rise, and leave with a fade.
 class SubMotion {
   const SubMotion._();
@@ -32,6 +33,10 @@ class SubMotion {
   /// For words: a slightly slower start, so the eye catches the letters closing in.
   static const Curve ink = Cubic(0.33, 0.0, 0.1, 1.0);
 
+  /// A message arriving ([MessageArrive]): a plain ease-out, so the whole second reads as one smooth landing (the
+  /// [settle] curve is done in a third of that and would look like a pop on a 1 s timing).
+  static const Curve arriveEase = Curves.easeOutCubic;
+
   /// For things leaving: a short, quiet fade.
   static const Curve leave = Cubic(0.4, 0.0, 1.0, 1.0);
 
@@ -41,6 +46,9 @@ class SubMotion {
   static const Duration base = Duration(milliseconds: 280);
   static const Duration enter = Duration(milliseconds: 480);
   static const Duration page = Duration(milliseconds: 420);
+
+  /// A chat message arriving, sent or received (owner 2026-10-26: "smooth 1 sec animations"). See [MessageArrive].
+  static const Duration arrive = Duration(milliseconds: 1000);
   static const Duration sheetIn = Duration(milliseconds: 360);
   static const Duration sheetOut = Duration(milliseconds: 220);
 
@@ -210,35 +218,126 @@ class _BreathState extends State<Breath> with SingleTickerProviderStateMixin {
   }
 }
 
-/// Your message landing after Send: a short rise and a 3 % settle, played once.
-class SendSettle extends StatelessWidget {
-  const SendSettle({super.key, required this.child, this.enabled = true});
+/// A chat message arriving: a fade with a slight rise ([SubMotion.sendRise] px) and scale (from [SubMotion.sendScale]),
+/// over [SubMotion.arrive] on [SubMotion.arriveEase]. One wrapper for sent and received messages alike (it replaced the
+/// 480 ms SendIn / SendSettle, so a sent message never runs two entrances).
+///
+/// * Plays once per message [id], and only when [enabled] (the message is new this session: `ChatMessage.animateIn`).
+///   History never animates, on open or on scroll; a message that remounts (the list rebuilds, the turn moves into
+///   the history, it scrolls back into view) shows at rest, because the ids that already played are remembered for
+///   the session.
+/// * The decision is taken once, when it first mounts: later rebuilds (streamed words, a new message under it) never
+///   restart it and never change the widget structure, so the child keeps its state.
+/// * Paint only (opacity and transforms inside a RepaintBoundary): the layout takes its full size from the first frame,
+///   so the list and its auto-scroll never jump.
+/// * Reduced motion (MediaQuery.disableAnimations): the message simply appears.
+class MessageArrive extends StatefulWidget {
+  const MessageArrive({super.key, required this.id, required this.child, this.enabled = true, this.mine = false, this.onDone});
+
+  /// The message this is (played once per id per session).
+  final String id;
   final Widget child;
+
+  /// The message is new this session.
   final bool enabled;
+
+  /// Your own message: it grows from its bottom-end corner (the side it was sent from); others from the bottom-start.
+  final bool mine;
+
+  /// Called once the arrival has finished (or at once when it does not play).
+  final VoidCallback? onDone;
+
+  static final Set<String> _played = <String>{};
+
+  /// True while an enclosing [MessageArrive] is playing: a part built inside it skips its own entrance, so the two
+  /// never stack (reply blocks, see ReplyView). Reads without a dependency, so it never causes a rebuild.
+  static bool playingAround(BuildContext context) => context.getInheritedWidgetOfExactType<_ArriveScope>()?.playing ?? false;
+
+  /// Whether message [id] has already had its arrival this session.
+  static bool played(String id) => _played.contains(id);
+
+  /// Tests only: forget which messages have played (a new app session).
+  @visibleForTesting
+  static void resetSession() => _played.clear();
+
+  @override
+  State<MessageArrive> createState() => _MessageArriveState();
+}
+
+class _MessageArriveState extends State<MessageArrive> with SingleTickerProviderStateMixin {
+  AnimationController? _c;
+  Animation<double>? _t;
+  bool _decided = false;
+  bool _playing = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = SubMotion.still(context);
+    if (_decided) {
+      // Reduce motion switched on half way: finish at once (the structure stays the same).
+      if (still && (_c?.isAnimating ?? false)) _c!.value = 1;
+      return;
+    }
+    _decided = true;
+    final play = widget.enabled && !still && !MessageArrive._played.contains(widget.id);
+    if (widget.enabled) MessageArrive._played.add(widget.id);
+    if (!play) {
+      if (widget.enabled) WidgetsBinding.instance.addPostFrameCallback((_) => widget.onDone?.call());
+      return;
+    }
+    final c = AnimationController(vsync: this, duration: SubMotion.arrive);
+    _c = c;
+    _t = CurvedAnimation(parent: c, curve: SubMotion.arriveEase);
+    _playing = true;
+    c.forward().whenCompleteOrCancel(() {
+      if (!mounted) return;
+      setState(() => _playing = false);
+      widget.onDone?.call();
+    });
+  }
+
+  @override
+  void dispose() {
+    _c?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (!enabled || SubMotion.still(context)) return child;
-    return RepaintBoundary(
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: SubMotion.enter,
-        curve: SubMotion.settle,
-        child: child,
-        builder: (context, v, child) => Opacity(
-          opacity: (v * 1.6).clamp(0.0, 1.0),
-          child: Transform.translate(
-            offset: Offset(0, (1 - v) * SubMotion.sendRise),
-            child: Transform.scale(
-              scale: SubMotion.sendScale + (1 - SubMotion.sendScale) * v,
-              alignment: AlignmentDirectional.bottomEnd.resolve(Directionality.maybeOf(context) ?? TextDirection.ltr),
-              child: child,
-            ),
-          ),
+    final t = _t;
+    if (t == null) return widget.child;
+    final dir = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final corner = (widget.mine ? AlignmentDirectional.bottomEnd : AlignmentDirectional.bottomStart).resolve(dir);
+    return _ArriveScope(
+      playing: _playing,
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: t,
+          child: widget.child,
+          builder: (context, child) {
+            final v = t.value;
+            return Opacity(
+              key: const ValueKey('message-arrive-opacity'),
+              opacity: v.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, (1 - v) * SubMotion.sendRise),
+                child: Transform.scale(scale: SubMotion.sendScale + (1 - SubMotion.sendScale) * v, alignment: corner, child: child),
+              ),
+            );
+          },
         ),
       ),
     );
   }
+}
+
+class _ArriveScope extends InheritedWidget {
+  const _ArriveScope({required this.playing, required super.child});
+  final bool playing;
+
+  @override
+  bool updateShouldNotify(_ArriveScope old) => false;
 }
 
 /// Screens arrive with a fade and a small rise on [SubMotion.settle], and leave with a quiet fade.

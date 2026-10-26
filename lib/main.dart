@@ -10,7 +10,9 @@ import 'screens/bots_screen.dart';
 import 'app_state.dart';
 import 'services/billing/billing_service.dart';
 import 'services/bot_sync.dart';
+import 'services/first_launch.dart';
 import 'services/full_access.dart';
+import 'services/intro_sound.dart';
 import 'services/cloud.dart';
 import 'services/hire_links.dart';
 import 'services/inbox.dart';
@@ -20,11 +22,13 @@ import 'services/updater.dart';
 import 'config.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/intro_screen.dart';
 import 'screens/live_screen.dart';
 import 'screens/system_screens.dart';
 import 'services/live_controller.dart';
 import 'theme.dart';
 import 'ui/i18n.dart';
+import 'ui/intro_motion.dart';
 import 'ui/motion.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'widgets/browser_layer.dart';
@@ -57,6 +61,10 @@ Future<void> main() async {
   // App language: follows the phone unless chosen in Settings > Language (PLAN.md 3.4).
   await AppLang.I.load();
   await FullAccess.I.load();
+  // First-launch intro flag and a sign-in tick still waiting to be saved on the account (both local, read before the
+  // first frame so later starts never wait on them).
+  await IntroFlag.load();
+  await ConsentPending.load();
   // The workspace folder is known before the first chat draws, so cards with relative file paths find their files
   // (they said "Not found on this phone" on a fresh start).
   try {
@@ -106,6 +114,19 @@ class AgentApp extends StatefulWidget {
 }
 
 class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
+  /// The intro plays on the very first open, before anyone has signed in on this phone.
+  late final bool _showIntro = _firstOpen();
+
+  static bool _firstOpen() {
+    var signedIn = false;
+    try {
+      signedIn = Supabase.instance.client.auth.currentSession != null;
+    } catch (_) {}
+    final show = shouldShowIntro(seen: IntroFlag.seen, signedIn: signedIn);
+    if (!show && !IntroFlag.seen) unawaited(IntroFlag.markSeen());
+    return show;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -196,7 +217,7 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
         final mq = MediaQuery.of(context);
         return MediaQuery(data: mq.copyWith(textScaler: TextScaler.linear(mq.textScaler.scale(1.0) * 1.15)), child: page);
       },
-      home: const AuthGate(),
+      home: LaunchGate(showIntro: _showIntro, child: const AuthGate()),
     ),
     );
   }
@@ -240,17 +261,95 @@ class _AuthGateState extends State<AuthGate> {
       stream: auth.onAuthStateChange,
       builder: (context, _) {
         final session = auth.currentSession;
-        if (session == null) return const AuthScreen();
-        // An email-and-password account opens only once its email is verified.
-        if (AuthRules.needsVerificationFor(session.user)) {
-          return AuthScreen(key: const ValueKey('verify'), verifyEmail: session.user.email);
-        }
-        // Every account confirms 18+ and agrees to the Terms and Privacy Policy once (again if consentVersion goes up).
-        if (!AuthRules.hasConsentFor(session.user)) return const ConsentScreen(key: ValueKey('consent'));
-        return HomeScreen(key: ValueKey(session.user.id));
+        final step = gateStep(
+          signedIn: session != null,
+          needsVerify: session != null && AuthRules.needsVerificationFor(session.user),
+          hasConsent: session != null && AuthRules.hasConsentFor(session.user),
+          ticked: ConsentPending.active,
+        );
+        // An account that already carries the agreement never needs the remembered tick.
+        if (step == GateStep.home && ConsentPending.active) unawaited(ConsentPending.clear());
+        final Widget page = switch (step) {
+          GateStep.signIn => const AuthScreen(key: ValueKey('auth')),
+          // An email-and-password account opens only once its email is verified.
+          GateStep.verify => AuthScreen(key: const ValueKey('verify'), verifyEmail: session!.user.email),
+          // Ticked on the sign-in screen: saved on the account right away, out of sight.
+          GateStep.recordConsent => const ConsentRecorder(key: ValueKey('consent-save')),
+          GateStep.confirmConsent => const AuthScreen(key: ValueKey('consent-confirm'), confirmOnly: true),
+          GateStep.home => HomeScreen(key: ValueKey(session!.user.id)),
+        };
+        return GateSwitch(child: page);
       },
     );
   }
+}
+
+/// The intro plays on the first open of an install, and only before anyone is signed in on this phone.
+bool shouldShowIntro({required bool seen, required bool signedIn}) => !seen && !signedIn;
+
+/// Where the app opens, given the account on this phone.
+enum GateStep { signIn, verify, recordConsent, confirmConsent, home }
+
+/// Every account confirms 18+ and agrees to the Terms and Privacy Policy once (again if consentVersion goes up). The
+/// box is on the sign-in screen, so after sign-in the agreement is saved without another page ([GateStep.recordConsent]).
+/// Accounts that already agreed go straight in. Only a session kept from an older SubMac that never agreed and never
+/// ticked the box on this phone is asked on the sign-in screen's own agreement view ([GateStep.confirmConsent]).
+GateStep gateStep({required bool signedIn, required bool needsVerify, required bool hasConsent, required bool ticked}) {
+  if (!signedIn) return GateStep.signIn;
+  if (needsVerify) return GateStep.verify;
+  if (hasConsent) return GateStep.home;
+  return ticked ? GateStep.recordConsent : GateStep.confirmConsent;
+}
+
+/// The move between sign-in and chat (and the intro and sign-in): the new page fades in while settling from a
+/// slight scale, over [IntroMotion.handoff], instead of a hard cut. With Remove animations it simply switches.
+class GateSwitch extends StatelessWidget {
+  const GateSwitch({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: SubMotion.of(context, IntroMotion.handoff),
+      switchInCurve: IntroMotion.easeInOut,
+      switchOutCurve: SubMotion.leave,
+      layoutBuilder: SubMotion.fillLayout,
+      transitionBuilder: (child, a) => FadeTransition(
+        opacity: a,
+        child: ScaleTransition(scale: Tween<double>(begin: 0.97, end: 1).animate(a), child: child),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// The first-launch intro in front of the sign-in screen. It plays once per install, only when nobody is signed in
+/// yet (someone updating SubMac while signed in goes straight to chat and never sees it), and hands over to sign-in
+/// with [GateSwitch]. Later starts never wait on it: [IntroFlag.seen] is read before the first frame.
+class LaunchGate extends StatefulWidget {
+  const LaunchGate({super.key, required this.child, required this.showIntro, this.sound});
+  final Widget child;
+  final bool showIntro;
+  final IntroSound? sound;
+
+  @override
+  State<LaunchGate> createState() => _LaunchGateState();
+}
+
+class _LaunchGateState extends State<LaunchGate> {
+  late bool _intro = widget.showIntro;
+
+  void _done() {
+    unawaited(IntroFlag.markSeen());
+    if (mounted) setState(() => _intro = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => GateSwitch(
+        child: _intro
+            ? IntroScreen(key: const ValueKey('intro'), onDone: _done, sound: widget.sound)
+            : KeyedSubtree(key: const ValueKey('app'), child: widget.child),
+      );
 }
 
 

@@ -213,6 +213,13 @@ class SkillLibrary extends ChangeNotifier {
     await _save();
   }
 
+  /// Puts back the skills a bot had (kept per account at sign-out, R2 item 3). No download: their text is cached.
+  void adopt(String target, List<String> ids) {
+    if (ids.isEmpty) return;
+    installed[target] = [...ids];
+    unawaited(_save());
+  }
+
   /// A bot was removed: its skills go too.
   Future<void> forget(String target) async {
     if (installed.remove(target) != null) await _save();
