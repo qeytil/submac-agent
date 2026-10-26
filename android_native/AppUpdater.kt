@@ -114,6 +114,10 @@ object AppUpdater {
             "name" to (pi.versionName ?: ""),
             "canInstall" to canInstall(ctx),
             "sdk" to Build.VERSION.SDK_INT,
+            // Sent with in-app feedback (lib/services/feedback.dart).
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "release" to Build.VERSION.RELEASE,
         )
     }
 
