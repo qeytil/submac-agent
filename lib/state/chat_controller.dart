@@ -271,7 +271,8 @@ extension AppStateChat on AppState {
     Bots.I.userReplied(convId);
     task.inbox.add(t);
     BrowserJobs.I.userSaid(convId, t);
-    task.status = 'Reading your message';
+    // R2 item 1: only a step that restarts to hear it is "reading"; a tool still running keeps its own line.
+    if (task.inModel) task.show(RunPhase.waiting, RunStatus.reading);
     for (final a in asks.where((a) => a.convId == convId).toList()) {
       answerAsk(a, null);
     }
@@ -421,7 +422,8 @@ extension AppStateChat on AppState {
     if (task != null && !task.cancelled && runs.contains(task)) {
       task.inbox.add(text.trim().isEmpty ? '(sent an attachment)' : content);
       if (text.trim().isNotEmpty) BrowserJobs.I.userSaid(convId, text.trim());
-      task.status = 'Reading your message';
+      // R2 item 1: only a step that restarts to hear it is "reading"; a tool still running keeps its own line.
+    if (task.inModel) task.show(RunPhase.waiting, RunStatus.reading);
       for (final a in asks.where((a) => a.convId == convId).toList()) {
         answerAsk(a, null);
       }

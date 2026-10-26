@@ -45,7 +45,7 @@ void main() {
     final r = AgentRun(convId: 'c', side: false, title: 't');
     final t0 = r.statusAt;
     await Future<void>.delayed(const Duration(milliseconds: 5));
-    r.status = 'Thinking';
+    r.status = RunStatus.starting; // R2: a new run starts on "Starting"
     expect(r.statusAt, t0, reason: 'same text keeps its time');
     r.status = 'Searching the web';
     expect(r.statusAt.isAfter(t0), isTrue);
