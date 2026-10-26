@@ -66,7 +66,7 @@ extension AppStateTools on AppState {
     j.addListener(() {
       for (final r in runs.where((r) => !r.side)) {
         final line = BrowserJobs.I.lineFor(r.convId);
-        if (line != null) r.status = line;
+        if (line != null) r.show(RunPhase.tool, line);
       }
       // A job started with wait:false ended while nobody was waiting: tell the user what it found.
       for (final job in BrowserJobs.I.jobs) {

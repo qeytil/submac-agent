@@ -1152,7 +1152,8 @@ extension AppStateBots on AppState {
     Bots.I.userReplied(convId);
     if (task != null && !task.cancelled && runs.contains(task)) {
       task.inbox.add(text.trim());
-      task.status = 'Reading your message';
+      // R2 item 1: only a step that restarts to hear it is "reading"; a tool still running keeps its own line.
+    if (task.inModel) task.show(RunPhase.waiting, RunStatus.reading);
       if (task.inModel) task.client?.cancelForSteer();
       _notify();
       return;

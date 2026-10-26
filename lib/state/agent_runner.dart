@@ -57,7 +57,7 @@ extension AppStateAgentRunner on AppState {
     if (side) {
       final task = runs.where((r) => r.convId == convId && !r.side).toList();
       sideNote = '# Multitasking\n'
-          'A task is still running in the background${task.isEmpty ? '' : ': "${task.first.title}" (${task.first.status})'}. '
+          'A task is still running in the background${task.isEmpty ? '' : ': "${task.first.title}" (${task.first.statusEnglish})'}. '
           'Answer the user\'s newest message now, briefly. Tools are not available in this reply. '
           'If they ask about the task, say plainly what it has done so far and what it is doing now; it keeps going and its result will appear in the chat. '
           'If they change the plan or ask to stop, confirm it in one sentence ("Okay, switching to Amazon." / "Stopping now."): the task hears them and acts on it.';
@@ -80,7 +80,7 @@ extension AppStateAgentRunner on AppState {
     final resumeNote = side ? null : _resumeNotes.remove(convId);
     if (resumeNote != null) {
       sideNote = sideNote == null ? resumeNote : '$sideNote\n\n$resumeNote';
-      run.status = 'Picking up where it left off';
+      run.show(RunPhase.starting, RunStatus.resuming);
     }
     // Frustration: notice it and change approach instead of repeating what failed.
     if (lastUserText != null) {
@@ -575,8 +575,8 @@ class _MainHooks extends CoreHooks {
           'and update your task on the board (office_board) if one is open.');
     }
     run.step = step + 1;
-    // Between steps the line says it is thinking, never the last tool's label (that read as stuck).
-    if (step == 0 || !run.status.startsWith('Reading your')) run.status = 'Thinking';
+    // R2 item 1: no canned "Thinking" here. The line changes when the request goes out (agent_stream.dart), and says
+    // what that request is for (run.nextCall).
     // Stuck? (same call again and again, the same failure, back and forth): a clear note for this step.
     if (!side && !run.cancelled && step > 0) {
       final sig = run.guard.check();
@@ -599,6 +599,7 @@ class _MainHooks extends CoreHooks {
       run.inbox.clear();
       final acked = run.inboxAcked;
       run.inboxAcked = false;
+      run.nextCall = (RunStatus.reading, const {});
       add(TaskBrief.steer(said, acked: acked));
     }
     // (v1.13.101) No "keep the user in the loop" nudge any more: the owner wants the agent to work quietly (no
@@ -642,6 +643,8 @@ class _MainHooks extends CoreHooks {
         !_quickNow &&
         RateLimiter.estimateTokens(payload, _stepTools) > ContextWindow.compactAt() &&
         RateLimiter.estimateTokens(payload.skip(1).toList()) > ContextWindow.tokens * 0.3) {
+      run.show(RunPhase.checking, RunStatus.compacting);
+      app._notify();
       if (await app._autoCompact(convId, list, app.submacRef)) payload = build();
     }
     return Turn(step: step, payload: payload, tools: _stepTools, hints: {'effort': effort, 'lane': _laneNow});
@@ -749,6 +752,7 @@ class _MainHooks extends CoreHooks {
     // The user spoke mid-step: the step starts again and hears them (it is not counted; nothing to rewind).
     if (run.client?.steered == true && !run.cancelled) {
       run.client?.steered = false;
+      run.nextCall = (RunStatus.reading, const {});
       _dropStep(asst);
       app._notify();
       return ErrorAction.retry;
@@ -799,7 +803,10 @@ class _MainHooks extends CoreHooks {
         !(e is LlmException && (e.isFinal || e.isAuth || e.isTooLong || e.message.startsWith('You have used today')))) {
       run.dropsInRow++;
       _dropStep(asst, redo: true);
-      run.status = 'Continuing';
+      // Said as it is: the line dropped and this step is sent again (attempt N of M).
+      final at = {'i': '${run.dropsInRow}', 'm': '${StreamPolicy.dropContinues}'};
+      run.show(RunPhase.retrying, RunStatus.reconnecting, at);
+      run.nextCall = (RunStatus.reconnecting, at);
       app._notify();
       return ErrorAction.retry;
     }
@@ -808,6 +815,7 @@ class _MainHooks extends CoreHooks {
 
   /// The run failed for good: the error stays on the last reply (or a fresh one).
   void failWith(Object e) {
+    run.show(RunPhase.failed, RunStatus.failed);
     var asst = _asst;
     if (asst == null || !list.contains(asst)) {
       asst = ChatMessage(id: _uuid.v4(), role: 'assistant');
@@ -875,6 +883,9 @@ class _MainHooks extends CoreHooks {
     // Entrance animation is for the moment it arrives, never again on a later rebuild.
     Future<void>.delayed(const Duration(seconds: 2), () => asst.animateIn = false);
     if (r.hasCalls) {
+      run.openCalls
+        ..clear()
+        ..addAll(r.calls.map((c) => c.id));
       run.blanks.gotReply();
       _trackWrites(r.calls);
       await app._save(convId, asst);
@@ -1056,14 +1067,14 @@ class _MainHooks extends CoreHooks {
           if (run.cancelled || run.inbox.isEmpty || r.blank || r.cutOff || _inboxRounds >= AppStateAgentRunner.maxFollowOns) return null;
           _inboxRounds++;
           _answered = true;
-          run.status = 'Reading your message';
+          run.nextCall = (RunStatus.reading, const {});
           return (note: '', hold: false);
         },
         // Blank: models sometimes go blank mid-task (often after a screenshot). Nudge once or twice instead of going silent.
         (r) async {
           if (!r.blank || run.cancelled) return null;
           if (run.blanks.retry()) {
-            run.status = 'Thinking again';
+            run.nextCall = (RunStatus.revising, const {});
             return (note: '# Your last reply was empty\nContinue the task with your next action, or if it is finished or blocked, tell the user in one or two plain sentences.', hold: false);
           }
           return null;
@@ -1075,7 +1086,7 @@ class _MainHooks extends CoreHooks {
           final unproven = Truth.unproven(r.text, run.evidence);
           if (unproven == null) return null;
           run.truthNudges++;
-          run.status = 'Checking the facts';
+          run.nextCall = (RunStatus.revising, const {});
           return (
             note: '# That is not proven yet\n$unproven\nDo it now with your tools, or say plainly what is not done and why. '
                 'Never say something was sent, saved, booked, created, posted, paid for, installed or finished '
@@ -1090,7 +1101,7 @@ class _MainHooks extends CoreHooks {
           String? gateNote;
           if (run.siteEntry != null && run.siteDirty) {
             run.siteDirty = false;
-            run.status = 'Checking the page';
+            run.show(RunPhase.checking, RunStatus.checkingPage);
             app._notify();
             final ws = await AgentTools.workspaceDir();
             final e = run.siteEntry!;
@@ -1117,7 +1128,7 @@ class _MainHooks extends CoreHooks {
             }
           }
           if (gateNote == null) return null;
-          run.status = 'Fixing the page';
+          run.nextCall = (RunStatus.revising, const {});
           return (note: gateNote, hold: false);
         },
         // Cut off by the length limit in the middle of a reply: the part that came stays, the next reply carries on.
@@ -1126,7 +1137,7 @@ class _MainHooks extends CoreHooks {
           run.cutOffs++;
           final openFence = '```'.allMatches(r.text).length.isOdd;
           _keep = !openFence;
-          run.status = 'Continuing';
+          run.nextCall = (RunStatus.continuing, const {});
           return (
             note: '# Your last reply was cut off by the length limit\n'
                 '${openFence ? 'It stopped inside a code or page block, which cannot be continued in chat. Do not repeat it in chat: '
@@ -1143,7 +1154,6 @@ class _MainHooks extends CoreHooks {
           if (run.wrapUpAt >= 0 || run.nudges >= 3 || AppState._waitsOnUser(r.text)) return null;
           if (!(open.isNotEmpty || announced || (run.step > 1 && AppState._promisesMore.hasMatch(AppState._tailOf(r.text))))) return null;
           run.nudges++;
-          run.status = 'Continuing';
           return (
             note: open.isNotEmpty
                 ? '# Your checklist still has open steps\n${AppState._todoText(run)}\n'
@@ -1160,7 +1170,7 @@ class _MainHooks extends CoreHooks {
           if (run.wrapUpAt >= 0 || run.verified || AppState._waitsOnUser(r.text)) return null;
           if (!((run.planLive && run.todo.length >= 3) || run.writes >= 3)) return null;
           run.verified = true;
-          run.status = 'Checking the work';
+          run.nextCall = (RunStatus.revising, const {});
           return (note: await app._finishCheckNote(run), hold: true);
         },
         // CB-39: a file card and a few words, for a request that never asked for a file: one round to answer in the chat.
@@ -1170,7 +1180,7 @@ class _MainHooks extends CoreHooks {
           if (ask.startsWith(botWakeMark)) return null;
           if (!InlineAnswer.needsInline(reply: _prefix + r.text, userText: ask, rounds: run.inlineFixes)) return null;
           run.inlineFixes++;
-          run.status = 'Writing the answer';
+          run.nextCall = (RunStatus.revising, const {});
           return (note: InlineAnswer.note, hold: false);
         },
         // The reply's cards must be valid (typed Hark-style blocks checked against their schema); one fix round.
@@ -1182,7 +1192,7 @@ class _MainHooks extends CoreHooks {
           final problems = ReplySchema.problems(ReplySchema.repair(_prefix + r.text));
           if (problems.isEmpty) return null;
           run.formatFixes++;
-          run.status = 'Tidying the answer';
+          run.nextCall = (RunStatus.revising, const {});
           return (note: ReplySchema.fixNote(problems), hold: false);
         },
       ];
@@ -1202,8 +1212,12 @@ class _MainHooks extends CoreHooks {
     }
     final out = ParallelPlan.batches([for (final c in calls) c.name], broken: broken).where((b) => b.length > 1).toList();
     for (final group in out) {
-      run.status = AppState.groupLabel([for (final j in group) calls[j]]);
-      final gr = _GroupRow(RunStep(run.status), group.length);
+      final (k, a) = AppState.groupStatus([for (final j in group) calls[j]]);
+      run.show(RunPhase.tool, k, a);
+      for (final j in group) {
+        run.running[calls[j].id] = (k, a);
+      }
+      final gr = _GroupRow(RunStep(RunStatus.english(k, a)), group.length);
       app._addStep(run, gr.row);
       app._bgLine(run);
       for (final j in group) {
@@ -1222,7 +1236,7 @@ class _MainHooks extends CoreHooks {
     final g = await app.toolGate(call.name, args, convId);
     _gates[call.id] = g;
     if (g.ask == null) return null;
-    run.status = 'Waiting for you';
+    run.show(RunPhase.approval, RunStatus.approval);
     app._notify();
     return g.toInterrupt(call.name);
   }
@@ -1283,8 +1297,10 @@ class _MainHooks extends CoreHooks {
     }
     // One row in the live step list per step; reads running together share the group's row.
     if (!_groupRows.containsKey(tc.id)) {
-      run.status = app._toolLabel(tc.name, args);
-      final row = RunStep(run.status);
+      final (k, a) = app._toolStatus(tc.name, args);
+      run.show(RunPhase.tool, k, a);
+      run.running[tc.id] = (k, a);
+      final row = RunStep(RunStatus.english(k, a));
       _rows[tc.id] = row;
       app._addStep(run, row);
       app._bgLine(run);
@@ -1344,6 +1360,18 @@ class _MainHooks extends CoreHooks {
 
   @override
   Future<void> toolDone(ToolCall tc, Map<String, dynamic> args, String output) async {
+    // R2 item 1: the line never keeps a finished step's label. Another step still running shows instead; when the
+    // last call of this reply is in, the next request goes out at once.
+    run.running.remove(tc.id);
+    run.openCalls.remove(tc.id);
+    if (!run.cancelled) {
+      if (run.running.isNotEmpty) {
+        final (k, a) = run.running.values.last;
+        run.show(RunPhase.tool, k, a);
+      } else if (run.openCalls.isEmpty) {
+        run.show(RunPhase.waiting, RunStatus.waiting);
+      }
+    }
     run.guard.record(tc.name, tc.arguments, output);
     if (!_inline.contains(tc.name)) {
       run.toolCalls++;
