@@ -599,6 +599,39 @@ class Bots extends ChangeNotifier {
     await save();
   }
 
+  /// Makes [id] the Chief without a journal line (the account or this phone's kept copy says it already is).
+  Future<void> adoptChief(String id) async {
+    chiefId = id;
+    await _p?.setString('bot_chief_v1', id);
+  }
+
+  /// Every bot on this phone with its knowledge and which one is the Chief (kept per account at sign-out, R2 item 3).
+  Map<String, dynamic> snapshot() => {
+        'bots': [for (final b in bots) b.toJson()],
+        'kn': {for (final b in bots) if (b.knowledge.isNotEmpty) b.id: [for (final k in b.knowledge) k.toJson()]},
+        'chief': chiefId,
+      };
+
+  /// Brings back a [snapshot]: its bots (a bot already here with the same id is replaced), their knowledge, the
+  /// Chief, and their alarms. Saved (which also queues them for the account).
+  Future<void> adopt(Map<String, dynamic> snap) async {
+    final kn = Map<String, dynamic>.from((snap['kn'] as Map?) ?? const {});
+    for (final e in (snap['bots'] as List? ?? const [])) {
+      final b = Bot.fromJson(Map<String, dynamic>.from(e as Map));
+      if (b.id.isEmpty) continue;
+      bots.removeWhere((x) => x.id == b.id);
+      bots.add(b);
+      b.knowledge
+        ..clear()
+        ..addAll([for (final k in (kn[b.id] as List? ?? const [])) BotKnowledge.fromJson(Map<String, dynamic>.from(k as Map))]);
+      await saveKnowledge(b);
+    }
+    final c = '${snap['chief'] ?? ''}';
+    if (c.isNotEmpty && byId(c) != null) await adoptChief(c);
+    await save();
+    await armAll();
+  }
+
   /// The text a put-off check-in is saved with as a follow-up. It still runs as a plain check-in.
   static const heartbeat = 'Heartbeat check';
 
