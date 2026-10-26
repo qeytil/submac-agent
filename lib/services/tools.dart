@@ -392,7 +392,7 @@ class AgentTools {
     'approval_mode', 'actions_enabled', 'about_you', 'how_to_respond', 'memory', 'wake_word', 'wake_screen_off', 'wake_sensitivity',
   };
 
-  /// The approval for an app_settings call, or null for a read or a harmless setting (theme, voice…).
+  /// The approval for an app_settings call, or null for a read or a harmless setting (voice…).
   static ActionRequest? settingsRisk(Map<String, dynamic> args) {
     // Every action other than list / get / open_permission changes the setting (see SystemTools._settings).
     final act = '${args['action'] ?? 'list'}';

@@ -18,7 +18,6 @@ import '../widgets/team_parts.dart' show BusyNote;
 import '../widgets/motion.dart';
 import '../theme.dart';
 import '../ui/embed.dart';
-import '../ui/day_night.dart';
 import '../ui/i18n.dart';
 import '../ui/feedback_words.dart';
 import 'files_screen.dart' show FilesScreen, FilesView;
@@ -99,7 +98,6 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 /// background used to rebuild the open page dozens of times a second, which made push, pop and switches stutter).
 AppState _watchSettings(BuildContext context) {
   context.select<AppState, int>((s) => Object.hashAll([
-        s.themeChoice,
         s.replyLanguage,
         s.liveVoice,
         s.liveAvailable,
@@ -203,20 +201,6 @@ class _AccountPage extends StatelessWidget {
         ListTile(
           title: Text(email.isEmpty ? tr('Signed in') : email, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(tr('Backed up')),
-        ),
-      ]),
-      _Group(title: 'Theme', [
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, Space.x3, Space.x3, Space.x3),
-          child: LuxWords([
-            // Auto (the default): light 07:00 to 19:00 on the phone's clock, dark at night. System follows the phone.
-            for (final m in const [(ThemeChoice.auto, 'Auto'), (ThemeChoice.system, 'System'), (ThemeChoice.light, 'Light'), (ThemeChoice.dark, 'Dark')])
-              LuxWord(m.$2, key: ValueKey('theme-${m.$1.name}'), selected: state.themeChoice == m.$1, onTap: () => state.setThemeChoice(m.$1)),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, 0, Space.x3, Space.x3),
-          child: Text(tr('Auto: light from 07:00 to 19:00, dark at night'), style: AppText.metaStyle.copyWith(color: Palette.of(context).muted)),
         ),
       ]),
       _Group([

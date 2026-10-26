@@ -2,14 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-/// The look the user picked in Settings > Account > Theme (owner, 2026-10-26: "Make light mode the default for day and
-/// dark mode the default for night").
-///
-/// * [auto] (the default): light from 07:00 to 19:00 on the phone's own clock, dark the rest of the night. It switches
-///   while the app is open ([DayNight]).
-/// * [system]: follows the phone's own light/dark setting.
-/// * [light] / [dark]: always that look.
-enum ThemeChoice { auto, system, light, dark }
+/// SubMac's look follows the phone's clock (owner, 2026-10-26: "Make light mode the default for day and dark mode the
+/// default for night", then "Since it's sky and time based, we don't need the dark mode and its settings in the app").
+/// Light from 07:00 to 19:00 on the phone's own clock, dark the rest of the night, with the live sky behind it. There is
+/// no theme setting: it switches by itself while the app is open ([DayNight]).
 
 /// Light starts at this local hour and ends at [dayEndHour] (dark from then until [dayStartHour] next morning).
 const int dayStartHour = 7;
@@ -18,7 +14,7 @@ const int dayEndHour = 19;
 /// True from 07:00:00 up to (not including) 19:00:00 local time.
 bool isDaytime(DateTime t) => t.hour >= dayStartHour && t.hour < dayEndHour;
 
-/// The look [ThemeChoice.auto] shows at [t] (device local time).
+/// The look at [t] (device local time).
 Brightness autoBrightness(DateTime t) => isDaytime(t) ? Brightness.light : Brightness.dark;
 
 /// The next moment the auto look flips (the next 07:00 or 19:00 strictly after [now], local time). Built from calendar
@@ -31,24 +27,13 @@ DateTime nextDayNightBoundary(DateTime now) {
   return DateTime(now.year, now.month, now.day + 1, dayStartHour);
 }
 
-/// The look MaterialApp gets for a choice: auto resolves to light or dark by the clock.
-ThemeMode resolveThemeMode(ThemeChoice c, Brightness auto) => switch (c) {
-      ThemeChoice.auto => auto == Brightness.light ? ThemeMode.light : ThemeMode.dark,
-      ThemeChoice.system => ThemeMode.system,
-      ThemeChoice.light => ThemeMode.light,
-      ThemeChoice.dark => ThemeMode.dark,
-    };
+/// The ThemeMode MaterialApp gets for the current look (never [ThemeMode.system]: the phone's own setting is not used).
+ThemeMode themeModeFor(Brightness b) => b == Brightness.light ? ThemeMode.light : ThemeMode.dark;
 
-/// Parses a stored choice. Nothing stored (a user who never picked a theme, still on the old default) means auto;
-/// an explicit light/dark/system is kept as it was.
-ThemeChoice themeChoiceFromStored(String? s) => switch (s) {
-      'light' => ThemeChoice.light,
-      'dark' => ThemeChoice.dark,
-      'system' => ThemeChoice.system,
-      _ => ThemeChoice.auto,
-    };
+/// The key older builds stored the Settings > Theme choice under (auto/system/light/dark). Cleared at start.
+const String legacyThemeModeKey = 'themeMode';
 
-/// The clock behind [ThemeChoice.auto]. It holds the current auto look and notifies only when it flips, so the app
+/// The clock behind the look. It holds the current auto look and notifies only when it flips, so the app
 /// rebuilds twice a day at most. It sleeps on a timer to the next boundary, never longer than [maxWait]: a phone whose
 /// clock or time zone changes while SubMac is open is caught within that, and [recheck] (on every resume) catches it at
 /// once. Timers stop while the app is in the background.

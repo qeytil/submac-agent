@@ -7,7 +7,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_state.dart';
-import '../ui/day_night.dart';
 import 'live_session.dart';
 import 'system_bridge.dart';
 import 'wake_word.dart';
@@ -435,7 +434,6 @@ class SystemTools {
   static List<Map<String, String>> _list(AppState app) {
     final w = WakeWord.I;
     return [
-      {'key': 'theme', 'value': app.themeChoice.name, 'allowed': 'auto (light 07:00-19:00, dark at night), system, light, dark'},
       {'key': 'reply_language', 'value': app.replyLanguage, 'allowed': 'auto, Somali, English, Arabic'},
       {'key': 'approval_mode', 'value': app.approvalMode, 'allowed': 'ask (New: confirm every change), full (Trusted: routine changes without asking; still confirms money, sending and deleting)'},
       {'key': 'actions_enabled', 'value': '${app.agentEnabled}', 'allowed': 'true, false (lets SubMac take actions)'},
@@ -448,6 +446,15 @@ class SystemTools {
       {'key': 'about_you', 'value': app.aboutYou, 'allowed': 'free text'},
       {'key': 'how_to_respond', 'value': app.howToRespond, 'allowed': 'free text'},
     ];
+  }
+
+  /// There is no theme, dark mode or light mode setting (owner, 2026-10-26): the look follows the time of day.
+  static const themeAnswer = 'SubMac has no theme or dark mode setting: the look follows the time of day by itself '
+      '(light from 07:00 to 19:00, dark at night, with the live sky). Nothing was changed. Tell the user that in a short '
+      'sentence; do not offer to switch it.';
+  static bool _isThemeKey(String k) {
+    final t = k.toLowerCase().replaceAll(RegExp(r'[\s_-]'), '');
+    return const {'theme', 'thememode', 'darkmode', 'lightmode', 'look', 'appearance', 'colors', 'colours'}.contains(t);
   }
 
   static bool? _bool(String v) {
@@ -474,6 +481,7 @@ class SystemTools {
       }
       return 'Opened the Android screen for "$key". Tell the user what to switch on there.';
     }
+    if (_isThemeKey(key)) return themeAnswer;
     final row = all.where((e) => e['key'] == key).firstOrNull;
     if (row == null) return 'Unknown setting "$key". Use action=list to see them.';
     if (action == 'get') return '$key = ${row['value']}';
@@ -485,11 +493,6 @@ class SystemTools {
         final v = ok[value.toLowerCase().trim()];
         if (v == null) return bad();
         app.setReplyLanguage(v);
-        break;
-      case 'theme':
-        final m = {for (final c in ThemeChoice.values) c.name: c}[value.toLowerCase()];
-        if (m == null) return bad();
-        app.setThemeChoice(m);
         break;
       case 'approval_mode':
         final v = value.toLowerCase().startsWith('f') ? 'full' : (value.toLowerCase().startsWith('a') ? 'ask' : '');

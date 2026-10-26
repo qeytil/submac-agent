@@ -4,16 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:agent/app_state.dart';
 import 'package:agent/services/local_store.dart';
+import 'package:agent/services/system_tools.dart';
 import 'package:agent/ui/day_night.dart';
 
-/// Owner, 2026-10-26: "Make light mode the default for day and dark mode the default for night."
+/// Owner, 2026-10-26: "Make light mode the default for day and dark mode the default for night", then "Since it's sky
+/// and time based, we don't need the dark mode and its settings in the app": the look always follows the clock.
 void main() {
   DateTime t(int h, int m, [int s = 0]) => DateTime(2026, 10, 26, h, m, s);
-
-  test('Auto is the default theme', () {
-    expect(AppState().themeChoice, ThemeChoice.auto);
-    expect(themeChoiceFromStored(null), ThemeChoice.auto);
-  });
 
   test('hour to look at the boundaries: light 07:00 up to 19:00, dark otherwise', () {
     expect(autoBrightness(t(6, 59)), Brightness.dark);
@@ -24,11 +21,8 @@ void main() {
     expect(autoBrightness(t(18, 59, 59)), Brightness.light);
     expect(autoBrightness(t(19, 0)), Brightness.dark);
     expect(autoBrightness(t(0, 0)), Brightness.dark);
-    expect(resolveThemeMode(ThemeChoice.auto, Brightness.light), ThemeMode.light);
-    expect(resolveThemeMode(ThemeChoice.auto, Brightness.dark), ThemeMode.dark);
-    expect(resolveThemeMode(ThemeChoice.system, Brightness.light), ThemeMode.system);
-    expect(resolveThemeMode(ThemeChoice.dark, Brightness.light), ThemeMode.dark);
-    expect(resolveThemeMode(ThemeChoice.light, Brightness.dark), ThemeMode.light);
+    expect(themeModeFor(Brightness.light), ThemeMode.light);
+    expect(themeModeFor(Brightness.dark), ThemeMode.dark);
   });
 
   test('next boundary: the next 07:00 or 19:00 strictly after now', () {
@@ -40,31 +34,48 @@ void main() {
     expect(nextDayNightBoundary(DateTime(2026, 12, 31, 23, 30)), DateTime(2027, 1, 1, 7));
   });
 
-  group('migration', () {
-    test('a user who never picked a theme (still on the old default) moves to Auto', () async {
-      SharedPreferences.setMockInitialValues({});
-      final s = LocalStore();
-      await s.init();
-      expect(s.themeChoice, ThemeChoice.auto);
-    });
-
-    for (final c in ['light', 'dark', 'system']) {
-      test('an explicit "$c" choice is kept', () async {
-        SharedPreferences.setMockInitialValues({'themeMode': c});
-        final s = LocalStore();
-        await s.init();
-        expect(s.themeChoice.name, c);
+  group('no saved theme survives (everyone is on the time-of-day look)', () {
+    for (final c in [null, 'auto', 'light', 'dark', 'system', 'garbage']) {
+      test('stored themeMode=$c: the key is cleared and the look follows the clock', () async {
+        SharedPreferences.setMockInitialValues({if (c != null) 'themeMode': c});
+        final app = AppState();
+        await app.initLocal();
+        expect(app.local.prefs.containsKey('themeMode'), isFalse);
+        final saved = DayNight.I;
+        addTearDown(() => DayNight.I = saved);
+        var now = t(8, 0);
+        DayNight.I = DayNight(clock: () => now);
+        expect(app.themeMode, ThemeMode.light);
+        now = t(20, 0);
+        DayNight.I.recheck();
+        expect(app.themeMode, ThemeMode.dark);
       });
     }
 
-    test('choices round-trip, Auto included', () async {
+    test('LocalStore.clearLegacyThemeMode is safe when nothing is stored', () async {
       SharedPreferences.setMockInitialValues({});
       final s = LocalStore();
       await s.init();
-      for (final c in ThemeChoice.values) {
-        s.themeChoice = c;
-        expect(s.themeChoice, c);
+      await s.clearLegacyThemeMode();
+      expect(s.prefs.containsKey(legacyThemeModeKey), isFalse);
+    });
+  });
+
+  group('the AI settings tool has no theme', () {
+    test('theme is not listed, and asking to change it explains the look follows the time of day', () async {
+      SharedPreferences.setMockInitialValues({'themeMode': 'dark'});
+      final app = AppState();
+      await app.local.init();
+      final list = await SystemTools.execute(app, 'app_settings', {'action': 'list'});
+      expect(list.toLowerCase(), isNot(contains('theme')));
+      for (final k in ['theme', 'dark_mode', 'Dark mode', 'theme_mode']) {
+        for (final v in ['dark', 'light', 'system', 'auto']) {
+          final r = await SystemTools.execute(app, 'app_settings', {'action': 'set', 'key': k, 'value': v});
+          expect(r, SystemTools.themeAnswer, reason: '$k=$v');
+        }
       }
+      expect(SystemTools.themeAnswer, contains('time of day'));
+      expect(app.local.prefs.getString('themeMode'), 'dark', reason: 'the tool writes nothing');
     });
   });
 
@@ -135,25 +146,5 @@ void main() {
       expect(d.brightness, Brightness.dark);
       d.dispose();
     });
-  });
-
-  test('setThemeChoice saves and the resolved look follows the clock', () async {
-    SharedPreferences.setMockInitialValues({});
-    final app = AppState();
-    await app.local.init();
-    final saved = DayNight.I;
-    addTearDown(() => DayNight.I = saved);
-    var now = t(8, 0);
-    DayNight.I = DayNight(clock: () => now);
-    app.setThemeChoice(ThemeChoice.auto);
-    expect(app.themeMode, ThemeMode.light);
-    now = t(20, 0);
-    DayNight.I.recheck();
-    expect(app.themeMode, ThemeMode.dark);
-    app.setThemeChoice(ThemeChoice.light);
-    expect(app.themeMode, ThemeMode.light);
-    expect(app.local.prefs.getString('themeMode'), 'light');
-    app.setThemeMode(ThemeMode.system);
-    expect(app.themeChoice, ThemeChoice.system);
   });
 }

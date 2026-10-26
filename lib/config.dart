@@ -8,7 +8,7 @@ class AppConfig {
   static set buildVersion(String v) => _buildVersion = v.trim().split('+').first;
 
   /// Fallback only. test/app_config_version_test.dart fails when it drifts from pubspec.yaml.
-  static const pubspecVersion = '1.13.104';
+  static const pubspecVersion = '1.13.105';
   static const supportEmail = 'contact@submac.site';
   static const privacyUrl = 'https://submac.site/submacagent/privacypolicy';
   static const termsUrl = 'https://submac.site/submacagent/termsofuse';

@@ -296,7 +296,6 @@ class Strings {
       'Same as phone': 'Sida taleefanka',
       'Auto': 'Iskiis',
       'Light': 'Iftiin',
-      'Dark': 'Mugdi',
       'Invite friends': 'Casuun saaxiibbo',
       'About you': 'Adiga ku saabsan',
       'Saved logins': 'Gelitaannada la kaydiyay',
@@ -516,7 +515,6 @@ class Strings {
       'Remove {name}?': 'Ma ka saaraysaa {name}?',
       'SubMac can look things up here but never change, send or delete anything. When off, it still asks you before every change.': 'SubMac halkan wax buu ka eegi karaa, laakiin waxba ma beddelo, ma diro, mana tirtiro. Marka uu dansan yahay, weli wuu ku weydiinayaa isbeddel kasta ka hor.',
       'System': 'Nidaamka',
-      'Auto: light from 07:00 to 19:00, dark at night': 'Iskiis: iftiin 07:00 ilaa 19:00, mugdi habeenkii',
     },
     'ar': {
       // R2 item 1: the live status line (lib/services/run_status.dart). Native review owed.
@@ -723,7 +721,6 @@ class Strings {
       'Same as phone': 'مثل الهاتف',
       'Auto': 'تلقائي',
       'Light': 'فاتح',
-      'Dark': 'داكن',
       'Invite friends': 'ادعُ أصدقاءك',
       'About you': 'عنك',
       'Saved logins': 'تسجيلات الدخول المحفوظة',
@@ -943,7 +940,6 @@ class Strings {
       'Remove {name}?': 'إزالة {name}؟',
       'SubMac can look things up here but never change, send or delete anything. When off, it still asks you before every change.': 'يمكن لـ SubMac البحث هنا دون أن يغيّر أو يرسل أو يحذف أي شيء. عند الإيقاف، يظل يسألك قبل كل تغيير.',
       'System': 'النظام',
-      'Auto: light from 07:00 to 19:00, dark at night': 'تلقائي: فاتح من 07:00 إلى 19:00، وداكن ليلاً',
     },
   };
 }

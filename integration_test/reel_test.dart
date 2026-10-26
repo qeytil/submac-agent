@@ -21,6 +21,7 @@ import 'package:agent/screens/skills_screen.dart';
 import 'package:agent/screens/system_screens.dart';
 import 'package:agent/screens/today_screen.dart';
 import 'package:agent/screens/whatsapp_screen.dart';
+import 'package:agent/ui/day_night.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -112,7 +113,7 @@ void main() {
     // 2) Every main screen, in Ink and Paper.
     for (final mode in [ThemeMode.dark, ThemeMode.light]) {
       final t = mode == ThemeMode.dark ? 'ink' : 'paper';
-      st().setThemeMode(mode);
+      _look(mode);
       st().newChat();
       await wait(2500);
       await shot('10_${t}_home');
@@ -158,7 +159,7 @@ void main() {
       final t = i.isEven ? 'paper' : 'ink';
       i++;
       await safe(p[0], () async {
-        st().setThemeMode(t == 'ink' ? ThemeMode.dark : ThemeMode.light);
+        _look(t == 'ink' ? ThemeMode.dark : ThemeMode.light);
         st().newChat();
         await wait(1800);
         final hint = find.text('Ask SubMac anything');
@@ -194,7 +195,7 @@ void main() {
         await tester.dragFrom(Offset(size.width / 2, size.height * 0.3), const Offset(0, 900));
         await wait(1200);
         await shot('${p[0]}_${t}_answer_top');
-        st().setThemeMode(t == 'ink' ? ThemeMode.light : ThemeMode.dark);
+        _look(t == 'ink' ? ThemeMode.light : ThemeMode.dark);
         await wait(1500);
         await shot('${p[0]}_${t == 'ink' ? 'paper' : 'ink'}_answer_top');
       });
@@ -203,7 +204,7 @@ void main() {
     // 4) The sidebar full of real chats, then Live voice.
     for (final mode in [ThemeMode.dark, ThemeMode.light]) {
       final t = mode == ThemeMode.dark ? 'ink' : 'paper';
-      st().setThemeMode(mode);
+      _look(mode);
       await safe('sidebar chats', () async {
         await wait(1200);
         await tester.dragFrom(const Offset(3, 420), const Offset(320, 0));
@@ -214,7 +215,7 @@ void main() {
       });
     }
     await safe('live', () async {
-      st().setThemeMode(ThemeMode.dark);
+      _look(ThemeMode.dark);
       app.appNavKey.currentState!.push(liveRoute());
       await wait(9000);
       await shot('70_live');
@@ -227,3 +228,8 @@ void main() {
     print('REEL DONE');
   }, timeout: const Timeout(Duration(minutes: 50)));
 }
+
+/// There is no theme setting: the look follows the clock. For screenshots in both looks, move the clock to midday
+/// (light) or late evening (dark).
+void _look(ThemeMode mode) =>
+    DayNight.I.clock = () => DateTime(2026, 1, 15, mode == ThemeMode.dark ? 23 : 12);

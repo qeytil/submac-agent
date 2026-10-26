@@ -103,7 +103,7 @@ extension AppStateSettings on AppState {
     // The run journals (a killed task resumes from its journal on the next start).
     await RunJournal.useAppFolder();
     await _forgetOldModelSetup();
-    themeChoice = local.themeChoice;
+    await local.clearLegacyThemeMode();
     agentEnabled = local.agentEnabled;
     approvalMode = local.approvalMode;
     liveVoice = local.liveVoice;
@@ -267,21 +267,9 @@ extension AppStateSettings on AppState {
   }
 
   // ---------- settings ----------
-  /// The look MaterialApp shows right now: Auto resolves to light or dark by the phone's clock ([DayNight]).
-  ThemeMode get themeMode => resolveThemeMode(themeChoice, DayNight.I.brightness);
-
-  void setThemeChoice(ThemeChoice c) {
-    themeChoice = c;
-    local.themeChoice = c;
-    _notify();
-  }
-
-  /// A fixed look (light, dark or the phone's own setting), for callers that speak ThemeMode.
-  void setThemeMode(ThemeMode m) => setThemeChoice(switch (m) {
-        ThemeMode.light => ThemeChoice.light,
-        ThemeMode.dark => ThemeChoice.dark,
-        ThemeMode.system => ThemeChoice.system,
-      });
+  /// The look MaterialApp shows right now: light 07:00 to 19:00 on the phone's clock, dark at night ([DayNight]).
+  /// There is no theme setting.
+  ThemeMode get themeMode => themeModeFor(DayNight.I.brightness);
 
   void setAgentEnabled(bool v) {
     agentEnabled = v;
