@@ -96,7 +96,7 @@ class FilePreviewScreen extends StatelessWidget {
             Text('This file isn\'t on this phone or in your account any more.',
                 textAlign: TextAlign.center, style: TextStyle(color: p.muted)),
             const SizedBox(height: Space.x3),
-            TextButton(onPressed: retry, child: Text('Try again', style: TextStyle(color: p.text))),
+            TextButton(onPressed: retry, child: Text(tr('Try again'), style: TextStyle(color: p.text))),
           ]),
         ),
       )),

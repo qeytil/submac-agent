@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart' show LaunchMode, launchUrl;
 
 import '../config.dart';
+import '../services/first_launch.dart';
 import '../services/rewards.dart';
 import '../theme.dart';
 import '../ui/tokens.dart';
@@ -81,18 +82,65 @@ Future<void> openLegal(String url) async {
   } catch (_) {}
 }
 
-/// The 18+ / Terms / Privacy tick, with both pages one tap away.
+/// Where the agreement is saved on the account: Supabase auth user_metadata ({consent_v, age_18, consent_at}), the same
+/// write the old post-sign-in consent page made. Tests swap [write] for a fake.
+class ConsentStore {
+  ConsentStore._();
+
+  static Future<void> Function(Map<String, dynamic> data) write = _supabase;
+
+  static Future<void> _supabase(Map<String, dynamic> data) async {
+    await Supabase.instance.client.auth.updateUser(UserAttributes(data: data)).timeout(const Duration(seconds: 30));
+  }
+
+  /// Saves the agreement now (fires a user update, so the app opens).
+  static Future<void> save() => write(AuthRules.consentData());
+}
+
+/// The 18+ / Terms / Privacy tick, with both pages one tap away. It sits on the sign-in screen itself: signing in or up
+/// (Google included) stays off until it is ticked.
 class ConsentTick extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
   const ConsentTick({super.key, required this.value, required this.onChanged});
 
+  /// The sentence, in the app language, with {terms} and {privacy} where the two links go.
+  static const sentence = 'I am 18 or older and I agree to the {terms} and the {privacy}.';
+
+  /// [text] cut into plain runs and its {terms} / {privacy} holes, in order (the holes can sit anywhere in a language).
+  static List<String> splitHoles(String text) {
+    final out = <String>[];
+    var at = 0;
+    for (final m in RegExp(r'\{terms\}|\{privacy\}').allMatches(text)) {
+      if (m.start > at) out.add(text.substring(at, m.start));
+      out.add(m.group(0)!);
+      at = m.end;
+    }
+    if (at < text.length) out.add(text.substring(at));
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final small = AppText.metaStyle.copyWith(color: p.muted);
     final link = AppText.metaStyle.copyWith(color: p.text, decoration: TextDecoration.underline);
+    WidgetSpan linkTo(String words, String url) => WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: GestureDetector(onTap: () => openLegal(url), child: Text(words, style: link)),
+        );
+    final spans = <InlineSpan>[];
+    for (final part in splitHoles(tr(sentence))) {
+      if (part == '{terms}') {
+        spans.add(linkTo(tr('Terms of Use'), AppConfig.termsUrl));
+      } else if (part == '{privacy}') {
+        spans.add(linkTo(tr('Privacy Policy'), AppConfig.privacyUrl));
+      } else if (part.isNotEmpty) {
+        spans.add(TextSpan(text: part));
+      }
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -100,18 +148,9 @@ class ConsentTick extends StatelessWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                GestureDetector(
-                  onTap: () => onChanged(!value),
-                  child: Text('I am 18 or older and I agree to the ', style: small),
-                ),
-                GestureDetector(onTap: () => openLegal(AppConfig.termsUrl), child: Text('Terms of Use', style: link)),
-                Text(' and the ', style: small),
-                GestureDetector(onTap: () => openLegal(AppConfig.privacyUrl), child: Text('Privacy Policy', style: link)),
-                Text('.', style: small),
-              ],
+            child: GestureDetector(
+              onTap: () => onChanged(!value),
+              child: Text.rich(TextSpan(style: small, children: spans)),
             ),
           ),
         ),
@@ -120,37 +159,32 @@ class ConsentTick extends StatelessWidget {
   }
 }
 
-/// Shown once to a signed-in account that hasn't agreed yet (Google sign-ins, and accounts from before this check).
-class ConsentScreen extends StatefulWidget {
-  const ConsentScreen({super.key});
+/// Right after sign-in, for an account that ticked the box on the sign-in screen but has no agreement saved yet
+/// (Google sign-ins, accounts made before this check, a new phone): saves it quietly with the same write as before,
+/// showing only the logo. Only a failure shows anything: try again, or sign out.
+class ConsentRecorder extends StatefulWidget {
+  const ConsentRecorder({super.key});
 
   @override
-  State<ConsentScreen> createState() => _ConsentScreenState();
+  State<ConsentRecorder> createState() => _ConsentRecorderState();
 }
 
-class _ConsentScreenState extends State<ConsentScreen> {
-  bool _agree = false;
-  bool _busy = false;
-  String? _error;
+class _ConsentRecorderState extends State<ConsentRecorder> {
+  bool _failed = false;
 
-  Future<void> _accept() async {
-    if (!_agree) {
-      setState(() => _error = 'Tick the box to continue.');
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _save();
+  }
+
+  Future<void> _save() async {
+    if (_failed) setState(() => _failed = false);
     try {
-      // Saving it fires a user update, and the app opens.
-      await Supabase.instance.client.auth
-          .updateUser(UserAttributes(data: AuthRules.consentData()))
-          .timeout(const Duration(seconds: 30));
-    } catch (e) {
-      if (mounted) setState(() => _error = friendlyAuthError('$e'));
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      await ConsentStore.save();
+      await ConsentPending.clear();
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
     }
   }
 
@@ -159,42 +193,25 @@ class _ConsentScreenState extends State<ConsentScreen> {
     final p = Palette.of(context);
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsetsDirectional.fromSTEB(24, 48, 24, 24),
-          children: [
-            const Center(child: AppLogo(size: 48)),
-            const SizedBox(height: Space.x5),
-            Center(
-              child: Text('Before you start',
-                  textAlign: TextAlign.center, style: Brand.serif(size: AppText.displayLarge, color: p.text)),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AppLogo(size: 48),
+                if (_failed) ...[
+                  const SizedBox(height: Space.x5),
+                  Text(tr('We couldn\'t save your agreement. Check your connection, then try again.'),
+                      textAlign: TextAlign.center, style: AppText.bodyStyle.copyWith(color: p.muted)),
+                  const SizedBox(height: Space.x5),
+                  FilledButton(onPressed: _save, child: Text(tr('Try again'))),
+                  const SizedBox(height: Space.x2),
+                  TextButton(onPressed: () => Supabase.instance.client.auth.signOut(), child: Text(tr('Sign out'))),
+                ],
+              ],
             ),
-            const SizedBox(height: Space.x3),
-            Text('SubMac is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.',
-                textAlign: TextAlign.center, style: AppText.bodyStyle.copyWith(color: p.muted)),
-            const SizedBox(height: Space.x5),
-            ConsentTick(value: _agree, onChanged: (v) => setState(() {
-                  _agree = v;
-                  _error = null;
-                })),
-            if (_error != null) ...[
-              const SizedBox(height: Space.x3),
-              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: p.accent)),
-            ],
-            const SizedBox(height: Space.x5),
-            FilledButton(
-              onPressed: _busy || !_agree ? null : _accept,
-              child: _busy
-                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: p.bg))
-                  : const Text('Agree and continue'),
-            ),
-            const SizedBox(height: Space.x2),
-            Center(
-              child: TextButton(
-                onPressed: _busy ? null : () => Supabase.instance.client.auth.signOut(),
-                child: const Text('Sign out'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -214,13 +231,20 @@ class AuthFlow {
   }
 }
 
-enum _Mode { welcome, signUp, logIn, verify, resetCode }
+enum _Mode { welcome, signUp, logIn, verify, resetCode, confirm }
 
 class AuthScreen extends StatefulWidget {
   /// Opens straight on the code screen for an account that is signed in but not verified.
   final String? verifyEmail;
 
-  const AuthScreen({super.key, this.verifyEmail});
+  /// Opens on the agreement alone, for an account that is already signed in on this phone but has never agreed and
+  /// didn't tick the box here (a session kept from an older version of SubMac). Rare: every new sign-in ticks it.
+  final bool confirmOnly;
+
+  /// For tests: whether to show the Google button without asking the server.
+  final bool? google;
+
+  const AuthScreen({super.key, this.verifyEmail, this.confirmOnly = false, this.google});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -252,7 +276,48 @@ class _AuthScreenState extends State<AuthScreen> {
       _pendingEmail = pending;
       _mode = _Mode.verify;
     }
-    _checkGoogle();
+    if (widget.confirmOnly) _mode = _Mode.confirm;
+    if (widget.google != null) {
+      _google = widget.google!;
+    } else {
+      _checkGoogle();
+    }
+  }
+
+  /// Signing in or up is only possible with the box ticked; the tick is remembered until the account carries it.
+  bool _ticked() {
+    if (!_agree) {
+      setState(() => _error = tr(_needTick));
+      return false;
+    }
+    unawaited(ConsentPending.mark());
+    return true;
+  }
+
+  static const _needTick = 'Please confirm you are 18 or older and agree to the Terms and Privacy Policy.';
+
+  Widget _consentTick() => ConsentTick(
+      value: _agree,
+      onChanged: (v) => setState(() {
+            _agree = v;
+            _error = null;
+          }));
+
+  /// The agreement alone, for a kept session that never agreed: saved with the same write as before.
+  Future<void> _confirm() async {
+    if (!_ticked()) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await ConsentStore.save();
+      await ConsentPending.clear();
+    } catch (e) {
+      if (mounted) setState(() => _error = friendlyAuthError('$e'));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   /// The Google button shows only once Google sign-in is switched on for SubMac.
@@ -267,6 +332,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    if (!_ticked()) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -332,15 +398,12 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() => _error = 'Choose a password of at least 6 characters.');
       return;
     }
+    if (!_ticked()) return;
     setState(() {
       _loading = true;
       _error = null;
       _info = null;
     });
-    if (_mode == _Mode.signUp && !_agree) {
-      setState(() => _error = 'Please confirm you are 18 or older and agree to the Terms and Privacy Policy.');
-      return;
-    }
     final auth = Supabase.instance.client.auth;
     try {
       if (_mode == _Mode.signUp) {
@@ -380,6 +443,8 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() => _error = 'Enter your email first.');
       return;
     }
+    // A reset code signs the account in, so it needs the box ticked like any other sign-in.
+    if (!_ticked()) return;
     setState(() => _loading = true);
     try {
       await Supabase.instance.client.auth
@@ -460,9 +525,11 @@ class _AuthScreenState extends State<AuthScreen> {
               Text(tr('Ask. Make. Get it done.'),
                   textAlign: TextAlign.center, style: TextStyle(fontSize: AppText.body, color: p.muted, height: 1.45)),
               const Spacer(),
+              _consentTick(),
+              const SizedBox(height: Space.x3),
               if (_google) ...[
                 OutlinedButton(
-                  onPressed: _loading ? null : _signInWithGoogle,
+                  onPressed: _loading || !_agree ? null : _signInWithGoogle,
                   child: Text(tr('Continue with Google')),
                 ),
                 const SizedBox(height: 12),
@@ -476,6 +543,47 @@ class _AuthScreenState extends State<AuthScreen> {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _confirmScreen(Palette p) {
+    return Scaffold(
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsetsDirectional.fromSTEB(24, 48, 24, 24),
+          children: [
+            const Center(child: AppLogo(size: 48)),
+            const SizedBox(height: Space.x5),
+            Center(
+              child: Text(tr('Before you start'),
+                  textAlign: TextAlign.center, style: Brand.serif(size: AppText.displayLarge, color: p.text)),
+            ),
+            const SizedBox(height: Space.x3),
+            Text(tr('SubMac is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.'),
+                textAlign: TextAlign.center, style: AppText.bodyStyle.copyWith(color: p.muted)),
+            const SizedBox(height: Space.x5),
+            _consentTick(),
+            if (_error != null) ...[
+              const SizedBox(height: Space.x3),
+              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: p.accent)),
+            ],
+            const SizedBox(height: Space.x5),
+            FilledButton(
+              onPressed: _loading || !_agree ? null : _confirm,
+              child: _loading
+                  ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: p.bg))
+                  : Text(tr('Agree and continue')),
+            ),
+            const SizedBox(height: Space.x2),
+            Center(
+              child: TextButton(
+                onPressed: _loading ? null : () => Supabase.instance.client.auth.signOut(),
+                child: Text(tr('Sign out')),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -557,6 +665,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
+    if (_mode == _Mode.confirm) return _confirmScreen(p);
     if (_mode == _Mode.welcome) return _welcome(p);
     if (_mode == _Mode.verify || _mode == _Mode.resetCode) return _codeScreen(p);
     final isSignUp = _mode == _Mode.signUp;
@@ -600,20 +709,15 @@ class _AuthScreenState extends State<AuthScreen> {
                 decoration: const InputDecoration(hintText: 'Invite code (optional)'),
               ),
             ],
-            if (isSignUp) ...[
-              const SizedBox(height: 4),
-              ConsentTick(value: _agree, onChanged: (v) => setState(() {
-                    _agree = v;
-                    _error = null;
-                  })),
-            ],
+            const SizedBox(height: 4),
+            _consentTick(),
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: TextStyle(color: p.accent)),
             ],
             const SizedBox(height: 20),
             FilledButton(
-              onPressed: _loading || (isSignUp && !_agree) ? null : _submit,
+              onPressed: _loading || !_agree ? null : _submit,
               child: _loading
                   ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: p.bg))
                   : Text(tr('Continue')),
@@ -634,7 +738,8 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
               ],
             ),
-            if (!isSignUp) Center(child: TextButton(onPressed: _loading ? null : _forgot, child: Text(tr('Forgot password?')))),
+            if (!isSignUp)
+              Center(child: TextButton(onPressed: _loading || !_agree ? null : _forgot, child: Text(tr('Forgot password?')))),
           ],
         ),
       ),

@@ -695,7 +695,7 @@ class _SyncRow extends StatelessWidget {
                   onPressed: () async {
                     await BotSync.I.syncNow();
                   },
-                  child: const Text('Try again'),
+                  child: Text(tr('Try again')),
                 )
               : null,
           ),
