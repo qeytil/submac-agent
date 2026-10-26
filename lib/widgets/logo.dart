@@ -1,38 +1,31 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme.dart';
 
-/// SubMac mark: a serif "S" on an OLED-black tile (no dot: owner rule, no dots anywhere in the UI).
+/// SubMac logo (the new mark from submac.site): a blue "S" and a white dot on a light-blue rounded tile.
+/// Drawn from the vector master in assets/brand, so it stays sharp at every size.
+/// [tile] false draws only the S and the dot, for places that already sit on their own surface.
 class AppLogo extends StatelessWidget {
   final double size;
   final bool tile;
   const AppLogo({super.key, this.size = 32, this.tile = true});
 
+  static const tileAsset = 'assets/brand/submac_mark.svg';
+  static const plainAsset = 'assets/brand/submac_mark_plain.svg';
+
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    final ink = tile ? Colors.black : Colors.transparent; // OLED black
-    final letter = tile ? const Color(0xFFF4F0E7) : p.text;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: ink,
-        borderRadius: BorderRadius.circular(size * 0.16),
-        border: tile && Theme.of(context).brightness == Brightness.dark
-            ? Border.all(color: p.border, width: 0.8)
-            : null,
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            left: size * 0.22,
-            top: -size * 0.02,
-            child: Text('S', style: Brand.serif(size: size * 0.86, color: letter, height: 1.0)),
-          ),
-        ],
+    return Semantics(
+      label: 'SubMac',
+      image: true,
+      child: SvgPicture.asset(
+        tile ? tileAsset : plainAsset,
+        width: size,
+        height: size,
+        excludeFromSemantics: true,
       ),
     );
   }

@@ -77,6 +77,7 @@ flutter:
     - assets/icons/
     - assets/bg/
     - assets/logos/
+    - assets/brand/
     - assets/bots/
     - assets/knowledge/somali/
   fonts:
@@ -104,6 +105,10 @@ flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
+  # New logo (submac.site). Master: docs/brand/submac_logo_master.svg; PNGs rendered from it.
   image_path: assets/icon.png
-  adaptive_icon_background: "#000000"
+  image_path_ios: assets/icon_ios.png
+  adaptive_icon_background: assets/icon_bg.png
   adaptive_icon_foreground: assets/icon_fg.png
+  # icon_fg.png already fills the full 108dp layer with the mark inside the 66dp safe zone: no extra inset.
+  adaptive_icon_foreground_inset: 0
