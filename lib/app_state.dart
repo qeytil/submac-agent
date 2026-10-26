@@ -61,6 +61,7 @@ import 'services/calm.dart';
 import 'services/skills_catalog.dart';
 import 'services/connector_catalog.dart';
 import 'services/tool_output_clean.dart';
+import 'services/retry_plan.dart';
 import 'ui/i18n.dart' show tr;
 import 'services/apk_build.dart';
 import 'services/design_skills.dart';
@@ -978,6 +979,8 @@ class AppState extends ChangeNotifier {
   void imagesSentForTest(String convId) => _imagesOnce.commit(convId);
   @visibleForTesting
   Map<String, List<ChatMessage>> get listsForTest => _lists;
+  @visibleForTesting
+  Map<String, String> get resumeNotesForTest => _resumeNotes;
   @visibleForTesting
   List<Map<String, dynamic>> lightToolsForTest(String convId) => _lightTools(convId);
   @visibleForTesting
