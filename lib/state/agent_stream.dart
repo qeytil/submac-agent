@@ -239,6 +239,7 @@ extension AppStateAgentStream on AppState {
       case 'bot_watch':
         return ('Setting a watch', none);
       case 'bot_call':
+      case CallMe.tool:
         return ('Calling you', none);
       case 'bot_ask':
         return ('Asking {name}', {'name': '${args['bot'] ?? 'a colleague'}'});

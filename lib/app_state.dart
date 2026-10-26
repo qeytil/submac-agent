@@ -17,6 +17,7 @@ import 'package:uuid/uuid.dart';
 import 'config.dart';
 import 'models.dart';
 import 'services/calc.dart';
+import 'services/call_me.dart';
 import 'services/confirm_queue.dart';
 import 'services/biz_tools.dart';
 import 'services/health_tools.dart';
@@ -396,6 +397,10 @@ class AppState extends ChangeNotifier {
 
   /// The chat a Live call is being saved into (set on the first saved turn).
   String? liveConvId;
+
+  /// Starts the in-app call the main agent's call_user asks for; tests replace it (the real one opens the Live screen).
+  @visibleForTesting
+  Future<String?> Function(String convId, String opening)? userCallStarter;
   bool _liveSaving = false;
   int _liveSaved = 0;
 
@@ -740,6 +745,7 @@ class AppState extends ChangeNotifier {
       MediaCoder.names.contains(n) ||
       SkillLibrary.names.contains(n) ||
       n == 'ask_user' ||
+      n == CallMe.tool ||
       n == 'say' ||
       n == 'todo' ||
       n.startsWith('mcp_');
@@ -949,6 +955,10 @@ class AppState extends ChangeNotifier {
       r'your[_ -]?api[_ -]?key|example\.com/(api|placeholder)',
       caseSensitive: false);
 
+  /// The "call me" step note for the newest message: null when it does not ask for a call now, or is an app wake.
+  static String? callMeNote(String? text, {required bool bot}) =>
+      text == null || text.startsWith(botWakeMark) || !CallMe.wantsCallNow(text) ? null : CallMe.turnNote(bot: bot);
+
   /// The reply asks the user something (a question, a choice): stopping there is right.
   /// SubMac's own last reply (before the newest user message) asked the user something.
   static bool _answersOurQuestion(List<ChatMessage> list) {
@@ -1018,6 +1028,7 @@ class AppState extends ChangeNotifier {
     'skill_search', 'skill_use',
     'say', 'web_search', 'fetch_url', 'get_weather', 'wikipedia', 'currency_convert', 'find_place', 'remember',
     'list_memories', 'set_alarm', 'set_timer', 'ask_user', 'prayer_times', 'hijri_date', 'quran', 'calculate',
+    CallMe.tool,
   };
 
   static final Map<String, dynamic> _moreToolsDef = {
