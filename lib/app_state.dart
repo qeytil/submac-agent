@@ -44,6 +44,7 @@ import 'services/mcp_client.dart';
 import 'services/memory_store.dart';
 import 'services/phone_tools.dart';
 import 'services/rate_limiter.dart';
+import 'services/retry_plan.dart';
 import 'services/paste_guard.dart';
 import 'services/web_tools.dart';
 import 'services/browser_agent.dart';
@@ -980,6 +981,8 @@ class AppState extends ChangeNotifier {
   void imagesSentForTest(String convId) => _imagesOnce.commit(convId);
   @visibleForTesting
   Map<String, List<ChatMessage>> get listsForTest => _lists;
+  @visibleForTesting
+  Map<String, String> get resumeNotesForTest => _resumeNotes;
   @visibleForTesting
   List<Map<String, dynamic>> lightToolsForTest(String convId) => _lightTools(convId);
   @visibleForTesting
