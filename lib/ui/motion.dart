@@ -74,8 +74,9 @@ class SubMotion {
   /// A diagram's own draw time, kept between [enter] and [drawLong] (a long timeline took close to three seconds).
   static Duration drawIn(int ms) => Duration(milliseconds: ms.clamp(enter.inMilliseconds, drawLong.inMilliseconds).toInt());
 
-  /// The sky: one slow drift loop, and the cross-fade between day and night (or between the two looks).
-  static const Duration skyDrift = Duration(seconds: 40);
+  /// The live sky: one slow drift loop (its glows cross the screen once a loop, a pixel or two per step), and the ease
+  /// from one sky to another when the time jumped.
+  static const Duration skyDrift = Duration(minutes: 10);
   static const Duration skyFade = Duration(seconds: 3);
 
   /// For slow ambient changes only (the sky crossing from day to night): an even ease in and out.

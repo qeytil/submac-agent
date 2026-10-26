@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_state.dart';
+import '../ui/day_night.dart';
 import 'live_session.dart';
 import 'system_bridge.dart';
 import 'wake_word.dart';
@@ -433,9 +434,8 @@ class SystemTools {
   // ---------------- settings ----------------
   static List<Map<String, String>> _list(AppState app) {
     final w = WakeWord.I;
-    String themeName(ThemeMode m) => m.name;
     return [
-      {'key': 'theme', 'value': themeName(app.themeMode), 'allowed': 'system, light, dark'},
+      {'key': 'theme', 'value': app.themeChoice.name, 'allowed': 'auto (light 07:00-19:00, dark at night), system, light, dark'},
       {'key': 'reply_language', 'value': app.replyLanguage, 'allowed': 'auto, Somali, English, Arabic'},
       {'key': 'approval_mode', 'value': app.approvalMode, 'allowed': 'ask (New: confirm every change), full (Trusted: routine changes without asking; still confirms money, sending and deleting)'},
       {'key': 'actions_enabled', 'value': '${app.agentEnabled}', 'allowed': 'true, false (lets SubMac take actions)'},
@@ -487,9 +487,9 @@ class SystemTools {
         app.setReplyLanguage(v);
         break;
       case 'theme':
-        final m = {'system': ThemeMode.system, 'light': ThemeMode.light, 'dark': ThemeMode.dark}[value.toLowerCase()];
+        final m = {for (final c in ThemeChoice.values) c.name: c}[value.toLowerCase()];
         if (m == null) return bad();
-        app.setThemeMode(m);
+        app.setThemeChoice(m);
         break;
       case 'approval_mode':
         final v = value.toLowerCase().startsWith('f') ? 'full' : (value.toLowerCase().startsWith('a') ? 'ask' : '');

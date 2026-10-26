@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../ui/day_night.dart';
 
 
 /// Device-local settings. Saved logins and app tokens never leave the device (encrypted storage).
@@ -41,19 +41,11 @@ class LocalStore {
     }
   }
 
-  ThemeMode get themeMode {
-    switch (_prefs.getString('themeMode')) {
-      case 'light':
-        return ThemeMode.light;
-      case 'system':
-        return ThemeMode.system;
-      default:
-        // Ink (pure OLED black) is the default look.
-        return ThemeMode.dark;
-    }
-  }
+  /// Settings > Theme. Nothing stored means the user never picked one (the old default, Ink): they move to Auto (light
+  /// by day, dark at night). An explicit light, dark or system choice is kept.
+  ThemeChoice get themeChoice => themeChoiceFromStored(_prefs.getString('themeMode'));
 
-  set themeMode(ThemeMode m) => _prefs.setString('themeMode', m.name);
+  set themeChoice(ThemeChoice c) => _prefs.setString('themeMode', c.name);
 
   bool get agentEnabled => _prefs.getBool('agentEnabled') ?? true;
   set agentEnabled(bool v) => _prefs.setBool('agentEnabled', v);

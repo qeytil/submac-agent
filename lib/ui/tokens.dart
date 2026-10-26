@@ -168,4 +168,9 @@ class LuxMotion {
 
   static const Curve ease = SubMotion.settle;
   static const Curve settle = SubMotion.settle;
+
+  /// The live sky's slow drift loop and its ease between skies.
+  static const Duration skyDrift = SubMotion.skyDrift;
+  static const Duration skyFade = SubMotion.skyFade;
+  static const Curve skyEase = SubMotion.ambient;
 }
