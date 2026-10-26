@@ -61,7 +61,8 @@ class Choices {
               ? t.split('|')
               : t.contains(';')
                   ? t.split(';')
-                  : t.split(RegExp(r',\s*(?:or\s+)?|\s+or\s+'));
+                  // Never inside a number: "Under $1,000" is one answer (CB-11a).
+                  : t.split(RegExp(r'(?<!\d),\s*(?:or\s+)?|(?<=\d),(?!\d)\s*(?:or\s+)?|\s+or\s+'));
       items.addAll(parts);
     }
     final out = <String>[];

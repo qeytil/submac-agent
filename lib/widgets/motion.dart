@@ -199,9 +199,8 @@ class _ExpandableState extends State<Expandable> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedSize(
-          duration: reduce ? Duration.zero : SubMotion.base,
-          curve: SubMotion.settle,
+        SubSize(
+          duration: SubMotion.base,
           alignment: Alignment.topCenter,
           child: Stack(children: [
             // Folded from the very first frame (a tall card used to show in full for one frame and then

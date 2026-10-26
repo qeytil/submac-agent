@@ -40,6 +40,7 @@ import 'media_lightbox.dart';
 import 'hark_style.dart';
 import 'browser_card.dart' show BrowserResultCard;
 import '../ui/i18n.dart';
+import '../services/reply_text.dart' show cleanGlyphs;
 export 'hark_style.dart';
 
 const cardLanguages = {
@@ -113,8 +114,10 @@ String cardKicker(String lang) {
   return 'Preparing';
 }
 
-/// Builds a structured card for a special fenced block, or null to fall back to a code block.
-Widget? buildOutputCard(String language, String body) {
+/// Builds a structured card for a special fenced block, or null to fall back to a code block. [owner] is the id of the
+/// message the card sits in (a choices card works out its own status from that message on, CB-5).
+Widget? buildOutputCard(String language, String body, {String? owner}) {
+  body = cleanGlyphs(body); // titles and items drew U+2011 / U+202F as "_" (CB-43)
   try {
     switch (language) {
       case 'summary':
@@ -202,7 +205,7 @@ Widget? buildOutputCard(String language, String body) {
         }
         final opts = Choices.parse(j);
         if (opts.length < Choices.min) return null;
-        return ChoicesCard(opts, question: Choices.question(j));
+        return ChoicesCard(opts, question: Choices.question(j), owner: owner);
       case 'file':
         final path = AgentTools.cardPath(body.trim().split('\n').first.trim());
         if (RegExp(r'\.wav$', caseSensitive: false).hasMatch(path)) return AudioCard(path);
@@ -703,31 +706,49 @@ class ChoicesCard extends StatelessWidget {
 
   /// The question the card itself carries ({"question": …}); most cards ask it in the reply's text instead.
   final String? question;
-  const ChoicesCard(this.choices, {super.key, this.question});
+
+  /// The id of the message this card sits in, when known (CB-5).
+  final String? owner;
+  const ChoicesCard(this.choices, {super.key, this.question, this.owner});
 
   /// Where this card stands in the open chat: (live, picked). A card is live only until the user answers after it;
   /// then it shows what they picked (ticked) or their own words, and nothing can be tapped again. Before v1.13.101
   /// every old card stayed tappable (a tap re-sent an old answer) and lost its tick when it scrolled away.
-  static (bool, String?) statusIn(List<ChatMessage> messages, List<String> choices, {required bool busy}) {
+  ///
+  /// With [owner] (the id of the message the card sits in) the status is worked out from that message on, so an older
+  /// card keeps its answer when the same options are offered again later (CB-5: it came back live and unticked, and a
+  /// tap sent the old answer to the new question). Without it, the newest card with these options is meant.
+  static (bool, String?) statusIn(List<ChatMessage> messages, List<String> choices, {required bool busy, String? owner}) {
+    if (owner != null) {
+      final i = messages.indexWhere((m) => m.id == owner);
+      // Not in the open chat (a team or bot list shows it): it can be answered while nothing runs here.
+      if (i < 0) return (!busy, null);
+      return _from(messages, i, choices, busy);
+    }
     for (var i = messages.length - 1; i >= 0; i--) {
       final m = messages[i];
       if (m.role != 'assistant' || !m.content.contains('```choices')) continue;
       if (!Choices.blocksIn(m.content).any((b) => Choices.same(b, choices))) continue;
-      for (var k = i + 1; k < messages.length; k++) {
-        final u = messages[k];
-        if (u.role != 'user' || u.content.startsWith(botWakeMark)) continue;
-        return (false, Choices.pickedIn(u.content, choices) ?? u.content.trim());
-      }
-      return (!busy, null);
+      return _from(messages, i, choices, busy);
     }
     // Not in the open chat (a team or bot list shows it): it can be answered while nothing runs here.
+    return (!busy, null);
+  }
+
+  /// The status of the card in messages[i]: answered by the first real user message after it, else live while idle.
+  static (bool, String?) _from(List<ChatMessage> messages, int i, List<String> choices, bool busy) {
+    for (var k = i + 1; k < messages.length; k++) {
+      final u = messages[k];
+      if (u.role != 'user' || u.content.startsWith(botWakeMark)) continue;
+      return (false, Choices.pickedIn(u.content, choices) ?? u.content.trim());
+    }
     return (!busy, null);
   }
 
   @override
   Widget build(BuildContext context) {
     // Only this card's own status (it watched the whole state and rebuilt on every streamed word).
-    final (live, picked) = context.select<AppState, (bool, String?)>((s) => statusIn(s.messages, choices, busy: s.busy));
+    final (live, picked) = context.select<AppState, (bool, String?)>((s) => statusIn(s.messages, choices, busy: s.busy, owner: owner));
     final state = context.read<AppState>();
     final q = question;
     return Padding(

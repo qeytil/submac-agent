@@ -404,9 +404,8 @@ class MediaSkeleton extends StatelessWidget {
               valueListenable: AiModels.progress,
               builder: (context, m, _) {
                 final line = m[callId] ?? waitingLabel(task);
-                return AnimatedSize(
-                  duration: SubMotion.of(context, SubMotion.base),
-                  curve: SubMotion.settle,
+                return SubSize(
+                  duration: SubMotion.base,
                   alignment: AlignmentDirectional.centerStart,
                   child: AnimatedSwitcher(
                     duration: SubMotion.of(context, SubMotion.quick),
