@@ -253,7 +253,7 @@ class _AccountPage extends StatelessWidget {
       ]),
       _Group([
         ListTile(
-          title: const Text('Sign out'),
+          title: Text(tr('Sign out')),
           onTap: () async {
             if (!await _confirm(context, 'Sign out?', 'Your chats come back when you sign in again.', 'Sign out')) return;
             if (!context.mounted) return;

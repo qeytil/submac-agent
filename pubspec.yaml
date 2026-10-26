@@ -58,6 +58,8 @@ dependencies:
   # v1.14: the agent loop runs on Genkit Dart (stable core only: generate, tools, interrupts, middleware).
   genkit: ^1.0.1
   schemantic: ^1.0.0
+  # v1.13.104: the first-launch intro's short sound (ambient session: mixes with music, silent when the phone is muted).
+  audioplayers: ^6.8.1
 
 dependency_overrides:
   # The newest Android side that compiles against SDK 36 (13.0.2 uses Android 17's ACCESS_LOCAL_NETWORK).
@@ -79,6 +81,8 @@ flutter:
     - assets/logos/
     - assets/bots/
     - assets/knowledge/somali/
+    # First-launch intro: the logo tile (its dot is drawn in code so it can land last) and the intro sound.
+    - assets/intro/
   fonts:
     - family: Geist
       fonts:

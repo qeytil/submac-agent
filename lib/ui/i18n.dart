@@ -103,6 +103,21 @@ class Strings {
       'Continue': 'Sii wad',
       'Forgot password?': 'Furaha sirta ma ilowday?',
       'Choose a new password': 'Dooro fure sir ah oo cusub',
+      // Sign-in: the 18+ agreement (on the sign-in screen) and the first-launch intro. Native review owed.
+      'I am 18 or older and I agree to the {terms} and the {privacy}.': 'Waxaan ahay 18 jir ama ka weyn, waxaanan aqbalay {terms} iyo {privacy}.',
+      'Terms of Use': 'Shuruudaha Isticmaalka',
+      'Privacy Policy': 'Siyaasadda Arrimaha Gaarka ah',
+      'Please confirm you are 18 or older and agree to the Terms and Privacy Policy.':
+          'Fadlan xaqiiji inaad tahay 18 jir ama ka weyn oo aad aqbashay Shuruudaha iyo Siyaasadda Arrimaha Gaarka ah.',
+      'Before you start': 'Intaadan bilaabin',
+      'SubMac is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.':
+          'SubMac waxaa loogu talagalay dadka 18 jir iyo ka weyn. Fadlan akhri oo aqbal Shuruudaha Isticmaalka iyo Siyaasadda Arrimaha Gaarka ah.',
+      'Agree and continue': 'Aqbal oo sii wad',
+      'Sign out': 'Ka bax',
+      "We couldn't save your agreement. Check your connection, then try again.":
+          'Lama kaydin karin ogolaanshahaaga. Hubi internetkaaga, kadibna isku day mar kale.',
+      'Try again': 'Isku day mar kale',
+      'Skip intro': 'Ka bood hordhaca',
       // Menu
       'New chat': 'Sheeko cusub',
       'Today': 'Maanta',
@@ -423,6 +438,20 @@ class Strings {
       'Continue': 'متابعة',
       'Forgot password?': 'نسيت كلمة المرور؟',
       'Choose a new password': 'اختر كلمة مرور جديدة',
+      // Sign-in: the 18+ agreement (on the sign-in screen) and the first-launch intro. Native review owed.
+      'I am 18 or older and I agree to the {terms} and the {privacy}.': 'عمري 18 عامًا أو أكثر وأوافق على {terms} و{privacy}.',
+      'Terms of Use': 'شروط الاستخدام',
+      'Privacy Policy': 'سياسة الخصوصية',
+      'Please confirm you are 18 or older and agree to the Terms and Privacy Policy.':
+          'يرجى تأكيد أن عمرك 18 عامًا أو أكثر وموافقتك على الشروط وسياسة الخصوصية.',
+      'Before you start': 'قبل أن تبدأ',
+      'SubMac is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.':
+          'SubMac مخصص لمن تبلغ أعمارهم 18 عامًا فأكثر. يرجى قراءة شروط الاستخدام وسياسة الخصوصية والموافقة عليهما.',
+      'Agree and continue': 'موافقة ومتابعة',
+      'Sign out': 'تسجيل الخروج',
+      "We couldn't save your agreement. Check your connection, then try again.": 'تعذّر حفظ موافقتك. تحقّق من اتصالك ثم حاول مرة أخرى.',
+      'Try again': 'حاول مرة أخرى',
+      'Skip intro': 'تخطي المقدمة',
       // Menu
       'New chat': 'محادثة جديدة',
       'Today': 'اليوم',
