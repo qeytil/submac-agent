@@ -1,7 +1,14 @@
 class AppConfig {
   static const appName = 'SubMac Agent';
-  /// Shown in Settings; keep in step with pubspec.yaml.
-  static const version = '1.13.79';
+  /// The version of the running build ("1.13.104"), as Android reports it (PackageManager versionName, set from
+  /// pubspec.yaml at build time). Sent by touch_device, shown in Settings. Filled at start by
+  /// `Updater.loadBuildVersion()`; until then (and off Android, e.g. tests) it is [pubspecVersion].
+  static String get version => _buildVersion.isNotEmpty ? _buildVersion : pubspecVersion;
+  static String _buildVersion = '';
+  static set buildVersion(String v) => _buildVersion = v.trim().split('+').first;
+
+  /// Fallback only. test/app_config_version_test.dart fails when it drifts from pubspec.yaml.
+  static const pubspecVersion = '1.13.104';
   static const supportEmail = 'contact@submac.site';
   static const privacyUrl = 'https://submac.site/submacagent/privacypolicy';
   static const termsUrl = 'https://submac.site/submacagent/termsofuse';

@@ -68,7 +68,7 @@ Future<void> _pump(WidgetTester tester, {required double width, required AppUpda
   await tester.pumpWidget(MaterialApp(
     debugShowCheckedModeBanner: false,
     theme: buildTheme(dark ? Brightness.dark : Brightness.light),
-    home: AppUpdateView(t: UpdateText(so), data: data, onCheck: () {}, onDownload: () {}, onCancel: () {}, onInstall: () {}, onOpenSettings: () {}),
+    home: AppUpdateView(t: UpdateText(so ? 'so' : 'en'), data: data, onCheck: () {}, onDownload: () {}, onCancel: () {}, onInstall: () {}, onOpenSettings: () {}),
   ));
   await tester.pump(const Duration(milliseconds: 50));
 }
@@ -145,7 +145,7 @@ void main() {
     addTearDown(tester.view.reset);
     Widget app(AppUpdateViewData d) => MaterialApp(
           theme: buildTheme(Brightness.light),
-          home: AppUpdateView(t: const UpdateText(false), data: d, onCheck: () => checks++, onDownload: () => downloads++),
+          home: AppUpdateView(t: const UpdateText('en'), data: d, onCheck: () => checks++, onDownload: () => downloads++),
         );
     await tester.pumpWidget(app(_cases['available']!));
     await tester.tap(find.byKey(const ValueKey('upd_primary')));
