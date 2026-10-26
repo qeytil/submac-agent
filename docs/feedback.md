@@ -38,5 +38,5 @@ will reach me in admin dashboard feedback section with the user details".
   for the signed links. Needs a Worker redeploy (wrangler) to go live; it does not depend on the app merge.
 
 ## Known follow-ups
-- `account-delete` does not wipe `feedback-screenshots/<uid>/` yet (rows cascade; the files would stay). One line:
-  add "feedback-screenshots" to the bucket list on the `wipeFolder` line, then redeploy account-delete.
+- `account-delete` wipes `feedback-screenshots/<uid>/` together with `attachments` and `chat-archives` (since release 1.13.104;
+  deployed 2026-10-26). The feedback rows cascade with the auth user.

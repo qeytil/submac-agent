@@ -46,3 +46,7 @@ functions only after `20261023_billing_v2.sql` is applied (they no longer call t
   with `usage_charge_enqueue` after two failures; coin leftovers removed. Rollback source: ai-chat = commit c845d9b (v37).
 - bot-run v12 (single file): allowance day = EAT date. Rollback source: commit c845d9b (v11).
 - ai-admin: `reset_user_today` / `live_reset_user_today` use the EAT date in the repo; **not deployed** (live v18 is older than repo).
+
+## 2026-10-26 account-delete v11 (release 1.13.104)
+- account-delete deployed 10:52 UTC (v11, verify_jwt true): also wipes `feedback-screenshots/<uid>/`. Rollback source: v10 = this file before
+  the change (commit 0a12382f; live since 2026-10-20 13:36 UTC). Smoke: throwaway account uploaded a screenshot, deleted itself, folder gone.
