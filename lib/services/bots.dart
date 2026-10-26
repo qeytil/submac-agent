@@ -9,6 +9,7 @@ import '../models.dart' show ChatMessage;
 import 'bot_package.dart';
 import 'bot_powers.dart';
 import 'call_me.dart';
+import 'chief_craft.dart';
 import 'events.dart';
 import 'bot_manner.dart';
 import 'no_reply.dart';
@@ -673,20 +674,49 @@ class Bots extends ChangeNotifier {
     await save();
   }
 
-  /// Gives a new user their Chief once. A Chief the owner removed is not brought back.
-  void _seedChief() {
-    chiefId = _p?.getString('bot_chief_v1') ?? '';
-    if (chief != null) return;
-    if (_p?.getBool('bot_chief_seeded_v1') == true) {
-      chiefId = '';
-      return;
+  /// Every account has exactly one Chief. Makes sure this phone has one: the bot already named the Chief, else a
+  /// default Chief that is here without the name (a restore that lost it), else a new default Chief. A Chief the owner
+  /// removed is replaced by a new one under the next free id ([retired]: default Chief ids the account has removed;
+  /// they are never reused). Idempotent: with a Chief here it changes nothing. True when it changed anything.
+  bool ensureChief({Iterable<String> retired = const []}) {
+    if (chiefId.isEmpty) chiefId = _p?.getString('bot_chief_v1') ?? '';
+    if (chief != null) return false;
+    final had = bots.where((b) => b.origin == ChiefCraft.origin).firstOrNull;
+    if (had != null) {
+      chiefId = had.id;
+    } else {
+      final c = BotTemplates.chiefAs(ChiefCraft.nextId({...bots.map((b) => b.id), ...retired}));
+      bots.insert(0, c);
+      chiefId = c.id;
     }
-    final c = BotTemplates.chief;
-    if (byId(c.id) == null) bots.insert(0, c);
-    chiefId = c.id;
-    _p?.setString('bot_chief_v1', c.id);
-    _p?.setBool('bot_chief_seeded_v1', true);
+    _p?.setString('bot_chief_v1', chiefId);
+    return true;
   }
+
+  /// A default Chief this phone made that nobody used and the account does not have, while another bot is the Chief
+  /// ([inAccount]: the bot ids the account has). Taken off so the account never ends up with two Chiefs (a new phone
+  /// seeds one before the account's Chief arrives). One the owner talked to stays (as a plain bot).
+  bool dropUnusedSeed(Set<String> inAccount) {
+    final spare = [
+      for (final b in bots)
+        if (b.origin == ChiefCraft.origin && !isChief(b) && !inAccount.contains(b.id) && b.convId.isEmpty && b.memory.isEmpty && b.desk.isEmpty) b
+    ];
+    for (final b in spare) {
+      bots.remove(b);
+    }
+    return spare.isNotEmpty;
+  }
+
+  /// The owner may not remove the Chief: there is always one. They make another bot the Chief first.
+  bool canRemove(Bot b) => !isChief(b);
+
+  /// The id of the owner's newest message in a chat ('' = none; set by AppState, wakes do not count). A drafted bot is
+  /// made (or a change saved) only after a newer message from the owner: their yes. Null: not checked.
+  String Function(String convId)? lastOwnerMessage;
+
+  /// Bots one account can keep: the account's own limit (cloud_bot_caps in 20261019_bot_cloud.sql, removed bots
+  /// included). The Chief does not make bots past it.
+  static const accountBotCap = 60;
 
   /// Drafts the Chief showed in a chat, waiting for the owner's yes (convId → spec).
   final Map<String, Map<String, dynamic>> _drafts = {};
@@ -767,7 +797,8 @@ class Bots extends ChangeNotifier {
     // SubMac's own bots now live in the Bot Store. One the owner never started is taken off their list (it is still in
     // the Store); one they work with stays exactly as it was.
     bots.removeWhere((b) => b.builtIn && !b.active && b.convId.isEmpty);
-    _seedChief();
+    chiefId = _p?.getString('bot_chief_v1') ?? '';
+    ensureChief();
     for (final b in bots) {
       _loadKnowledge(b);
     }
@@ -1532,7 +1563,9 @@ class Bots extends ChangeNotifier {
         ..writeln('You lead the owner\'s bots. Colleagues: ${others.isEmpty ? 'none yet' : others}.')
         ..writeln('- When the owner wants a new bot ("make me a sales bot"), design it with bot_make action "draft", show the draft in a few '
             'quiet lines (name and role, its job, how it works, skills) and ask "Make it?". Call bot_make action "create" only after a clear yes.')
-        ..writeln('- A question a colleague knows best: ask them with bot_ask and give the owner one combined answer.');
+        ..writeln('- A question a colleague knows best: ask them with bot_ask and give the owner one combined answer.')
+        ..writeln()
+        ..writeln(ChiefCraft.guide);
     }
     if (b.instructions.trim().isNotEmpty) {
       sb
@@ -1804,15 +1837,22 @@ class Bots extends ChangeNotifier {
       'action': {'type': 'string', 'enum': ['add', 'remove', 'list']},
       'lesson': {'type': 'string', 'description': 'e.g. "Check the site\'s search page before saying a product is out of stock."'},
     }, ['action']),
-    _fn('bot_make', 'Chief only. Make a new bot for the owner. First call with action "draft": it returns the draft to show the '
-        'owner. Show it in a few quiet lines and ask for a yes. Only after they say yes, call action "create" (no other fields). '
-        'To change the draft, call "draft" again.', {
-      'action': {'type': 'string', 'enum': ['draft', 'create']},
+    _fn('bot_make', 'Chief only. Make, list and change the owner\'s bots. New bot: action "draft" returns the draft to show the '
+        'owner; show it in a few quiet lines and ask for a yes. Only after they say yes, call action "create" (no other fields). '
+        'To change the draft, call "draft" again. "list": the owner\'s bots. "edit": a change to a bot you made (give "bot" and only '
+        'the fields that change); show it and after a yes call "save".', {
+      'action': {'type': 'string', 'enum': ['draft', 'create', 'list', 'edit', 'save']},
+      'bot': {'type': 'string', 'description': 'edit: the name or id of the bot to change.'},
       'name': {'type': 'string', 'description': 'A short human first name.'},
       'role': {'type': 'string', 'description': 'Job title, e.g. "Sales lead".'},
       'instructions': {'type': 'string', 'description': 'How the bot works: 3-6 short sentences in the owner\'s language.'},
       'mission': {'type': 'string', 'description': 'One sentence: its job for the owner.'},
       'skills': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Up to 5 short skill names, e.g. "follow-up emails".'},
+      'powers': {
+        'type': 'array',
+        'items': {'type': 'string', 'enum': BotPowers.all},
+        'description': 'Only the powers its job needs: web, browser, phone, files, apps. The rest are off. Leave out for all.',
+      },
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action']),
     _fn('knowledge_search', 'Search your own knowledge (notes and files you were given). Returns the best passages with their ids.', {
@@ -1975,11 +2015,51 @@ class Bots extends ChangeNotifier {
     return 'Error: unknown tool $name.';
   }
 
+  /// A bot the Chief may change with bot_make edit: one a Chief made (not built-in, Store, shared or the Chief itself).
+  bool chiefMade(Bot x) => x.origin == ChiefCraft.madeOrigin;
+
+  /// The powers to switch off for a draft's "powers" list (null = the model gave none: all stay on).
+  static List<String>? _powersOff(Object? powers) {
+    if (powers is! List) return null;
+    final on = {for (final x in powers) '$x'.trim().toLowerCase()};
+    return [for (final p in BotPowers.all) if (!on.contains(p)) p];
+  }
+
+  static String _powersLine(List<String>? off) {
+    if (off == null) return '';
+    final on = [for (final p in BotPowers.all) if (!off.contains(p)) BotPowers.labels[p]!.toLowerCase()];
+    return 'May use: ${on.isEmpty ? 'only its own memory, desk and knowledge' : on.join(', ')}';
+  }
+
+  /// The owner wrote again in this chat since the draft was shown ([seen]: their newest message then). True when it
+  /// cannot be told (no hook).
+  bool _ownerAnswered(String convId, Object? seen) {
+    final f = lastOwnerMessage;
+    if (f == null || seen is! String) return true;
+    final now = f(convId);
+    return now.isNotEmpty && now != seen;
+  }
+
   Future<String> _botMake(Bot b, Map<String, dynamic> a, String convId) async {
     if (!isChief(b)) return 'Error: only the Chief makes bots. Ask the owner to talk to their Chief.';
     String s(String k) => '${a[k] ?? ''}'.trim();
-    if (s('action') == 'draft') {
-      final skills = [for (final x in (a['skills'] as List? ?? const [])) '$x'.trim()].where((x) => x.isNotEmpty).take(5).toList();
+    List<String> skillsOf() => [for (final x in (a['skills'] as List? ?? const [])) '$x'.trim()].where((x) => x.isNotEmpty).take(5).toList();
+    final action = s('action');
+    if (action == 'list') {
+      final mine = bots.where((x) => x != b).toList();
+      if (mine.isEmpty) return 'The owner has no other bots yet. You are the Chief.';
+      return [
+        'The owner\'s bots (you are the Chief):',
+        for (final x in mine)
+          '- ${x.name}, ${x.role.isEmpty ? 'no role' : x.role}${x.active || x.convId.isNotEmpty ? '' : ' (not started)'}'
+              '${chiefMade(x) ? ' · made by the Chief, you can edit it' : ''}'
+              '${x.mission.isEmpty ? '' : ': ${x.mission}'}',
+        'Bots left in this account: ${(accountBotCap - bots.length).clamp(0, accountBotCap)}.',
+      ].join('\n');
+    }
+    if (action == 'draft') {
+      final skills = skillsOf();
+      final off = _powersOff(a['powers']);
       final spec = <String, dynamic>{
         'name': s('name').isEmpty ? 'Assistant' : s('name'),
         'role': s('role'),
@@ -1987,19 +2067,37 @@ class Bots extends ChangeNotifier {
         'mission': s('mission'),
         'icon': s('icon').isEmpty ? 'person' : s('icon'),
         'skills': skills,
+        if (off != null) 'powers_off': off,
       };
       if (s('role').isEmpty || s('instructions').isEmpty) return 'Error: give at least a role and instructions.';
-      _drafts[convId] = spec;
+      if (bots.length >= accountBotCap) {
+        return 'Error: the owner already has $accountBotCap bots, the most one account can keep. Tell them, and offer to change a bot '
+            'they have (bot_make list, then edit) or that they remove one they no longer use.';
+      }
+      _drafts[convId] = {...spec, '_seen': lastOwnerMessage?.call(convId)};
       return 'Draft ready. Show the owner this, quietly, then ask "Make it?":\n'
           '${spec['name']}, ${spec['role']}\n'
           '${spec['mission'] == '' ? '' : '${spec['mission']}\n'}'
           '${spec['persona']}\n'
-          '${skills.isEmpty ? '' : 'Skills: ${skills.join(', ')}'}';
+          '${skills.isEmpty ? '' : 'Skills: ${skills.join(', ')}\n'}'
+          '${_powersLine(off)}';
     }
-    if (s('action') == 'create') {
-      final spec = _drafts.remove(convId);
-      if (spec == null) return 'Error: no draft in this chat. Call bot_make with action "draft" first and get the owner\'s yes.';
+    if (action == 'create') {
+      final spec = _drafts[convId];
+      if (spec == null || spec['_edit'] != null) {
+        return 'Error: no draft in this chat. Call bot_make with action "draft" first and get the owner\'s yes.';
+      }
+      if (!_ownerAnswered(convId, spec['_seen'])) {
+        return 'Error: the owner has not answered the draft yet. Show it and ask "Make it?", then wait for their yes.';
+      }
+      if (bots.length >= accountBotCap) {
+        _drafts.remove(convId);
+        return 'Error: the owner already has $accountBotCap bots, the most one account can keep. Nothing was made.';
+      }
+      _drafts.remove(convId);
       final nb = await create(spec);
+      nb.origin = ChiefCraft.madeOrigin;
+      nb.powersOff.addAll([for (final p in (spec['powers_off'] as List? ?? const [])) '$p']);
       final added = <String>[];
       for (final k in (spec['skills'] as List? ?? const [])) {
         final hit = SkillLibrary.I.search('$k', limit: 1).firstOrNull;
@@ -2007,13 +2105,72 @@ class Bots extends ChangeNotifier {
       }
       if (added.isEmpty && (spec['skills'] as List? ?? const []).isNotEmpty) {
         nb.instructions = 'Skills: ${(spec['skills'] as List).join(', ')}';
-        await save();
       }
       b.log('work', 'Made a new bot: ${nb.name} (${nb.role}).');
       await save();
       return 'Created ${nb.name}, ${nb.role}. It is in the sidebar under Bots; the owner taps it to start.';
     }
-    return 'Error: action must be draft or create.';
+    if (action == 'edit') {
+      final t = s('bot').isEmpty ? null : (byId(s('bot')) ?? byName(s('bot')));
+      if (t == null) return 'Error: no bot called "${s('bot')}". Call bot_make action "list" to see them.';
+      if (!chiefMade(t)) {
+        return 'Error: ${t.name} was not made by the Chief, so the owner changes it in ${t.name}\'s settings. Tell them where.';
+      }
+      final change = <String, dynamic>{
+        if (s('name').isNotEmpty) 'name': s('name'),
+        if (s('role').isNotEmpty) 'role': s('role'),
+        if (s('instructions').isNotEmpty) 'persona': s('instructions'),
+        if (s('mission').isNotEmpty) 'mission': s('mission'),
+        if (s('icon').isNotEmpty) 'icon': s('icon'),
+        if (a['skills'] is List) 'skills': skillsOf(),
+        if (_powersOff(a['powers']) != null) 'powers_off': _powersOff(a['powers']),
+      };
+      if (change.isEmpty) return 'Error: say what changes (name, role, instructions, mission, skills, powers or icon).';
+      _drafts[convId] = {...change, '_edit': t.id, '_seen': lastOwnerMessage?.call(convId)};
+      return 'Change ready for ${t.name}. Show the owner what changes, quietly, then ask "Change it?":\n'
+          '${change['name'] == null ? '' : 'Name: ${t.name} → ${change['name']}\n'}'
+          '${change['role'] == null ? '' : 'Role: ${t.role} → ${change['role']}\n'}'
+          '${change['mission'] == null ? '' : 'Mission: ${change['mission']}\n'}'
+          '${change['persona'] == null ? '' : 'How it works: ${change['persona']}\n'}'
+          '${change['skills'] == null ? '' : 'Skills: ${(change['skills'] as List).join(', ')}\n'}'
+          '${_powersLine(change['powers_off'] as List<String>?)}';
+    }
+    if (action == 'save') {
+      final spec = _drafts[convId];
+      final t = spec == null || spec['_edit'] == null ? null : byId('${spec['_edit']}');
+      if (spec == null || spec['_edit'] == null) {
+        return 'Error: no change waiting in this chat. Call bot_make action "edit" first and get the owner\'s yes.';
+      }
+      if (t == null) {
+        _drafts.remove(convId);
+        return 'Error: that bot is gone. Nothing was changed.';
+      }
+      if (!_ownerAnswered(convId, spec['_seen'])) {
+        return 'Error: the owner has not answered the change yet. Show it and ask "Change it?", then wait for their yes.';
+      }
+      _drafts.remove(convId);
+      if (spec['name'] != null) t.name = '${spec['name']}';
+      if (spec['role'] != null) t.role = '${spec['role']}';
+      if (spec['persona'] != null) t.persona = '${spec['persona']}';
+      if (spec['mission'] != null) t.mission = '${spec['mission']}';
+      if (spec['icon'] != null) t.icon = '${spec['icon']}';
+      if (spec['powers_off'] is List) {
+        t.powersOff
+          ..removeAll(BotPowers.all)
+          ..addAll([for (final p in spec['powers_off'] as List) '$p']);
+      }
+      if (spec['skills'] is List) {
+        for (final k in spec['skills'] as List) {
+          final hit = SkillLibrary.I.search('$k', limit: 1).firstOrNull;
+          if (hit != null && !SkillLibrary.I.of(t.id).contains(hit.id)) await SkillLibrary.I.install(t.id, hit.id);
+        }
+      }
+      t.log('work', 'The Chief changed how I work, with your OK.');
+      b.log('work', 'Changed ${t.name} (${t.role}).');
+      await save();
+      return 'Saved. ${t.name} works the new way from the next message.';
+    }
+    return 'Error: action must be draft, create, list, edit or save.';
   }
 }
 
@@ -2202,8 +2359,11 @@ class BotTemplates {
           'and comments in English. Report: what you built, how you tested it, how to use it, what is next.');
 
   /// Every user's first bot (RESTYLE.md Dev 2): ready to talk to, makes new bots in chat, leads teams.
-  static Bot get chief => Bot(
-        id: 'chief',
+  static Bot get chief => chiefAs('chief');
+
+  /// The default Chief under [id] (chief, or chief-2... when the account removed an earlier one: ChiefCraft.nextId).
+  static Bot chiefAs(String id) => Bot(
+        id: id,
         name: 'Chief',
         role: 'Chief of staff',
         icon: 'work',
@@ -2215,7 +2375,7 @@ class BotTemplates {
             'back one clear answer.',
         mission: 'Lead the owner\'s bots and make new ones when they need them.',
         firstMeeting: 'Say who you are in one short line, then ask what they want help with first, or which bot they want you to make.',
-      )..origin = 'submac:chief';
+      )..origin = ChiefCraft.origin;
 
   static Bot get researcher => Bot(
         id: 'researcher',

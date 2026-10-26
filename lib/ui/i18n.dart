@@ -428,6 +428,8 @@ class Strings {
       'Keep working while you\'re away': 'Sii shaqee inta aad maqan tahay',
       'Led by {name}': 'Waxaa hoggaaminaya {name}',
       'Make Chief': 'Ka dhig Madax',
+      '{name} is your Chief. Make another bot the Chief first, then you can remove {name}.':
+          '{name} waa Madaxaaga. Marka hore bot kale ka dhig Madax, kadibna waad saari kartaa {name}.',
       'Message the team': 'U qor kooxda',
       'New team': 'Koox cusub',
       'Only when I ask': 'Kaliya marka aan codsado',
@@ -843,6 +845,8 @@ class Strings {
       'Keep working while you\'re away': 'استمر في العمل أثناء غيابك',
       'Led by {name}': 'بقيادة {name}',
       'Make Chief': 'اجعله الرئيس',
+      '{name} is your Chief. Make another bot the Chief first, then you can remove {name}.':
+          '{name} هو الرئيس لديك. اجعل بوتًا آخر الرئيس أولًا، ثم يمكنك حذف {name}.',
       'Message the team': 'راسل الفريق',
       'New team': 'فريق جديد',
       'Only when I ask': 'فقط عندما أطلب',

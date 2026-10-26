@@ -63,6 +63,12 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
       case 'pause':
         await (b.active ? Bots.I.pause(b) : Bots.I.resume(b));
       case 'fire':
+        // Every account keeps exactly one Chief: another bot becomes the Chief first.
+        if (!Bots.I.canRemove(b)) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(tr('{name} is your Chief. Make another bot the Chief first, then you can remove {name}.', {'name': b.name}))));
+          return;
+        }
         final ok = await showDialog<bool>(
           context: context,
           builder: (d) => AlertDialog(

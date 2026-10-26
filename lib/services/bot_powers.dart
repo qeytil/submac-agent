@@ -46,6 +46,8 @@ class BotPowers {
     'somali_knowledge', 'somali_knowledge_read',
     'bot_remember', 'bot_desk', 'bot_followup', 'bot_routine', 'bot_watch', 'bot_call', 'bot_ask', 'knowledge_search', 'knowledge_read', 'bot_lesson',
     'office_board', 'office_post', 'office_brief', 'office_ask_owner', 'office_kpi', 'docs_share', 'docs_list', 'docs_read',
+    // The Chief makes the owner's bots: no power switch takes that away (only the Chief gets it: Bots.definitionsFor).
+    'bot_make',
   };
 
   /// The power a tool needs, or '' when it is always allowed.

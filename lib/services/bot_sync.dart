@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'bot_package.dart';
 import 'bots.dart';
+import 'chief_craft.dart';
 import 'offices.dart';
 import 'skill_library.dart';
 
@@ -208,6 +209,14 @@ class BotSync {
 
   Map<String, dynamic> get _cur => (_st['cur'] ??= <String, dynamic>{}) as Map<String, dynamic>;
 
+  /// Default Chief ids the account removed (never reused, see ChiefCraft.nextId).
+  List<String> get retired => [for (final x in (_st['retired'] as List? ?? const [])) '$x'];
+
+  void _retire(String id) {
+    final l = retired;
+    if (!l.contains(id)) _st['retired'] = [...l, id];
+  }
+
   Future<void> _load() async {
     _p ??= await SharedPreferences.getInstance();
     _device = _p!.getString('bot_sync_device') ?? '';
@@ -249,6 +258,9 @@ class BotSync {
     if (owner != uid) await _unstash(uid);
     _st['owner'] = uid;
     _uid = uid;
+    // Every account has a Chief, also one that signs in on a phone another account used (and before the first round
+    // reaches the account: a default Chief it turns out the account already has is settled by that round).
+    if (Bots.I.ensureChief(retired: retired)) await Bots.I.save();
     await _saveState();
     Bots.I.onChanged = changed;
     Bots.I.cloudOwns = cloudOwns;
@@ -324,6 +336,15 @@ class BotSync {
     }
     await _p?.setString(_stashKey, jsonEncode(all));
     return true;
+  }
+
+  /// Tests: forget this phone's sync state and settings handle (a test that resets SharedPreferences gets a new store).
+  @visibleForTesting
+  void debugReset() {
+    stop();
+    _p = null;
+    _st = {};
+    _leaving = false;
   }
 
   /// Tests: is anything kept on this phone for [uid]?
@@ -454,7 +475,10 @@ class BotSync {
     try {
       await _info();
       final pulled = await _pull();
-      final sent = await _push();
+      var sent = await _push();
+      // The account refused a new default Chief (its id was removed on another phone): make the next one now.
+      if (!_leaving && Bots.I.chief == null && Bots.I.ensureChief(retired: retired)) sent = await _push() || sent;
+      if (!_leaving) _st['chief'] = Bots.I.chiefId;
       if (pulled || sent) {
         await Bots.I.save();
         await Bots.I.armAll();
@@ -545,6 +569,8 @@ class BotSync {
       var b = Bots.I.byId(id);
       final known = (_st['b'] as Map?)?.containsKey(id) ?? false;
       if (r['deleted'] == true) {
+        // A removed default Chief keeps its id for good (SYNC-5): a new one takes the next id (ChiefCraft.nextId).
+        if (ChiefCraft.isChiefId(id)) _retire(id);
         if (b != null && (known || first)) {
           await Bots.I.remove(b);
           touched = true;
@@ -594,11 +620,25 @@ class BotSync {
       }
     }
     _advance('bots', rows);
-    // A phone that has no Chief (signed back in, a new phone) takes the account's.
-    if (chiefInAccount != null && Bots.I.chief == null && Bots.I.byId(chiefInAccount) != null) {
-      await Bots.I.adoptChief(chiefInAccount);
+    // One Chief per account. A phone that has none (signed back in, a new phone) takes the account's; so does a phone
+    // whose Chief the owner did not change here since the last round (the Chief was changed on another phone), and a
+    // phone whose own fresh default Chief the account never had.
+    final inAccount = {...((_st['b'] as Map?)?.keys.map((e) => '$e') ?? const <String>[])};
+    final localChief = Bots.I.chief?.id ?? '';
+    final pick = ChiefCraft.afterPull(
+      local: localChief,
+      lastSynced: '${_st['chief'] ?? ''}',
+      account: chiefInAccount,
+      accountHere: chiefInAccount != null && Bots.I.byId(chiefInAccount) != null,
+    );
+    if (pick != localChief && pick.isNotEmpty) {
+      await Bots.I.adoptChief(pick);
       touched = true;
     }
+    // A default Chief this phone seeded before the account's arrived, never used: it goes (no second Chief).
+    if (Bots.I.dropUnusedSeed(inAccount)) touched = true;
+    // The account has no Chief at all (a new account, or the owner removed it before this was fixed): one is made.
+    if (Bots.I.ensureChief(retired: retired)) touched = true;
     for (final id in needKnowledge) {
       final b = Bots.I.byId(id);
       if (b == null) continue;
@@ -812,8 +852,15 @@ class BotSync {
           'origin': 'phone',
         }], const ['bot_id']);
         } on PostgrestException catch (e) {
-          // The server refuses to bring back a removed bot (SYNC-5): it was removed on another phone, so it goes here too.
           if (e.code != '23514') rethrow;
+          // The account is full (cloud_bot_caps: 60 bots, removed ones included). The bot stays on this phone and is
+          // sent again later; it is never taken off for that (it shares the error code with "bot removed").
+          if (e.message.contains('too many bots')) {
+            debugPrint('bot sync: ${b.id} not sent: the account has too many bots');
+            continue;
+          }
+          // The server refuses to bring back a removed bot (SYNC-5): it was removed on another phone, so it goes here too.
+          if (ChiefCraft.isChiefId(b.id)) _retire(b.id);
           await Bots.I.remove(b);
           (_st['b'] as Map?)?.remove(b.id);
           await _saveState();
