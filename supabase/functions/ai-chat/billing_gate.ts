@@ -7,9 +7,17 @@ function num(v: unknown, d: number): number { const n = Number(v); return v !== 
 /** Bot-lane sources as billing.is_bot() knows them; any other background work is charged as 'background'. */
 export const BOT_SOURCES = new Set(["bot", "bot-cloud", "bot_cloud", "background", "office"]);
 
+/** CB-45: the owner typing in a bot's chat. Billed like the user's own chat ('agent': chat bucket, never refused for the
+ *  bot share; billing.is_bot('bot-chat') = false), but kept as its own value in ai_usage.source for analytics. */
+export const CHAT_LANE_SOURCES = new Set(["bot-chat"]);
+
+/** True for a source that always bills in the user's chat lane, even when the request says x-submac-lane: background. */
+export function chatLane(source: unknown): boolean { return CHAT_LANE_SOURCES.has(String(source ?? "").toLowerCase()); }
+
 /** The source usage_gate / usage_charge see: the bot lane gets its share of each daily amount (Contract B). */
 export function billSource(source: string, background: boolean): string {
   const src = (source || "agent").toLowerCase();
+  if (CHAT_LANE_SOURCES.has(src)) return src;
   return background && !BOT_SOURCES.has(src) ? "background" : src;
 }
 
