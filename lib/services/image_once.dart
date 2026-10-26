@@ -78,6 +78,7 @@ class ImageOnce {
   void clear() {
     _sent.clear();
     _pending.clear();
+    _save(); // CB-18 clear x CB-31 kept keys: the persisted keys of the deleted chats go too
   }
 
   void forget(String conv) {
