@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../services/tools.dart';
 import '../theme.dart';
+import 'lux_kit.dart';
 import 'chat/fade_append.dart';
 import 'chat_logic.dart';
 import 'logo.dart';
@@ -236,18 +237,9 @@ class _ChecklistCardState extends State<ChecklistCard> {
           for (var i = from; i < to; i++)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 3),
+              // A step's state is its type (RESTYLE.md: status is text): done is struck through and muted, the current one
+              // semibold, the rest plain. No check, radio or dot glyphs.
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 1),
-                  child: Icon(
-                    widget.done.contains(i)
-                        ? Icons.check_circle_rounded
-                        : (i == current ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded),
-                    size: 15,
-                    color: widget.done.contains(i) ? p.muted : p.text,
-                  ),
-                ),
-                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     steps[i],
@@ -603,11 +595,8 @@ class _HowIDidItState extends State<HowIDidIt> {
         Semantics(
           button: true,
           expanded: _open,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () {
-              setState(() => _open = !_open);
-            },
+          child: LuxTap(
+            onTap: () => setState(() => _open = !_open),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -618,7 +607,7 @@ class _HowIDidItState extends State<HowIDidIt> {
                   turns: _open ? 0.5 : 0,
                   duration: SubMotion.of(context, SubMotion.base),
                   curve: SubMotion.settle,
-                  child: Icon(Icons.expand_more_rounded, size: 18, color: p.muted),
+                  child: SubIcon('chevron_down', size: IconSize.md, color: p.muted),
                 ),
               ]),
             ),
@@ -660,7 +649,6 @@ class JumpToBottom extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Semantics(
       button: true,
       label: fresh ? 'New reply. Go to the newest message' : 'Go to the newest message',
@@ -671,17 +659,14 @@ class JumpToBottom extends StatelessWidget {
           height: 38,
           padding: EdgeInsets.symmetric(horizontal: fresh ? 14 : 0),
           constraints: const BoxConstraints(minWidth: 38),
-          decoration: BoxDecoration(
-            color: p.composer,
-            borderRadius: BorderRadius.circular(19),
-            boxShadow: isDark ? null : [BoxShadow(color: const Color(0xFF17150F).withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4))],
-          ),
+          // A soft disc of the composer's tone; no shadow (fix/ui-restyle).
+          decoration: BoxDecoration(color: p.composer, borderRadius: const BorderRadius.all(Radius.circular(Radii.pill))),
           child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
             if (fresh) ...[
               Text(tr('New'), style: TextStyle(color: p.text, fontSize: AppText.meta, fontWeight: FontWeight.w600)),
               const SizedBox(width: 6),
             ],
-            Icon(Icons.arrow_downward_rounded, size: 18, color: p.text),
+            SubIcon('chevron_down', size: IconSize.md, color: p.text),
           ]),
         ),
       ),

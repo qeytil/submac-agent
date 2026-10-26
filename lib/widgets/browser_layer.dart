@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+import 'lux_kit.dart';
 import '../services/browser_agent.dart';
 import '../services/browser_jobs.dart';
 import '../theme.dart';
@@ -170,7 +171,7 @@ class BrowserFullView extends StatelessWidget {
                 for (var i = 0; i < b.tabs.length; i++)
                   Padding(
                     padding: const EdgeInsetsDirectional.only(end: Space.x2),
-                    child: ChoiceChip(
+                    child: LuxWordTab(
                       label: Text(b.tabs[i].host.isEmpty ? tr('Browser') : b.tabs[i].host, style: AppText.microStyle),
                       selected: i == b.current,
                       onSelected: (_) => b.showTab(i),

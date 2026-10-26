@@ -10,13 +10,13 @@ import '../services/offices.dart';
 import '../services/system_tools.dart';
 import '../theme.dart';
 import 'team_face.dart';
-import '../ui/haptics.dart';
 import '../ui/i18n.dart';
 import '../ui/launch_flags.dart';
 import '../ui/tokens.dart';
 import 'avatar_picker.dart';
 import 'bot_face.dart';
 import 'chat/message_actions.dart';
+import 'lux_kit.dart';
 import 'sub_icon.dart';
 
 /// Pieces of the Grok-style drawer, in SubMac's own look: quiet, collapsible sections of text-first rows,
@@ -75,10 +75,8 @@ class _DrawerSectionState extends State<DrawerSection> with SingleTickerProvider
     final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Semantics(
-        button: true,
         expanded: _open,
-        child: InkWell(
-          borderRadius: Radii.fieldAll,
+        child: LuxTap(
           onTap: _toggle,
           child: Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, Space.x5, Space.x2, Space.x2),
@@ -90,10 +88,10 @@ class _DrawerSectionState extends State<DrawerSection> with SingleTickerProvider
               ],
               const SizedBox(width: Space.x1),
               AnimatedRotation(
-                turns: _open ? 0 : -0.25,
+                turns: _open ? 0 : (Directionality.of(context) == TextDirection.rtl ? 0.25 : -0.25),
                 duration: reduce ? Duration.zero : LuxMotion.base,
                 curve: LuxMotion.ease,
-                child: Icon(Icons.expand_more_rounded, size: IconSize.sm, color: p.faint),
+                child: SubIcon('chevron_down', size: IconSize.sm, color: p.faint),
               ),
               const Spacer(),
               if (widget.trailing != null) widget.trailing!,
@@ -119,7 +117,7 @@ class _DrawerSectionState extends State<DrawerSection> with SingleTickerProvider
   }
 }
 
-/// One bot in the drawer: its face with the presence dot, its name, and one quiet word (Working, Free, Off).
+/// One bot in the drawer: its face, its name, and one quiet word (Working, Free, Off).
 /// Tap opens its chat; hold for Message · Call · Profile.
 class BotRow extends StatelessWidget {
   const BotRow({super.key, required this.bot, this.selected = false, this.onOpen, this.dense = true});
@@ -138,28 +136,29 @@ class BotRow extends StatelessWidget {
     final presence = Bots.I.presenceOf(bot);
     final started = bot.active || bot.convId.isNotEmpty || Bots.I.isChief(bot);
     final word = !started ? 'Not started' : (Bot.presenceLabels[presence] ?? '');
-    return Material(
-      color: selected ? p.bubble : Colors.transparent,
-      borderRadius: Radii.fieldAll,
-      child: InkWell(
-        borderRadius: Radii.fieldAll,
-        onTap: () => openBotChat(context, bot, before: onOpen),
-        onLongPress: () => showBotOptions(context, bot, before: onOpen),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: Space.x3, vertical: dense ? Space.x2 : Space.x3),
-          child: Row(children: [
-            ChiefFace(bot: bot, size: dense ? 26 : 34, presence: started, mood: presence == 'working' ? BotMood.thinking : BotMood.idle),
-            const SizedBox(width: Space.x3),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(bot.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text, fontWeight: FontWeight.w500)),
-                if (!dense && _sub(bot).isNotEmpty)
-                  Text(_sub(bot), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.microStyle.copyWith(color: p.faint)),
-              ]),
-            ),
-            if (word.isNotEmpty) Text(word, style: AppText.captionStyle.copyWith(color: presence == 'working' ? p.text : p.faint)),
-          ]),
-        ),
+    // No fill behind the open bot and no presence dot on the face: the open one is in the full ink weight, and its
+    // state is the one plain word at the end (RESTYLE.md: status is text only).
+    return LuxTap(
+      selected: selected,
+      onTap: () => openBotChat(context, bot, before: onOpen),
+      onLongPress: () => showBotOptions(context, bot, before: onOpen),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: Space.x3, vertical: dense ? Space.x2 : Space.x3),
+        child: Row(children: [
+          ChiefFace(bot: bot, size: dense ? 26 : 34, mood: presence == 'working' ? BotMood.thinking : BotMood.idle),
+          const SizedBox(width: Space.x3),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(bot.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.bodyStyle.copyWith(color: p.text, fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+              if (!dense && _sub(bot).isNotEmpty)
+                Text(_sub(bot), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.microStyle.copyWith(color: p.faint)),
+            ]),
+          ),
+          if (word.isNotEmpty) LuxStatus(word, strong: presence == 'working'),
+        ]),
       ),
     );
   }
@@ -187,8 +186,7 @@ class TeamRow extends StatelessWidget {
     final lead = Bots.I.byId(team.chiefId);
     final n = team.members.length;
     final sub = lead == null ? '$n ${n == 1 ? 'bot' : 'bots'}' : 'Led by ${lead.name} · $n ${n == 1 ? 'bot' : 'bots'}';
-    return InkWell(
-      borderRadius: Radii.fieldAll,
+    return LuxTap(
       onTap: () {
         onOpen?.call();
         Navigator.push(context, MaterialPageRoute(builder: (_) => OfficeScreen(officeId: team.id)));
@@ -293,9 +291,8 @@ class DrawerBots extends StatelessWidget {
       final chief = Bots.I.chief;
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: Space.x1),
-        child: InkWell(
+        child: LuxTap(
           key: const ValueKey('drawer-bots'),
-          borderRadius: Radii.fieldAll,
           onTap: () {
             final nav = Navigator.of(context);
             onOpen?.call();
@@ -311,7 +308,6 @@ class DrawerBots extends StatelessWidget {
               ),
               const SizedBox(width: Space.x3),
               Expanded(child: Text(tr('Bots'), style: AppText.bodyStyle.copyWith(color: p.text, fontWeight: FontWeight.w500))),
-              SubIcon('chevron_right', size: IconSize.sm, color: p.faint),
             ]),
           ),
         ),
@@ -378,16 +374,11 @@ Future<void> newTeamFlow(BuildContext context, {VoidCallback? before, void Funct
             const SizedBox(height: Space.x3),
             Text(tr('Bots'), style: AppText.sectionStyle.copyWith(color: p.faint)),
             for (final b in Bots.I.bots)
-              InkWell(
-                borderRadius: Radii.fieldAll,
+              LuxTap(
+                selected: picked.contains(b.id),
                 onTap: () => set(() => picked.contains(b.id) ? picked.remove(b.id) : picked.add(b.id)),
                 // Hold a picked bot to make it the lead.
-                onLongPress: picked.contains(b.id)
-                    ? () {
-                        SubHaptics.hold();
-                        set(() => lead = b.id);
-                      }
-                    : null,
+                onLongPress: picked.contains(b.id) ? () => set(() => lead = b.id) : null,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: Space.x2),
                   child: Row(children: [
@@ -411,10 +402,7 @@ Future<void> newTeamFlow(BuildContext context, {VoidCallback? before, void Funct
             const SizedBox(height: Space.x4),
             Align(
               alignment: AlignmentDirectional.centerEnd,
-              child: TextButton(
-                onPressed: picked.isEmpty || name.text.trim().isEmpty ? null : () => Navigator.pop(ctx, true),
-                child: Text(tr('Start'), style: AppText.bodyStyle.copyWith(fontWeight: FontWeight.w600)),
-              ),
+              child: LuxWordButton('Start', primary: true, onPressed: picked.isEmpty || name.text.trim().isEmpty ? null : () => Navigator.pop(ctx, true)),
             ),
           ]),
         ),
@@ -490,7 +478,7 @@ Future<void> pickChief(BuildContext context) async {
             child: Text(tr('Who leads?'), style: AppText.leadStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
           ),
           for (final b in Bots.I.bots)
-            InkWell(
+            LuxTap(
               onTap: () => Navigator.pop(ctx, b.id),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Space.x5, vertical: Space.x3),
@@ -537,15 +525,9 @@ class RosterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return InkWell(
-      borderRadius: Radii.fieldAll,
+    return LuxTap(
       onTap: onTap,
-      onLongPress: onHold == null
-          ? null
-          : () {
-              SubHaptics.hold();
-              onHold!();
-            },
+      onLongPress: onHold,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Space.x3, vertical: Space.x3),
         child: Row(children: [

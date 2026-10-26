@@ -16,6 +16,8 @@ import '../theme.dart';
 import '../widgets/avatar_picker.dart';
 import '../widgets/approval_card.dart';
 import '../widgets/surface.dart';
+import '../widgets/lux_kit.dart';
+import '../widgets/sub_icon.dart';
 import 'bot_activity_screen.dart';
 import 'bot_setup_screens.dart';
 import 'bot_store_screen.dart';
@@ -63,20 +65,14 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
       case 'pause':
         await (b.active ? Bots.I.pause(b) : Bots.I.resume(b));
       case 'fire':
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (d) => AlertDialog(
-            title: Text('Remove ${b.name}?'),
-            content: Text(b.builtIn
+        final ok = await luxConfirm(context,
+            title: tr('Remove {name}?', {'name': b.name}),
+            message: b.builtIn
                 ? '${b.name} stops working for you and forgets everything. You can start again anytime.'
-                : '${b.name} will be deleted with everything they remember.'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
-              TextButton(onPressed: () => Navigator.pop(d, true), child: const Text('Remove', style: TextStyle(color: Palette.red))),
-            ],
-          ),
-        );
-        if (ok == true) {
+                : '${b.name} will be deleted with everything they remember.',
+            action: 'Remove',
+            destructive: true);
+        if (ok) {
           if (b.convId.isNotEmpty) await state.deleteConversation(b.convId);
           await Bots.I.remove(b);
           if (mounted) Navigator.pop(context);
@@ -103,20 +99,25 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
                 pinned: true,
                 title: Text(b.name),
                 actions: [
-                  PopupMenuButton<String>(
-                    onSelected: (v) => _menu(v, b),
-                    itemBuilder: (_) => [
-                      // Activity lives once, under Settings > More settings (PLAN.md 3.3).
-                      PopupMenuItem(value: 'edit', child: Text(tr('Edit'))),
-                      const PopupMenuItem(value: 'share', child: Text('Share')),
-                      if (LaunchFlags.storePublishing)
-                        PopupMenuItem(value: 'publish', child: Text(b.storeId.isEmpty ? 'Publish to Bot Store' : 'Update in Bot Store')),
-                      if (b.storeId.isNotEmpty) const PopupMenuItem(value: 'unpublish', child: Text('Remove from Bot Store')),
-                      if (b.convId.isNotEmpty) ...[
-                        PopupMenuItem(value: 'pause', child: Text(b.active ? 'Pause' : 'Resume')),
-                        PopupMenuItem(value: 'fire', child: Text('Remove ${b.name}')),
-                      ],
-                    ],
+                  // SubMac's "more" glyph opens the quiet choice sheet (no Material overflow menu).
+                  IconButton(
+                    key: const ValueKey('bot-more'),
+                    tooltip: tr('More'),
+                    icon: SubIcon('more', size: IconSize.lg, color: p.text),
+                    onPressed: () async {
+                      final v = await showLuxChoices<String>(context, title: b.name, choices: [
+                        // Activity lives once, under Settings > More settings (PLAN.md 3.3).
+                        const LuxChoice('edit', 'Edit'),
+                        const LuxChoice('share', 'Share'),
+                        if (LaunchFlags.storePublishing) LuxChoice('publish', b.storeId.isEmpty ? 'Publish to Bot Store' : 'Update in Bot Store'),
+                        if (b.storeId.isNotEmpty) const LuxChoice('unpublish', 'Remove from Bot Store'),
+                        if (b.convId.isNotEmpty) ...[
+                          LuxChoice('pause', b.active ? 'Pause' : 'Resume'),
+                          LuxChoice('fire', tr('Remove {name}', {'name': b.name}), destructive: true),
+                        ],
+                      ]);
+                      if (v != null) await _menu(v, b);
+                    },
                   ),
                 ],
               ),
@@ -128,7 +129,7 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
                     Semantics(
                       button: true,
                       label: 'Change look',
-                      child: GestureDetector(onTap: () => pickAvatar(context, b), child: BotAvatar(bot: b, size: 84, presence: started)),
+                      child: GestureDetector(onTap: () => pickAvatar(context, b), child: BotAvatar(bot: b, size: 84)),
                     ),
                     const SizedBox(height: 12),
                     Text(b.name, style: Brand.serif(size: 30, color: p.text, height: 1.1)),
@@ -147,16 +148,14 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
                       style: TextStyle(color: p.muted, fontSize: AppText.meta),
                     ),
                     if (b.active && SystemTools.perms['battery'] == false)
-                      TextButton(
-                        style: TextButton.styleFrom(foregroundColor: p.muted),
-                        onPressed: () => SystemBridge.I.openPermission('battery'),
-                        child: Text('Your phone may pause ${b.name}. Let it keep working.'),
-                      ),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(backgroundColor: p.text, foregroundColor: p.bg, minimumSize: const Size.fromHeight(46), shape: const StadiumBorder()),
+                      LuxWordButton('Your phone may pause ${b.name}. Let it keep working.', onPressed: () => SystemBridge.I.openPermission('battery')),
+                    const SizedBox(height: Space.x2),
+                    // The two ways to reach the bot, as words (no filled pill, no outlined pill, no Material glyphs).
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      LuxWordButton(
+                          started ? 'Message' : 'Start',
+                          key: const ValueKey('bot-message'),
+                          primary: true,
                           onPressed: () async {
                             Navigator.of(context).popUntil((r) => r.isFirst);
                             if (b.active) {
@@ -168,22 +167,13 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
                               final e = await state.hireBot(b);
                               if (e != null) state.showBanner(e);
                             }
-                          },
-                          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                          label: Text(started ? 'Message' : 'Start'),
-                        ),
-                      ),
+                          }),
                       if (b.active) ...[
-                        const SizedBox(width: 10),
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 46), foregroundColor: p.text, backgroundColor: p.sheet, shape: const StadiumBorder()),
-                          onPressed: () {
-                            Navigator.of(context).popUntil((r) => r.isFirst);
-                            state.callBot(b);
-                          },
-                          icon: const Icon(Icons.call_outlined, size: 18),
-                          label: Text(tr('Call')),
-                        ),
+                        const SizedBox(width: Space.x4),
+                        LuxWordButton('Call', key: const ValueKey('bot-call'), primary: true, onPressed: () {
+                          Navigator.of(context).popUntil((r) => r.isFirst);
+                          state.callBot(b);
+                        }),
                       ],
                     ]),
                   ]),
@@ -192,22 +182,8 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _TabsHeader(
-                  // Grok-like segmented tabs: the chosen one sits on a soft sheet pill, no underline, no line under the bar.
-                  TabBar(
-                    controller: _tabs,
-                    labelColor: p.text,
-                    unselectedLabelColor: p.muted,
-                    indicator: BoxDecoration(color: p.sheet, borderRadius: const BorderRadius.all(Radius.circular(Radii.pill))),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    indicatorPadding: const EdgeInsets.symmetric(horizontal: Space.x2, vertical: Space.x1),
-                    dividerColor: Colors.transparent,
-                    splashBorderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
-                    tabs: [
-                      Tab(text: waiting > 0 ? 'Job · $waiting' : 'Job'),
-                      const Tab(text: 'Training'),
-                      const Tab(text: 'Settings'),
-                    ],
-                  ),
+                  // Word tabs (fix/ui-restyle): the chosen word in full ink, the others muted. No pill, no underline.
+                  _WordTabs(controller: _tabs, labels: [waiting > 0 ? '${tr('Job')} · $waiting' : tr('Job'), tr('Training'), tr('Settings')]),
                   p.bg,
                 ),
               ),
@@ -224,14 +200,54 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
   }
 }
 
+/// The bot page's tabs as words. Tap a word to move; the page's swipe moves the words too.
+class _WordTabs extends StatelessWidget {
+  const _WordTabs({required this.controller, required this.labels});
+  final TabController controller;
+  final List<String> labels;
+
+  static const double height = 48;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return AnimatedBuilder(
+      animation: controller.animation ?? controller,
+      builder: (context, _) {
+        final at = controller.animation?.value ?? controller.index.toDouble();
+        return SizedBox(
+          height: height,
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            for (final (i, l) in labels.indexed)
+              LuxTap(
+                key: ValueKey('bot-tab-$i'),
+                selected: controller.index == i,
+                onTap: () => controller.animateTo(i, duration: SubMotion.of(context, LuxMotion.base), curve: LuxMotion.ease),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Space.x4, vertical: Space.x3),
+                  child: Text(l,
+                      style: AppText.bodyStyle.copyWith(
+                        // The words cross-fade with the swipe itself, so the tabs never lag the page.
+                        color: Color.lerp(p.text, p.muted, (at - i).abs().clamp(0.0, 1.0).toDouble()),
+                        fontWeight: controller.index == i ? FontWeight.w700 : FontWeight.w500,
+                      )),
+                ),
+              ),
+          ]),
+        );
+      },
+    );
+  }
+}
+
 class _TabsHeader extends SliverPersistentHeaderDelegate {
   _TabsHeader(this.bar, this.bg);
-  final TabBar bar;
+  final Widget bar;
   final Color bg;
   @override
-  double get minExtent => bar.preferredSize.height;
+  double get minExtent => _WordTabs.height;
   @override
-  double get maxExtent => bar.preferredSize.height;
+  double get maxExtent => _WordTabs.height;
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => ClipRect(
         // Frosted over the sky (restyle): the page scrolls softly under the tabs instead of under a solid bar.
@@ -277,26 +293,21 @@ class _JobTab extends StatelessWidget {
     final what = TextEditingController();
     var time = '08:00';
     var days = 'daily';
-    final ok = await showModalBottomSheet<bool>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+    final ok = await showLuxSheet<bool>(
+      context,
+      title: 'A new responsibility',
       builder: (ctx) => StatefulBuilder(builder: (ctx, set) {
-        final p = Palette.of(ctx);
-        Widget chip(String label, String t, String d) => ChoiceChip(
-              label: Text(label),
+        LuxWord chip(String label, String t, String d) => LuxWord(
+              label,
               selected: time == t && days == d,
-              onSelected: (_) => set(() {
+              onTap: () => set(() {
                 time = t;
                 days = d;
               }),
             );
         return Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2, Space.x5, Space.x5),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('A new responsibility', style: Brand.serif(size: 24, color: p.text)),
-            const SizedBox(height: 12),
             TextField(
               controller: what,
               autofocus: true,
@@ -306,21 +317,24 @@ class _JobTab extends StatelessWidget {
               decoration: InputDecoration(hintText: 'e.g. Brief me on my inbox', labelText: 'What should ${b.name} do?'),
             ),
             const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: [
+            LuxWords([
               chip('Every morning', '08:00', 'daily'),
               chip('Every evening', '19:00', 'daily'),
               chip('Weekdays at 9', '09:00', 'weekdays'),
               chip('Mondays', '09:00', 'mon'),
-              ActionChip(
-                label: Text('Other time · $time'),
-                onPressed: () async {
+              LuxWord(
+                '${tr('Other time')} · $time',
+                onTap: () async {
                   final t = await showTimePicker(context: ctx, initialTime: TimeOfDay(hour: int.parse(time.split(':')[0]), minute: int.parse(time.split(':')[1])));
                   if (t != null) set(() => time = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}');
                 },
               ),
             ]),
-            const SizedBox(height: 16),
-            SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Add'))),
+            const SizedBox(height: Space.x3),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: LuxWordButton('Add', primary: true, onPressed: () => Navigator.pop(ctx, true)),
+            ),
           ]),
         );
       }),
@@ -331,43 +345,21 @@ class _JobTab extends StatelessWidget {
     await Bots.I.arm(b);
   }
 
-  void _task(BuildContext context, Bot b, DeskTask t) {
-    showModalBottomSheet<void>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 8),
-            child: Text(t.text, style: Theme.of(ctx).textTheme.titleMedium),
-          ),
-          if (t.note.isNotEmpty) Padding(padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 8), child: Text(t.note)),
-          if (t.status != 'done')
-            ListTile(
-              leading: const Icon(Icons.check_rounded),
-              title: const Text('Mark as done'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                t
-                  ..status = 'done'
-                  ..updated = DateTime.now();
-                b.log('work', 'Done: ${t.text}');
-                await Bots.I.save();
-              },
-            ),
-          ListTile(
-            leading: const Icon(Icons.close_rounded),
-            title: const Text('Remove'),
-            onTap: () async {
-              Navigator.pop(ctx);
-              b.desk.remove(t);
-              await Bots.I.save();
-            },
-          ),
-        ]),
-      ),
-    );
+  Future<void> _task(BuildContext context, Bot b, DeskTask t) async {
+    final v = await showLuxChoices<String>(context, title: t.note.isEmpty ? t.text : '${t.text}\n${t.note}', choices: [
+      if (t.status != 'done') const LuxChoice('done', 'Mark as done'),
+      const LuxChoice('remove', 'Remove', destructive: true),
+    ]);
+    if (v == 'done') {
+      t
+        ..status = 'done'
+        ..updated = DateTime.now();
+      b.log('work', 'Done: ${t.text}');
+      await Bots.I.save();
+    } else if (v == 'remove') {
+      b.desk.remove(t);
+      await Bots.I.save();
+    }
   }
 
   @override
@@ -391,22 +383,18 @@ class _JobTab extends StatelessWidget {
       _Head('Needs you'),
       if (b.trustOffered) TrustOfferCard(bot: b),
       ApprovalList(botId: b.id),
-      for (final t in needs) _Line(icon: Icons.hourglass_empty_rounded, text: t.text, sub: t.note.isEmpty ? 'Waiting on you' : t.note, onTap: () => _task(context, b, t)),
+      for (final t in needs) _Line(text: t.text, sub: t.note.isEmpty ? 'Waiting on you' : t.note, onTap: () => _task(context, b, t)),
       if (!hasNeeds) _Muted('Nothing needs you right now.'),
       _Head('Working on'),
       if (working.isEmpty) _Muted(b.active ? 'Nothing open. Give ${b.name} a job in the chat.' : 'Not working for you yet.'),
       for (final t in working.take(12))
-        _Line(
-          icon: t.status == 'doing' ? Icons.play_circle_outline_rounded : Icons.east_rounded,
-          text: t.text,
+        _Line(text: t.text,
           sub: t.status == 'doing' ? (t.note.isEmpty ? 'In progress' : t.note) : t.note,
           onTap: () => _task(context, b, t),
         ),
       _Head('Responsibilities'),
       for (final r in b.routines)
-        _Line(
-          icon: r.kind == 'call' ? Icons.call_outlined : Icons.schedule_rounded,
-          text: r.instruction,
+        _Line(text: r.instruction,
           sub: '${routineWhen(r)}${r.kind == 'call' ? ' · calls you' : r.kind == 'message' ? ' · messages you' : ' · tells you if it matters'}',
           onDelete: () async {
             b.routines.remove(r);
@@ -415,9 +403,7 @@ class _JobTab extends StatelessWidget {
           },
         ),
       for (final w in b.watches)
-        _Line(
-          icon: Icons.notifications_none_rounded,
-          text: w.instruction.isEmpty ? 'Phone alerts' : w.instruction,
+        _Line(text: w.instruction.isEmpty ? 'Phone alerts' : w.instruction,
           sub: 'When ${w.app.isEmpty ? 'any app' : w.app}${w.chat.isNotEmpty ? ' (${w.chat})' : ''} '
               '${w.keyword.isEmpty ? 'notifies you' : 'mentions "${w.keyword}"'}',
           onDelete: () async {
@@ -426,31 +412,21 @@ class _JobTab extends StatelessWidget {
           },
         ),
       for (final f in b.followups)
-        _Line(icon: Icons.event_outlined, text: f.instruction.replaceFirst('(retry) ', ''), sub: 'Promised for ${_when(f.at)}'),
-      if (b.heartbeatHours > 0) _Line(icon: Icons.favorite_border_rounded, text: 'Checks in', sub: 'Every ${b.heartbeatHours} hours, outside your quiet hours'),
+        _Line(text: f.instruction.replaceFirst('(retry) ', ''), sub: 'Promised for ${_when(f.at)}'),
+      if (b.heartbeatHours > 0) _Line(text: 'Checks in', sub: 'Every ${b.heartbeatHours} hours, outside your quiet hours'),
       if (b.report != 'off')
-        _Line(icon: Icons.edit_note_rounded, text: 'Sends a note', sub: b.report == 'weekly' ? 'Sundays at 19:00' : 'Evenings at 19:00, when there is something to say'),
+        _Line(text: 'Sends a note', sub: b.report == 'weekly' ? 'Sundays at 19:00' : 'Evenings at 19:00, when there is something to say'),
       Align(
         alignment: AlignmentDirectional.centerStart,
-        child: TextButton.icon(
-          style: TextButton.styleFrom(foregroundColor: p.text, padding: EdgeInsets.zero),
-          onPressed: () => _addResponsibility(context, b),
-          icon: const Icon(Icons.add_rounded, size: 18),
-          label: const Text('Add a responsibility'),
-        ),
+        child: LuxWordButton('Add a responsibility', primary: true, onPressed: () => _addResponsibility(context, b)),
       ),
       _Head('Done'),
       if (Bots.I.weekReport(b).isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(Bots.I.weekReport(b), style: TextStyle(color: p.text, fontSize: AppText.meta, height: 1.4))),
       if (done.isEmpty) _Muted('Finished work shows up here.'),
-      for (final d in done) _Line(icon: Icons.check_circle_outline_rounded, text: d.$1, sub: _when(d.$2), muted: true),
+      for (final d in done) _Line(text: d.$1, sub: _when(d.$2), muted: true),
       Align(
         alignment: AlignmentDirectional.centerStart,
-        child: TextButton.icon(
-          style: TextButton.styleFrom(foregroundColor: p.muted, padding: EdgeInsets.zero),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BotActivityScreen(bot: b))),
-          icon: const Icon(Icons.timeline_rounded, size: 18),
-          label: const Text('How'),
-        ),
+        child: LuxWordButton('How', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BotActivityScreen(bot: b)))),
       ),
     ]);
   }
@@ -512,12 +488,9 @@ class _SettingsTab extends StatelessWidget {
           await Bots.I.arm(b);
         },
       ),
-        SurfaceRow(
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
-          title: const Text('More settings'),
-          trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+        LuxRow(
+          padding: const EdgeInsets.symmetric(vertical: Space.x3),
+          title: tr('More settings'),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -527,7 +500,6 @@ class _SettingsTab extends StatelessWidget {
               ),
             ),
           ),
-          ),
         ),
       ]);
     }
@@ -536,10 +508,10 @@ class _SettingsTab extends StatelessWidget {
       // About sits on the shared sky surface like every other row; tapping it opens the edit screen.
       SurfaceRow(
         margin: const EdgeInsets.symmetric(vertical: 2),
-        child: InkWell(
+        child: LuxTap(
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HireScreen(editBotId: b.id))),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: Space.x3, horizontal: Space.x4),
+            padding: const EdgeInsets.symmetric(vertical: Space.x3),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -552,7 +524,6 @@ class _SettingsTab extends StatelessWidget {
                   Text(tr('Edit'), style: TextStyle(color: p.text, fontSize: AppText.meta, fontWeight: FontWeight.w600)),
                 ]),
               ),
-              Icon(Icons.chevron_right_rounded, color: p.muted),
             ]),
           ),
         ),
@@ -597,16 +568,9 @@ class _SettingsTab extends StatelessWidget {
           await Bots.I.save();
         },
       ),
-      SurfaceRow(
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        child: SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
-        title: const Text('Works while you\'re away'),
-        subtitle: Text(
-            b.cloudFit
-                ? 'Runs without your phone.'
-                : 'Runs without your phone. Calls and texts still wait for your phone.',
-            style: TextStyle(color: p.muted)),
+      LuxSwitchRow(
+        title: tr('Works while you\'re away'),
+        sub: tr(b.cloudFit ? 'Runs without your phone.' : 'Runs without your phone. Calls and texts still wait for your phone.'),
         value: b.cloudOn,
         onChanged: (v) async {
           b.cloudChoice = v;
@@ -614,22 +578,16 @@ class _SettingsTab extends StatelessWidget {
           await Bots.I.arm(b);
         },
       ),
-      ),
       _Head('Tools'),
       BotSetupSection(bot: b),
       _Head('What ${b.name} may use'),
       BotPowersSection(bot: b),
       _Head('Activity'),
-      SurfaceRow(
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
-          leading: Icon(Icons.timeline_rounded, color: p.text),
-          title: const Text('Steps'),
-          subtitle: Text('${BotTraces.I.of(b.id).length} recent', style: TextStyle(color: p.muted)),
-          trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BotActivityScreen(bot: b))),
-        ),
+      LuxRow(
+        padding: const EdgeInsets.symmetric(vertical: Space.x3),
+        title: tr('Steps'),
+        value: '${BotTraces.I.of(b.id).length}',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BotActivityScreen(bot: b))),
       ),
       _Head('Your account'),
       const _SyncRow(),
@@ -653,52 +611,37 @@ class _SyncRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
     return ValueListenableBuilder<BotSyncState>(
       valueListenable: BotSync.I.status,
       builder: (context, st, _) {
-        var icon = Icons.cloud_off_rounded;
+        // Plain words only (RESTYLE.md: status is text, no cloud icons): what happened, when, and one way to retry.
         var title = 'Not saved yet';
         var note = 'Saved to your account when you sign in';
-        var color = p.muted;
-        var retry = false;
+        var failed = false;
         switch (st) {
           case BotSyncState.idle:
             break;
           case BotSyncState.syncing:
-            icon = Icons.cloud_sync_rounded;
             title = 'Saving…';
             note = '';
             break;
           case BotSyncState.ok:
-            icon = Icons.cloud_done_rounded;
             title = 'Saved to your account';
             note = _ago(BotSync.I.lastSync);
-            color = p.ok;
             break;
           case BotSyncState.failed:
             title = "Couldn't save";
             note = 'It tries again by itself';
-            color = p.accent;
-            retry = true;
+            failed = true;
             break;
         }
-        return SurfaceRow(
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
-          leading: Icon(icon, color: color),
-          title: Text(title, style: TextStyle(color: p.text)),
-          subtitle: note.isEmpty ? null : Text(note, style: TextStyle(color: p.muted)),
-          trailing: retry
-              ? TextButton(
-                  onPressed: () async {
-                    await BotSync.I.syncNow();
-                  },
-                  child: Text(tr('Try again')),
-                )
-              : null,
-          ),
+        return LuxRow(
+          key: const ValueKey('bot-sync-row'),
+          padding: const EdgeInsets.symmetric(vertical: Space.x3),
+          title: tr(title),
+          sub: note.isEmpty ? null : tr(note),
+          destructive: failed,
+          trailing: failed ? LuxWordButton('Try again', primary: true, onPressed: () => BotSync.I.syncNow()) : null,
         );
       },
     );
@@ -711,10 +654,7 @@ class _Head extends StatelessWidget {
   const _Head(this.text);
   final String text;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 20, bottom: 6),
-        child: Text(text, style: AppText.sectionStyle.copyWith(color: Palette.of(context).muted)),
-      );
+  Widget build(BuildContext context) => LuxSection(text, padding: const EdgeInsets.only(top: Space.x5, bottom: Space.x1));
 }
 
 class _Muted extends StatelessWidget {
@@ -722,14 +662,15 @@ class _Muted extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Text(text, style: TextStyle(color: Palette.of(context).muted, height: 1.4)),
+        padding: const EdgeInsets.symmetric(vertical: Space.x1),
+        child: Text(tr(text), style: AppText.bodyStyle.copyWith(color: Palette.of(context).muted)),
       );
 }
 
+/// One line on the Job tab: the words, a quiet second line, and a small close glyph when it can be removed. No status
+/// icon (the section it sits in says what it is) and no surface behind it.
 class _Line extends StatelessWidget {
-  const _Line({required this.icon, required this.text, this.sub = '', this.muted = false, this.onDelete, this.onTap});
-  final IconData icon;
+  const _Line({required this.text, this.sub = '', this.muted = false, this.onDelete, this.onTap});
   final String text;
   final String sub;
   final bool muted;
@@ -739,32 +680,24 @@ class _Line extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    // Each line sits on the shared sky surface (restyle), like Grok's calm rows.
-    return SurfaceRow(
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      child: InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Space.x3, horizontal: Space.x4),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(padding: const EdgeInsets.only(top: 1), child: Icon(icon, size: 18, color: muted ? p.muted : p.text)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(text, style: TextStyle(color: muted ? p.muted : p.text, fontSize: AppText.meta, height: 1.35)),
-              if (sub.isNotEmpty) Text(sub, style: TextStyle(color: p.muted, fontSize: AppText.micro)),
-            ]),
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: Space.x2 + 2),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(text, style: AppText.bodyStyle.copyWith(color: muted ? p.muted : p.text, height: 1.35)),
+            if (sub.isNotEmpty) Text(sub, style: AppText.microStyle.copyWith(color: p.muted)),
+          ]),
+        ),
+        if (onDelete != null)
+          LuxTap(
+            label: tr('Remove'),
+            onTap: onDelete,
+            child: Padding(padding: const EdgeInsets.all(Space.x2), child: SubIcon('close', size: IconSize.sm, color: p.muted)),
           ),
-          if (onDelete != null)
-            InkWell(
-              customBorder: const CircleBorder(),
-              onTap: onDelete,
-              child: Padding(padding: const EdgeInsets.all(4), child: Icon(Icons.close_rounded, size: 16, color: p.muted)),
-            ),
-        ]),
-      ),
-      ),
+      ]),
     );
+    return onTap == null ? row : LuxTap(onTap: onTap, child: row);
   }
 }
 
@@ -777,33 +710,16 @@ class _Pick extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return SurfaceRow(
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      child: ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
-      title: Text(label),
-      subtitle: Text(options[value] ?? value, style: TextStyle(color: p.muted)),
-      trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+    return LuxRow(
+      padding: const EdgeInsets.symmetric(vertical: Space.x3),
+      title: tr(label),
+      sub: options[value] ?? value,
+      maxLines: 2,
       onTap: () async {
-        final v = await showModalBottomSheet<String>(
-          sheetAnimationStyle: SubMotion.sheet,
-          context: context,
-          showDragHandle: true,
-          builder: (ctx) => SafeArea(
-            child: ListView(shrinkWrap: true, children: [
-              for (final e in options.entries)
-                ListTile(
-                  title: Text(e.value),
-                  trailing: e.key == value ? Icon(Icons.check_rounded, color: p.text) : null,
-                  onTap: () => Navigator.pop(ctx, e.key),
-                ),
-            ]),
-          ),
-        );
+        final v = await showLuxChoices<String>(context,
+            title: label, selected: value, choices: [for (final e in options.entries) LuxChoice(e.key, e.value)]);
         if (v != null) onChanged(v);
       },
-      ),
     );
   }
 }

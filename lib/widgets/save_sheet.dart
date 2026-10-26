@@ -4,6 +4,7 @@ import '../services/media_store.dart';
 import '../services/projects.dart';
 import '../services/system_bridge.dart';
 import '../theme.dart';
+import 'lux_kit.dart';
 import 'output_cards.dart' show mediaMime;
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
@@ -40,33 +41,28 @@ Future<void> showSaveSheet(BuildContext context, String path) async {
             ),
             _head(ctx, 'On this phone'),
             if (media)
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
+              LuxSheetTile(
                 title: Text(mime.startsWith('image/') ? 'Pictures' : mime.startsWith('video/') ? 'Movies' : 'Music'),
                 subtitle: const Text('In the SubMac folder, shows in your gallery'),
                 onTap: () => Navigator.pop(ctx, 'media'),
               ),
-            ListTile(
-              leading: const Icon(Icons.folder_outlined),
+            LuxSheetTile(
               title: const Text('Documents'),
               subtitle: const Text('Documents › SubMac'),
               onTap: () => Navigator.pop(ctx, 'documents'),
             ),
-            ListTile(
-              leading: const Icon(Icons.download_outlined),
+            LuxSheetTile(
               title: const Text('Downloads'),
               subtitle: const Text('Download › SubMac'),
               onTap: () => Navigator.pop(ctx, 'downloads'),
             ),
             _head(ctx, 'In a project'),
             for (final pr in projects)
-              ListTile(
-                leading: const Icon(Icons.work_outline_rounded),
+              LuxSheetTile(
                 title: Text(pr.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                 onTap: () => Navigator.pop(ctx, 'project:${pr.id}'),
               ),
-            ListTile(
-              leading: const Icon(Icons.add_rounded),
+            LuxSheetTile(
               title: Text(tr('New project')),
               onTap: () => Navigator.pop(ctx, 'new'),
             ),
@@ -113,23 +109,27 @@ Widget _head(BuildContext ctx, String t) => Padding(
       child: Text(t, style: AppText.sectionStyle.copyWith(color: Palette.of(ctx).muted)),
     );
 
-Future<String?> _askName(BuildContext context) {
-  final c = TextEditingController();
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(tr('New project')),
-      content: TextField(
-        controller: c,
-        autofocus: true,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(hintText: 'Project name'),
-        onSubmitted: (v) => Navigator.pop(ctx, v),
+Future<String?> _askName(BuildContext context) => luxPrompt(context, title: 'New project', hint: 'Project name', action: 'Create');
+
+/// A row in the save sheet: the shared quiet row, with the sheet's own words.
+class LuxSheetTile extends StatelessWidget {
+  const LuxSheetTile({super.key, required this.title, this.subtitle, this.onTap});
+  final Widget title;
+  final Widget? subtitle;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return LuxTap(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Space.x5, vertical: Space.x3),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          DefaultTextStyle.merge(style: AppText.leadStyle.copyWith(color: p.text, fontWeight: FontWeight.w500), child: title),
+          if (subtitle != null) DefaultTextStyle.merge(style: AppText.metaStyle.copyWith(color: p.muted), child: subtitle!),
+        ]),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
-        TextButton(onPressed: () => Navigator.pop(ctx, c.text), child: Text(tr('Create'))),
-      ],
-    ),
-  );
+    );
+  }
 }

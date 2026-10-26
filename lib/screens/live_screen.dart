@@ -7,6 +7,7 @@ import '../services/cloud.dart';
 import '../services/live_controller.dart';
 import '../services/live_session.dart';
 import '../services/system_bridge.dart';
+import '../widgets/lux_kit.dart';
 import '../theme.dart';
 import '../widgets/ask_bar.dart';
 import '../widgets/composer.dart';
@@ -106,18 +107,12 @@ class _LiveScreenState extends State<LiveScreen> {
     final ok = await _ctl.float();
     if (!mounted) return;
     if (!ok) {
-      final go = await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: const Text('Keep Live on top'),
-          content: const Text('To talk with SubMac while you use other apps, allow "Display over other apps" for SubMac.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Not now'))),
-            TextButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Allow'))),
-          ],
-        ),
-      );
-      if (go == true) await SystemBridge.I.openPermission('overlay');
+      final go = await luxConfirm(context,
+          title: 'Keep Live on top',
+          message: 'To talk with SubMac while you use other apps, allow "Display over other apps" for SubMac.',
+          action: 'Allow',
+          cancel: 'Not now');
+      if (go) await SystemBridge.I.openPermission('overlay');
       return;
     }
     _leave();

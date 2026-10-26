@@ -11,6 +11,7 @@ import '../app_state.dart';
 import '../services/sites.dart';
 import '../theme.dart';
 import '../ui/embed.dart';
+import '../widgets/lux_kit.dart';
 import '../widgets/motion.dart';
 import '../ui/tokens.dart';
 import '../widgets/sub_icon.dart';
@@ -57,7 +58,7 @@ class _SitePreviewScreenState extends State<SitePreviewScreen> {
       appBar: AppBar(
         title: Text(site?.title ?? 'Preview', maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          IconButton(tooltip: 'Reload', icon: const Icon(Icons.refresh_rounded), onPressed: () => _web?.reload()),
+          IconButton(tooltip: 'Reload', icon: SubIcon('refresh', color: p.text, size: IconSize.lg), onPressed: () => _web?.reload()),
           // Share: the live link once the page is published, else the page file itself.
           IconButton(
             tooltip: 'Share',
@@ -71,18 +72,12 @@ class _SitePreviewScreenState extends State<SitePreviewScreen> {
       body: Column(children: [
         Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(12, 4, 12, 8),
-          child: Row(children: [
-            for (final e in const [('phone', 'Phone'), ('tablet', 'Tablet'), ('computer', 'Computer')]) ...[
-              ChoiceChip(
-                label: Text(e.$2),
-                selected: _size == e.$1,
-                onSelected: (_) {
-                  setState(() => _size = e.$1);
-                  _applySize();
-                },
-              ),
-              const SizedBox(width: 8),
-            ],
+          child: LuxWords([
+            for (final e in const [('phone', 'Phone'), ('tablet', 'Tablet'), ('computer', 'Computer')])
+              LuxWord(e.$2, selected: _size == e.$1, onTap: () {
+                setState(() => _size = e.$1);
+                _applySize();
+              }),
           ]),
         ),
         Expanded(
@@ -302,34 +297,13 @@ class _PublishSheetState extends State<_PublishSheet> {
         ),
       );
 
-  Widget _option(Palette p, {required String title, required String line, required VoidCallback onTap, String? tag}) => Pressable(
+  // A choice is words on the paper (fix/ui-restyle): no card, border, tag pill or chevron. The tag is a quiet word.
+  Widget _option(Palette p, {required String title, required String line, required VoidCallback onTap, String? tag}) => LuxRow(
+        title: tr(title),
+        sub: tr(line),
+        value: tag == null ? null : tr(tag),
+        padding: const EdgeInsets.symmetric(vertical: Space.x3),
         onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: p.sheet, borderRadius: BorderRadius.circular(14), border: Border.all(color: p.border, width: 0.8)),
-          child: Row(children: [
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Text(title, style: TextStyle(color: p.text, fontSize: AppText.lead, fontWeight: FontWeight.w600)),
-                  if (tag != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: p.bubble, borderRadius: BorderRadius.circular(10)),
-                      child: Text(tag, style: TextStyle(color: p.muted, fontSize: AppText.caption)),
-                    ),
-                  ],
-                ]),
-                const SizedBox(height: 4),
-                Text(line, style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.35)),
-              ]),
-            ),
-            Icon(Icons.chevron_right_rounded, color: p.muted),
-          ]),
-        ),
       );
 
   Widget _choose(Palette p) {
@@ -430,22 +404,15 @@ class _SitesScreenState extends State<SitesScreen> {
 
   Future<void> _menu(Site s) async {
     final app = context.read<AppState>();
-    final pick = await showModalBottomSheet<String>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(title: const Text('Preview'), onTap: () => Navigator.pop(ctx, 'preview')),
-          if (s.isLive) ListTile(title: const Text('Open the live site'), onTap: () => Navigator.pop(ctx, 'open')),
-          if (s.isLive) ListTile(title: const Text('Share the link'), onTap: () => Navigator.pop(ctx, 'share')),
-          ListTile(title: Text(s.isLive ? 'Update' : 'Publish'), onTap: () => Navigator.pop(ctx, 'publish')),
-          if (s.projectId == null) ListTile(title: const Text('Make it a project'), onTap: () => Navigator.pop(ctx, 'project')),
-          if (s.host == SiteHost.free && s.isLive) ListTile(title: const Text('Take the free link down'), onTap: () => Navigator.pop(ctx, 'down')),
-          ListTile(title: const Text('Remove from this list'), onTap: () => Navigator.pop(ctx, 'forget')),
-        ]),
-      ),
-    );
+    final pick = await showLuxChoices<String>(context, choices: [
+      const LuxChoice('preview', 'Preview'),
+      if (s.isLive) const LuxChoice('open', 'Open the live site'),
+      if (s.isLive) const LuxChoice('share', 'Share the link'),
+      LuxChoice('publish', s.isLive ? 'Update' : 'Publish'),
+      if (s.projectId == null) const LuxChoice('project', 'Make it a project'),
+      if (s.host == SiteHost.free && s.isLive) const LuxChoice('down', 'Take the free link down', destructive: true),
+      const LuxChoice('forget', 'Remove from this list'),
+    ]);
     if (!mounted || pick == null) return;
     switch (pick) {
       case 'preview':
@@ -503,14 +470,12 @@ class _SitesScreenState extends State<SitesScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: Space.x1),
             itemBuilder: (_, i) {
               final s = list[i];
-              return ListTile(
-                title: Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                    s.url.isEmpty ? s.statusLine : '${s.statusLine}\n${s.url.replaceFirst('https://', '')}',
-                    style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.35)),
-                isThreeLine: s.url.isNotEmpty,
+              return LuxRow(
+                title: s.title,
+                sub: s.url.isEmpty ? s.statusLine : '${s.statusLine}\n${s.url.replaceFirst('https://', '')}',
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SitePreviewScreen(path: s.entryPath))),
-                trailing: IconButton(tooltip: 'More', icon: const SubIcon('more', size: IconSize.xl), onPressed: () => _menu(s)),
+                onLongPress: () => _menu(s),
+                trailing: IconButton(tooltip: 'More', icon: SubIcon('more', size: IconSize.xl, color: p.muted), onPressed: () => _menu(s)),
               );
             },
           );

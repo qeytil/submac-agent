@@ -5,12 +5,14 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../services/system_bridge.dart';
 import '../services/system_tools.dart';
+import '../widgets/lux_kit.dart';
 import '../widgets/motion.dart';
 import '../theme.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 
-/// A calm card of rows, like the rest of Settings.
+/// A group of rows like the rest of Settings (fix/ui-restyle): a quiet section word, then the rows straight on the paper.
+/// No card, no border.
 class _Card extends StatelessWidget {
   final String? title;
   final List<Widget> children;
@@ -18,34 +20,10 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(16, 10, 16, 8),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (title != null)
-          Padding(
-            padding: const EdgeInsetsDirectional.only(start: 4, bottom: 8),
-            child: Text(title!, style: AppText.sectionStyle.copyWith(color: p.muted)),
-          ),
-        Container(
-          decoration: BoxDecoration(
-            color: p.sheet,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: p.border, width: 0.8),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Material(
-            color: Colors.transparent,
-            child: Column(children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) const SizedBox(height: Space.x1),
-                children[i],
-              ],
-            ]),
-          ),
-        ),
-      ]),
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (title != null) LuxSection(title!) else const SizedBox(height: Space.x2),
+      ...children,
+    ]);
   }
 }
 
@@ -90,50 +68,43 @@ class SystemPermissionsScreen extends StatefulWidget {
 
 class _SystemPermissionsScreenState extends State<SystemPermissionsScreen> with WidgetsBindingObserver, _Refresh<SystemPermissionsScreen> {
   Widget _row(String key, String title, String what, Future<void> Function() allow) {
-    final p = Palette.of(context);
     final on = perms[key] == true;
     final stalled = key == 'accessibility' && perms['accessibilityStalled'] == true;
     if (stalled) {
-      return ListTile(
-        title: Text(title),
-        subtitle: const Text('Android paused it. Turn SubMac off and on once, and set battery use to Unrestricted so it stays on.'),
-        trailing: TextButton(
-            onPressed: () async {
-              await SystemBridge.I.openPermission('accessibility');
-              await refresh();
-            },
-            child: const Text('Fix')),
+      return LuxRow(
+        title: title,
+        sub: 'Android paused it. Turn SubMac off and on once, and set battery use to Unrestricted so it stays on.',
+        maxLines: 2,
+        trailing: LuxWordButton('Fix', primary: true, onPressed: () async {
+          await SystemBridge.I.openPermission('accessibility');
+          await refresh();
+        }),
       );
     }
-    return ListTile(
-      title: Text(title),
-      subtitle: Text(what),
+    return LuxRow(
+      title: title,
+      sub: what,
+      maxLines: 2,
+      value: on ? tr('Allowed') : null,
       trailing: on
-          ? Text('Allowed', style: TextStyle(color: p.muted, fontSize: AppText.meta))
-          : TextButton(onPressed: () async {
+          ? null
+          : LuxWordButton('Allow', primary: true, onPressed: () async {
               await allow();
               await refresh();
-            }, child: Text(tr('Allow'))),
+            }),
       onTap: on ? () => SystemBridge.I.openPermission(const {'sms', 'microphone', 'calendar', 'contacts'}.contains(key) ? 'app' : key) : null,
     );
   }
 
   Future<void> _a11y() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Let SubMac use your phone?'),
-        content: const Text(
-            'SubMac will be able to read the screen and tap, type and scroll for you, only when you ask. '
+    final ok = await luxConfirm(context,
+        title: 'Let SubMac use your phone?',
+        message: 'SubMac will be able to read the screen and tap, type and scroll for you, only when you ask. '
             'It asks first before anything that sends, pays or deletes.\n\n'
-            'On the next screen open "Installed apps" (or "Downloaded apps"), pick "SubMac phone control" and switch it on.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Not now'))),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Continue'))),
-        ],
-      ),
-    );
-    if (ok == true) await SystemBridge.I.openPermission('accessibility');
+            'On the next screen open "Installed apps" (or "Downloaded apps"), pick "SubMac phone control" and switch it on.',
+        action: 'Continue',
+        cancel: 'Not now');
+    if (ok) await SystemBridge.I.openPermission('accessibility');
   }
 
   Future<void> _runtimeAll(List<Permission> perms) async {
@@ -207,7 +178,6 @@ class ScheduledScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
     return ListenableBuilder(
       listenable: Scheduler.I,
       builder: (context, _) {
@@ -231,13 +201,11 @@ class ScheduledScreen extends StatelessWidget {
               : ListView(children: [
                   _Card(children: [
                     for (final t in list)
-                      ListTile(
-                        title: Text(t.task, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(_when(t.next, t.repeat, two)),
-                        trailing: TextButton(
-                          onPressed: () => Scheduler.I.cancel(t.id),
-                          child: Text(tr('Cancel'), style: TextStyle(color: p.muted)),
-                        ),
+                      LuxRow(
+                        title: t.task,
+                        maxLines: 2,
+                        sub: _when(t.next, t.repeat, two),
+                        trailing: LuxWordButton('Cancel', onPressed: () => Scheduler.I.cancel(t.id)),
                       ),
                   ]),
                 ]),

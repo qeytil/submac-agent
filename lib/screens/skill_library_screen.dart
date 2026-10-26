@@ -4,6 +4,7 @@ import '../services/bots.dart';
 import '../services/skill_library.dart';
 import '../widgets/motion.dart';
 import '../theme.dart';
+import '../widgets/lux_kit.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/pill_kit.dart';
 import '../ui/tokens.dart';
@@ -174,22 +175,9 @@ class _SkillLibraryScreenState extends State<SkillLibraryScreen> {
 
   Future<void> _giveToBot(BuildContext context, LibSkill s) async {
     final bots = Bots.I.hired.toList();
-    final id = await showModalBottomSheet<String>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: ListView(shrinkWrap: true, children: [
-          for (final b in bots)
-            ListTile(
-              title: Text(b.name),
-              subtitle: Text(b.role),
-              trailing: SkillLibrary.I.has(b.id, s.id) ? const Icon(Icons.check_rounded) : null,
-              onTap: () => Navigator.pop(ctx, b.id),
-            ),
-        ]),
-      ),
-    );
+    final id = await showLuxChoices<String>(context, choices: [
+      for (final b in bots) LuxChoice(b.id, b.name, sub: b.role),
+    ], selected: bots.where((b) => SkillLibrary.I.has(b.id, s.id)).map((b) => b.id).firstOrNull);
     if (id == null) return;
     if (SkillLibrary.I.has(id, s.id)) return;
     final e = await SkillLibrary.I.install(id, s.id);

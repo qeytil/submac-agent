@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
-import 'motion.dart';
+import 'lux_kit.dart';
+import '../ui/i18n.dart';
 import '../ui/tokens.dart';
 
-/// Small shared pieces for the calm list pages (Skills, Apps): a pill search, category tabs,
-/// rounded rows with a monogram tile and one pill button. Paper/ink/red, no stock icons.
+/// Small shared pieces for the calm list pages (Skills, Apps). Restyled with the rest of the app (fix/ui-restyle): the
+/// search is the glyph and the words on the paper, categories are words, rows have no card or shadow, and the one
+/// action is a word. The app tile ([Monogram] / BrandLogo) stays: it is the app's own icon.
 
 class PillSearch extends StatelessWidget {
   const PillSearch({super.key, required this.hint, required this.onChanged});
@@ -13,32 +15,7 @@ class PillSearch extends StatelessWidget {
   final ValueChanged<String> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        color: p.sheet,
-        borderRadius: BorderRadius.circular(21),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      alignment: Alignment.center,
-      child: TextField(
-        onChanged: (v) => onChanged(v.trim()),
-        style: TextStyle(fontSize: AppText.body, color: p.text),
-        decoration: InputDecoration(
-          isDense: true,
-          filled: false,
-          hintText: hint,
-          hintStyle: TextStyle(color: p.muted, fontSize: AppText.body),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => LuxSearchField(hint: hint, onChanged: (v) => onChanged(v.trim()));
 }
 
 class CategoryTabs extends StatelessWidget {
@@ -51,32 +28,28 @@ class CategoryTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     return SizedBox(
-      height: 36,
+      height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: Space.x3),
         itemCount: tabs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 4),
+        separatorBuilder: (_, __) => const SizedBox(width: Space.x1),
         itemBuilder: (_, i) {
           final t = tabs[i];
           final on = t == selected;
-          return InkWell(
-            borderRadius: BorderRadius.circular(18),
-            onTap: () {
-              onSelect(t);
-            },
-            child: AnimatedContainer(
-              duration: SubMotion.of(context, SubMotion.quick),
-              curve: SubMotion.settle,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: on ? p.bubble : Colors.transparent,
-                borderRadius: BorderRadius.circular(18),
+          return LuxTap(
+            selected: on,
+            onTap: () => onSelect(t),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Space.x2),
+              child: Center(
+                child: AnimatedDefaultTextStyle(
+                  duration: SubMotion.of(context, SubMotion.quick),
+                  curve: SubMotion.settle,
+                  style: AppText.metaStyle.copyWith(color: on ? p.text : p.muted, fontWeight: on ? FontWeight.w700 : FontWeight.w500),
+                  child: Text(tr(t)),
+                ),
               ),
-              child: Text(t,
-                  style: TextStyle(
-                      color: on ? p.text : p.muted, fontSize: AppText.meta, fontWeight: on ? FontWeight.w600 : FontWeight.w400)),
             ),
           );
         },
@@ -109,6 +82,7 @@ class Monogram extends StatelessWidget {
   }
 }
 
+/// The one action on a row ("Add", "Allow", "Open"): a word, bold ink when [strong].
 class PillButton extends StatelessWidget {
   const PillButton(this.label, {super.key, required this.onTap, this.strong = false});
   final String label;
@@ -116,28 +90,11 @@ class PillButton extends StatelessWidget {
   final bool strong;
 
   @override
-  Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () {
-        onTap();
-      },
-      child: Container(
-        height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: strong ? p.text : p.bubble,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(label,
-            style: TextStyle(color: strong ? p.bg : p.text, fontSize: AppText.meta, fontWeight: FontWeight.w600)),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => LuxWordButton(label, primary: true, onPressed: onTap);
 }
 
+/// A row on the calm list pages: the app's tile, its name, one quiet line, and a word at the end (the action, or "On"
+/// once it is set up). No card, no shadow.
 class CardRow extends StatelessWidget {
   const CardRow({
     super.key,
@@ -162,54 +119,31 @@ class CardRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 10),
-      // Paper: white rows float on the page with a soft shadow instead of a line. Ink: flat.
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: Theme.of(context).brightness == Brightness.dark
-              ? null
-              : [BoxShadow(color: const Color(0xFF121110).withValues(alpha: 0.045), blurRadius: 14, offset: const Offset(0, 3))],
-        ),
-        child: Material(
-        color: p.sheet,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap ?? onAction,
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(14, 13, 14, 13),
-            child: Row(children: [
-              leading ?? Monogram(title),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: p.text, fontSize: AppText.body, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 3),
-                  Text(subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: p.muted, fontSize: AppText.micro, height: 1.3)),
-                  if (footnote != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(footnote!, style: TextStyle(color: p.muted.withValues(alpha: 0.8), fontSize: AppText.caption)),
-                    ),
-                ]),
-              ),
-              const SizedBox(width: 10),
-              if (done)
-                const Padding(padding: EdgeInsets.all(5), child: DoneTick(size: 20))
-              else if (action != null && onAction != null)
-                PillButton(action!, onTap: onAction!),
+    return LuxTap(
+      onTap: onTap ?? onAction,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2 + 2, Space.x3, Space.x2 + 2),
+        child: Row(children: [
+          leading ?? Monogram(title),
+          const SizedBox(width: Space.x3 + 2),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr(title), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 2),
+              Text(tr(subtitle), maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.microStyle.copyWith(color: p.muted)),
+              if (footnote != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(footnote!, style: AppText.captionStyle.copyWith(color: p.faint)),
+                ),
             ]),
           ),
-        ),
-      ),
+          const SizedBox(width: Space.x2),
+          if (done)
+            const Padding(padding: EdgeInsets.symmetric(horizontal: Space.x2), child: LuxStatus('On', strong: true))
+          else if (action != null && onAction != null)
+            PillButton(action!, onTap: onAction!),
+        ]),
       ),
     );
   }

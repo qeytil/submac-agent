@@ -15,6 +15,8 @@ import '../widgets/approval_card.dart';
 import '../widgets/markdown_view.dart';
 import '../widgets/message_view.dart' show textDirOf;
 import '../widgets/team_parts.dart';
+import '../widgets/lux_kit.dart';
+import '../widgets/sub_icon.dart';
 export '../widgets/team_parts.dart' show pickShareTarget, TeamLine, TeamPanel;
 import 'bot_activity_screen.dart';
 import 'bots_screen.dart';
@@ -79,14 +81,13 @@ class TeamsSection extends StatelessWidget {
           SectionHeader(list.isEmpty ? 'Teams' : 'Your teams'),
           for (final o in list)
             TeamCard(
-              icon: botIcon(o.icon),
+              leading: TeamFace(office: o, size: 36),
               title: o.name,
               sub: teamLine(o),
               badge: o.unread,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OfficeScreen(officeId: o.id))),
             ),
           TeamCard(
-            icon: Icons.groups_2_outlined,
             title: 'Start a team',
             onTap: () => startTeam(context),
           ),
@@ -98,21 +99,15 @@ class TeamsSection extends StatelessWidget {
 
 /// Start a team: build your own, or a ready-made one.
 Future<void> startTeam(BuildContext context) async {
-  final pick = await showModalBottomSheet<Object>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (ctx) => SafeArea(
-      child: ListView(shrinkWrap: true, padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 16), children: [
-        Text('Start a team', style: Brand.serif(size: 26, color: Palette.of(ctx).text)),
-        const SizedBox(height: 12),
-        TeamCard(icon: Icons.tune_rounded, title: 'New team', onTap: () => Navigator.pop(ctx, 'custom')),
-        TeamCard(icon: Icons.file_download_outlined, title: 'From a file', onTap: () => Navigator.pop(ctx, 'file')),
-        const SectionHeader('Ready-made'),
-        for (final t in OfficeTemplate.all) TeamCard(icon: botIcon(t.icon), title: t.name, sub: t.pitch, onTap: () => Navigator.pop(ctx, t)),
-      ]),
-    ),
+  final pick = await showLuxSheet<Object>(
+    context,
+    title: 'Start a team',
+    builder: (ctx) => ListView(shrinkWrap: true, padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, 0, Space.x4, Space.x4), children: [
+      TeamCard(title: 'New team', onTap: () => Navigator.pop(ctx, 'custom')),
+      TeamCard(title: 'From a file', onTap: () => Navigator.pop(ctx, 'file')),
+      const SectionHeader('Ready-made'),
+      for (final t in OfficeTemplate.all) TeamCard(title: t.name, sub: t.pitch, onTap: () => Navigator.pop(ctx, t)),
+    ]),
   );
   if (pick == null || !context.mounted) return;
   if (pick == 'file') {
@@ -132,7 +127,7 @@ Future<void> _fromTemplate(BuildContext context, OfficeTemplate t) async {
   if (goal == null || !context.mounted) return;
   final nav = Navigator.of(context);
   final messenger = ScaffoldMessenger.of(context);
-  showDialog(context: context, barrierDismissible: false, builder: (_) => const BusyNote('Setting up your team'));
+  showLuxDialog(context, dismissible: false, builder: (_) => const BusyNote('Setting up your team'));
   final o = await state.createOfficeFromTemplate(t, goal: goal.trim().isEmpty ? t.goal : goal.trim());
   nav.pop();
   if (o == null) {
@@ -147,18 +142,14 @@ Future<void> _newTeam(BuildContext context) async {
   final state = context.read<AppState>();
   final name = TextEditingController(), goal = TextEditingController();
   final team = <String>[];
-  final ok = await showModalBottomSheet<bool>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+  final ok = await showLuxSheet<bool>(
+    context,
+    title: 'Build my own team',
     builder: (ctx) => StatefulBuilder(builder: (ctx, set) {
       final p = Palette.of(ctx);
       return Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 16),
+        padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2, Space.x5, Space.x4),
         child: ListView(shrinkWrap: true, children: [
-          Text('Build my own team', style: Brand.serif(size: 26, color: p.text)),
-          const SizedBox(height: 12),
           TextField(controller: name, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Name', hintText: 'e.g. Hodan Coffee')),
           const SizedBox(height: 10),
           TextField(
@@ -170,17 +161,22 @@ Future<void> _newTeam(BuildContext context) async {
           const SizedBox(height: 14),
           Text(Bots.I.bots.isEmpty ? 'Make a bot first.' : 'Who\'s in it? First one leads.',
               style: TextStyle(color: p.muted, fontSize: AppText.meta)),
+          // Picked bots are set in the full ink weight; the first one picked leads. No checkboxes.
           for (final b in Bots.I.bots)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: BotAvatar(bot: b, size: 36),
-              title: Text('${b.name}${team.isNotEmpty && team.first == b.id ? '  ·  Lead' : ''}'),
-              subtitle: Text(b.role, style: TextStyle(color: p.muted)),
-              value: team.contains(b.id),
-              onChanged: (v) => set(() => v == true ? team.add(b.id) : team.remove(b.id)),
+            LuxRow(
+              padding: const EdgeInsets.symmetric(vertical: Space.x2),
+              leading: BotAvatar(bot: b, size: 36),
+              title: b.name,
+              sub: b.role,
+              selected: team.contains(b.id),
+              value: team.isNotEmpty && team.first == b.id ? tr('Lead') : (team.contains(b.id) ? tr('In') : null),
+              onTap: () => set(() => team.contains(b.id) ? team.remove(b.id) : team.add(b.id)),
             ),
-          const SizedBox(height: 10),
-          FilledButton(onPressed: team.isEmpty ? null : () => Navigator.pop(ctx, true), child: const Text('Start the team')),
+          const SizedBox(height: Space.x3),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: LuxWordButton('Start the team', primary: true, onPressed: team.isEmpty ? null : () => Navigator.pop(ctx, true)),
+          ),
         ]),
       );
     }),
@@ -341,18 +337,12 @@ class _TeamChatState extends State<TeamChat> {
     if (perms['battery'] != false || !mounted) return;
     await prefs.setBool('office_bg_asked', true);
     if (!mounted) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('Keep working while you\'re away')),
-        content: Text(tr('Allow SubMac to keep running so your team can work and reach you.')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Not now'))),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Allow'))),
-        ],
-      ),
-    );
-    if (ok == true) await SystemBridge.I.openPermission('battery');
+    final ok = await luxConfirm(context,
+        title: 'Keep working while you\'re away',
+        message: 'Allow SubMac to keep running so your team can work and reach you.',
+        action: 'Allow',
+        cancel: 'Not now');
+    if (ok) await SystemBridge.I.openPermission('battery');
   }
 
   @override
@@ -431,7 +421,6 @@ class _TeamChatState extends State<TeamChat> {
                   Padding(
                     padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 0),
                     child: TeamCard(
-                      icon: Icons.playlist_add_check_rounded,
                       title: '$proposed new ${proposed == 1 ? 'task waits' : 'tasks wait'} for your OK',
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TeamTasksScreen(officeId: o.id))),
                     ),
@@ -523,18 +512,26 @@ class _TeamChatState extends State<TeamChat> {
                       filled: false,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       // No outline (restyle): the composer is a soft pill on the sky.
-                      border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(Lux.composerRadius)), borderSide: BorderSide.none),
-                      enabledBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(Lux.composerRadius)), borderSide: BorderSide.none),
-                      focusedBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(Lux.composerRadius)), borderSide: BorderSide.none),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
                     ),
                   ),
                   ),
                 ),
                 const SizedBox(width: 6),
-                IconButton.filled(
-                  style: IconButton.styleFrom(backgroundColor: p.text, foregroundColor: p.bg),
-                  onPressed: _send,
-                  icon: const Icon(Icons.arrow_upward_rounded),
+                // The same send mark as the main composer: SubMac's send glyph on an ink disc.
+                LuxTap(
+                  key: const ValueKey('team-send'),
+                  label: tr('Send'),
+                  onTap: _send,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: p.text, shape: BoxShape.circle),
+                    child: SubIcon('send', color: p.bg, size: IconSize.lg),
+                  ),
                 ),
               ]),
             ),
@@ -712,7 +709,7 @@ class _PostView extends StatelessWidget {
           child: Container(
             margin: const EdgeInsetsDirectional.only(top: 6, bottom: 6, start: 48),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(color: p.bubble, borderRadius: BorderRadius.circular(18)),
+            decoration: BoxDecoration(color: p.bubble, borderRadius: Radii.sheetAll),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               _quote(),
               ExpandableText(
@@ -733,7 +730,6 @@ class _PostView extends StatelessWidget {
       );
     }
     if (x.kind == 'answer') return GestureDetector(onLongPress: () => _menu(context), child: _AnswerView(x));
-    final boxed = x.kind == 'report' || x.kind == 'ask';
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onLongPress: () => _menu(context),
@@ -753,11 +749,10 @@ class _PostView extends StatelessWidget {
               ]),
               const SizedBox(height: 4),
               _quote(),
-              Container(
+              // Reports and questions stand on their own like every post (no card behind them); the label above says
+              // what they are. Long posts fold into a preview with Show more / Open (hark.com style).
+              SizedBox(
                 width: double.infinity,
-                padding: boxed ? const EdgeInsets.all(12) : EdgeInsets.zero,
-                decoration: boxed ? BoxDecoration(color: p.sheet, borderRadius: Radii.rowAll) : null,
-                // Long posts fold into a preview with Show more / Open (hark.com style).
                 child: ExpandableText(
                   text: x.text,
                   title: b?.name ?? '',
@@ -789,9 +784,8 @@ class _MemberStrip extends StatelessWidget {
     final bots = [for (final id in o.members) Bots.I.byId(id)].whereType<Bot>().toList();
     Widget item({required String key, required String label, Widget? head, required VoidCallback onTap}) => Padding(
           padding: const EdgeInsetsDirectional.only(end: Space.x1),
-          child: InkWell(
+          child: LuxTap(
             key: ValueKey(key),
-            borderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
             onTap: onTap,
             child: Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(Space.x1, Space.x1, Space.x2, Space.x1),
@@ -848,7 +842,7 @@ class _AnswerViewState extends State<_AnswerView> {
             const SizedBox(height: 4),
             ExpandableText(text: x.text, title: lead?.name ?? '', child: Directionality(textDirection: textDirOf(x.text), child: MarkdownView(x.text))),
             for (final (i, part) in x.parts.indexed) ...[
-              InkWell(
+              LuxTap(
                 onTap: () => setState(() => _open.contains(i) ? _open.remove(i) : _open.add(i)),
                 child: Padding(
                   padding: const EdgeInsets.only(top: 10, bottom: 2),
@@ -893,36 +887,24 @@ class _TasksTab extends StatelessWidget {
     final st = OfficeStats(o);
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: p.text,
-        foregroundColor: p.bg,
-        tooltip: 'New task',
-        onPressed: () => _addTask(context, o),
-        child: const Icon(Icons.add_rounded),
-      ),
-      body: ListView(padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 100), children: [
+      body: ListView(padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x3, Space.x4, Space.x8 * 2), children: [
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: LuxWordButton('New task', key: const ValueKey('team-new-task'), primary: true, onPressed: () => _addTask(context, o)),
+        ),
         Text('${st.doneWeek} done this week · ${st.open} open${st.blocked > 0 ? ' · ${st.blocked} blocked' : ''}',
             style: TextStyle(color: p.muted, fontSize: AppText.meta)),
         for (final k in o.kpis) Text(k.line, style: TextStyle(color: p.muted, fontSize: AppText.meta)),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.folder_open_outlined, color: p.text),
-          title: Text(tr('Team folder')),
-          subtitle: Text('${o.docs.length} ${o.docs.length == 1 ? 'file' : 'files'} · reports and files you share with the team', style: TextStyle(color: p.muted)),
-          trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+        LuxRow(
+          padding: const EdgeInsets.symmetric(vertical: Space.x3),
+          title: tr('Team folder'),
+          sub: '${o.docs.length} ${o.docs.length == 1 ? 'file' : 'files'} · reports and files you share with the team',
           onTap: () => openTeamFolder(context, o),
         ),
         if (proposed > 0)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: p.text, foregroundColor: p.bg),
-              onPressed: () {
-                Offices.I.approveProposed(o);
-              },
-              icon: const Icon(Icons.done_all_rounded),
-              label: Text('Approve all $proposed proposed'),
-            ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: LuxWordButton('Approve all $proposed proposed', primary: true, onPressed: () => Offices.I.approveProposed(o)),
           ),
         if (o.tasks.isEmpty)
           Padding(
@@ -944,17 +926,13 @@ class _TasksTab extends StatelessWidget {
     final title = TextEditingController();
     var owner = '';
     var urgent = false;
-    final ok = await showModalBottomSheet<bool>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+    final ok = await showLuxSheet<bool>(
+      context,
+      title: 'New task',
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) => Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2, Space.x5, Space.x5),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('New task', style: Brand.serif(size: 24, color: Palette.of(ctx).text)),
-            const SizedBox(height: 12),
             TextField(
                 controller: title,
                 autofocus: true,
@@ -963,14 +941,17 @@ class _TasksTab extends StatelessWidget {
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(labelText: 'What needs doing')),
             const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              ChoiceChip(label: const Text('The lead decides'), selected: owner.isEmpty, onSelected: (_) => set(() => owner = '')),
+            LuxWords([
+              LuxWord('The lead decides', selected: owner.isEmpty, onTap: () => set(() => owner = '')),
               for (final b in [for (final id in o.members) Bots.I.byId(id)].whereType<Bot>())
-                ChoiceChip(label: Text(b.name), selected: owner == b.id, onSelected: (_) => set(() => owner = b.id)),
-              FilterChip(label: const Text('Urgent'), selected: urgent, onSelected: (v) => set(() => urgent = v)),
+                LuxWord(b.name, selected: owner == b.id, onTap: () => set(() => owner = b.id)),
+              LuxWord('Urgent', selected: urgent, onTap: () => set(() => urgent = !urgent)),
             ]),
-            const SizedBox(height: 14),
-            SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Add'))),
+            const SizedBox(height: Space.x3),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: LuxWordButton('Add', primary: true, onPressed: () => Navigator.pop(ctx, true)),
+            ),
           ]),
         ),
       ),
@@ -1010,25 +991,12 @@ class _TaskTile extends StatelessWidget {
       _ago(t.updatedAt),
     ];
     final done = t.status == 'done';
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
+    // The status is the section the task sits in (plain words), so the row carries no status icon.
+    return LuxTap(
       onTap: () => _open(context),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: Space.x2),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(
-            switch (t.status) {
-              'done' => Icons.check_circle_outline_rounded,
-              'doing' => Icons.timelapse_rounded,
-              'blocked' => Icons.block_rounded,
-              'review' => Icons.rate_review_outlined,
-              'proposed' => Icons.help_outline_rounded,
-              _ => Icons.radio_button_unchecked_rounded,
-            },
-            size: 20,
-            color: done ? p.muted : p.text,
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(t.title,
@@ -1050,7 +1018,6 @@ class _TaskTile extends StatelessWidget {
       sheetAnimationStyle: SubMotion.sheet,
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.7,
@@ -1069,8 +1036,8 @@ class _TaskTile extends StatelessWidget {
             Navigator.pop(ctx);
           }
 
-          return ListView(controller: sc, padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 24), children: [
-            Text(t.title, style: Theme.of(ctx).textTheme.titleLarge),
+          return ListView(controller: sc, padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x5, Space.x5, Space.x6), children: [
+            Text(t.title, style: Brand.display(size: AppText.display, color: p.text, height: 1.2)),
             const SizedBox(height: 6),
             Text('${_statusLabel(t.status)} · ${t.owner.isEmpty ? 'Unassigned' : _name(t.owner)}'
                 '${t.reviewer.isEmpty ? '' : ' · checked by ${_name(t.reviewer)}'} · added by ${_name(t.createdBy)}',
@@ -1079,12 +1046,12 @@ class _TaskTile extends StatelessWidget {
             if (t.result.isNotEmpty) ...[const SizedBox(height: 18), const SectionHeader('Result'), MarkdownView(t.result.replaceFirst('[reviewed] ', ''))],
             const SizedBox(height: 18),
             const SectionHeader('Who does it'),
-            Wrap(spacing: 8, runSpacing: 8, children: [
+            LuxWords([
               for (final b in [for (final id in o.members) Bots.I.byId(id)].whereType<Bot>())
-                ChoiceChip(
-                  label: Text(b.name),
+                LuxWord(
+                  b.name,
                   selected: t.owner == b.id,
-                  onSelected: (_) {
+                  onTap: () {
                     t.owner = b.id;
                     if (t.status == 'blocked' || t.status == 'doing') t.status = 'todo';
                     Offices.I.post(o, 'you', '${t.title} → ${b.name}', kind: 'update', taskId: t.id);
@@ -1095,32 +1062,31 @@ class _TaskTile extends StatelessWidget {
             ]),
             const SizedBox(height: 18),
             const SectionHeader('Status'),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              if (t.status == 'proposed') ActionChip(label: Text(tr('Approve')), onPressed: () => setStatus('proposed-ok')),
-              if (t.status != 'todo') ActionChip(label: const Text('To do'), onPressed: () => setStatus('todo')),
-              if (t.status != 'done') ActionChip(label: Text(tr('Done')), onPressed: () => setStatus('done')),
-              if (t.status != 'blocked' && t.open) ActionChip(label: const Text('Blocked'), onPressed: () => setStatus('blocked')),
-              if (t.open) ActionChip(label: const Text('Cancel task'), onPressed: () => setStatus('cancelled')),
+            LuxWords([
+              if (t.status == 'proposed') LuxWord('Approve', onTap: () => setStatus('proposed-ok')),
+              if (t.status != 'todo') LuxWord('To do', onTap: () => setStatus('todo')),
+              if (t.status != 'done') LuxWord('Done', onTap: () => setStatus('done')),
+              if (t.status != 'blocked' && t.open) LuxWord('Blocked', onTap: () => setStatus('blocked')),
+              if (t.open) LuxWord('Cancel task', onTap: () => setStatus('cancelled')),
             ]),
             const SizedBox(height: 18),
             if (t.open && t.owner.isNotEmpty && t.status != 'proposed')
-              FilledButton.icon(
-                onPressed: () {
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: LuxWordButton('Start now with ${_name(t.owner)}', primary: true, onPressed: () {
                   t.attempts = 0;
                   if (t.status != 'todo') t.status = 'todo';
                   Offices.I.enqueue(OfficeJob(officeId: o.id, botId: t.owner, kind: 'task', taskId: t.id));
                   Navigator.pop(ctx);
-                },
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: Text('Start now with ${_name(t.owner)}'),
+                }),
               ),
-            TextButton(
-              onPressed: () {
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: LuxWordButton('Delete task', destructive: true, onPressed: () {
                 o.tasks.remove(t);
                 Offices.I.save();
                 Navigator.pop(ctx);
-              },
-              child: const Text('Delete task'),
+              }),
             ),
           ]);
         },
@@ -1138,18 +1104,13 @@ class _PeopleTab extends StatelessWidget {
   static Future<void> _add(BuildContext context, Office o) async {
     final state = context.read<AppState>();
     final others = Bots.I.bots.where((b) => !o.members.contains(b.id)).toList();
-    final pick = await showModalBottomSheet<String>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) => SafeArea(
-        child: ListView(shrinkWrap: true, children: [
-          for (final b in others)
-            ListTile(leading: BotAvatar(bot: b, size: 36), title: Text(b.name), subtitle: Text(b.role), onTap: () => Navigator.pop(ctx, b.id)),
-          ListTile(leading: const Icon(Icons.add_rounded), title: const Text('Describe a new bot'), onTap: () => Navigator.pop(ctx, '+new')),
-        ]),
-      ),
+    final pick = await showLuxSheet<String>(
+      context,
+      title: 'Add a bot',
+      builder: (ctx) => ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: Space.x3), children: [
+        for (final b in others) LuxRow(leading: BotAvatar(bot: b, size: 36), title: b.name, sub: b.role, onTap: () => Navigator.pop(ctx, b.id)),
+        LuxRow(title: tr('Describe a new bot'), onTap: () => Navigator.pop(ctx, '+new')),
+      ]),
     );
     if (pick == null || !context.mounted) return;
     var id = pick;
@@ -1157,7 +1118,7 @@ class _PeopleTab extends StatelessWidget {
       final desc = await askText(context, title: 'Describe them', hint: 'e.g. A bookkeeper who tracks expenses and sends me a weekly summary', action: 'Create');
       if (desc == null || desc.trim().isEmpty || !context.mounted) return;
       final nav = Navigator.of(context);
-      showDialog(context: context, barrierDismissible: false, builder: (_) => const BusyNote('Bringing them on'));
+      showLuxDialog(context, dismissible: false, builder: (_) => const BusyNote('Bringing them on'));
       final b = await state.createBotFromText(desc.trim());
       nav.pop();
       if (b == null) return;
@@ -1190,36 +1151,35 @@ class _PeopleTab extends StatelessWidget {
         Builder(builder: (context) {
           final doing = o.tasks.where((t) => t.owner == b.id && t.status == 'doing').map((t) => t.title).firstOrNull;
           final open = o.tasks.where((t) => t.owner == b.id && t.open && t.status != 'proposed').length;
-          return ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            leading: BotAvatar(bot: b, size: 40, presence: true),
-            title: Text('${b.name}${b.id == o.chiefId ? '  ·  Lead' : ''}', style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(doing != null ? 'Working on: $doing' : '${b.role} · $open open ${open == 1 ? 'task' : 'tasks'}',
-                maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.muted)),
+          // Tap opens the bot; hold for Make lead / Open their chat / Remove (no overflow-menu glyph on the row).
+          return LuxRow(
+            padding: const EdgeInsets.symmetric(horizontal: Space.x1, vertical: Space.x3),
+            leading: BotAvatar(bot: b, size: 40),
+            title: b.name,
+            value: b.id == o.chiefId ? tr('Lead') : null,
+            sub: doing != null ? 'Working on: $doing' : '${b.role} · $open open ${open == 1 ? 'task' : 'tasks'}',
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BotProfileScreen(botId: b.id))),
-            trailing: PopupMenuButton<String>(
-              onSelected: (v) async {
-                switch (v) {
-                  case 'lead':
-                    await Offices.I.setChief(o, b.id);
-                  case 'chat':
-                    if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
-                    await state.openBot(b);
-                  case 'remove':
-                    await Offices.I.removeMember(o, b.id);
-                }
-              },
-              itemBuilder: (_) => [
-                if (b.id != o.chiefId) const PopupMenuItem(value: 'lead', child: Text('Make lead')),
-                const PopupMenuItem(value: 'chat', child: Text('Open their chat')),
-                const PopupMenuItem(value: 'remove', child: Text('Remove from the team')),
-              ],
-            ),
+            onLongPress: () async {
+              final v = await showLuxChoices<String>(context, title: b.name, choices: [
+                if (b.id != o.chiefId) const LuxChoice('lead', 'Make lead'),
+                const LuxChoice('chat', 'Open their chat'),
+                const LuxChoice('remove', 'Remove from the team', destructive: true),
+              ]);
+              switch (v) {
+                case 'lead':
+                  await Offices.I.setChief(o, b.id);
+                case 'chat':
+                  if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+                  await state.openBot(b);
+                case 'remove':
+                  await Offices.I.removeMember(o, b.id);
+              }
+            },
           );
         }),
       Align(
         alignment: AlignmentDirectional.centerStart,
-        child: TextButton.icon(onPressed: () => _add(context, o), icon: const Icon(Icons.person_add_alt_1_outlined), label: const Text('Add a bot')),
+        child: LuxWordButton('Add a bot', primary: true, onPressed: () => _add(context, o)),
       ),
       const SizedBox(height: 14),
       const SectionHeader('Purpose'),
@@ -1279,33 +1239,23 @@ class _PeopleTab extends StatelessWidget {
           }),
       ],
       const SizedBox(height: 12),
-      ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(Icons.ios_share_rounded, color: p.text),
-        title: const Text('Share this team'),
-        subtitle: Text('Setup and bots only.', style: TextStyle(color: p.muted)),
+      LuxRow(
+        padding: const EdgeInsets.symmetric(horizontal: Space.x1, vertical: Space.x3),
+        title: tr('Share this team'),
+        sub: tr('Setup and bots only.'),
         onTap: () => TeamFiles.share(context, o.name, Offices.I.export(o)),
       ),
-      const SizedBox(height: 12),
-      TextButton(
-        onPressed: () async {
-          final ok = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: Text('Close ${o.name}?'),
-              content: const Text('Tasks and chat are deleted. Bots stay.'),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')),
-                TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Close'), style: TextStyle(color: Palette.red))),
-              ],
-            ),
-          );
-          if (ok == true && context.mounted) {
+      const SizedBox(height: Space.x3),
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: LuxWordButton('Close', destructive: true, onPressed: () async {
+          final ok = await luxConfirm(context,
+              title: tr('Close {name}?', {'name': o.name}), message: 'Tasks and chat are deleted. Bots stay.', action: 'Close', cancel: 'Keep', destructive: true);
+          if (ok && context.mounted) {
             Navigator.pop(context);
             await Offices.I.remove(o);
           }
-        },
-        child: Text(tr('Close'), style: TextStyle(color: Palette.red)),
+        }),
       ),
     ]);
   }

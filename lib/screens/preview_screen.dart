@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../widgets/lux_kit.dart';
 import '../services/data_sheet.dart';
 import '../services/office_reader.dart';
 import '../services/phone_tools.dart';
@@ -512,7 +513,7 @@ class _XlsxViewState extends State<_XlsxView> {
               for (var i = 0; i < names.length; i++)
                 Padding(
                   padding: const EdgeInsetsDirectional.only(end: 6),
-                  child: ChoiceChip(label: Text(names[i]), selected: i == tab, onSelected: (_) => setState(() => _tab = i)),
+                  child: LuxWordTab(label: Text(names[i]), selected: i == tab, onSelected: (_) => setState(() => _tab = i)),
                 ),
             ],
           ),

@@ -13,9 +13,10 @@ import '../services/offices.dart';
 import '../services/whatsapp.dart';
 import '../widgets/motion.dart';
 import '../theme.dart';
+import '../widgets/lux_kit.dart';
 import '../ui/tokens.dart';
 import '../widgets/surface.dart';
-import '../widgets/logo.dart';
+import '../ui/i18n.dart';
 
 /// Everything a bot did, run by run and step by step.
 class BotActivityScreen extends StatelessWidget {
@@ -85,14 +86,10 @@ class BotActivityScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(find.isEmpty ? '${bot.name}\'s activity' : 'How ${bot.name} did it'), actions: [
         if (runs.isNotEmpty)
-          IconButton(
-            tooltip: 'Clear',
-            icon: const Icon(Icons.delete_outline_rounded),
-            onPressed: () {
-              BotTraces.I.clear(bot.id);
-              Navigator.pop(context);
-            },
-          ),
+          LuxWordButton('Clear', key: const ValueKey('activity-clear'), onPressed: () {
+            BotTraces.I.clear(bot.id);
+            Navigator.pop(context);
+          }),
       ]),
       body: ListView(padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 40), children: [
         Padding(
@@ -129,14 +126,13 @@ class BotActivityScreen extends StatelessWidget {
               initiallyExpanded: identical(r, hit),
               shape: const Border(),
               collapsedShape: const Border(),
-              // Still working: a fine ring (no dots); done: a tick or a warning.
-              leading: r.end == null
-                  ? const SizedBox(width: 20, child: Center(child: RedDot(size: 14, animate: true)))
-                  : Icon(r.failed ? Icons.error_outline_rounded : Icons.check_rounded, size: 20, color: r.failed ? Palette.red : p.text),
-              title: Text(r.why, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: AppText.body)),
+              showTrailingIcon: false,
+              tilePadding: EdgeInsets.zero,
+              // The run's state in plain words under it (RESTYLE.md: no status icons or dots).
+              title: Text(r.why, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
               subtitle: Text(
-                '${_ago(r.start)} · ${r.end == null ? 'working' : _took(r.took)}',
-                style: TextStyle(color: p.muted, fontSize: AppText.micro),
+                '${_ago(r.start)} · ${r.end == null ? tr('Working') : (r.failed ? '${tr('Stopped')} · ${_took(r.took)}' : _took(r.took))}',
+                style: AppText.microStyle.copyWith(color: r.end != null && r.failed ? Palette.red : p.muted),
               ),
               childrenPadding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 14),
               expandedCrossAxisAlignment: CrossAxisAlignment.start,
@@ -256,31 +252,15 @@ class BotPowersSection extends StatelessWidget {
         if (g == 'whatsapp' && !b.powersOff.contains(g) && !b.powersOff.contains('phone'))
           _WaTrust(bot: b),
       ],
-      ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Daily limit'),
-        subtitle: Text(
-          '${BotActivityScreen.budgetChoices[b.tokenBudgetK] ?? 'Custom'} · today: ${BotActivityScreen.usageLine(b)}.',
-          style: TextStyle(color: p.muted),
-        ),
-        trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+      // Look only (fix/ui-restyle): the same choices and values as before, in the shared quiet row and sheet.
+      LuxRow(
+        padding: const EdgeInsets.symmetric(vertical: Space.x3),
+        title: tr('Daily limit'),
+        sub: '${BotActivityScreen.budgetChoices[b.tokenBudgetK] ?? 'Custom'} · today: ${BotActivityScreen.usageLine(b)}.',
         onTap: () async {
           const opts = BotActivityScreen.budgetChoices;
-          final v = await showModalBottomSheet<int>(
-            sheetAnimationStyle: SubMotion.sheet,
-            context: context,
-            showDragHandle: true,
-            builder: (ctx) => SafeArea(
-              child: ListView(shrinkWrap: true, children: [
-                for (final e in opts.entries)
-                  ListTile(
-                    title: Text(e.value),
-                    trailing: e.key == b.tokenBudgetK ? Icon(Icons.check_rounded, color: p.text) : null,
-                    onTap: () => Navigator.pop(ctx, e.key),
-                  ),
-              ]),
-            ),
-          );
+          final v = await showLuxChoices<int>(context,
+              title: 'Daily limit', selected: b.tokenBudgetK, choices: [for (final e in opts.entries) LuxChoice(e.key, e.value)]);
           if (v == null) return;
           b.tokenBudgetK = v;
           await Bots.I.save();

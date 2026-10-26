@@ -12,6 +12,9 @@ class Palette {
   final Color border;
   final Color text;
   final Color muted;
+
+  /// The code card's surface (fix/ui-restyle): one quiet step off the page. It used to be the ink colour in daylight
+  /// (#121110, the same as [text]), so a code block painted ink-on-ink and read as a solid black box.
   final Color code;
   final Color accent;
   final Color accentWash;
@@ -67,7 +70,7 @@ class Palette {
     border: Color(0xFFE6E2DA),
     text: Color(0xFF121110),
     muted: Color(0xFF6F6B64),
-    code: Color(0xFF121110),
+    code: Color(0xFFF2F0EB),
     // Accent is only for warnings and destructive actions (Delete, errors). Everything else is ink.
     accent: red,
     accentWash: Color(0xFFFBEAE5),
@@ -90,7 +93,7 @@ class Palette {
     border: Color(0xFF262626),
     text: Color(0xFFF7F7F5),
     muted: Color(0xFF9B9B98),
-    code: Color(0xFF0A0A0A),
+    code: Color(0xFF141414),
     accent: Color(0xFFE0452A),
     accentWash: Color(0xFF2A100B),
     ok: Color(0xFF8FAE7B),
@@ -104,6 +107,38 @@ class Palette {
 
   static Palette of(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? dark : light;
+}
+
+/// Syntax tones for code blocks (fix/ui-restyle): calm, desaturated inks that keep at least 4.5:1 contrast on the code
+/// surface ([Palette.code]) in daylight and in Ink. Plain code is the page's own text colour.
+class CodeInk {
+  final Color keyword;
+  final Color string;
+  final Color number;
+  final Color comment;
+  final Color type;
+  final Color meta;
+  const CodeInk({required this.keyword, required this.string, required this.number, required this.comment, required this.type, required this.meta});
+
+  static const light = CodeInk(
+    keyword: Color(0xFF8E3418),
+    string: Color(0xFF3F6130),
+    number: Color(0xFF2B5785),
+    comment: Color(0xFF6F6B64),
+    type: Color(0xFF7A5512),
+    meta: Color(0xFF5B4A7A),
+  );
+
+  static const dark = CodeInk(
+    keyword: Color(0xFFEFA184),
+    string: Color(0xFFB2CD96),
+    number: Color(0xFF94BBE8),
+    comment: Color(0xFF8C8C88),
+    type: Color(0xFFE2C68E),
+    meta: Color(0xFFC3B2E6),
+  );
+
+  static CodeInk of(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? dark : light;
 }
 
 /// Brand type (owner, 2026-10-23): one refined bold sans for display text (the SubMac wordmark,

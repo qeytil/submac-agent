@@ -26,6 +26,7 @@ import '../screens/bot_activity_screen.dart';
 import '../theme.dart';
 import 'composer.dart' show turnHeadPad, turnHeadHeight;
 import 'logo.dart';
+import 'lux_kit.dart' show luxPrompt;
 import 'motion.dart';
 import 'audio_card.dart';
 import 'media_cards.dart';
@@ -186,20 +187,7 @@ class UserMessageView extends StatelessWidget {
     // CB-13: while SubMac is still answering, an edit cannot go out. Say so instead of a tap that does nothing.
     void busyNote() => messenger.showSnackBar(SnackBar(content: Text(tr(editBusyNote))));
     if (!state.canEditHere) return busyNote();
-    final ctrl = TextEditingController(text: ReplyCodec.bodyOf(message.content));
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit message'),
-        content: TextField(controller: ctrl, maxLines: 8, minLines: 1, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
-          TextButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: Text(tr('Send'))),
-        ],
-      ),
-    );
-    // Disposed after the dialog's closing animation, which still reads it.
-    Future.delayed(const Duration(seconds: 1), ctrl.dispose);
+    final result = await luxPrompt(context, title: 'Edit message', initial: ReplyCodec.bodyOf(message.content), action: 'Send', maxLines: 8);
     if (result != null && result.trim().isNotEmpty) {
       // A run may have started while the box was open (a reminder, a bot wake): nothing went out, and it says so.
       final sent = await state.editAndResend(message, result);
@@ -606,19 +594,11 @@ class TeamMessageCard extends StatelessWidget {
       enabled: message.animateIn,
       child: Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 10),
-      child: Container(
+      // No tinted card and no badge glyph (fix/ui-restyle): a quiet "SubMac team" label over the words.
+      child: SizedBox(
         width: double.infinity,
-        padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 14),
-        decoration: BoxDecoration(
-          color: p.accentWash,
-          borderRadius: BorderRadius.circular(16),
-        ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Icon(Icons.verified_rounded, size: 16, color: p.text),
-            const SizedBox(width: 6),
-            Text('SubMac team', style: AppText.sectionStyle.copyWith(color: p.text)),
-          ]),
+          Text(tr('SubMac team'), style: AppText.sectionStyle.copyWith(color: p.faint)),
           const SizedBox(height: 8),
           ReplyView(message: message),
         ]),

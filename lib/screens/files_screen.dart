@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../widgets/lux_kit.dart';
 import '../app_state.dart';
 import '../services/device_access.dart';
 import '../services/tools.dart';
@@ -189,7 +190,7 @@ class _FilesScreenState extends State<FilesScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 children: [
-                  ChoiceChip(
+                  LuxWordTab(
                     label: const Text('SubMac files'),
                     selected: _view == FilesView.files && _dir != null && _dir!.startsWith(_workspace) && _workspace.isNotEmpty,
                     onSelected: (_) {
@@ -199,14 +200,14 @@ class _FilesScreenState extends State<FilesScreen> {
                   ),
                   for (final (v, label) in const [(FilesView.made, 'Made by SubMac'), (FilesView.sites, 'Sites'), (FilesView.trash, 'Trash')]) ...[
                     const SizedBox(width: Space.x2),
-                    ChoiceChip(
+                    LuxWordTab(
                       label: Text(label),
                       selected: _view == v,
                       onSelected: (_) => setState(() => _view = v),
                     ),
                   ],
                   const SizedBox(width: 8),
-                  ChoiceChip(
+                  LuxWordTab(
                     label: const Text('Phone'),
                     selected: _view == FilesView.files && _dir != null && _dir!.startsWith(DeviceAccess.root),
                     onSelected: (_) async {
@@ -228,7 +229,7 @@ class _FilesScreenState extends State<FilesScreen> {
                     for (final f in const ['Download', 'Documents', 'DCIM', 'Pictures'])
                       Padding(
                         padding: const EdgeInsetsDirectional.only(start: 8),
-                        child: ActionChip(label: Text(f), onPressed: () => _open('${DeviceAccess.root}/$f')),
+                        child: LuxWordTab(label: Text(f), onPressed: () => _open('${DeviceAccess.root}/$f')),
                       ),
                   ],
                 ],

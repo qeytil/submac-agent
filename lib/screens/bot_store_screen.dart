@@ -12,6 +12,9 @@ import '../services/bot_store.dart';
 import '../services/bots.dart';
 import '../services/events.dart';
 import '../widgets/motion.dart';
+import '../widgets/lux_kit.dart';
+import '../widgets/pill_kit.dart' show Monogram;
+import '../widgets/team_parts.dart' show BusyNote;
 import '../theme.dart';
 import 'bot_activity_screen.dart';
 import 'bot_setup_screens.dart';
@@ -54,11 +57,7 @@ class _BotStoreScreenState extends State<BotStoreScreen> {
         final others = store.community.where(_match).toList();
         return Scaffold(
           appBar: AppBar(title: Text(tr('Bot Store')), actions: [
-            IconButton(
-              tooltip: 'Add from code or file',
-              icon: const Icon(Icons.qr_code_2_rounded),
-              onPressed: () => addSharedBot(context),
-            ),
+            LuxWordButton('Add', key: const ValueKey('store-add-shared'), primary: true, onPressed: () => addSharedBot(context)),
           ]),
           body: RefreshIndicator(
             onRefresh: store.refresh,
@@ -68,14 +67,9 @@ class _BotStoreScreenState extends State<BotStoreScreen> {
                 child: Text('Your own copy. Learns you. Shares nothing.',
                     style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.35)),
               ),
-              TextField(
-                onChanged: (v) => setState(() => _q = v.trim()),
-                decoration: InputDecoration(
-                  hintText: 'Search bots',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  isDense: true,
-                ),
+              Padding(
+                padding: const EdgeInsetsDirectional.symmetric(horizontal: Space.x1),
+                child: LuxSearchField(hint: 'Search bots', onChanged: (v) => setState(() => _q = v.trim())),
               ),
               const SizedBox(height: 16),
               if (own.isNotEmpty) ...[
@@ -95,12 +89,10 @@ class _BotStoreScreenState extends State<BotStoreScreen> {
                       style: TextStyle(color: p.muted)),
                 ),
               for (final s in others) StoreCard(item: s),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(foregroundColor: p.text, side: BorderSide(color: p.border), minimumSize: const Size.fromHeight(46)),
-                onPressed: () => addSharedBot(context),
-                icon: const Icon(Icons.card_giftcard_rounded, size: 18),
-                label: Text(tr('Add from code or file')),
+              const SizedBox(height: Space.x2),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: LuxWordButton('Add from code or file', primary: true, onPressed: () => addSharedBot(context)),
               ),
             ]),
           ),
@@ -114,13 +106,11 @@ class _Head extends StatelessWidget {
   const _Head(this.text);
   final String text;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 4, 8),
-        child: Text(text, style: AppText.sectionStyle.copyWith(color: Palette.of(context).muted)),
-      );
+  Widget build(BuildContext context) => LuxSection(text, padding: const EdgeInsetsDirectional.fromSTEB(Space.x1, Space.x2, Space.x1, Space.x2));
 }
 
-/// A Bot Store card: icon, name, role, one line, author, hires, and Hire.
+/// A Bot Store row: the bot's initial, name, role, one line, author, hires, and Get / Open as a word. No card, border or
+/// icon disc (fix/ui-restyle).
 class StoreCard extends StatelessWidget {
   const StoreCard({super.key, required this.item});
   final StoreBot item;
@@ -130,24 +120,12 @@ class StoreCard extends StatelessWidget {
     final p = Palette.of(context);
     final s = item;
     final copy = BotStore.I.hiredCopy(s);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: p.sheet,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+    return LuxTap(
           onTap: () => _details(context, s),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: p.border, width: 0.8)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Space.x1, vertical: Space.x3),
             child: Row(children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: p.bg, border: Border.all(color: p.border, width: 0.8)),
-                child: Icon(botIcon(s.icon), size: 22, color: p.text),
-              ),
+              Monogram(s.name, size: 44),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -173,37 +151,13 @@ class StoreCard extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 96),
                 child: copy != null
-                    ? TextButton(
-                        style: TextButton.styleFrom(
-                            minimumSize: _minSize, maximumSize: _maxSize, padding: _pad, tapTargetSize: MaterialTapTargetSize.shrinkWrap, textStyle: _btnText),
-                        onPressed: () => _openCopy(context, copy), child: _label('Open'))
-                    : FilledButton(
-                        style: FilledButton.styleFrom(
-                            backgroundColor: p.text,
-                            foregroundColor: p.bg,
-                            minimumSize: _minSize,
-                            maximumSize: _maxSize,
-                            padding: _pad,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            textStyle: _btnText),
-                        onPressed: () => hireFromStore(context, s),
-                        child: _label('Get'),
-                      ),
+                    ? LuxWordButton('Open', onPressed: () => _openCopy(context, copy))
+                    : LuxWordButton('Get', primary: true, onPressed: () => hireFromStore(context, s)),
               ),
             ]),
           ),
-        ),
-      ),
     );
   }
-
-  /// Compact button sizing for card rows: overrides the theme's full-width minimum (Size.fromHeight).
-  static const _minSize = Size(64, 38);
-  static const _maxSize = Size(96, 48);
-  static const _pad = EdgeInsets.symmetric(horizontal: 14);
-  static const _btnText = TextStyle(fontFamily: Brand.sans, fontSize: AppText.body, fontWeight: FontWeight.w600);
-
-  static Widget _label(String t) => Text(t, maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false);
 
   static void _openCopy(BuildContext context, Bot b) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => BotProfileScreen(botId: b.id)));
@@ -218,12 +172,11 @@ class StoreCard extends StatelessWidget {
       sheetAnimationStyle: SubMotion.sheet,
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.75,
-        builder: (ctx, sc) => ListView(controller: sc, padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 30), children: [
-          Center(child: Icon(botIcon(s.icon), size: 40, color: p.text)),
+        builder: (ctx, sc) => ListView(controller: sc, padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x6, Space.x5, Space.x6), children: [
+          Center(child: Monogram(s.name, size: 56)),
           const SizedBox(height: 10),
           Center(child: Text(s.name, style: Brand.serif(size: 28, color: p.text))),
           Center(child: Text(s.role, style: TextStyle(color: p.muted))),
@@ -237,14 +190,13 @@ class StoreCard extends StatelessWidget {
           ],
           if (warn.isNotEmpty) ...[
             const SizedBox(height: 14),
-            Text('Couldn\'t verify', style: TextStyle(color: Colors.red.shade400, fontWeight: FontWeight.w600)),
+            Text(tr('Couldn\'t verify'), style: AppText.bodyStyle.copyWith(color: Palette.red, fontWeight: FontWeight.w600)),
             for (final w in warn)
               Padding(padding: const EdgeInsets.only(top: 4), child: Text('· It $w', style: TextStyle(color: p.text))),
           ],
           const SizedBox(height: 18),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: p.text, foregroundColor: p.bg, minimumSize: const Size.fromHeight(46)),
-            onPressed: () {
+          Center(
+            child: LuxWordButton(BotStore.I.hiredCopy(s) != null ? 'Open ${s.name}' : 'Get ${s.name}', primary: true, onPressed: () {
               Navigator.pop(ctx);
               final copy = BotStore.I.hiredCopy(s);
               if (copy != null) {
@@ -252,8 +204,7 @@ class StoreCard extends StatelessWidget {
               } else {
                 hireFromStore(context, s);
               }
-            },
-            child: Text(BotStore.I.hiredCopy(s) != null ? 'Open ${s.name}' : 'Get ${s.name}'),
+            }),
           ),
         ]),
       ),
@@ -264,7 +215,7 @@ class StoreCard extends StatelessWidget {
 /// Hires a copy and opens it; then lists any app it still needs connecting.
 Future<void> hireFromStore(BuildContext context, StoreBot s) async {
   final messenger = ScaffoldMessenger.of(context);
-  showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+  showLuxDialog(context, dismissible: false, builder: (_) => BusyNote(tr('Getting {name}', {'name': s.name})));
   final (b, err) = await BotStore.I.hire(s);
   if (!context.mounted) return;
   Navigator.pop(context);
@@ -293,20 +244,14 @@ Future<void> hireFromLink(BuildContext context, String code) async {
     }
   }
   final name = listing?.name ?? 'this bot';
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text('Get $name?'),
-      content: Text(listing != null && listing.blurb.isNotEmpty
+  final ok = await luxConfirm(context,
+      title: tr('Get {name}?', {'name': name}),
+      message: listing != null && listing.blurb.isNotEmpty
           ? '${listing.blurb}\n\nYou get your own copy. It never gets its creator\'s logins, keys or chats.'
-          : 'You get your own copy of the bot from that link. It never gets its creator\'s logins, keys or chats.'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Not now'))),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Get')),
-      ],
-    ),
-  );
-  if (ok != true || !context.mounted) return;
+          : 'You get your own copy of the bot from that link. It never gets its creator\'s logins, keys or chats.',
+      action: 'Get',
+      cancel: 'Not now');
+  if (!ok || !context.mounted) return;
   if (shareCode == null) {
     // A public bot page link to a Store listing: a hire that came from a share.
     final before = {for (final x in Bots.I.bots) x.id};
@@ -335,16 +280,13 @@ Future<void> afterJoin(BuildContext context, Bot b, String msg) async {
   if (need.isEmpty) return;
   await Future<void>.delayed(const Duration(milliseconds: 400));
   if (!context.mounted) return;
-  await showModalBottomSheet<void>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    showDragHandle: true,
+  await showLuxSheet<void>(
+    context,
+    title: tr('Connect {name}\'s apps', {'name': b.name}),
     builder: (ctx) => SafeArea(
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 16),
+        padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x4),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Connect ${b.name}\'s apps', style: Theme.of(ctx).textTheme.titleLarge),
-          const SizedBox(height: 6),
           Text('${b.name} works with these. Connect them with your own account; until then ${b.name} tells you when one is needed.',
               style: TextStyle(color: Palette.of(ctx).muted)),
           const SizedBox(height: 8),
@@ -375,17 +317,13 @@ SnackBar _addError(String err, String what) => SnackBar(
 /// "Add from code or file": the one way to add a bot someone shared. Type a code, or pick the file they sent.
 Future<void> addSharedBot(BuildContext context) async {
   final c = TextEditingController();
-  final pick = await showModalBottomSheet<String>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+  final pick = await showLuxSheet<String>(
+    context,
+    title: 'Add from code or file',
     builder: (ctx) => Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+      padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x5),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(tr('Add from code or file'), style: Theme.of(ctx).textTheme.titleLarge),
-        const SizedBox(height: 6),
-        Text('Type the code, or pick the file.', style: TextStyle(color: Palette.of(ctx).muted)),
+        Text(tr('Type the code, or pick the file.'), style: AppText.bodyStyle.copyWith(color: Palette.of(ctx).muted)),
         const SizedBox(height: 12),
         TextField(
           controller: c,
@@ -395,10 +333,9 @@ Future<void> addSharedBot(BuildContext context) async {
           onSubmitted: (v) => Navigator.pop(ctx, 'code'),
         ),
         const SizedBox(height: 12),
-        Row(children: [
-          Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(ctx, 'file'), child: const Text('Pick a file'))),
-          const SizedBox(width: 10),
-          Expanded(child: FilledButton(onPressed: () => Navigator.pop(ctx, 'code'), child: const Text('Add'))),
+        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          LuxWordButton('Pick a file', onPressed: () => Navigator.pop(ctx, 'file')),
+          LuxWordButton('Add', primary: true, onPressed: () => Navigator.pop(ctx, 'code')),
         ]),
       ]),
     ),
@@ -428,40 +365,24 @@ Future<void> addSharedBot(BuildContext context) async {
 
 /// Share one of your bots: as a code, or as a file. Logins, keys and what it knows about you never go along.
 Future<void> shareBotSheet(BuildContext context, Bot b) async {
-  final how = await showModalBottomSheet<String>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    showDragHandle: true,
-    builder: (ctx) => SafeArea(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 8),
-          child: Text('Your friend gets ${b.name}\'s skills, instructions and apps. Never your logins, keys, chats '
-              'or anything ${b.name} knows about you.',
-              style: TextStyle(color: Palette.of(ctx).muted)),
-        ),
-        ListTile(
-          leading: const Icon(Icons.link_rounded),
-          title: const Text('Share a link'),
-          subtitle: Text(b.storeId.isNotEmpty
-              ? 'Its public page. You get a bonus when a copy is taken'
-              : 'A page anyone can open to get a copy'),
-          onTap: () => Navigator.pop(ctx, 'link'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.password_rounded),
-          title: const Text('Share a code'),
-          subtitle: const Text('A short code they type in the Bot Store'),
-          onTap: () => Navigator.pop(ctx, 'code'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.insert_drive_file_outlined),
-          title: const Text('Share as a file'),
-          subtitle: const Text('Send it in any app'),
-          onTap: () => Navigator.pop(ctx, 'file'),
-        ),
-      ]),
-    ),
+  final how = await showLuxSheet<String>(
+    context,
+    title: 'Share',
+    builder: (ctx) => ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: Space.x3), children: [
+      Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x2),
+        child: Text('Your friend gets ${b.name}\'s skills, instructions and apps. Never your logins, keys, chats '
+            'or anything ${b.name} knows about you.',
+            style: AppText.metaStyle.copyWith(color: Palette.of(ctx).muted)),
+      ),
+      LuxRow(
+        title: tr('Share a link'),
+        sub: tr(b.storeId.isNotEmpty ? 'Its public page. You get a bonus when a copy is taken' : 'A page anyone can open to get a copy'),
+        onTap: () => Navigator.pop(ctx, 'link'),
+      ),
+      LuxRow(title: tr('Share a code'), sub: tr('A short code they type in the Bot Store'), onTap: () => Navigator.pop(ctx, 'code')),
+      LuxRow(title: tr('Share as a file'), sub: tr('Send it in any app'), onTap: () => Navigator.pop(ctx, 'file')),
+    ]),
   );
   if (how == null || !context.mounted) return;
   if (how == 'file') {
@@ -500,17 +421,13 @@ Future<void> publishBotSheet(BuildContext context, Bot b) async {
   final blurb = TextEditingController(text: b.pitch);
   final pkg = b.export();
   final inc = BotStore.includes(pkg);
-  final ok = await showModalBottomSheet<bool>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+  final ok = await showLuxSheet<bool>(
+    context,
+    title: b.storeId.isEmpty ? 'Publish ${b.name} to the Bot Store' : 'Update ${b.name} in the Bot Store',
     builder: (ctx) => Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+      padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x5),
       child: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(b.storeId.isEmpty ? 'Publish ${b.name} to the Bot Store' : 'Update ${b.name} in the Bot Store', style: Theme.of(ctx).textTheme.titleLarge),
-          const SizedBox(height: 6),
           Text('Anyone can get a copy. They get its skills, instructions and apps. Never your logins, keys, '
               'chats or anything ${b.name} knows about you.',
               style: TextStyle(color: Palette.of(ctx).muted)),
@@ -522,9 +439,9 @@ Future<void> publishBotSheet(BuildContext context, Bot b) async {
           TextField(controller: blurb, maxLength: 160, decoration: const InputDecoration(labelText: 'One line about it')),
           TextField(controller: author, maxLength: 40, decoration: const InputDecoration(labelText: 'Your name in the Store (optional)')),
           const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(b.storeId.isEmpty ? 'Publish' : 'Update')),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: LuxWordButton(b.storeId.isEmpty ? 'Publish' : 'Update', primary: true, onPressed: () => Navigator.pop(ctx, true)),
           ),
         ]),
       ),

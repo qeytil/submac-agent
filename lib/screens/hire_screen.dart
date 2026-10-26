@@ -7,6 +7,7 @@ import '../services/bots.dart';
 import '../services/roles.dart';
 import '../services/trust.dart';
 import '../theme.dart';
+import '../widgets/lux_kit.dart';
 import '../ui/i18n.dart';
 import '../ui/tokens.dart';
 import '../widgets/sub_avatar.dart';
@@ -263,13 +264,12 @@ class _HireScreenState extends State<HireScreen> {
               const SizedBox(height: Space.x4),
               _Label(tr('More ways')),
               SurfaceGroup(children: [
-                _SuggestionRow(icon: Icons.auto_awesome_outlined, title: tr('Describe your own'), sub: tr('Say the job in a line or two'), onTap: _describe),
+                _SuggestionRow(title: tr('Describe your own'), sub: tr('Say the job in a line or two'), onTap: _describe),
                 _SuggestionRow(
-                    icon: Icons.storefront_outlined,
                     title: tr('Bot Store'),
                     sub: tr('Ready-made bots'),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BotStoreScreen()))),
-                _SuggestionRow(icon: Icons.qr_code_2_rounded, title: tr('Add from code or file'), sub: tr('A bot someone shared'), onTap: () => addSharedBot(context)),
+                _SuggestionRow(title: tr('Add from code or file'), sub: tr('A bot someone shared'), onTap: () => addSharedBot(context)),
               ]),
             ],
           ],
@@ -299,8 +299,7 @@ class _Face extends StatelessWidget {
           button: true,
           selected: on,
           label: tip,
-          child: InkWell(
-            borderRadius: Radii.fieldAll,
+          child: LuxTap(
             onTap: tap,
             child: Padding(
               padding: const EdgeInsets.all(Space.x1),
@@ -385,9 +384,8 @@ class _Field extends StatelessWidget {
 }
 
 class _SuggestionRow extends StatelessWidget {
-  const _SuggestionRow({this.face, this.icon, required this.title, required this.sub, required this.onTap});
+  const _SuggestionRow({this.face, required this.title, required this.sub, required this.onTap});
   final Widget? face;
-  final IconData? icon;
   final String title;
   final String sub;
   final VoidCallback onTap;
@@ -395,13 +393,12 @@ class _SuggestionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return InkWell(
+    return LuxTap(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x3, Space.x4, Space.x3),
         child: Row(children: [
-          SizedBox.square(dimension: 40, child: Center(child: face ?? Icon(icon, color: p.text, size: IconSize.xl))),
-          const SizedBox(width: Space.x3),
+          if (face != null) ...[SizedBox.square(dimension: 40, child: Center(child: face)), const SizedBox(width: Space.x3)],
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, style: AppText.bodyStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
