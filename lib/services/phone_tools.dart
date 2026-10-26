@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'call_me.dart';
 import 'system_bridge.dart';
 import 'system_tools.dart';
 
@@ -79,7 +80,7 @@ class PhoneTools {
       'location': {'type': 'string'},
       'description': {'type': 'string'},
     }, ['title', 'start']),
-    _fn('call_number', 'Open the phone dialer with a number ready. The user taps call.', {
+    _fn('call_number', CallMe.dialerDescription, {
       'number': {'type': 'string'},
     }, ['number']),
     _fn('send_sms', 'Open the messages app with a text drafted. The user taps send.', {
@@ -132,7 +133,7 @@ class PhoneTools {
           return 'Opened the Calendar with the event filled in. The user taps save.';
         case 'call_number':
           final n = (a['number'] ?? '').toString().replaceAll(RegExp(r'[^0-9+*#]'), '');
-          if (n.isEmpty) return 'Error: no phone number.';
+          if (n.isEmpty) return CallMe.dialerNoNumber;
           await launchUrl(Uri(scheme: 'tel', path: n));
           return 'Opened the dialer with $n. The user taps call.';
         case 'send_sms':

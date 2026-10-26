@@ -101,6 +101,9 @@ extension AppStateAgentRunner on AppState {
       final g = Calm.guidance(Calm.frustration(lastUserText, earlier: earlier, recentErrors: errs));
       if (g.isNotEmpty) sideNote = sideNote == null ? g : '$sideNote\n\n$g';
     }
+    // "Call me" (owner, 2026-10-26): the in-app call now, never "which number?".
+    final callNote = side ? null : AppState.callMeNote(lastUserText, bot: Bots.I.byConv(convId) != null);
+    if (callNote != null) sideNote = sideNote == null ? callNote : '$sideNote\n\n$callNote';
     // Speed: a greeting gets an instant reply; a short everyday message starts with the core tools only.
     var lane = QuickLane.full;
     if (!side && lastUserText != null) {

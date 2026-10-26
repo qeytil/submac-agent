@@ -111,6 +111,31 @@ extension AppStateLive on AppState {
     return sb.toString().trim();
   }
 
+  /// call_user: the user asked to be called ("call me"). The main agent starts the in-app Live call right away (the user
+  /// is in the chat that asked). A bot rings through its own bot_call, so its quiet hours, "calls off" and daily cap hold.
+  /// Call minutes are checked here as the call button does, and again by the server when the call connects.
+  Future<String> _callUserTool(Map<String, dynamic> a, String? convId) async {
+    final reason = '${a['reason'] ?? ''}'.trim();
+    if (Bots.I.byConv(convId) != null) {
+      return Bots.I.execute(CallMe.botTool, {'reason': reason.isEmpty ? 'You asked me to call' : reason}, convId);
+    }
+    if (liveCtl.active) return CallMe.alreadyOnCall;
+    if (!liveAvailable) return CallMe.unavailable;
+    if (Cloud.calls.value.out) return CallMe.noMinutes(Cloud.calls.value.usedUpMessage);
+    if (!appVisible) return CallMe.notInApp;
+    liveMode = '';
+    final r = await (userCallStarter ?? _startUserCall)(convId ?? currentId ?? '', CallMe.opening(reason));
+    return r == null ? CallMe.started : CallMe.unavailable;
+  }
+
+  Future<String?> _startUserCall(String convId, String opening) async {
+    if (liveCtl.floating) await liveCtl.unfloat(showScreen: false);
+    final r = await liveCtl.start(opening: opening, convId: convId.isEmpty ? null : convId);
+    if (r != null) return r;
+    liveCtl.openScreen?.call();
+    return null;
+  }
+
   Future<String> _liveTaskTool(String name, Map<String, dynamic> a) async {
     final mine = runs.where((r) => !r.side && _liveTaskConvs.contains(r.convId)).toList();
     switch (name) {

@@ -174,6 +174,7 @@ extension AppStateAgentPrompt on AppState {
             'phone_gesture at x%,y%; phone_nav back closes pop-ups; handle Allow/OK dialogs.')
         ..writeln('- Pass "about" on a tap that sends, pays, posts or deletes. Phone control off: tell them the one fix (app_settings open_permission accessibility).')
         ..writeln('- set_alarm/set_timer save directly; add_calendar_event, call_number, send_sms and share_text open the app filled in for the user to finish.')
+        ..writeln(CallMe.promptLine)
         ..writeln(SystemTools.sms
             ? '- read_sms reads texts (codes, bank, deliveries) when asked.'
             : '- Reading texts is off until the user allows it in Settings > Phone access.');

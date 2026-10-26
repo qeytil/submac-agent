@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models.dart' show ChatMessage;
 import 'bot_package.dart';
 import 'bot_powers.dart';
+import 'call_me.dart';
 import 'events.dart';
 import 'bot_manner.dart';
 import 'no_reply.dart';
@@ -1548,6 +1549,7 @@ class Bots extends ChangeNotifier {
           'steps: never stop half way to ask "shall I continue?", never leave stubs or placeholders. After a pause, "continue" picks up your plan.')
       ..writeln('- Learn a preference, goal, deadline or fact about their work: bot_remember at once. Promise to come back later: create the '
           'bot_followup in the same turn. A regular thing ("every morning", "call me Fridays"): bot_routine.')
+      ..writeln(CallMe.botPromptLine)
       ..writeln('- Check your work before you deliver: exactly what was asked, facts and numbers right, sources linked. Long work goes in a document.')
       ..writeln('- Stuck (two failed tries, or missing information): ask a colleague with bot_ask, your team lead in a team, or the owner one clear question. '
           'After a mistake or a correction, save one general lesson with bot_lesson (never names or private facts).')
@@ -1791,7 +1793,7 @@ class Bots extends ChangeNotifier {
       'keyword': {'type': 'string'},
       'instruction': {'type': 'string'},
     }, ['action']),
-    _fn('bot_call', 'Ring the user now for a voice call with you (only when they asked, or it is truly worth a call).', {
+    _fn('bot_call', CallMe.botDescription, {
       'reason': {'type': 'string', 'description': 'Shown on the ringing screen, e.g. "Your contract review is ready".'},
     }, ['reason']),
     _fn('bot_ask', 'Ask a colleague bot for their expert view and get their answer.', {

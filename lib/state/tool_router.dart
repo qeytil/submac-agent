@@ -395,6 +395,7 @@ extension AppStateTools on AppState {
     if (name == 'sites') return _sitesTool(args);
     if (name == 'projects') return _projectsTool(args, convId);
     if (name == 'connect_app') return requestConnect('${args['app'] ?? ''}', why: '${args['why'] ?? ''}', convId: convId);
+    if (name == CallMe.tool) return _callUserTool(args, convId);
     if (Bots.names.contains(name)) return Bots.I.execute(name, args, convId);
     if (SkillLibrary.names.contains(name)) {
       final who = Bots.I.byConv(convId);
