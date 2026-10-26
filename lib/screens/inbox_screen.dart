@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../services/inbox.dart';
 import '../services/rewards.dart';
 import '../theme.dart';
+import '../widgets/lux_kit.dart';
 import '../ui/tokens.dart';
 import '../widgets/surface.dart';
 import '../ui/i18n.dart';
@@ -39,12 +40,6 @@ class _InboxScreenState extends State<InboxScreen> {
     return days == 0 ? hm : days == 1 ? 'Yesterday $hm' : '${d.day}/${d.month}/${d.year}';
   }
 
-  static IconData iconFor(String kind) => switch (kind) {
-        'reward_grant' => Icons.card_giftcard_rounded,
-        'reward_earned' => Icons.auto_awesome_rounded,
-        _ => Icons.campaign_rounded,
-      };
-
   static String labelFor(String kind) => switch (kind) {
         'reward_grant' => 'Gift',
         'reward_earned' => 'Reward',
@@ -58,16 +53,11 @@ class _InboxScreenState extends State<InboxScreen> {
       sheetAnimationStyle: SubMotion.sheet,
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(22, 0, 22, 20),
+          padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x5, Space.x5, Space.x5),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Icon(iconFor(it.kind), size: 18, color: p.text),
-              const SizedBox(width: 8),
-              Text('${labelFor(it.kind)} · ${when(it.createdAt)}', style: TextStyle(color: p.muted, fontSize: AppText.meta)),
-            ]),
+            Text('${tr(labelFor(it.kind))} · ${when(it.createdAt)}', style: AppText.metaStyle.copyWith(color: p.muted)),
             const SizedBox(height: 12),
             Text(it.title, style: Brand.serif(size: 26, color: p.text)),
             const SizedBox(height: 10),
@@ -78,23 +68,15 @@ class _InboxScreenState extends State<InboxScreen> {
             ),
             const SizedBox(height: 16),
             Row(children: [
-              TextButton.icon(
-                icon: const Icon(Icons.mark_email_unread_outlined, size: 18),
-                label: const Text('Mark unread'),
-                onPressed: () {
-                  Inbox.I.mark([it.id], read: false);
-                  Navigator.pop(ctx);
-                },
-              ),
+              LuxWordButton('Mark unread', onPressed: () {
+                Inbox.I.mark([it.id], read: false);
+                Navigator.pop(ctx);
+              }),
               const Spacer(),
-              TextButton.icon(
-                icon: const Icon(Icons.copy_rounded, size: 18),
-                label: Text(tr('Copy')),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: '${it.title}\n\n${it.body}'));
-                  Navigator.pop(ctx);
-                },
-              ),
+              LuxWordButton('Copy', primary: true, onPressed: () {
+                Clipboard.setData(ClipboardData(text: '${it.title}\n\n${it.body}'));
+                Navigator.pop(ctx);
+              }),
             ]),
           ]),
         ),
@@ -114,7 +96,7 @@ class _InboxScreenState extends State<InboxScreen> {
             title: Text(tr('From SubMac'), style: Brand.serif(size: 28, color: p.text)),
             actions: [
               if (items.any((i) => i.unread))
-                TextButton(onPressed: Inbox.I.markAllRead, child: const Text('Mark all read')),
+                LuxWordButton('Mark all read', onPressed: Inbox.I.markAllRead),
             ],
           ),
           body: RefreshIndicator(
@@ -132,20 +114,14 @@ class _InboxScreenState extends State<InboxScreen> {
                 )
               else
                 for (final it in items)
-                  SurfaceRow(
-                    margin: const EdgeInsets.symmetric(vertical: Space.x1),
-                    child: ListTile(
-                      leading: Icon(iconFor(it.kind), color: it.unread ? p.text : p.muted),
-                      title: Text(it.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontWeight: it.unread ? FontWeight.w700 : FontWeight.w500, color: p.text)),
-                      subtitle: Text('${it.body.replaceAll('\n', ' ')}\n${labelFor(it.kind)} · ${when(it.createdAt)}',
-                          maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.muted, height: 1.35)),
-                      isThreeLine: true,
-                      onTap: () => _open(it),
-                      onLongPress: () => Inbox.I.mark([it.id], read: !it.unread),
-                    ),
+                  // Unread is told by weight alone (no icon, no dot).
+                  LuxRow(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.x2, vertical: Space.x3),
+                    title: it.title,
+                    selected: it.unread,
+                    sub: '${it.body.replaceAll('\n', ' ')}\n${tr(labelFor(it.kind))} · ${when(it.createdAt)}',
+                    onTap: () => _open(it),
+                    onLongPress: () => Inbox.I.mark([it.id], read: !it.unread),
                   ),
             ]),
           ),
@@ -155,7 +131,7 @@ class _InboxScreenState extends State<InboxScreen> {
   }
 }
 
-/// A small bell with the unread count, for app bars (Today, Settings).
+/// The inbox in an app bar (Today): the word "Inbox" and the unread count as a quiet number. No bell, no red badge.
 class InboxBell extends StatelessWidget {
   const InboxBell({super.key});
 
@@ -163,13 +139,10 @@ class InboxBell extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: Inbox.I.unread,
-      builder: (context, n, _) => IconButton(
-        tooltip: 'From SubMac',
-        icon: Badge(
-          isLabelVisible: n > 0,
-          label: Text(n > 9 ? '9+' : '$n'),
-          child: const Icon(Icons.notifications_none_rounded),
-        ),
+      builder: (context, n, _) => LuxWordButton(
+        n > 0 ? '${tr('Inbox')} ${n > 9 ? '9+' : '$n'}' : 'Inbox',
+        key: const ValueKey('inbox-bell'),
+        primary: n > 0,
         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InboxScreen())),
       ),
     );
@@ -219,11 +192,7 @@ class _InviteCardState extends State<InviteCard> {
               if (line != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(children: [
-                    Icon(Icons.auto_awesome_rounded, size: 18, color: p.text),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(line, style: TextStyle(color: p.text, fontWeight: FontWeight.w600))),
-                  ]),
+                  child: Text(line, style: AppText.bodyStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
                 ),
               Text(tr('Invite friends'), style: TextStyle(color: p.text, fontSize: AppText.body, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
@@ -239,7 +208,7 @@ class _InviteCardState extends State<InviteCard> {
                 ),
               Align(
                 alignment: AlignmentDirectional.centerEnd,
-                child: TextButton.icon(onPressed: _share, icon: const Icon(Icons.ios_share_rounded, size: 18), label: const Text('Share my link')),
+                child: LuxWordButton('Share my link', primary: true, onPressed: _share),
               ),
             ]),
           ),
@@ -251,23 +220,7 @@ class _InviteCardState extends State<InviteCard> {
 
 /// "Have an invite code?" for someone who just joined (the server only counts new accounts, once).
 Future<void> enterInviteCode(BuildContext context) async {
-  final c = TextEditingController();
-  final code = await showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Invite code'),
-      content: TextField(
-        controller: c,
-        autofocus: true,
-        textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(hintText: 'The code a friend gave you'),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
-        FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('Use code')),
-      ],
-    ),
-  );
+  final code = await luxPrompt(context, title: 'Invite code', hint: 'The code a friend gave you', action: 'Use code');
   if (code == null || code.trim().isEmpty || !context.mounted) return;
   await Rewards.I.setRef(code, source: 'code', replace: true, claimNow: false);
   final why = await Rewards.I.claimPending();

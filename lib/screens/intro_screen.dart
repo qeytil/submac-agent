@@ -110,9 +110,10 @@ class IntroScreenState extends State<IntroScreen> with SingleTickerProviderState
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: skip,
-        // Material gives the wordmark a proper text style (no debug underline) on the plain white page.
+        // Material gives the wordmark a proper text style (no debug underline) on the plain page (white by day, Ink at
+        // night: it follows the app's look).
         child: Material(
-          color: IntroMotion.paper,
+          color: IntroMotion.paperOf(context),
           child: Center(
             child: RepaintBoundary(
               child: AnimatedBuilder(
@@ -168,12 +169,13 @@ class IntroWordmark extends StatelessWidget {
     const soft = 0.08;
     // The mask runs a little past both ends so the first and last letters start and finish cleanly.
     final e = -soft + (1 + 2 * soft) * edge;
+    final ink = IntroMotion.inkOf(context);
     return CustomPaint(
-      foregroundPainter: _PenPainter(edge: e, opacity: edge <= 0 || edge >= 1 ? 0 : pen),
+      foregroundPainter: _PenPainter(edge: e, opacity: edge <= 0 || edge >= 1 ? 0 : pen, color: IntroMotion.penOf(context)),
       child: ShaderMask(
         blendMode: BlendMode.dstIn,
         shaderCallback: (r) => LinearGradient(
-          colors: const [IntroMotion.ink, IntroMotion.ink, IntroMotion.inkClear],
+          colors: [ink, ink, ink.withValues(alpha: 0)],
           stops: [0, (e - soft).clamp(0.0, 1.0), e.clamp(0.0, 1.0)],
         ).createShader(r),
         child: Padding(
@@ -181,7 +183,7 @@ class IntroWordmark extends StatelessWidget {
           child: Text(
             IntroMotion.word,
             textDirection: TextDirection.ltr,
-            style: Brand.serif(size: IntroMotion.wordSize, color: IntroMotion.ink, height: 1.1),
+            style: Brand.serif(size: IntroMotion.wordSize, color: ink, height: 1.1),
           ),
         ),
       ),
@@ -190,9 +192,10 @@ class IntroWordmark extends StatelessWidget {
 }
 
 class _PenPainter extends CustomPainter {
-  _PenPainter({required this.edge, required this.opacity});
+  _PenPainter({required this.edge, required this.opacity, required this.color});
   final double edge;
   final double opacity;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -201,12 +204,12 @@ class _PenPainter extends CustomPainter {
     final paint = Paint()
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round
-      ..color = IntroMotion.theme.withValues(alpha: opacity);
+      ..color = color.withValues(alpha: opacity);
     canvas.drawLine(Offset(x, size.height * 0.16), Offset(x, size.height * 0.88), paint);
   }
 
   @override
-  bool shouldRepaint(_PenPainter old) => old.edge != edge || old.opacity != opacity;
+  bool shouldRepaint(_PenPainter old) => old.edge != edge || old.opacity != opacity || old.color != color;
 }
 
 /// The new SubMac logo: the light-blue tile with its blue "S" (assets/intro/submac_tile.svg), and the white dot drawn

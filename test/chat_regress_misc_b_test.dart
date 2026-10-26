@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:agent/app_state.dart';
 import 'package:agent/models.dart';
 import 'package:agent/widgets/chat/reply_quote.dart';
+import 'package:agent/widgets/lux_kit.dart';
 import 'package:agent/widgets/message_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -159,7 +160,7 @@ void main() {
       await tester.tap(find.byTooltip('Edit and resend'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.byType(AlertDialog), findsNothing, reason: 'an edit box that silently does nothing on Send');
+      expect(find.byType(LuxDialogBody), findsNothing, reason: 'an edit box that silently does nothing on Send');
       expect(find.text(_busyNote), findsOneWidget);
       await tester.runAsync(() async {
         hold.complete();

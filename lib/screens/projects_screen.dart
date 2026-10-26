@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../app_state.dart';
 import '../services/projects.dart';
 import '../theme.dart';
+import '../widgets/lux_kit.dart';
 import '../widgets/motion.dart';
 import '../widgets/sub_icon.dart';
 import 'preview_screen.dart';
@@ -16,24 +17,7 @@ import '../ui/i18n.dart';
 
 /// Asks for a name and makes a project. Returns it, or null.
 Future<Project?> createProjectFlow(BuildContext context) async {
-  final ctrl = TextEditingController();
-  final name = await showDialog<String>(
-    context: context,
-    builder: (d) => AlertDialog(
-      title: Text(tr('New project')),
-      content: TextField(
-        controller: ctrl,
-        autofocus: true,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(hintText: 'e.g. My shop, Thesis, Trip to Nairobi'),
-        onSubmitted: (v) => Navigator.pop(d, v),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Cancel'))),
-        TextButton(onPressed: () => Navigator.pop(d, ctrl.text), child: Text(tr('Create'))),
-      ],
-    ),
-  );
+  final name = await luxPrompt(context, title: 'New project', hint: 'e.g. My shop, Thesis, Trip to Nairobi', action: 'Create');
   if (name == null || name.trim().isEmpty) return null;
   return Projects.I.create(name);
 }
@@ -65,18 +49,11 @@ class _ProjectScreenState extends State<ProjectScreen> {
   }
 
   Future<void> _fileMenu(File f) async {
-    final pick = await showModalBottomSheet<String>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      showDragHandle: true,
-      builder: (c) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (canPreview(f.path)) ListTile(title: Text(tr('Open')), onTap: () => Navigator.pop(c, 'open')),
-          ListTile(title: const Text('Share'), onTap: () => Navigator.pop(c, 'share')),
-          ListTile(title: Text(tr('Remove from project')), onTap: () => Navigator.pop(c, 'remove')),
-        ]),
-      ),
-    );
+    final pick = await showLuxChoices<String>(context, choices: [
+      if (canPreview(f.path)) const LuxChoice('open', 'Open'),
+      const LuxChoice('share', 'Share'),
+      const LuxChoice('remove', 'Remove from project', destructive: true),
+    ]);
     if (!mounted || pick == null) return;
     if (pick == 'open') {
       await openPreview(context, f.path);
@@ -136,34 +113,14 @@ class _ProjectScreenState extends State<ProjectScreen> {
   }
 
   Future<void> _rename(Project p) async {
-    final ctrl = TextEditingController(text: p.name);
-    final v = await showDialog<String>(
-      context: context,
-      builder: (d) => AlertDialog(
-        title: const Text('Rename project'),
-        content: TextField(controller: ctrl, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Cancel'))),
-          TextButton(onPressed: () => Navigator.pop(d, ctrl.text), child: Text(tr('Save'))),
-        ],
-      ),
-    );
+    final v = await luxPrompt(context, title: 'Rename project', initial: p.name);
     if (v != null) await Projects.I.update(p, name: v);
   }
 
   Future<void> _delete(Project p) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => AlertDialog(
-        title: const Text('Delete project?'),
-        content: const Text('Its chats move back to your main list. Its files stay in Files.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
-          TextButton(onPressed: () => Navigator.pop(d, true), child: Text(tr('Delete'))),
-        ],
-      ),
-    );
-    if (ok == true) {
+    final ok = await luxConfirm(context,
+        title: 'Delete project?', message: 'Its chats move back to your main list. Its files stay in Files.', action: 'Delete', destructive: true);
+    if (ok) {
       await Projects.I.delete(p);
       if (mounted) Navigator.pop(context);
     }

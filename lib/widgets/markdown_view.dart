@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:provider/provider.dart';
@@ -10,6 +12,10 @@ import '../app_state.dart';
 import '../services/reply_text.dart' show cleanGlyphs;
 import '../theme.dart';
 import 'chat_logic.dart';
+import 'code_syntax.dart';
+import 'lux_kit.dart';
+import 'sub_icon.dart';
+import '../ui/i18n.dart';
 import 'math_text.dart';
 import 'output_cards.dart';
 import '../ui/tokens.dart';
@@ -156,48 +162,115 @@ class _CodeBlockState extends State<CodeBlock> {
   /// "Python" for py, the fence word as written for anything else, "Code" when there is none.
   static String languageName(String lang) => _names[lang.toLowerCase()] ?? (lang.isEmpty ? 'Code' : lang);
 
-  /// Hark's code card: the darkest card fill, the language as a muted label, a Copy corner button, and the code in
-  /// plain monochrome mono straight on the card (no inner box, no line numbers). Shell snippets keep Run.
+  /// The code card (fix/ui-restyle): a quiet surface one step off the page ([Palette.code]), the language as a muted
+  /// label, a Copy word that says "Copied" for a moment, and the code in syntax-toned monospace that scrolls sideways.
+  /// Code always reads left to right, even in an Arabic chat; the label row follows the chat's direction.
+  ///
+  /// Root cause of the black box (owner, 2026-10-26): in daylight [Palette.code] was the ink colour (#121110), the same
+  /// as the code text, so the card painted ink on ink. Shell snippets keep Run.
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final mono = Brand.mono(size: AppText.meta, color: p.text, height: 1.45);
+    final mono = Brand.mono(size: AppText.meta, color: p.text, height: 1.5);
+    final spans = CodeSyntax.spans(code, language, base: mono, ink: CodeInk.of(context));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Space.x1),
       child: DecoratedBox(
-        decoration: BoxDecoration(color: p.code, borderRadius: Radii.sheetAll),
+        key: const ValueKey('code-surface'),
+        decoration: BoxDecoration(color: p.code, borderRadius: Radii.rowAll),
         child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x3, Space.x3, Space.x4),
+          padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x2, Space.x2, Space.x4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(languageName(language), style: AppText.metaStyle.copyWith(color: p.muted))),
+                  Expanded(child: Text(languageName(language), style: AppText.microStyle.copyWith(color: p.muted))),
                   if (_runnable.contains(language) && context.read<AppState>().agentEnabled)
-                    TextButton(
-                      style: TextButton.styleFrom(foregroundColor: p.text, visualDensity: VisualDensity.compact),
-                      onPressed: _running ? null : _run,
-                      child: Text(_running ? 'Running' : 'Run', style: AppText.microStyle.copyWith(fontWeight: FontWeight.w600)),
-                    ),
-                  HarkCornerButton(icon: 'copy', label: 'Copy', onTap: () => harkCopy(context, code)),
+                    _CodeWord(label: _running ? tr('Running') : tr('Run'), onTap: _running ? null : _run),
+                  _CodeWord(
+                    key: const ValueKey('code-copy'),
+                    label: _copied ? tr('Copied') : tr('Copy'),
+                    icon: _copied ? 'check' : 'copy',
+                    onTap: _copy,
+                  ),
                 ],
               ),
-              const SizedBox(height: Space.x3),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Directionality(textDirection: TextDirection.ltr, child: SelectableText(code, style: mono)),
+              const SizedBox(height: Space.x2),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: SingleChildScrollView(
+                  key: const ValueKey('code-scroll'),
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsetsDirectional.only(end: Space.x2),
+                  child: SelectableText.rich(spans, key: const ValueKey('code-text'), style: mono, textDirection: TextDirection.ltr),
+                ),
               ),
               if (_output != null)
                 Container(
                   padding: const EdgeInsetsDirectional.only(top: Space.x3),
                   constraints: const BoxConstraints(maxHeight: 260),
                   child: SingleChildScrollView(
-                    child: SelectableText(_output!, style: mono.copyWith(fontSize: AppText.micro, color: p.muted)),
+                    child: Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: SelectableText(_output!, style: mono.copyWith(fontSize: AppText.micro, color: p.muted)),
+                    ),
                   ),
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  bool _copied = false;
+  Timer? _copiedTimer;
+
+  void _copy() {
+    Clipboard.setData(ClipboardData(text: code));
+    setState(() => _copied = true);
+    _copiedTimer?.cancel();
+    _copiedTimer = Timer(const Duration(milliseconds: 1600), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _copiedTimer?.cancel();
+    super.dispose();
+  }
+}
+
+/// A quiet word action on the code card (Copy, Run): an optional SubMac glyph and the word, no box.
+class _CodeWord extends StatelessWidget {
+  const _CodeWord({super.key, required this.label, this.icon, this.onTap});
+  final String label;
+  final String? icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final c = onTap == null ? p.faint : p.text;
+    return LuxTap(
+      onTap: onTap,
+      label: label,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 40, minWidth: 48),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Space.x2),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (icon != null) ...[SubIcon(icon!, size: IconSize.sm, color: c), const SizedBox(width: Space.x1 + 2)],
+            AnimatedSwitcher(
+              duration: SubMotion.of(context, LuxMotion.quick),
+              switchInCurve: LuxMotion.ease,
+              switchOutCurve: SubMotion.leave,
+              layoutBuilder: SubMotion.topStartLayout,
+              child: Text(label, key: ValueKey(label), style: AppText.microStyle.copyWith(color: c, fontWeight: FontWeight.w600)),
+            ),
+          ]),
         ),
       ),
     );

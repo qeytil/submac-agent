@@ -13,9 +13,12 @@ import '../services/full_access.dart';
 import '../services/rewards.dart';
 import '../services/tools.dart';
 import '../widgets/logo.dart';
+import '../widgets/lux_kit.dart';
+import '../widgets/team_parts.dart' show BusyNote;
 import '../widgets/motion.dart';
 import '../theme.dart';
 import '../ui/embed.dart';
+import '../ui/day_night.dart';
 import '../ui/i18n.dart';
 import '../ui/feedback_words.dart';
 import 'files_screen.dart' show FilesScreen, FilesView;
@@ -96,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
 /// background used to rebuild the open page dozens of times a second, which made push, pop and switches stutter).
 AppState _watchSettings(BuildContext context) {
   context.select<AppState, int>((s) => Object.hashAll([
-        s.themeMode,
+        s.themeChoice,
         s.replyLanguage,
         s.liveVoice,
         s.liveAvailable,
@@ -117,23 +120,8 @@ AppState _watchSettings(BuildContext context) {
 
 void _push(BuildContext context, Widget page) => Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
-Future<bool> _confirm(BuildContext context, String title, String body, String action, {bool danger = false}) async {
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (d) => AlertDialog(
-      title: Text(title),
-      content: Text(body),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
-        TextButton(
-          onPressed: () => Navigator.pop(d, true),
-          child: Text(action, style: TextStyle(color: danger ? Palette.of(context).accent : null)),
-        ),
-      ],
-    ),
-  );
-  return ok == true;
-}
+Future<bool> _confirm(BuildContext context, String title, String body, String action, {bool danger = false}) =>
+    luxConfirm(context, title: title, message: body, action: action, destructive: danger);
 
 /// A settings page: a plain title and its groups, nothing else.
 class _Page extends StatelessWidget {
@@ -155,11 +143,7 @@ class _NavRow extends StatelessWidget {
   const _NavRow(this.title, this.onTap);
 
   @override
-  Widget build(BuildContext context) => ListTile(
-        title: Text(tr(title)),
-        trailing: Icon(Icons.chevron_right_rounded, color: Palette.of(context).muted),
-        onTap: onTap,
-      );
+  Widget build(BuildContext context) => ListTile(title: Text(tr(title)), onTap: onTap);
 }
 
 // ------------------------------------------------------------------ Account
@@ -179,40 +163,27 @@ class _AccountPage extends StatelessWidget {
   }
 
   Future<void> _deleteAccount(BuildContext context, AppState state) async {
-    final p = Palette.of(context);
     final typed = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
+    final ok = await showLuxDialog<bool>(
+      context,
       builder: (d) => StatefulBuilder(
-        builder: (d, setD) => AlertDialog(
-          title: const Text('Delete your account?'),
+        builder: (d, setD) => LuxDialogBody(
+          title: tr('Delete your account?'),
+          message: tr('Your account, chats, memory, bots and backups are deleted for good.'),
           content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Your account, chats, memory, bots and backups are deleted for good.'),
-            const SizedBox(height: Space.x3),
-            const Text('Type DELETE to confirm.'),
+            Text(tr('Type DELETE to confirm.'), style: AppText.bodyStyle.copyWith(color: Palette.of(d).muted)),
             const SizedBox(height: Space.x2),
             TextField(controller: typed, autofocus: true, onChanged: (_) => setD(() {}), textCapitalization: TextCapitalization.characters),
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
-            TextButton(
-              onPressed: typed.text.trim().toUpperCase() == 'DELETE' ? () => Navigator.pop(d, true) : null,
-              child: Text('Delete forever', style: TextStyle(color: typed.text.trim().toUpperCase() == 'DELETE' ? p.accent : p.muted)),
-            ),
+            LuxWordButton('Cancel', onPressed: () => Navigator.pop(d, false)),
+            LuxWordButton('Delete forever', destructive: true, onPressed: typed.text.trim().toUpperCase() == 'DELETE' ? () => Navigator.pop(d, true) : null),
           ],
         ),
       ),
     );
     if (ok != true || !context.mounted) return;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(content: Row(children: [
-        SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-        SizedBox(width: Space.x4),
-        Expanded(child: Text('Deleting…')),
-      ])),
-    );
+    showLuxDialog<void>(context, dismissible: false, builder: (_) => const BusyNote('Deleting…'));
     final err = await state.deleteAccount();
     if (!context.mounted) return;
     Navigator.of(context).pop();
@@ -226,27 +197,26 @@ class _AccountPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = _watchSettings(context);
-    final p = Palette.of(context);
     final email = state.repo.email ?? '';
     return _Page('Account', [
       _Group([
         ListTile(
-          leading: CircleAvatar(
-            radius: 18,
-            backgroundColor: p.bubble,
-            child: Text(email.isEmpty ? '?' : email[0].toUpperCase(), style: TextStyle(color: p.text, fontWeight: FontWeight.w600)),
-          ),
-          title: Text(email.isEmpty ? 'Signed in' : email, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: const Text('Backed up'),
+          title: Text(email.isEmpty ? tr('Signed in') : email, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(tr('Backed up')),
         ),
       ]),
       _Group(title: 'Theme', [
         Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, Space.x3, Space.x3, Space.x3),
-          child: Wrap(spacing: Space.x2, children: [
-            for (final m in const [(ThemeMode.system, 'Auto'), (ThemeMode.light, 'Light'), (ThemeMode.dark, 'Dark')])
-              ChoiceChip(label: Text(tr(m.$2)), selected: state.themeMode == m.$1, onSelected: (_) => state.setThemeMode(m.$1)),
+          child: LuxWords([
+            // Auto (the default): light 07:00 to 19:00 on the phone's clock, dark at night. System follows the phone.
+            for (final m in const [(ThemeChoice.auto, 'Auto'), (ThemeChoice.system, 'System'), (ThemeChoice.light, 'Light'), (ThemeChoice.dark, 'Dark')])
+              LuxWord(m.$2, key: ValueKey('theme-${m.$1.name}'), selected: state.themeChoice == m.$1, onTap: () => state.setThemeChoice(m.$1)),
           ]),
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, 0, Space.x3, Space.x3),
+          child: Text(tr('Auto: light from 07:00 to 19:00, dark at night'), style: AppText.metaStyle.copyWith(color: Palette.of(context).muted)),
         ),
       ]),
       _Group([
@@ -263,10 +233,7 @@ class _AccountPage extends StatelessWidget {
             await state.signOut();
           },
         ),
-        ListTile(
-          title: Text('Delete account', style: TextStyle(color: p.accent)),
-          onTap: () => _deleteAccount(context, state),
-        ),
+        LuxRow(title: tr('Delete account'), destructive: true, onTap: () => _deleteAccount(context, state)),
       ]),
     ]);
   }
@@ -301,13 +268,9 @@ class _LanguagePage extends StatelessWidget {
           padding: const EdgeInsets.all(Space.x3),
           child: ListenableBuilder(
             listenable: AppLang.I,
-            builder: (context, _) => Wrap(spacing: Space.x2, runSpacing: Space.x2, children: [
+            builder: (context, _) => LuxWords([
               for (final c in const ['phone', 'so', 'ar', 'en'])
-                ChoiceChip(
-                  label: Text(c == 'phone' ? tr(AppLang.names[c]!) : AppLang.names[c]!),
-                  selected: AppLang.I.choice == c,
-                  onSelected: (_) => AppLang.I.set(c),
-                ),
+                LuxWord(c == 'phone' ? tr(AppLang.names[c]!) : AppLang.names[c]!, selected: AppLang.I.choice == c, onTap: () => AppLang.I.set(c)),
             ]),
           ),
         ),
@@ -315,10 +278,10 @@ class _LanguagePage extends StatelessWidget {
       _Group(title: 'Reply language', [
         Padding(
           padding: const EdgeInsets.all(Space.x3),
-          child: Wrap(spacing: Space.x2, runSpacing: Space.x2, children: [
+          child: LuxWords([
             // Language names in their own language (PLAN.md 3.4). Values stay the stored keys.
             for (final l in const [('auto', 'Auto'), ('Somali', 'Soomaali'), ('Arabic', 'العربية'), ('English', 'English')])
-              ChoiceChip(label: Text(l.$1 == 'auto' ? tr(l.$2) : l.$2), selected: state.replyLanguage == l.$1, onSelected: (_) => state.setReplyLanguage(l.$1)),
+              LuxWord(l.$1 == 'auto' ? tr(l.$2) : l.$2, selected: state.replyLanguage == l.$1, onTap: () => state.setReplyLanguage(l.$1)),
           ]),
         ),
       ]),
@@ -333,27 +296,8 @@ class _VoicePage extends StatelessWidget {
 
   Future<void> _pickVoice(BuildContext context, AppState state) async {
     final voices = Cloud.features.value.voices;
-    await showModalBottomSheet<void>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x5),
-          child: Wrap(spacing: Space.x2, runSpacing: Space.x2, children: [
-            for (final v in voices)
-              ChoiceChip(
-                label: Text(v),
-                selected: state.liveVoice == v,
-                onSelected: (_) {
-                  state.setLiveVoice(v);
-                  Navigator.pop(ctx);
-                },
-              ),
-          ]),
-        ),
-      ),
-    );
+    final v = await showLuxChoices<String>(context, title: 'Live voice', selected: state.liveVoice, choices: [for (final v in voices) LuxChoice(v, v)]);
+    if (v != null) state.setLiveVoice(v);
   }
 
   @override
@@ -402,8 +346,7 @@ class _PhonePage extends StatelessWidget {
           onChanged: (v) => _setFiles(context, state, v),
         ),
         ListTile(
-          title: const Text('Calendar, contacts, SMS and screen'),
-          trailing: Icon(Icons.chevron_right_rounded, color: Palette.of(context).muted),
+          title: Text(tr('Calendar, contacts, SMS and screen')),
           onTap: () => _push(context, const SystemPermissionsScreen()),
         ),
       ]),
@@ -419,7 +362,6 @@ class _PrivacyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = _watchSettings(context);
-    final p = Palette.of(context);
     return _Page('Privacy', [
       _Group([
         ListTile(
@@ -436,8 +378,9 @@ class _PrivacyPage extends StatelessWidget {
         ListTile(title: Text(tr('How your data is kept')), onTap: () => _push(context, const PrivacyScreen())),
       ]),
       _Group([
-        ListTile(
-          title: Text('Delete all chats', style: TextStyle(color: p.accent)),
+        LuxRow(
+          title: tr('Delete all chats'),
+          destructive: true,
           onTap: () async {
             if (await _confirm(context, 'Delete all chats?', 'This phone and your backup. This cannot be undone.', 'Delete', danger: true)) {
               await state.deleteAllConversations();
@@ -475,26 +418,10 @@ class _AdvancedPage extends StatelessWidget {
   const _AdvancedPage();
 
   Future<void> _pickTrust(BuildContext context, AppState state) async {
-    final v = await showModalBottomSheet<String>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            title: const Text('Ask me first'),
-            trailing: state.fullAccess ? null : const Icon(Icons.check_rounded),
-            onTap: () => Navigator.pop(ctx, 'ask'),
-          ),
-          ListTile(
-            title: const Text('Do routine work alone'),
-            subtitle: const Text('Asks only before paying, sending or deleting.'),
-            trailing: state.fullAccess ? const Icon(Icons.check_rounded) : null,
-            onTap: () => Navigator.pop(ctx, 'full'),
-          ),
-        ]),
-      ),
-    );
+    final v = await showLuxChoices<String>(context, title: 'Trust level', selected: state.fullAccess ? 'full' : 'ask', choices: const [
+      LuxChoice('ask', 'Ask me first'),
+      LuxChoice('full', 'Do routine work alone', sub: 'Asks only before paying, sending or deleting.'),
+    ]);
     if (v == null || !context.mounted) return;
     if (v == 'ask') {
       state.setApprovalMode('ask');
@@ -508,14 +435,12 @@ class _AdvancedPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = _watchSettings(context);
-    final muted = Palette.of(context).muted;
     return _Page('Advanced', [
       const _Group([FullAccessTile()]),
       _Group([
         ListTile(
           title: Text(tr('Trust level')),
-          subtitle: Text(state.fullAccess ? 'Do routine work alone' : 'Ask me first'),
-          trailing: Icon(Icons.chevron_right_rounded, color: muted),
+          subtitle: Text(tr(state.fullAccess ? 'Do routine work alone' : 'Ask me first')),
           onTap: () => _pickTrust(context, state),
         ),
         SwitchListTile(
@@ -526,8 +451,7 @@ class _AdvancedPage extends StatelessWidget {
       ]),
       _Group([
         ListTile(
-          title: const Text('API & tool servers'),
-          trailing: Icon(Icons.chevron_right_rounded, color: muted),
+          title: Text(tr('API & tool servers')),
           onTap: () => _push(context, const ConnectorsScreen(advanced: true)),
         ),
       ]),
@@ -548,7 +472,6 @@ class _HelpPage extends StatelessWidget {
       _Group([
         ListTile(
           title: Text(ft('Send feedback')),
-          trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
           onTap: () => _push(context, const FeedbackScreen()),
         ),
         ListTile(
@@ -605,15 +528,9 @@ class PrivacyScreen extends StatelessWidget {
         h('Questions'),
         b('Write to ${AppConfig.supportEmail}.'),
         const SizedBox(height: 18),
-        Wrap(spacing: 10, runSpacing: 8, children: [
-          OutlinedButton(
-            onPressed: () => launchUrl(Uri.parse(AppConfig.privacyUrl), mode: LaunchMode.externalApplication),
-            child: const Text('Full privacy policy'),
-          ),
-          OutlinedButton(
-            onPressed: () => launchUrl(Uri.parse(AppConfig.termsUrl), mode: LaunchMode.externalApplication),
-            child: const Text('Terms of use'),
-          ),
+        Wrap(children: [
+          LuxWordButton('Full privacy policy', primary: true, onPressed: () => launchUrl(Uri.parse(AppConfig.privacyUrl), mode: LaunchMode.externalApplication)),
+          LuxWordButton('Terms of use', primary: true, onPressed: () => launchUrl(Uri.parse(AppConfig.termsUrl), mode: LaunchMode.externalApplication)),
         ]),
       ]),
     );
@@ -621,7 +538,7 @@ class PrivacyScreen extends StatelessWidget {
 }
 
 
-/// A group of rows on a soft fill. No border and no lines between rows (PLAN.md 3.1).
+/// A group of rows straight on the page: a quiet label, then the rows. No fill, no border, no lines (fix/ui-restyle).
 class _Group extends StatelessWidget {
   final String? title;
   final List<Widget> children;
@@ -638,13 +555,9 @@ class _Group extends StatelessWidget {
           if (title != null)
             Padding(
               padding: const EdgeInsetsDirectional.only(start: Space.x1, bottom: Space.x2),
-              child: Text(tr(title!), style: AppText.sectionStyle.copyWith(color: p.muted)),
+              child: Text(tr(title!), style: AppText.sectionStyle.copyWith(color: p.faint)),
             ),
-          Container(
-            decoration: BoxDecoration(color: p.sheet, borderRadius: Radii.rowAll),
-            clipBehavior: Clip.antiAlias,
-            child: Material(color: Colors.transparent, child: Column(children: children)),
-          ),
+          Material(type: MaterialType.transparency, child: Column(children: children)),
         ],
       ),
     );
@@ -710,21 +623,8 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   Future<void> _empty() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => AlertDialog(
-        title: const Text('Empty the Trash?'),
-        content: const Text('These files will be gone for good.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
-          TextButton(
-            onPressed: () => Navigator.pop(d, true),
-            child: Text('Empty', style: TextStyle(color: Palette.of(context).accent)),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
+    final ok = await luxConfirm(context, title: 'Empty the Trash?', message: 'These files will be gone for good.', action: 'Empty', destructive: true);
+    if (!ok) return;
     final dir = Directory(await AgentTools.trashDir());
     await dir.delete(recursive: true);
     _load();

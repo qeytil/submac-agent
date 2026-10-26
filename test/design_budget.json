@@ -7,7 +7,6 @@
       "52": 1
     },
     "lib/screens/bot_job_screen.dart": {
-      "24": 1,
       "30": 1
     },
     "lib/screens/bot_store_screen.dart": {
@@ -20,10 +19,6 @@
     "lib/screens/files_screen.dart": {
       "24": 1,
       "28": 1
-    },
-    "lib/screens/hire_screen.dart": {
-      "26": 1,
-      "30": 1
     },
     "lib/screens/home_screen.dart": {
       "28": 1
@@ -38,10 +33,6 @@
     },
     "lib/screens/memory_screen.dart": {
       "28": 1
-    },
-    "lib/screens/offices_screen.dart": {
-      "24": 1,
-      "26": 2
     },
     "lib/screens/projects_screen.dart": {
       "24": 1,
@@ -71,7 +62,6 @@
       "16": 2,
       "17": 2,
       "19": 1,
-      "22": 1,
       "28": 1,
       "30": 1
     },
@@ -92,8 +82,7 @@
     },
     "lib/widgets/output_cards.dart": {
       "20": 2,
-      "21": 1,
-      "22": 1
+      "21": 1
     },
     "lib/widgets/rich_cards.dart": {
       "20": 1,
@@ -115,9 +104,6 @@
       "FF17150F": 1,
       "FFF7F7F5": 1
     },
-    "lib/widgets/chat_extras.dart": {
-      "FF17150F": 1
-    },
     "lib/widgets/data_viz.dart": {
       "FF5B7083": 1,
       "FF7A5C8E": 1,
@@ -137,56 +123,18 @@
       "FF17150F": 2,
       "FFF4F0E7": 2
     },
-    "lib/widgets/pill_kit.dart": {
-      "FF121110": 1
-    },
     "lib/widgets/update_window.dart": {
       "99000000": 1
     }
   },
   "fontSizes": {},
-  "icons": {
-    "lib/screens/bots_screen.dart": {
-      "Icons.campaign_outlined": 1,
-      "Icons.code_rounded": 1,
-      "Icons.edit_outlined": 1,
-      "Icons.favorite_border_rounded": 1,
-      "Icons.fitness_center_rounded": 1,
-      "Icons.gavel_outlined": 1,
-      "Icons.health_and_safety_outlined": 1,
-      "Icons.payments_outlined": 1,
-      "Icons.person_outline_rounded": 1,
-      "Icons.school_outlined": 1,
-      "Icons.storefront_outlined": 1,
-      "Icons.travel_explore_rounded": 1,
-      "Icons.trending_up_rounded": 1,
-      "Icons.work_outline_rounded": 1
-    },
-    "lib/widgets/composer.dart": {
-      "Icons.check_circle_rounded": 1,
-      "Icons.check_rounded": 1,
-      "Icons.error_outline_rounded": 1,
-      "Icons.radio_button_checked_rounded": 1,
-      "Icons.radio_button_unchecked_rounded": 1
-    }
-  },
+  "icons": {},
   "radii": {
     "lib/screens/bot_activity_screen.dart": {
       "3": 1
     },
-    "lib/screens/bot_job_screen.dart": {
-      "10": 1
-    },
-    "lib/screens/bot_store_screen.dart": {
-      "14": 1,
-      "16": 3
-    },
     "lib/screens/files_screen.dart": {
       "4": 1
-    },
-    "lib/screens/hire_screen.dart": {
-      "18": 2,
-      "2": 1
     },
     "lib/screens/home_screen.dart": {
       "6": 1
@@ -194,41 +142,20 @@
     "lib/screens/library_screen.dart": {
       "8": 1
     },
-    "lib/screens/offices_screen.dart": {
-      "12": 1,
-      "14": 1,
-      "18": 1,
-      "24": 2
-    },
     "lib/screens/preview_screen.dart": {
       "6": 1,
       "8": 1
     },
-    "lib/screens/site_screens.dart": {
-      "10": 1,
-      "14": 1
-    },
     "lib/screens/skills_screen.dart": {
-      "18": 1
-    },
-    "lib/screens/system_screens.dart": {
-      "10": 1
-    },
-    "lib/widgets/approval_card.dart": {
       "18": 1
     },
     "lib/widgets/audio_card.dart": {
       "12": 1,
       "2": 2
     },
-    "lib/widgets/browser_layer.dart": {
-      "10": 1
-    },
     "lib/widgets/chat_extras.dart": {
-      "10": 1,
       "14": 1,
       "18": 1,
-      "19": 1,
       "3": 1
     },
     "lib/widgets/composer.dart": {
@@ -253,38 +180,23 @@
       "20": 1
     },
     "lib/widgets/hark_cards.dart": {
-      "10": 1,
-      "12": 1,
-      "6": 1,
-      "8": 1
+      "6": 1
     },
     "lib/widgets/message_view.dart": {
-      "16": 1,
       "8": 2
     },
     "lib/widgets/motion.dart": {
       "11": 1,
-      "14": 2,
-      "20": 1,
-      "4": 1
+      "14": 1,
+      "20": 1
     },
     "lib/widgets/output_cards.dart": {
       "12": 1,
       "3": 2,
       "8": 2
     },
-    "lib/widgets/pill_kit.dart": {
-      "16": 5,
-      "18": 2,
-      "21": 1
-    },
     "lib/widgets/rich_cards.dart": {
       "16": 1,
-      "18": 1
-    },
-    "lib/widgets/team_parts.dart": {
-      "10": 1,
-      "16": 3,
       "18": 1
     }
   },
@@ -299,11 +211,8 @@
     "lib/screens/billing/payment_screen.dart": {
       ".accent": 1
     },
-    "lib/screens/bot_job_screen.dart": {
-      ".accent": 1
-    },
     "lib/screens/connectors_screen.dart": {
-      ".accent": 2
+      ".accent": 1
     },
     "lib/screens/files_screen.dart": {
       ".accent": 1
@@ -320,16 +229,7 @@
     "lib/screens/logins_screen.dart": {
       ".accent": 1
     },
-    "lib/screens/memory_screen.dart": {
-      ".accent": 1
-    },
-    "lib/screens/settings_screen.dart": {
-      ".accent": 5
-    },
     "lib/widgets/ask_bar.dart": {
-      ".accent": 1
-    },
-    "lib/widgets/composer.dart": {
       ".accent": 1
     },
     "lib/widgets/data_viz.dart": {
@@ -341,8 +241,11 @@
     "lib/widgets/graph_card.dart": {
       ".accent": 6
     },
+    "lib/widgets/lux_kit.dart": {
+      ".accent": 4
+    },
     "lib/widgets/message_view.dart": {
-      ".accent": 3
+      ".accent": 2
     },
     "lib/widgets/output_cards.dart": {
       ".accent": 1
@@ -352,9 +255,6 @@
     },
     "lib/widgets/rich_cards.dart": {
       ".accent": 1
-    },
-    "lib/widgets/sidebar.dart": {
-      ".accent": 2
     },
     "lib/widgets/update_window.dart": {
       ".accent": 1

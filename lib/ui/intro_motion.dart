@@ -1,4 +1,4 @@
-import 'package:flutter/animation.dart';
+import 'package:flutter/material.dart';
 
 /// The first-launch intro's timeline, curves and brand values (owner, 2026-10-26: "Animation drawing Submac then our
 /// logo with professional clean intro style", with a "smooth satisfying sound with haptic").
@@ -69,6 +69,16 @@ class IntroMotion {
   static const Color inkClear = Color(0x000A5BD3);
   static const Color theme = Color(0xFF86C0F3);
   static const Color dot = Color(0xFFFFFFFF);
+
+  /// The intro follows the app's look like every screen (Auto: light 07:00 to 19:00, dark at night): white paper with
+  /// the brand blue by day, Ink black with the light brand blue at night (the deep blue is too dim on black).
+  static const Color paperNight = Color(0xFF000000);
+  static const Color inkNight = Color(0xFF86C0F3);
+  static const Color penNight = Color(0xFFFFFFFF);
+  static bool _night(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
+  static Color paperOf(BuildContext context) => _night(context) ? paperNight : paper;
+  static Color inkOf(BuildContext context) => _night(context) ? inkNight : ink;
+  static Color penOf(BuildContext context) => _night(context) ? penNight : theme;
 
   /// The wordmark's size and the logo tile's size (logical pixels).
   static const double wordSize = 60;

@@ -17,7 +17,7 @@ import '../theme.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 import 'logo.dart';
-import 'sub_icon.dart';
+import 'lux_kit.dart';
 import 'bot_list.dart';
 import '../services/bots.dart';
 import '../services/offices.dart';
@@ -141,10 +141,11 @@ class _SidebarState extends State<Sidebar> {
         child: Column(
           // SubMac motion: the menu's rows rise and settle in turn as it opens.
           children: revealRows([
+            // The wordmark-quiet top: search straight on the paper (no field box), then the few places, as words.
             Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 4),
-              child: TextField(
-                key: const ValueKey('menu-search'),
+              padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2, Space.x4, 0),
+              child: LuxSearchField(
+                fieldKey: const ValueKey('menu-search'),
                 focusNode: _searchFocus,
                 onTap: () {
                   _searchFocus.canRequestFocus = true;
@@ -156,10 +157,9 @@ class _SidebarState extends State<Sidebar> {
                   _searchFocus.canRequestFocus = false;
                 },
                 onChanged: _onQuery,
-                decoration: InputDecoration(hintText: tr('Search'), isDense: true),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: Space.x2),
             _NavTile(
               title: 'New chat',
               onTap: () {
@@ -204,14 +204,16 @@ class _SidebarState extends State<Sidebar> {
                       },
                     ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: Space.x1),
             Expanded(
               child: state.loadingConversations && state.conversations.isEmpty
                   ? const Center(child: RedDot(size: 18, animate: true))
                   : RefreshIndicator(
                       onRefresh: state.refreshConversations,
+                      color: p.text,
+                      backgroundColor: p.sidebar,
                       child: ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: Space.x2),
                         children: [
                           // Grok-style: Chief, Bots and Teams as quiet, foldable sections. Search finds them too.
                           AnimatedBuilder(
@@ -223,23 +225,23 @@ class _SidebarState extends State<Sidebar> {
                             ),
                           ),
                           if (q.isEmpty) ...[
-                            Padding(
-                              padding: const EdgeInsetsDirectional.fromSTEB(12, 16, 4, 2),
-                              child: Row(children: [
-                                Text(tr('Projects'), style: AppText.sectionStyle.copyWith(color: p.faint)),
-                                const Spacer(),
-                                TextButton(
-                                  style: TextButton.styleFrom(minimumSize: const Size(0, 30), padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                  onPressed: () async {
-                                    final pr = await createProjectFlow(context);
-                                    if (pr != null && context.mounted) {
-                                      Navigator.pop(context);
-                                      Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectScreen(projectId: pr.id)));
-                                    }
-                                  },
+                            LuxSection(
+                              'Projects',
+                              padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, Space.x5, 0, 0),
+                              trailing: LuxTap(
+                                key: const ValueKey('menu-new-project'),
+                                onTap: () async {
+                                  final pr = await createProjectFlow(context);
+                                  if (pr != null && context.mounted) {
+                                    Navigator.pop(context);
+                                    Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectScreen(projectId: pr.id)));
+                                  }
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: Space.x3, vertical: Space.x2),
                                   child: Text(tr('New'), style: AppText.metaStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
                                 ),
-                              ]),
+                              ),
                             ),
                             for (final (i, pr) in Projects.I.list.indexed)
                               FadeSlideIn(
@@ -249,16 +251,13 @@ class _SidebarState extends State<Sidebar> {
                               ),
                             if (Projects.I.list.isEmpty)
                               Padding(
-                                padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 12, 4),
+                                padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, 0, Space.x3, Space.x1),
                                 child: Text(tr('Keep chats, files and instructions together.'),
                                     style: AppText.metaStyle.copyWith(color: p.muted)),
                               ),
                           ],
                           for (final entry in groups.entries) ...[
-                            Padding(
-                              padding: const EdgeInsetsDirectional.fromSTEB(12, 16, 12, 6),
-                              child: Text(tr(entry.key), style: AppText.sectionStyle.copyWith(color: p.faint)),
-                            ),
+                            LuxSection(entry.key, padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, Space.x5, Space.x3, Space.x1)),
                             for (final c in entry.value)
                               _ChatTile(
                                 conversation: c,
@@ -268,41 +267,33 @@ class _SidebarState extends State<Sidebar> {
                           ],
                           if (visible.isEmpty && !(q.isNotEmpty && DrawerBots.anyHit(q)))
                             Padding(
-                              padding: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.all(Space.x6),
                               child: Text(tr(q.isEmpty ? 'No chats yet' : 'No results'),
-                                  textAlign: TextAlign.center, style: TextStyle(color: p.muted)),
+                                  textAlign: TextAlign.center, style: AppText.bodyStyle.copyWith(color: p.muted)),
                             ),
                         ],
                       ),
                     ),
             ),
             const SizedBox(height: Space.x2),
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 8, 6),
-              child: InkWell(
-                borderRadius: Radii.fieldAll,
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Row(children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: p.text,
-                      child: Text(email.isEmpty ? '?' : email[0].toUpperCase(),
-                          style: Brand.display(size: 18, color: p.bg, height: 1.0)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(email,
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: AppText.bodyStyle.copyWith(color: p.text)),
-                    ),
-                    Text(tr('Settings'), style: AppText.metaStyle.copyWith(color: p.muted)),
-                  ]),
-                ),
+            // Settings at the foot: the word and the account under it. No avatar disc.
+            LuxTap(
+              key: const ValueKey('menu-settings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+              },
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x3, Space.x5, Space.x4),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                      Text(tr('Settings'), style: AppText.bodyStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
+                      if (email.isNotEmpty)
+                        Text(email, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.microStyle.copyWith(color: p.faint)),
+                    ]),
+                  ),
+                ]),
               ),
             ),
           ]),
@@ -319,27 +310,16 @@ class _ProjectTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
     final n = Projects.I.chatsIn(project.id).length;
-    return Material(
-      color: selected ? p.bubble : Colors.transparent,
-      borderRadius: Radii.fieldAll,
-      child: InkWell(
-        borderRadius: Radii.fieldAll,
-        onTap: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectScreen(projectId: project.id)));
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(children: [
-            SubIcon('folder', size: 18, color: p.muted),
-            const SizedBox(width: 12),
-            Expanded(child: Text(project.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text))),
-            if (n > 0) Text('$n', style: AppText.microStyle.copyWith(color: p.muted)),
-          ]),
-        ),
-      ),
+    return LuxRow(
+      dense: true,
+      title: project.name,
+      value: n > 0 ? '$n' : null,
+      selected: selected,
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectScreen(projectId: project.id)));
+      },
     );
   }
 }
@@ -351,29 +331,18 @@ class _NavTile extends StatelessWidget {
   const _NavTile({required this.title, required this.onTap, this.count = 0});
 
   @override
-  Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: InkWell(
-        borderRadius: Radii.fieldAll,
-        onTap: () {
-          onTap();
-        },
-        child: Container(
-          height: 44,
-          alignment: AlignmentDirectional.centerStart,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(children: [
-            Expanded(child: Text(tr(title), style: AppText.bodyStyle.copyWith(color: p.text, fontWeight: FontWeight.w500))),
-            if (count > 0) Text(count > 9 ? '9+' : '$count', style: AppText.captionStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
-          ]),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => LuxRow(
+        dense: true,
+        title: tr(title),
+        value: count > 0 ? (count > 9 ? '9+' : '$count') : null,
+        selected: count > 0,
+        padding: const EdgeInsetsDirectional.symmetric(horizontal: Space.x5, vertical: Space.x2 + 2),
+        onTap: onTap,
+      );
 }
 
+/// One chat in the menu: its title, and a quiet second line only when it says something (backed up, or the words that
+/// matched the search). The open chat is set in the full ink weight; no fill behind it.
 class _ChatTile extends StatelessWidget {
   final Conversation conversation;
   final String? match;
@@ -384,53 +353,30 @@ class _ChatTile extends StatelessWidget {
     final selected = context.select<AppState, bool>((s) => s.currentId == conversation.id);
     final state = context.read<AppState>();
     final p = Palette.of(context);
-    return Material(
-      color: selected ? p.bubble : Colors.transparent,
-      borderRadius: Radii.fieldAll,
-      child: InkWell(
-        borderRadius: Radii.fieldAll,
-        onTap: () {
-          state.openConversation(conversation.id);
-          Navigator.pop(context);
-        },
-        onLongPress: () => showChatActions(context, conversation),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: conversation.packedAway
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(cleanGlyphs(conversation.title),
-                              maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
-                          const SizedBox(height: 2),
-                          Text('Backed up. Tap to open', style: AppText.captionStyle.copyWith(color: p.muted)),
-                        ],
-                      )
-                    : match != null
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(cleanGlyphs(conversation.title),
-                                  maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
-                              const SizedBox(height: 2),
-                              Text(match!,
-                                  key: ValueKey('menu-search-hit-${conversation.id}'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppText.captionStyle.copyWith(color: p.muted)),
-                            ],
-                          )
-                        : Text(cleanGlyphs(conversation.title),
-                            maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
-              ),
-            ],
-          ),
-        ),
+    final second = conversation.packedAway ? tr('Backed up. Tap to open') : match;
+    return LuxTap(
+      selected: selected,
+      onTap: () {
+        state.openConversation(conversation.id);
+        Navigator.pop(context);
+      },
+      onLongPress: () => showChatActions(context, conversation),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Space.x3, vertical: Space.x2 + 2),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text(cleanGlyphs(conversation.title),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.bodyStyle.copyWith(color: selected ? p.text : p.text.withValues(alpha: 0.82), fontWeight: selected ? FontWeight.w700 : FontWeight.w400)),
+          if (second != null) ...[
+            const SizedBox(height: 2),
+            Text(second,
+                key: match != null && !conversation.packedAway ? ValueKey('menu-search-hit-${conversation.id}') : null,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.captionStyle.copyWith(color: p.muted)),
+          ],
+        ]),
       ),
     );
   }
@@ -440,110 +386,38 @@ Future<void> showChatActions(BuildContext context, Conversation c) async {
   final state = context.read<AppState>();
   // The keyboard stays away: closing the sheet must not hand focus back to the message box.
   FocusManager.instance.primaryFocus?.unfocus();
-  await showModalBottomSheet<void>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 8),
-            child: Text(cleanGlyphs(c.title), maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: AppText.leadStyle.copyWith(fontWeight: FontWeight.w600)),
-          ),
-          ListTile(
-            title: Text(tr('Rename')),
-            onTap: () async {
-              Navigator.pop(ctx);
-              final ctrl = TextEditingController(text: c.title);
-              if (!context.mounted) return;
-              final name = await showDialog<String>(
-                context: context,
-                builder: (d) => AlertDialog(
-                  title: Text(tr('Rename chat')),
-                  content: TextField(controller: ctrl, autofocus: true),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Cancel'))),
-                    TextButton(onPressed: () => Navigator.pop(d, ctrl.text), child: Text(tr('Save'))),
-                  ],
-                ),
-              );
-              // Disposed after the dialog's closing animation, which still reads it.
-              Future.delayed(const Duration(seconds: 1), ctrl.dispose);
-              if (name != null && name.trim().isNotEmpty) await state.renameConversation(c.id, name.trim());
-            },
-          ),
-          ListTile(
-            title: Text(Projects.I.forChat(c.id) == null ? 'Add to project' : 'Move to another project'),
-            onTap: () async {
-              Navigator.pop(ctx);
-              await _pickProject(context, c.id);
-            },
-          ),
-          ListTile(
-            title: Text(c.pinned ? 'Unpin' : 'Pin'),
-            onTap: () {
-              Navigator.pop(ctx);
-              state.togglePin(c.id);
-            },
-          ),
-          ListTile(
-            title: Text(c.archived ? 'Unarchive' : 'Archive'),
-            onTap: () {
-              Navigator.pop(ctx);
-              state.setArchived(c.id, !c.archived);
-            },
-          ),
-          ListTile(
-            title: Text(tr('Delete'), style: TextStyle(color: Palette.of(context).accent)),
-            onTap: () async {
-              Navigator.pop(ctx);
-              final ok = await showDialog<bool>(
-                context: context,
-                builder: (d) => AlertDialog(
-                  title: Text(tr('Delete chat?')),
-                  content: Text('This will delete "${c.title}".'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
-                    TextButton(
-                      onPressed: () => Navigator.pop(d, true),
-                      child: Text(tr('Delete'), style: TextStyle(color: Palette.of(context).accent)),
-                    ),
-                  ],
-                ),
-              );
-              if (ok == true) await state.deleteConversation(c.id);
-            },
-          ),
-        ],
-      ),
-    ),
-  );
+  final choice = await showLuxChoices<String>(context, title: cleanGlyphs(c.title), choices: [
+    const LuxChoice('rename', 'Rename'),
+    LuxChoice('project', Projects.I.forChat(c.id) == null ? 'Add to project' : 'Move to another project'),
+    LuxChoice('pin', c.pinned ? 'Unpin' : 'Pin'),
+    LuxChoice('archive', c.archived ? 'Unarchive' : 'Archive'),
+    const LuxChoice('delete', 'Delete', destructive: true),
+  ]);
+  if (choice == null || !context.mounted) return;
+  switch (choice) {
+    case 'rename':
+      final name = await luxPrompt(context, title: 'Rename chat', initial: c.title);
+      if (name != null && name.trim().isNotEmpty) await state.renameConversation(c.id, name.trim());
+    case 'project':
+      await _pickProject(context, c.id);
+    case 'pin':
+      state.togglePin(c.id);
+    case 'archive':
+      state.setArchived(c.id, !c.archived);
+    case 'delete':
+      final ok = await luxConfirm(context,
+          title: 'Delete chat?', message: tr('This will delete "{name}".', {'name': cleanGlyphs(c.title)}), action: 'Delete', destructive: true);
+      if (ok) await state.deleteConversation(c.id);
+  }
 }
-
 
 Future<void> _pickProject(BuildContext context, String chatId) async {
   final current = Projects.I.forChat(chatId);
-  final choice = await showModalBottomSheet<String>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    builder: (c) => SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        children: [
-          for (final pr in Projects.I.list)
-            ListTile(
-              title: Text(pr.name),
-              trailing: current?.id == pr.id ? Text(tr('Here')) : null,
-              onTap: () => Navigator.pop(c, pr.id),
-            ),
-          ListTile(title: Text(tr('New project')), onTap: () => Navigator.pop(c, '_new')),
-          if (current != null) ListTile(title: Text(tr('Remove from project')), onTap: () => Navigator.pop(c, '_none')),
-        ],
-      ),
-    ),
-  );
+  final choice = await showLuxChoices<String>(context, title: 'Project', selected: current?.id, choices: [
+    for (final pr in Projects.I.list) LuxChoice(pr.id, pr.name),
+    const LuxChoice('_new', 'New project'),
+    if (current != null) const LuxChoice('_none', 'Remove from project'),
+  ]);
   if (choice == null) return;
   if (choice == '_none') {
     await Projects.I.assign(chatId, null);

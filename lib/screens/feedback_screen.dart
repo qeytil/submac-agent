@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/feedback.dart';
 import '../theme.dart';
+import '../widgets/lux_kit.dart';
+import '../widgets/sub_icon.dart';
 import '../ui/feedback_words.dart';
 import '../ui/tokens.dart';
 
@@ -154,24 +156,10 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   }
 
   Future<void> _addSheet() async {
-    final camera = await showModalBottomSheet<bool>(
-      context: context,
-      sheetAnimationStyle: SubMotion.sheet,
-      builder: (c) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: const Icon(Icons.photo_library_outlined),
-            title: Text(ft('Choose from gallery')),
-            onTap: () => Navigator.pop(c, false),
-          ),
-          ListTile(
-            leading: const Icon(Icons.photo_camera_outlined),
-            title: Text(ft('Take a photo')),
-            onTap: () => Navigator.pop(c, true),
-          ),
-        ]),
-      ),
-    );
+    final camera = await showLuxChoices<bool>(context, choices: [
+      LuxChoice(false, ft('Choose from gallery')),
+      LuxChoice(true, ft('Take a photo')),
+    ]);
     if (camera != null) await _pick(camera);
   }
 
@@ -232,14 +220,12 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         child: Padding(
           padding: const EdgeInsets.all(Space.x6),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.check_circle_outline_rounded, size: Space.x8 * 2, color: p.ok),
-            const SizedBox(height: Space.x4),
-            Text(ft('Thank you'), style: AppText.titleStyle.copyWith(color: p.text)),
+            Text(ft('Thank you'), style: Brand.display(size: AppText.displayLarge, color: p.text)),
             const SizedBox(height: Space.x2),
             Text(ft('Your feedback reached the SubMac team.'),
                 textAlign: TextAlign.center, style: AppText.bodyStyle.copyWith(color: p.muted)),
             const SizedBox(height: Space.x6),
-            FilledButton(onPressed: () => Navigator.maybePop(context), child: Text(ft('Done'))),
+            LuxWordButton(ft('Done'), primary: true, onPressed: () => Navigator.maybePop(context)),
           ]),
         ),
       );
@@ -255,15 +241,15 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         Text(ft('Tell us what went wrong or what you would like. Screenshots help.'),
             style: AppText.metaStyle.copyWith(color: p.muted)),
         const SizedBox(height: Space.x4),
-        Wrap(spacing: Space.x2, runSpacing: Space.x2, children: [
+        LuxWords([
           for (final (key, label) in _categories)
-            ChoiceChip(
-              label: Text(ft(label)),
+            LuxWord(
+              ft(label),
               selected: _category == key,
-              onSelected: busy
+              onTap: busy
                   ? null
-                  : (on) {
-                      setState(() => _category = on ? key : null);
+                  : () {
+                      setState(() => _category = _category == key ? null : key);
                       _store.save(_draft());
                     },
             ),
@@ -278,10 +264,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           maxLength: FeedbackLimits.maxMessage,
           keyboardType: TextInputType.multiline,
           textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(
-            hintText: ft('Write your feedback'),
-            border: const OutlineInputBorder(borderRadius: Radii.fieldAll),
-          ),
+          decoration: InputDecoration(hintText: ft('Write your feedback')),
         ),
         const SizedBox(height: Space.x4),
         Row(children: [
@@ -297,16 +280,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         ]),
         const SizedBox(height: Space.x6),
         if (_error != null) ...[
-          Container(
-            key: const ValueKey('feedback-error'),
-            padding: const EdgeInsets.all(Space.x3),
-            decoration: BoxDecoration(color: p.bubble, borderRadius: Radii.fieldAll),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(Icons.error_outline_rounded, size: IconSize.lg, color: p.muted),
-              const SizedBox(width: Space.x2),
-              Expanded(child: Text(_error!, style: AppText.metaStyle.copyWith(color: p.text))),
-            ]),
-          ),
+          // The problem in plain words, in the brand red. No box, no icon.
+          Text(_error!, key: const ValueKey('feedback-error'), style: AppText.bodyStyle.copyWith(color: Palette.red)),
           const SizedBox(height: Space.x3),
         ],
         if (busy && pr != null) ...[
@@ -320,12 +295,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           ),
           const SizedBox(height: Space.x3),
         ],
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: LuxWordButton(
+            busy ? ft('Sending…') : (_canRetry ? ft('Try again') : ft('Send')),
             key: const ValueKey('feedback-send'),
+            primary: true,
             onPressed: busy ? null : _send,
-            child: Text(busy ? ft('Sending…') : (_canRetry ? ft('Try again') : ft('Send'))),
           ),
         ),
       ]),
@@ -356,7 +332,7 @@ class _Thumb extends StatelessWidget {
               fit: BoxFit.cover,
               cacheWidth: 256,
               gaplessPlayback: true,
-              errorBuilder: (_, _, _) => ColoredBox(color: p.bubble, child: Icon(Icons.image_outlined, color: p.muted)),
+              errorBuilder: (_, _, _) => ColoredBox(color: p.bubble, child: Center(child: SubIcon('image_broken', color: p.muted))),
             ),
           ),
         ),
@@ -375,7 +351,7 @@ class _Thumb extends StatelessWidget {
                 onTap: onRemove,
                 child: Padding(
                   padding: const EdgeInsets.all(Space.x1),
-                  child: Icon(Icons.close_rounded, size: IconSize.sm, color: p.text),
+                  child: SubIcon('close', size: IconSize.sm, color: p.text),
                 ),
               ),
             ),
@@ -406,7 +382,7 @@ class _AddTile extends StatelessWidget {
           child: SizedBox(
             width: _Thumb.size,
             height: _Thumb.size,
-            child: Icon(Icons.add_photo_alternate_outlined, color: p.muted),
+            child: Center(child: SubIcon('plus', color: p.muted)),
           ),
         ),
       ),

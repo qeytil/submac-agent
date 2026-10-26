@@ -16,6 +16,7 @@ import 'whatsapp_screen.dart';
 import '../widgets/motion.dart';
 import '../theme.dart';
 import '../widgets/brand_logo.dart';
+import '../widgets/lux_kit.dart';
 import '../widgets/pill_kit.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
@@ -103,7 +104,7 @@ class _ConnectorsScreenState extends State<ConnectorsScreen> {
         head('Talk and sign in'),
         CardRow(
           title: 'Websites I can sign in to',
-          leading: const PhoneAppTile(Icons.key_outlined),
+          leading: const PhoneAppTile('Websites'),
           subtitle: 'Logins SubMac uses for you on websites. Passwords stay on this phone.',
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginsScreen())),
         ),
@@ -142,12 +143,12 @@ class _ConnectorsScreenState extends State<ConnectorsScreen> {
           CardRow(
               title: c['name'] ?? 'API',
               subtitle: c['base'] ?? '',
-              leading: const PhoneAppTile(Icons.api_rounded),
+              leading: PhoneAppTile(c['name'] ?? 'API'),
               done: true,
               onTap: () => _customSheet(context, c)),
         CardRow(
           title: 'Any API',
-          leading: const PhoneAppTile(Icons.add_rounded),
+          leading: const PhoneAppTile('API'),
           subtitle: 'A base link and a key. SubMac learns to use it.',
           action: 'Add',
           onAction: () => _customSheet(context, null),
@@ -158,7 +159,7 @@ class _ConnectorsScreenState extends State<ConnectorsScreen> {
         note('Add a tool server by its link.'),
         CardRow(
           title: 'Tool server',
-          leading: const PhoneAppTile(Icons.hub_outlined),
+          leading: const PhoneAppTile('Tool server'),
           subtitle: 'Paste a link',
           action: 'Add',
           onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const McpEditScreen())),
@@ -215,15 +216,9 @@ class _ConnectorsScreenState extends State<ConnectorsScreen> {
   /// A phone app: allowed already, or one tap to allow.
   Widget _phoneRow(String key, String title, String what, Future<Object?> Function() allow) {
     final on = SystemTools.perms[key] == true;
-    const icons = {
-      'calendar': Icons.calendar_month_outlined,
-      'contacts': Icons.people_outline_rounded,
-      'sms': Icons.sms_outlined,
-      'notifRead': Icons.notifications_none_rounded,
-    };
     return CardRow(
       title: title,
-      leading: PhoneAppTile(icons[key] ?? Icons.phone_android_rounded),
+      leading: PhoneAppTile(tr(title)),
       subtitle: what,
       done: on,
       action: on ? null : 'Allow',
@@ -262,13 +257,11 @@ class _ConnectorsScreenState extends State<ConnectorsScreen> {
             TextField(controller: prefix, decoration: const InputDecoration(labelText: 'Before the key', hintText: 'Bearer ')),
             TextField(controller: key, obscureText: true, decoration: const InputDecoration(labelText: 'Key')),
             TextField(controller: notes, maxLines: 3, decoration: const InputDecoration(labelText: 'What it does (optional)', hintText: 'Docs link or example paths')),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(onPressed: () => Navigator.pop(ctx, 'save'), child: Text(tr('Save'))),
-            ),
-            if (existing != null)
-              Center(child: TextButton(onPressed: () => Navigator.pop(ctx, 'delete'), child: const Text('Remove'))),
+            const SizedBox(height: Space.x3),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              if (existing != null) LuxWordButton('Remove', destructive: true, onPressed: () => Navigator.pop(ctx, 'delete')),
+              LuxWordButton('Save', primary: true, onPressed: () => Navigator.pop(ctx, 'save')),
+            ]),
           ]),
         ),
       ),
@@ -449,11 +442,7 @@ class _ConnectSheetState extends State<ConnectSheet> {
           ]),
           const SizedBox(height: 10),
           Text(d.help, style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.4)),
-          TextButton(
-            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-            onPressed: () => launchUrl(Uri.parse(d.helpUrl), mode: LaunchMode.externalApplication),
-            child: Text('Get it here', style: TextStyle(color: p.text, fontWeight: FontWeight.w600)),
-          ),
+          LuxWordButton('Get it here', primary: true, onPressed: () => launchUrl(Uri.parse(d.helpUrl), mode: LaunchMode.externalApplication)),
           for (final f in d.fields)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -474,24 +463,15 @@ class _ConnectSheetState extends State<ConnectSheet> {
               child: Text(_error!, style: TextStyle(color: p.accent, fontSize: AppText.meta)),
             ),
           const SizedBox(height: 8),
-          // Full-width button (the theme's buttons are full width, so never put one in a Row with a Spacer).
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _busy ? null : _save,
-              child: Text(_busy ? 'Checking…' : (on ? 'Save' : 'Connect')),
-            ),
-          ),
-          if (on)
-            Center(
-              child: TextButton(
-                onPressed: () async {
-                  await context.read<AppState>().disconnectApp(d.id);
-                  if (context.mounted) Navigator.pop(context);
-                },
-                child: Text('Disconnect', style: TextStyle(color: p.muted)),
-              ),
-            ),
+          // The actions as words at the end: Disconnect (when connected) and the main one.
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            if (on)
+              LuxWordButton('Disconnect', onPressed: () async {
+                await context.read<AppState>().disconnectApp(d.id);
+                if (context.mounted) Navigator.pop(context);
+              }),
+            LuxWordButton(_busy ? 'Checking…' : (on ? 'Save' : 'Connect'), key: const ValueKey('connect-save'), primary: true, onPressed: _busy ? null : _save),
+          ]),
         ]),
       ),
     );
@@ -560,21 +540,18 @@ class _McpEditScreenState extends State<McpEditScreen> {
         title: Text(widget.existing?.name ?? 'Tool server'),
         actions: [
           if (widget.existing != null)
-            TextButton(
-              onPressed: () async {
-                await state.deleteMcpServer(widget.existing!.id);
-                if (context.mounted) Navigator.pop(context);
-              },
-              child: Text('Remove', style: TextStyle(color: p.accent)),
-            ),
+            LuxWordButton('Remove', destructive: true, onPressed: () async {
+              await state.deleteMcpServer(widget.existing!.id);
+              if (context.mounted) Navigator.pop(context);
+            }),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2, Space.x5, Space.x6),
         children: [
           Text(
-            'Paste the link of an MCP tool server. If it needs a key, add it as a header.',
-            style: TextStyle(color: p.muted, height: 1.4),
+            tr('Paste the link of an MCP tool server. If it needs a key, add it as a header.'),
+            style: AppText.bodyStyle.copyWith(color: p.muted),
           ),
           const SizedBox(height: 12),
           _label('Name'),
@@ -596,31 +573,30 @@ class _McpEditScreenState extends State<McpEditScreen> {
             obscureText: true,
             decoration: const InputDecoration(hintText: 'Bearer …'),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Use this connector'),
+          const SizedBox(height: Space.x2),
+          LuxSwitchRow(
+            title: tr('Use this connector'),
             value: _enabled,
             onChanged: (v) => setState(() => _enabled = v),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Read only'),
-            subtitle: const Text('SubMac can look things up here but never change, send or delete anything. '
-                'When off, it still asks you before every change.'),
+          LuxSwitchRow(
+            title: tr('Read only'),
+            sub: tr('SubMac can look things up here but never change, send or delete anything. When off, it still asks you before every change.'),
             value: _readOnly,
             onChanged: (v) => setState(() => _readOnly = v),
           ),
           if (_status != null) ...[
-            const SizedBox(height: 4),
-            Text(_status!, style: TextStyle(color: p.muted)),
+            const SizedBox(height: Space.x1),
+            // The test result in plain words (no icon).
+            Text(_status!, key: const ValueKey('mcp-status'), style: AppText.metaStyle.copyWith(color: p.muted)),
           ],
-          const SizedBox(height: 16),
-          OutlinedButton(
-            onPressed: _testing || _url.text.trim().isEmpty ? null : _test,
-            child: Text(_testing ? 'Testing…' : 'Test connection'),
-          ),
-          const SizedBox(height: 10),
-          FilledButton(
+          const SizedBox(height: Space.x4),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          LuxWordButton(_testing ? 'Testing…' : 'Test connection', key: const ValueKey('mcp-test'), onPressed: _testing || _url.text.trim().isEmpty ? null : _test),
+          LuxWordButton(
+            'Save',
+            key: const ValueKey('mcp-save'),
+            primary: true,
             onPressed: () async {
               if (_url.text.trim().isEmpty) return;
               final built = _build();
@@ -646,15 +622,15 @@ class _McpEditScreenState extends State<McpEditScreen> {
               await state.upsertMcpServer(built);
               if (context.mounted) Navigator.pop(context);
             },
-            child: Text(tr('Save')),
           ),
+          ]),
         ],
       ),
     );
   }
 
   Widget _label(String t) => Padding(
-        padding: const EdgeInsetsDirectional.only(bottom: 6, start: 4),
-        child: Text(t, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: AppText.meta)),
+        padding: const EdgeInsetsDirectional.only(bottom: Space.x1 + 2),
+        child: Text(tr(t), style: AppText.sectionStyle.copyWith(color: Palette.of(context).faint)),
       );
 }

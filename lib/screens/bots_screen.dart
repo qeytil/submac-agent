@@ -12,23 +12,6 @@ import '../widgets/bot_face.dart';
 import '../widgets/sub_icon.dart';
 import '../widgets/sub_avatar.dart';
 
-IconData botIcon(String name) => switch (name) {
-      'school' => Icons.school_outlined,
-      'gavel' => Icons.gavel_outlined,
-      'trending_up' => Icons.trending_up_rounded,
-      'travel_explore' => Icons.travel_explore_rounded,
-      'fitness_center' => Icons.fitness_center_rounded,
-      'payments' => Icons.payments_outlined,
-      'edit' => Icons.edit_outlined,
-      'code' => Icons.code_rounded,
-      'work' => Icons.work_outline_rounded,
-      'favorite' => Icons.favorite_border_rounded,
-      'campaign' => Icons.campaign_outlined,
-      'storefront' => Icons.storefront_outlined,
-      'health' => Icons.health_and_safety_outlined,
-      _ => Icons.person_outline_rounded,
-    };
-
 /// The bot's face: a calm monochrome disc with its icon, and (with [presence]) a small dot for Working · Free · Off.
 /// A bot with a look gets [BotFace] — the same disc, alive. A bot without one keeps the classic disc (invariant 7).
 class BotAvatar extends StatelessWidget {

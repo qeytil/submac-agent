@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../services/mcp_oauth.dart';
 import '../theme.dart';
 import 'pill_kit.dart';
+import 'sub_icon.dart';
 
 /// Real app logos for the Apps screen (plan 4 "Logos", plan 5.5).
 /// Single-colour marks come from Simple Icons (CC0, assets/logos/<id>.svg) and are
@@ -198,7 +199,7 @@ class BrandLogo extends StatelessWidget {
             width: d,
             height: d,
             decoration: BoxDecoration(color: p.text, shape: BoxShape.circle, border: Border.all(color: p.sheet, width: 1.6)),
-            child: Icon(Icons.check_rounded, size: d * 0.66, color: p.bg),
+            child: Center(child: SubIcon('check', size: d * 0.66, color: p.bg)),
           ),
         ),
       ]),
@@ -206,21 +207,13 @@ class BrandLogo extends StatelessWidget {
   }
 }
 
-/// A tile for something on the phone itself (Calendar, Contacts...), drawn to match the logos.
+/// A tile for something on the phone itself (Calendar, Contacts...), drawn to match the logos: the same soft tile as
+/// an app without a picture, with the feature's initial (fix/ui-restyle: no Material icons).
 class PhoneAppTile extends StatelessWidget {
-  const PhoneAppTile(this.icon, {super.key, this.size = 40});
-  final IconData icon;
+  const PhoneAppTile(this.name, {super.key, this.size = 40});
+  final String name;
   final double size;
 
   @override
-  Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(color: p.bubble, borderRadius: BorderRadius.circular(size * 0.28)),
-      child: Icon(icon, size: size * 0.5, color: p.text),
-    );
-  }
+  Widget build(BuildContext context) => Monogram(name, size: size);
 }

@@ -21,7 +21,6 @@ import '../services/attach_limits.dart';
 import '../services/doc_tools.dart';
 import '../theme.dart';
 import 'chat_extras.dart';
-import 'logo.dart';
 import 'message_view.dart';
 import 'sub_icon.dart';
 import 'meeting_sheet.dart';
@@ -942,14 +941,8 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
                         for (final st in trail.length > 12 ? trail.sublist(trail.length - 12) : trail)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 2),
+                            // Plain words (RESTYLE.md): the running step in full ink, finished ones muted, a failed one says so.
                             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Padding(
-                                padding: const EdgeInsets.only(top: 1),
-                                child: st.done
-                                    ? Icon(st.failed ? Icons.error_outline_rounded : Icons.check_rounded, size: 14, color: st.failed ? p.accent : p.muted)
-                                    : const SizedBox(width: 14, height: 14, child: Center(child: RedDot(size: 6, animate: true))),
-                              ),
-                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(st.failed ? '${st.label} (didn\'t work)' : st.label,
                                     style: TextStyle(fontSize: AppText.micro, color: st.done ? p.muted : p.text, height: 1.35)),

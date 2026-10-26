@@ -507,6 +507,16 @@ class Strings {
           'Hawsha kooxda waxay dhammaysay tallaabooyinkii wareeggan, sidaas darteed way hakatay. Dir "continue" si ay u sii socoto.',
       'The task stopped while reading your new message. Send it again to carry on.':
           'Hawshu way istaagtay intay akhrinaysay fariintaada cusub. Mar kale dir si ay u sii socoto.',
+      // fix/ui-restyle: new words. Native review owed.
+      'Close {name}?': 'Ma xiraysaa {name}?',
+      'Connect {name}\'s apps': 'Ku xir barnaamijyada {name}',
+      'Get {name}?': 'Ma qaadanaysaa {name}?',
+      'Getting {name}': '{name} waa la keenayaa',
+      'Remove {name}': 'Ka saar {name}',
+      'Remove {name}?': 'Ma ka saaraysaa {name}?',
+      'SubMac can look things up here but never change, send or delete anything. When off, it still asks you before every change.': 'SubMac halkan wax buu ka eegi karaa, laakiin waxba ma beddelo, ma diro, mana tirtiro. Marka uu dansan yahay, weli wuu ku weydiinayaa isbeddel kasta ka hor.',
+      'System': 'Nidaamka',
+      'Auto: light from 07:00 to 19:00, dark at night': 'Iskiis: iftiin 07:00 ilaa 19:00, mugdi habeenkii',
     },
     'ar': {
       // R2 item 1: the live status line (lib/services/run_status.dart). Native review owed.
@@ -924,6 +934,16 @@ class Strings {
           'استخدمت مهمة الفريق كل خطوات هذه الجولة فتوقفت. أرسل "continue" للمتابعة.',
       'The task stopped while reading your new message. Send it again to carry on.':
           'توقفت المهمة أثناء قراءة رسالتك الجديدة. أرسلها مرة أخرى للمتابعة.',
+      // fix/ui-restyle: new words. Native review owed.
+      'Close {name}?': 'إغلاق {name}؟',
+      'Connect {name}\'s apps': 'اربط تطبيقات {name}',
+      'Get {name}?': 'الحصول على {name}؟',
+      'Getting {name}': 'جارٍ الحصول على {name}',
+      'Remove {name}': 'إزالة {name}',
+      'Remove {name}?': 'إزالة {name}؟',
+      'SubMac can look things up here but never change, send or delete anything. When off, it still asks you before every change.': 'يمكن لـ SubMac البحث هنا دون أن يغيّر أو يرسل أو يحذف أي شيء. عند الإيقاف، يظل يسألك قبل كل تغيير.',
+      'System': 'النظام',
+      'Auto: light from 07:00 to 19:00, dark at night': 'تلقائي: فاتح من 07:00 إلى 19:00، وداكن ليلاً',
     },
   };
 }

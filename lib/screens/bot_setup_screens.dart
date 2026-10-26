@@ -14,6 +14,8 @@ import '../services/mcp_oauth.dart';
 import '../widgets/motion.dart';
 import '../theme.dart';
 import '../widgets/brand_logo.dart';
+import '../widgets/lux_kit.dart';
+import '../widgets/sub_icon.dart';
 import 'connectors_screen.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
@@ -37,7 +39,6 @@ class BotSetupSection extends StatelessWidget {
     // Skill library hidden for launch (PLAN.md 3.3).
     return Column(children: [
       _Tile(
-        icon: Icons.apps_rounded,
         title: 'Apps',
         sub: !b.appsScoped
             ? 'Can use all the apps you connected'
@@ -48,7 +49,6 @@ class BotSetupSection extends StatelessWidget {
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BotAppsScreen(botId: b.id, kind: 'connector'))),
       ),
       _Tile(
-        icon: Icons.hub_outlined,
         title: 'Sign-ins',
         sub: !b.appsScoped
             ? 'Can use all the apps you signed in to'
@@ -63,8 +63,7 @@ class BotSetupSection extends StatelessWidget {
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({required this.icon, required this.title, required this.sub, required this.onTap, this.warn = false});
-  final IconData icon;
+  const _Tile({required this.title, required this.sub, required this.onTap, this.warn = false});
   final String title;
   final String sub;
   final VoidCallback onTap;
@@ -73,13 +72,17 @@ class _Tile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: p.text),
-      title: Text(title),
-      subtitle: Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: warn ? Palette.red : p.muted)),
-      trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+    return LuxTap(
       onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.x3),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr(title), style: AppText.leadStyle.copyWith(color: p.text, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 2),
+          // Something to connect is said in the brand red, in words.
+          Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.metaStyle.copyWith(color: warn ? Palette.red : p.muted)),
+        ]),
+      ),
     );
   }
 }
@@ -119,13 +122,11 @@ class BotTrainingView extends StatelessWidget {
   Future<void> _addText(BuildContext context, Bot b, {BotKnowledge? edit}) async {
     final title = TextEditingController(text: edit?.title ?? '');
     final text = TextEditingController(text: edit?.text ?? '');
-    final ok = await showModalBottomSheet<bool>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+    final ok = await showLuxSheet<bool>(
+      context,
+      title: edit == null ? 'Add text' : 'Edit',
       builder: (ctx) => Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+        padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2, Space.x5, Space.x5),
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(controller: title, decoration: const InputDecoration(labelText: 'Title, e.g. Price list')),
@@ -137,7 +138,7 @@ class BotTrainingView extends StatelessWidget {
               decoration: const InputDecoration(labelText: 'What they should know'),
             ),
             const SizedBox(height: 14),
-            SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Save')))),
+            Align(alignment: AlignmentDirectional.centerEnd, child: LuxWordButton('Save', primary: true, onPressed: () => Navigator.pop(ctx, true))),
           ]),
         ),
       ),
@@ -174,25 +175,9 @@ class BotTrainingView extends StatelessWidget {
   }
 
   Future<void> _editLesson(BuildContext context, Bot b, {BotLesson? l}) async {
-    final c = TextEditingController(text: l?.text ?? '');
-    final v = await showDialog<String>(
-      context: context,
-      builder: (d) => AlertDialog(
-        title: Text(l == null ? 'Add' : 'Edit'),
-        content: TextField(
-          controller: c,
-          autofocus: true,
-          maxLength: 200,
-          minLines: 2,
-          maxLines: 4,
-          decoration: const InputDecoration(hintText: 'e.g. Always give the source link next to each number.'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(d, c.text), child: Text(tr('Save'))),
-        ],
-      ),
-    );
+    final raw = await luxPrompt(context,
+        title: l == null ? 'Add' : 'Edit', initial: l?.text ?? '', hint: 'e.g. Always give the source link next to each number.', maxLines: 4);
+    final v = raw == null ? null : (raw.length > 200 ? raw.substring(0, 200) : raw);
     if (v == null || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     if (l != null) b.lessons.remove(l);
@@ -216,38 +201,31 @@ class BotTrainingView extends StatelessWidget {
         final used = Bots.I.knowledgeChars(b);
         final lessons = [...b.lessons]..sort((x, y) => y.at.compareTo(x.at));
         Widget head(String t, String sub) => Padding(
-              padding: const EdgeInsets.only(top: 22, bottom: 8),
+              padding: const EdgeInsets.only(top: Space.x5, bottom: Space.x2),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(t, style: AppText.sectionStyle.copyWith(color: p.muted)),
+                Text(tr(t), style: AppText.sectionStyle.copyWith(color: p.faint)),
                 const SizedBox(height: 2),
-                Text(sub, style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.35)),
+                Text(sub, style: AppText.metaStyle.copyWith(color: p.muted)),
               ]),
             );
-        Widget outlined(IconData i, String t, VoidCallback onTap) => Expanded(
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(foregroundColor: p.text, backgroundColor: p.sheet, shape: const StadiumBorder(), minimumSize: const Size(0, 44)),
-                onPressed: onTap,
-                icon: Icon(i, size: 18),
-                label: Text(t),
-              ),
+        Widget remove(String label, VoidCallback onTap) => LuxTap(
+              label: tr(label),
+              onTap: onTap,
+              child: Padding(padding: const EdgeInsets.all(Space.x2), child: SubIcon('close', size: IconSize.sm, color: p.muted)),
             );
         return ListView(padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 48), children: [
           head('Tell it', 'How ${b.name} should work. Shared with copies, so no personal details.'),
           _TellIt(bot: b),
           head('Files', 'Notes and files ${b.name} looks things up in.'),
-          Row(children: [
-            outlined(Icons.notes_rounded, 'Add text', () => _addText(context, b)),
-            const SizedBox(width: 10),
-            outlined(Icons.attach_file_rounded, 'Add a file', () => _addFile(context, b)),
+          Wrap(children: [
+            LuxWordButton('Add text', primary: true, onPressed: () => _addText(context, b)),
+            LuxWordButton('Add a file', primary: true, onPressed: () => _addFile(context, b)),
           ]),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Only my files'),
-            subtitle: Text(
-                b.sandbox
-                    ? 'On: ${b.name} answers only from what you gave it, with no web search or browser.'
-                    : 'Off: ${b.name} uses these first, and may look elsewhere when they are not enough.',
-                style: TextStyle(color: p.muted, fontSize: AppText.micro)),
+          LuxSwitchRow(
+            title: tr('Only my files'),
+            sub: b.sandbox
+                ? 'On: ${b.name} answers only from what you gave it, with no web search or browser.'
+                : 'Off: ${b.name} uses these first, and may look elsewhere when they are not enough.',
             value: b.sandbox,
             onChanged: (v) async {
               b.sandbox = v;
@@ -258,52 +236,33 @@ class BotTrainingView extends StatelessWidget {
             Text('${(used / 1000).toStringAsFixed(0)}k of ${BotKnowledge.maxTotalChars ~/ 1000}k letters used',
                 style: TextStyle(color: p.muted, fontSize: AppText.micro)),
           for (final k in b.knowledge)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(k.kind == 'file' ? Icons.description_outlined : Icons.sticky_note_2_outlined, color: p.text),
-              title: Text(k.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(
-                '${k.kind == 'file' && k.file.isNotEmpty ? '${k.file} · ' : ''}${k.text.replaceAll(RegExp(r'\s+'), ' ').trim()}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: p.muted),
-              ),
+            LuxRow(
+              padding: const EdgeInsets.symmetric(vertical: Space.x2),
+              title: k.title,
+              sub: '${k.kind == 'file' && k.file.isNotEmpty ? '${k.file} · ' : ''}${k.text.replaceAll(RegExp(r'\s+'), ' ').trim()}',
               onTap: () => _addText(context, b, edit: k),
-              trailing: IconButton(
-                tooltip: 'Remove',
-                icon: Icon(Icons.close_rounded, size: 18, color: p.muted),
-                onPressed: () async {
-                  b.knowledge.remove(k);
-                  await Bots.I.saveKnowledge(b);
-                },
-              ),
+              trailing: remove('Remove', () async {
+                b.knowledge.remove(k);
+                await Bots.I.saveKnowledge(b);
+              }),
             ),
           head('Learned', 'Lessons ${b.name} learned.'),
           for (final l in lessons)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.lightbulb_outline_rounded, color: p.text),
-              title: Text(l.text),
-              subtitle: Text('${_src(l.source)}${l.uses > 0 ? ' · confirmed ${l.uses}x' : ''}', style: TextStyle(color: p.muted, fontSize: AppText.micro)),
+            LuxRow(
+              padding: const EdgeInsets.symmetric(vertical: Space.x2),
+              title: l.text,
+              maxLines: 4,
+              sub: '${_src(l.source)}${l.uses > 0 ? ' · confirmed ${l.uses}x' : ''}',
               onTap: () => _editLesson(context, b, l: l),
-              trailing: IconButton(
-                tooltip: 'Delete',
-                icon: Icon(Icons.close_rounded, size: 18, color: p.muted),
-                onPressed: () async {
-                  b.lessons.remove(l);
-                  await Bots.I.save();
-                },
-              ),
+              trailing: remove('Delete', () async {
+                b.lessons.remove(l);
+                await Bots.I.save();
+              }),
             ),
           if (lessons.isEmpty) Text(tr('Nothing yet.'), style: TextStyle(color: p.muted)),
           Align(
             alignment: AlignmentDirectional.centerStart,
-            child: TextButton.icon(
-              style: TextButton.styleFrom(foregroundColor: p.text, padding: EdgeInsets.zero),
-              onPressed: () => _editLesson(context, b),
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Add'),
-            ),
+            child: LuxWordButton('Add', primary: true, onPressed: () => _editLesson(context, b)),
           ),
           head('Knows about you', 'Facts ${b.name} saved while working with you.'),
           if (b.memory.isEmpty) Text(tr('Nothing yet.'), style: TextStyle(color: p.muted)),
@@ -311,17 +270,11 @@ class BotTrainingView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(Icons.bookmark_border_rounded, size: 18, color: p.text),
-                const SizedBox(width: 12),
-                Expanded(child: Text(m, style: TextStyle(color: p.text, fontSize: AppText.meta, height: 1.35))),
-                InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () async {
-                    b.memory.remove(m);
-                    await Bots.I.save();
-                  },
-                  child: Padding(padding: const EdgeInsets.all(4), child: Icon(Icons.close_rounded, size: 16, color: p.muted)),
-                ),
+                Expanded(child: Text(m, style: AppText.metaStyle.copyWith(color: p.text))),
+                remove('Remove', () async {
+                  b.memory.remove(m);
+                  await Bots.I.save();
+                }),
               ]),
             ),
         ]);
@@ -349,7 +302,6 @@ class _TellItState extends State<_TellIt> {
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
     final changed = _c.text.trim() != widget.bot.instructions.trim();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       TextField(
@@ -369,15 +321,11 @@ class _TellItState extends State<_TellIt> {
         child: changed
             ? Align(
                 alignment: AlignmentDirectional.centerEnd,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: p.text, foregroundColor: p.bg),
-                  onPressed: () async {
-                    widget.bot.instructions = BotPackage.scrubSecrets(_c.text.trim());
-                    await Bots.I.save();
-                    if (mounted) setState(() {});
-                  },
-                  child: Text(tr('Save')),
-                ),
+                child: LuxWordButton('Save', primary: true, onPressed: () async {
+                  widget.bot.instructions = BotPackage.scrubSecrets(_c.text.trim());
+                  await Bots.I.save();
+                  if (mounted) setState(() {});
+                }),
               )
             : const SizedBox(width: double.infinity),
       ),
@@ -419,30 +367,36 @@ class BotAppRow extends StatelessWidget {
     final ready = Bots.I.appReady(app);
     final busy = state.mcpSigningIn.contains(app.ref);
     const what = 'Not connected';
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
+    final status = ready ? tr('Connected') : (busy ? tr('Finish signing in, in your browser…') : (state.mcpConnectError[app.ref] ?? tr(what)));
+    return LuxTap(
       onTap: onTap,
-      leading: BrandLogo(BrandLogo.idForApp(app.kind, app.ref, app.name), app.name, size: 36),
-      title: Text(app.name),
-      subtitle: Text(
-        ready ? 'Connected' : (busy ? 'Finish signing in, in your browser…' : (state.mcpConnectError[app.ref] ?? what)),
-        style: TextStyle(color: ready ? p.muted : Palette.red),
-      ),
-      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (!ready)
-          busy
-              ? TextButton(onPressed: state.cancelMcpSignIn, child: Text(tr('Cancel')))
-              : TextButton(
-                  onPressed: () async {
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.x2),
+        child: Row(children: [
+          BrandLogo(BrandLogo.idForApp(app.kind, app.ref, app.name), app.name, size: 36),
+          const SizedBox(width: Space.x3),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(app.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.leadStyle.copyWith(color: p.text, fontWeight: FontWeight.w500)),
+              Text(status, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.metaStyle.copyWith(color: ready ? p.muted : Palette.red)),
+            ]),
+          ),
+          if (!ready)
+            busy
+                ? LuxWordButton('Cancel', onPressed: state.cancelMcpSignIn)
+                : LuxWordButton('Connect', primary: true, onPressed: () async {
                     final messenger = ScaffoldMessenger.of(context);
                     final e = await connectBotApp(context, app);
                     if (e != null) messenger.showSnackBar(SnackBar(content: Text(e)));
-                  },
-                  child: const Text('Connect'),
-                ),
-        if (onRemove != null)
-          IconButton(tooltip: 'Remove', icon: Icon(Icons.close_rounded, size: 18, color: p.muted), onPressed: onRemove),
-      ]),
+                  }),
+          if (onRemove != null)
+            LuxTap(
+              label: tr('Remove'),
+              onTap: onRemove,
+              child: Padding(padding: const EdgeInsets.all(Space.x2), child: SubIcon('close', size: IconSize.sm, color: p.muted)),
+            ),
+        ]),
+      ),
     );
   }
 }
@@ -456,7 +410,6 @@ class BotAppsScreen extends StatelessWidget {
 
   Future<void> _add(BuildContext context, Bot b) async {
     final state = context.read<AppState>();
-    final p = Palette.of(context);
     final have = {for (final a in b.apps) '${a.kind}|${a.ref.toLowerCase()}'};
     final options = <BotApp>[];
     if (kind == 'connector') {
@@ -478,18 +431,17 @@ class BotAppsScreen extends StatelessWidget {
     final pick = await showModalBottomSheet<Object>(
       sheetAnimationStyle: SubMotion.sheet,
       context: context,
-      showDragHandle: true,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.7,
-        builder: (ctx, sc) => ListView(controller: sc, children: [
+        builder: (ctx, sc) => ListView(controller: sc, padding: const EdgeInsets.only(top: Space.x4), children: [
           for (final o in options)
             if (!have.contains('${o.kind}|${o.ref.toLowerCase()}'))
-              ListTile(
+              LuxRow(
                 leading: BrandLogo(BrandLogo.idForApp(o.kind, o.ref, o.name), o.name, size: 36),
-                title: Text(o.name),
-                subtitle: Text(Bots.I.appReady(o) ? 'Connected for you' : 'Not connected', style: TextStyle(color: p.muted)),
+                title: o.name,
+                sub: tr(Bots.I.appReady(o) ? 'Connected for you' : 'Not connected'),
                 onTap: () => Navigator.pop(ctx, o),
               ),
         ]),
@@ -517,25 +469,15 @@ class BotAppsScreen extends StatelessWidget {
         final label = kind == 'mcp' ? 'Sign-ins' : 'Apps';
         return Scaffold(
           appBar: AppBar(title: Text(label)),
-          floatingActionButton: FloatingActionButton.extended(
-            backgroundColor: p.text,
-            foregroundColor: p.bg,
-            onPressed: () => _add(context, b),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Add an app'),
-          ),
-          body: ListView(padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 20, 100), children: [
+          body: ListView(padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x1, Space.x5, Space.x8 * 2), children: [
             Text(
                 'The apps ${b.name} works with. When you share ${b.name}, these go along, '
                 'but never your logins or keys: the new owner connects each one with their own.',
                 style: TextStyle(color: p.muted, height: 1.4)),
             const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Only these apps'),
-              subtitle: Text(
-                  b.appsScoped ? '${b.name} uses only the apps on its own lists.' : '${b.name} can use every app you connected.',
-                  style: TextStyle(color: p.muted)),
+            LuxSwitchRow(
+              title: tr('Only these apps'),
+              sub: b.appsScoped ? '${b.name} uses only the apps on its own lists.' : '${b.name} can use every app you connected.',
               value: b.appsScoped,
               onChanged: (v) async {
                 b.appsScoped = v;
@@ -554,6 +496,11 @@ class BotAppsScreen extends StatelessWidget {
                     await Bots.I.save();
                   },
                 ),
+            if (mine.isNotEmpty)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: LuxWordButton('Add an app', key: const ValueKey('bot-add-app'), primary: true, onPressed: () => _add(context, b)),
+              ),
           ]),
         );
       },

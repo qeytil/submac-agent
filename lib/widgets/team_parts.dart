@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
-import '../screens/bots_screen.dart' show BotAvatar, BotsScreen, botIcon;
+import '../screens/bots_screen.dart' show BotAvatar, BotsScreen;
 import '../screens/offices_screen.dart' show OfficeScreen;
 import '../services/bots.dart';
 import '../services/offices.dart';
 import '../theme.dart';
 import '../ui/tokens.dart';
 import 'sub_icon.dart';
+import 'lux_kit.dart';
+import 'team_face.dart';
 import '../ui/i18n.dart';
 
 /// Small shared pieces of the Team pages (people, teams, settings rows) and the "Send to" picker for things shared
@@ -18,105 +20,60 @@ import '../ui/i18n.dart';
 /// Something was shared into SubMac: send it to a chat, a bot or a team. Returns 'chat', 'bot:<id>' or
 /// 'office:<id>' (null = cancelled).
 Future<String?> pickShareTarget(BuildContext context) {
-  return showModalBottomSheet<String>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (ctx) {
-      final p = Palette.of(ctx);
-      return SafeArea(
-        child: ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 12), children: [
-          Padding(padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 8), child: Text('Send to', style: Theme.of(ctx).textTheme.titleLarge)),
-          ListTile(
-            leading: CircleAvatar(backgroundColor: p.sheet, child: Icon(Icons.chat_bubble_outline_rounded, color: p.text, size: 20)),
-            title: Text(tr('New chat')),
-            onTap: () => Navigator.pop(ctx, 'chat'),
-          ),
-          for (final o in Offices.I.offices)
-            ListTile(
-              leading: CircleAvatar(backgroundColor: p.sheet, child: Icon(botIcon(o.icon), color: p.text, size: 20)),
-              title: Text(o.name),
-              subtitle: Text('Team · ${o.members.length} ${o.members.length == 1 ? 'bot' : 'bots'}', style: TextStyle(color: p.muted)),
-              onTap: () => Navigator.pop(ctx, 'office:${o.id}'),
-            ),
-          for (final b in Bots.I.hired)
-            ListTile(
-              leading: BotAvatar(bot: b, size: 40),
-              title: Text(b.name),
-              subtitle: Text(b.role, style: TextStyle(color: p.muted)),
-              onTap: () => Navigator.pop(ctx, 'bot:${b.id}'),
-            ),
-        ]),
-      );
-    },
+  return showLuxSheet<String>(
+    context,
+    title: 'Send to',
+    builder: (ctx) => ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: Space.x3), children: [
+      LuxRow(title: tr('New chat'), onTap: () => Navigator.pop(ctx, 'chat')),
+      for (final o in Offices.I.offices)
+        LuxRow(
+          leading: TeamFace(office: o, size: 36),
+          title: o.name,
+          sub: tr('Team · {n}', {'n': '${o.members.length} ${o.members.length == 1 ? tr('bot') : tr('bots')}'}),
+          onTap: () => Navigator.pop(ctx, 'office:${o.id}'),
+        ),
+      for (final b in Bots.I.hired)
+        LuxRow(
+          leading: BotAvatar(bot: b, size: 36),
+          title: b.name,
+          sub: b.role,
+          onTap: () => Navigator.pop(ctx, 'bot:${b.id}'),
+        ),
+    ]),
   );
 }
 
+/// A section label on the Team pages (the shared [LuxSection] look, with the page's own margins).
 class SectionHeader extends StatelessWidget {
   const SectionHeader(this.text, {super.key});
   final String text;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 4, 8),
-        child: Text(text, style: AppText.sectionStyle.copyWith(color: Palette.of(context).muted)),
-      );
+  Widget build(BuildContext context) => LuxSection(text, padding: const EdgeInsetsDirectional.fromSTEB(Space.x1, Space.x4, Space.x1, Space.x2));
 }
 
+/// A way in on the Team pages ("Start a team", a team, a ready-made team): words on the paper, the unread count as a
+/// quiet number. No card, no icon disc, no badge pill (fix/ui-restyle).
 class TeamCard extends StatelessWidget {
-  const TeamCard({super.key, required this.icon, required this.title, this.sub, required this.onTap, this.badge = 0});
-  final IconData icon;
+  const TeamCard({super.key, required this.title, this.sub, required this.onTap, this.badge = 0, this.leading});
   final String title;
   final String? sub;
   final VoidCallback onTap;
   final int badge;
 
+  /// A team's or a bot's face, when the row is about one.
+  final Widget? leading;
+
   @override
-  Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: p.sheet,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            onTap();
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: p.bg),
-                child: Icon(icon, size: 22, color: p.text),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: TextStyle(color: p.text, fontSize: AppText.body, fontWeight: FontWeight.w600)),
-                  if (sub != null) ...[
-                    const SizedBox(height: 3),
-                    Text(sub!, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.3)),
-                  ],
-                ]),
-              ),
-              if (badge > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: p.text, borderRadius: BorderRadius.circular(10)),
-                  child: Text('$badge', style: TextStyle(color: p.bg, fontSize: AppText.micro, fontWeight: FontWeight.w600)),
-                )
-              else
-                Icon(Icons.chevron_right_rounded, color: p.muted),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => LuxRow(
+        title: tr(title),
+        sub: sub,
+        leading: leading,
+        value: badge > 0 ? '$badge' : null,
+        selected: badge > 0,
+        maxLines: 2,
+        padding: const EdgeInsetsDirectional.symmetric(horizontal: Space.x1, vertical: Space.x3),
+        onTap: onTap,
+      );
 }
 
 class ChoiceRow extends StatelessWidget {
@@ -134,29 +91,14 @@ class ChoiceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      subtitle: Text(options[value] ?? value, style: TextStyle(color: p.muted)),
-      trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+    return LuxRow(
+      title: tr(label),
+      sub: options[value] ?? value,
+      padding: const EdgeInsetsDirectional.symmetric(horizontal: Space.x1, vertical: Space.x3),
       onTap: onTap ??
           () async {
-            final v = await showModalBottomSheet<String>(
-              sheetAnimationStyle: SubMotion.sheet,
-              context: context,
-              showDragHandle: true,
-              builder: (ctx) => SafeArea(
-                child: ListView(shrinkWrap: true, children: [
-                  for (final e in options.entries)
-                    ListTile(
-                      title: Text(e.value),
-                      trailing: e.key == value ? Icon(Icons.check_rounded, color: p.text) : null,
-                      onTap: () => Navigator.pop(ctx, e.key),
-                    ),
-                ]),
-              ),
-            );
+            final v = await showLuxChoices<String>(context,
+                title: label, selected: value, choices: [for (final e in options.entries) LuxChoice(e.key, e.value)]);
             if (v != null) onChanged(v);
           },
     );
@@ -171,19 +113,20 @@ class RemovableLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: Space.x1),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(child: Text(text, style: TextStyle(color: p.text, fontSize: AppText.meta, height: 1.35))),
-        InkWell(
-          customBorder: const CircleBorder(),
+        Expanded(child: Text(text, style: AppText.metaStyle.copyWith(color: p.text))),
+        LuxTap(
+          label: tr('Remove'),
           onTap: onRemove,
-          child: Padding(padding: const EdgeInsets.all(4), child: Icon(Icons.close_rounded, size: 16, color: p.muted)),
+          child: Padding(padding: const EdgeInsets.all(Space.x2), child: SubIcon('close', size: IconSize.sm, color: p.muted)),
         ),
       ]),
     );
   }
 }
 
+/// "Setting up your team": one plain line with the breathing status word, straight on the dimmed page.
 class BusyNote extends StatelessWidget {
   const BusyNote(this.text, {super.key});
   final String text;
@@ -191,46 +134,16 @@ class BusyNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        decoration: BoxDecoration(color: p.sheet, borderRadius: BorderRadius.circular(18)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: p.text)),
-          const SizedBox(width: 14),
-          Text(text, style: TextStyle(color: p.text, fontSize: AppText.body, decoration: TextDecoration.none, fontWeight: FontWeight.w400)),
-        ]),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Breath(child: Text(tr(text), style: AppText.leadStyle.copyWith(color: p.text, fontWeight: FontWeight.w500))),
       ),
     );
   }
 }
 
-Future<String?> askText(BuildContext context, {required String title, String hint = '', String initial = '', String action = 'Save', String help = ''}) {
-  final ctrl = TextEditingController(text: initial);
-  return showModalBottomSheet<String>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (ctx) => Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: Theme.of(ctx).textTheme.titleLarge),
-        if (help.isNotEmpty) ...[const SizedBox(height: 6), Text(help, style: TextStyle(color: Palette.of(ctx).muted))],
-        const SizedBox(height: 14),
-        TextField(
-          controller: ctrl,
-          autofocus: true,
-          minLines: 2,
-          maxLines: 6,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(hintText: hint),
-        ),
-        const SizedBox(height: 14),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: Text(action))),
-      ]),
-    ),
-  );
-}
+Future<String?> askText(BuildContext context, {required String title, String hint = '', String initial = '', String action = 'Save', String help = ''}) =>
+    luxPrompt(context, title: title, hint: hint.isEmpty ? null : hint, initial: initial, action: action, message: help.isEmpty ? null : help, maxLines: 6);
 
 /// Your teams at a glance on the home screen: who is working, what got done, what needs you.
 class TeamPanel extends StatelessWidget {
@@ -239,15 +152,13 @@ class TeamPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final p = Palette.of(context);
     return AnimatedBuilder(
       animation: Offices.I,
       builder: (context, _) {
         final teams = Offices.I.offices;
         if (teams.isEmpty) return const SizedBox.shrink();
-        return Container(
-          margin: const EdgeInsets.only(top: 26),
-          decoration: BoxDecoration(color: p.sheet, borderRadius: Radii.rowAll),
+        return Padding(
+          padding: const EdgeInsets.only(top: Space.x6),
           child: Column(children: [
             for (final o in teams.take(4))
               Builder(builder: (context) {
@@ -259,12 +170,13 @@ class TeamPanel extends StatelessWidget {
                   if (st.blocked > 0) '${st.blocked} blocked',
                   if (st.proposed > 0) '${st.proposed} to approve',
                 ];
-                return ListTile(
+                return LuxRow(
                   dense: true,
-                  leading: Icon(working.isNotEmpty ? Icons.motion_photos_on_outlined : Icons.groups_2_outlined, size: 20, color: p.text),
-                  title: Text(o.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(parts.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.muted)),
-                  trailing: o.unread > 0 ? Badge(label: Text('${o.unread}')) : Icon(Icons.chevron_right_rounded, color: p.muted),
+                  leading: TeamFace(office: o, size: 28),
+                  title: o.name,
+                  sub: parts.join(' · '),
+                  value: o.unread > 0 ? '${o.unread}' : null,
+                  selected: o.unread > 0,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OfficeScreen(officeId: o.id))),
                 );
               }),
@@ -314,8 +226,7 @@ class TeamLine extends StatelessWidget {
           padding: const EdgeInsets.only(top: Space.x6),
           child: Semantics(
             button: true,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(Radii.pill),
+            child: LuxTap(
               onTap: () {
                 Navigator.push(
                   context,
@@ -339,8 +250,6 @@ class TeamLine extends StatelessWidget {
                         style: TextStyle(color: p.muted, fontSize: AppText.meta),
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    SubIcon('chevron_right', size: IconSize.sm, color: p.muted),
                   ],
                 ),
               ),

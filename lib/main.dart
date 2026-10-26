@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui' show PlatformDispatcher;
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -27,9 +26,12 @@ import 'screens/live_screen.dart';
 import 'screens/system_screens.dart';
 import 'services/live_controller.dart';
 import 'theme.dart';
+import 'ui/day_night.dart';
 import 'ui/i18n.dart';
 import 'ui/intro_motion.dart';
 import 'ui/motion.dart';
+import 'ui/sky.dart';
+import 'ui/tokens.dart' show LuxMotion;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'widgets/browser_layer.dart';
 import 'services/session_rules.dart';
@@ -129,10 +131,14 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
     return show;
   }
 
+  final Listenable _langAndLook = Listenable.merge([AppLang.I, DayNight.I]);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Auto theme: a timer to the next 07:00 / 19:00 while the app is open (stopped in the background).
+    DayNight.I.start();
     final state = context.read<AppState>();
     state.liveCtl.openScreen = () {
       final nav = appNavKey.currentState;
@@ -145,6 +151,7 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    DayNight.I.stop();
     super.dispose();
   }
 
@@ -152,6 +159,8 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState s) {
     final state = context.read<AppState>();
     if (s == AppLifecycleState.resumed) {
+      // Back in front: re-read the clock at once (the time or the time zone may have changed while away).
+      DayNight.I.start();
       state.setAppVisible(true);
       unawaited(Updater.I.resumed());
       if (Supabase.instance.client.auth.currentSession != null) {
@@ -163,16 +172,19 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
         Rewards.I.refresh();
       }
     } else if (s == AppLifecycleState.paused) {
+      DayNight.I.stop();
       state.setAppVisible(false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final mode = context.select<AppState, ThemeMode>((s) => s.themeMode);
+    final choice = context.select<AppState, ThemeChoice>((s) => s.themeChoice);
     final easy = context.select<AppState, bool>((s) => s.easyMode);
+    // Rebuilds on a language change and when the auto look flips (07:00 / 19:00: twice a day at most). The flip runs
+    // through MaterialApp's own theme animation, so it eases like any theme change, and the system bars follow it.
     return ListenableBuilder(
-      listenable: AppLang.I,
+      listenable: _langAndLook,
       builder: (context, _) => MaterialApp(
       locale: AppLang.I.locale,
       supportedLocales: const [Locale('so'), Locale('ar'), Locale('en')],
@@ -187,7 +199,7 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
-      themeMode: mode,
+      themeMode: resolveThemeMode(choice, DayNight.I.brightness),
       // Switching looks eases on SubMac's own curve, in step with the sky's veils (it was a 200 ms linear fade
       // while the sky's veils switched at once).
       themeAnimationDuration: SubMotion.base,
@@ -354,49 +366,22 @@ class _LaunchGateState extends State<LaunchGate> {
       );
 }
 
-
-/// How much of the night sky shows at a given local time: 0 by day, 1 at night, easing over dusk
-/// (17:00 to 19:00) and dawn (05:00 to 07:00) so the change is never a jump.
-double skyNightness(DateTime t) {
-  final h = t.hour + t.minute / 60.0;
-  double ease(double x) => x * x * (3 - 2 * x);
-  if (h >= 19 || h < 5) return 1;
-  if (h >= 7 && h < 17) return 0;
-  if (h >= 17) return ease((h - 17) / 2);
-  return 1 - ease((h - 5) / 2);
-}
-
-/// The sky's slow drift at loop phase [a] (radians): a zoom about the centre and a shift (fractions of the screen,
-/// applied before the zoom). The zoom always stays larger than the shift needs: the picture already covers the screen
-/// (BoxFit.cover at the screen's own size, whatever its shape), and at every frame the zoomed, shifted picture still
-/// reaches past every edge, so no gap ever shows on any screen size, shape or rotation. [skyCovers] checks it.
-({double scale, double dx, double dy}) skyDrift(double a) =>
-    (scale: 1.16 + 0.04 * math.sin(a), dx: 0.025 * math.sin(a), dy: 0.018 * math.cos(a));
-
-/// True when a picture covering the screen, zoomed by [d].scale about the centre after a shift of ([d].dx, [d].dy)
-/// screen fractions, still covers the whole screen with at least [margin] (a fraction of the screen) to spare.
-bool skyCovers(({double scale, double dx, double dy}) d, {double margin = 0.005}) {
-  final room = (d.scale - 1) / 2;
-  return room - d.dx.abs() * d.scale >= margin && room - d.dy.abs() * d.scale >= margin;
-}
-
-/// How much daylight paper covers the night sky in the light look, so its dark text stays readable.
-const double lightNightVeil = 0.62;
-
-/// How much night ink covers the daylight sky in the dark look (Ink), so its light text stays readable by day.
-const double darkDayVeil = 0.58;
-
-/// How often the sky re-reads the clock while the app is open (it also re-reads on every resume).
+/// How often the sky re-reads the clock with Remove animations on (it also re-reads on every resume). With motion
+/// on it re-reads on every [skyStep].
 const Duration skyTick = Duration(seconds: 30);
 
-/// The sky behind every screen. It follows the user's own clock (local device time, never UTC) in both looks:
-/// daylight 07:00 to 17:00, dusk 17:00 to 19:00, night 19:00 to 05:00, dawn 05:00 to 07:00 (owner, 2026-10-24: "the day and
-/// night bg should change automatically with the time of the user"). It re-reads the clock every [skyTick] and whenever
-/// the app comes back to the front, so it changes while the app is open. Each look keeps its text readable: the light
-/// look lays daylight paper over the night, the dark look lays night ink over the day. It is alive but calm: the
-/// picture drifts and breathes slowly (a 40-second loop) and a soft glow wanders across it. On a wide screen the tall
-/// pictures are turned a quarter so they fill it without being blown up. With Remove animations it stands still and
-/// switches without a fade, but it still follows the clock.
+/// How often the live sky moves a step (and re-reads the clock). Its drift is a slow loop ([LuxMotion.skyDrift]), so
+/// each step shifts its soft glows by a pixel or two: the sky looks alive while painting only a few times a minute,
+/// never every frame (the old picture sky stepped 30 times a second and kept every frosted blur over it redrawing).
+const Duration skyStep = Duration(seconds: 4);
+
+/// The live sky behind every screen ([SkyPainter], lib/ui/sky.dart): drawn from the user's own clock (local device
+/// time), with night, blue hour, an orange and pink sunrise, golden hours, a clear blue day, an orange and red sunset
+/// and dusk, eased minute by minute. It moves gently (slow drifting light, twinkling stars, the sun or moon glow
+/// following the time), one small step every [skyStep], and stops while the app is in the background. With Remove
+/// animations it stands still on the current time's sky and switches without a fade, but it still follows the clock.
+/// Each look keeps its text readable: the light look lays paper over a dark sky, the dark look lays night ink over a
+/// bright one, always enough for 4.5:1 text ([lightVeilFor], [darkVeilFor]).
 class SkyBackground extends StatefulWidget {
   const SkyBackground({super.key, required this.dark, required this.child, this.clock});
   final bool dark;
@@ -409,26 +394,30 @@ class SkyBackground extends StatefulWidget {
   State<SkyBackground> createState() => SkyBackgroundState();
 }
 
-/// How often the sky's slow drift moves (v1.13.101). The drift is a 40-second loop that moves a few pixels a second,
-/// so 30 steps a second look the same as 120, while the old per-frame ticker kept the whole screen (and every frosted
-/// blur over the sky) redrawing at the display's full rate all the time, even with nothing else moving. Other
-/// animations still run at the full refresh rate; only the sky's own steps are spaced out.
-const Duration skyStep = Duration(milliseconds: 33);
-
-class SkyBackgroundState extends State<SkyBackground> with WidgetsBindingObserver {
-  /// The drift's loop phase (0..1), advanced by [_drift] every [skyStep] while the app is in front.
+class SkyBackgroundState extends State<SkyBackground> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  /// The drift's loop phase (0..1), advanced every [skyStep] while the app is in front.
   final ValueNotifier<double> _phase = ValueNotifier<double>(0);
-  Timer? _drift;
+
+  /// Eases from the old sky to the new one when the time jumped (back from the background, the clock changed).
+  late final AnimationController _fade = AnimationController(vsync: this, duration: SubMotion.skyFade, value: 1);
+  Timer? _timer;
   bool _still = false;
   bool _front = true;
-  Timer? _tick;
-  double _night = 0;
+  late DateTime _at;
+  late SkyLook _from;
+  late SkyLook _to;
 
-  /// How much of the night shows right now (0 day, 1 night). For tests.
-  double get night => _night;
+  /// How dark the sky is now (0 day, 1 night). For tests.
+  double get night => 1 - _to.light;
+
+  /// The sky being shown now (the target of any fade). For tests.
+  SkyLook get look => _to;
 
   /// Whether the slow drift is stepping right now (only in front, never with Remove animations). For tests.
-  bool get driftRunning => _drift != null;
+  bool get driftRunning => _timer != null && _front && !_still;
+
+  /// Whether any timer is running (none in the background). For tests.
+  bool get ticking => _timer != null;
 
   /// The drift's loop phase (0..1). For tests.
   double get driftPhase => _phase.value;
@@ -438,10 +427,24 @@ class SkyBackgroundState extends State<SkyBackground> with WidgetsBindingObserve
     return t.isUtc ? t.toLocal() : t;
   }
 
-  /// Reads the clock again and moves the sky if the time of day changed.
+  /// Reads the clock again and moves the sky if the minute changed. A jump of more than a few minutes eases over
+  /// [SubMotion.skyFade] (none with Remove animations); the minute-by-minute change is too small to see.
   void refresh() {
-    final n = skyNightness(_now());
-    if ((n - _night).abs() > 0.001 && mounted) setState(() => _night = n);
+    final t = _now();
+    if (t.difference(_at).inMinutes.abs() < 1 && t.minute == _at.minute) return;
+    final jump = (minuteOfDay(t) - minuteOfDay(_at)).abs() > 5;
+    final shown = _fade.value >= 1 ? _to : SkyLook.lerp(_from, _to, SubMotion.ambient.transform(_fade.value));
+    if (!mounted) return;
+    setState(() {
+      _at = t;
+      _from = shown;
+      _to = skyAt(t);
+    });
+    if (jump && !_still) {
+      _fade.forward(from: 0);
+    } else {
+      _fade.value = 1;
+    }
   }
 
   @override
@@ -450,8 +453,8 @@ class SkyBackgroundState extends State<SkyBackground> with WidgetsBindingObserve
     WidgetsBinding.instance.addObserver(this);
     final ls = WidgetsBinding.instance.lifecycleState;
     _front = ls == null || ls == AppLifecycleState.resumed;
-    _night = skyNightness(_now());
-    _tick = Timer.periodic(skyTick, (_) => refresh());
+    _at = _now();
+    _from = _to = skyAt(_at);
   }
 
   @override
@@ -464,18 +467,23 @@ class SkyBackgroundState extends State<SkyBackground> with WidgetsBindingObserve
       // re-applies it natively too).
       unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge).catchError((_) {}));
     }
-    _syncDrift();
+    _sync();
   }
 
-  /// The drift runs only while the app is in front and animations are allowed.
-  void _syncDrift() {
-    final run = _front && !_still;
-    if (run && _drift == null) {
-      final step = skyStep.inMicroseconds / SubMotion.skyDrift.inMicroseconds;
-      _drift = Timer.periodic(skyStep, (_) => _phase.value = (_phase.value + step) % 1.0);
-    } else if (!run) {
-      _drift?.cancel();
-      _drift = null;
+  /// One timer at a time: every [skyStep] with motion (drift + clock), every [skyTick] when still (clock only), none in
+  /// the background.
+  void _sync() {
+    _timer?.cancel();
+    _timer = null;
+    if (!_front) return;
+    if (_still) {
+      _timer = Timer.periodic(skyTick, (_) => refresh());
+    } else {
+      final step = skyStep.inMicroseconds / LuxMotion.skyDrift.inMicroseconds;
+      _timer = Timer.periodic(skyStep, (_) {
+        _phase.value = (_phase.value + step) % 1.0;
+        refresh();
+      });
     }
   }
 
@@ -485,122 +493,73 @@ class SkyBackgroundState extends State<SkyBackground> with WidgetsBindingObserve
     if (old.clock != widget.clock) refresh();
   }
 
-  bool _precached = false;
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Decode both pictures up front, so the sky never paints a blank frame before the daylight picture, and the night
-    // picture is ready when dusk comes (it popped in half-decoded).
-    if (!_precached) {
-      _precached = true;
-      for (final a in const ['assets/bg/daylight.webp', 'assets/bg/night.webp']) {
-        precacheImage(AssetImage(a), context, onError: (_, __) {});
-      }
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (still != _still || _timer == null) {
+      _still = still;
+      if (_still) _fade.value = 1;
+      _sync();
     }
-    _still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    _syncDrift();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _tick?.cancel();
-    _drift?.cancel();
+    _timer?.cancel();
+    _fade.dispose();
     _phase.dispose();
     super.dispose();
   }
 
-  Widget _picture(String asset, String key, bool wide) {
-    Widget img = Image.asset(
-      asset,
-      key: ValueKey(key),
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      filterQuality: FilterQuality.medium,
-      gaplessPlayback: true,
-      excludeFromSemantics: true,
-      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-    );
-    if (wide) img = RotatedBox(quarterTurns: 1, child: img);
-    return img;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final night = _night;
-    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    final base = widget.dark ? Palette.dark.bg : Color.lerp(Palette.light.bg, Palette.dark.bg, night)!;
+    final look = _to;
+    final still = _still;
+    final lightVeil = lightVeilFor(look);
+    final darkVeil = darkVeilFor(look);
     return ColoredBox(
-      color: base,
+      color: widget.dark ? Palette.dark.bg : Palette.light.bg,
       child: Stack(fit: StackFit.expand, children: [
         Positioned.fill(
           child: RepaintBoundary(
-            child: LayoutBuilder(builder: (context, c) {
-              final wide = c.maxWidth > c.maxHeight;
-              // The look (light 0, dark 1) eases too, in step with the app's theme, so the veils cross-fade instead of
-              // switching at once when the look changes.
-              final sky = TweenAnimationBuilder<double>(
+            child: Stack(fit: StackFit.expand, children: [
+              // Its own layer: a drift step repaints only the sky, never the screens over it.
+              RepaintBoundary(
+                child: CustomPaint(
+                  key: const ValueKey('sky-paint'),
+                  painter: SkyPainter(
+                    from: _from,
+                    to: _to,
+                    fade: _fade,
+                    phase: _phase,
+                    sun: sunPosition(_at),
+                    moon: moonPosition(_at),
+                    still: still,
+                  ),
+                ),
+              ),
+              // The look (light 0, dark 1) eases in step with the app's theme, so the veils cross-fade instead of
+              // switching at once when the look changes (at 07:00 / 19:00 in Auto).
+              TweenAnimationBuilder<double>(
                 tween: Tween(end: widget.dark ? 1.0 : 0.0),
                 duration: still ? Duration.zero : SubMotion.base,
                 curve: SubMotion.settle,
-                builder: (context, look, _) => TweenAnimationBuilder<double>(
-                tween: Tween(end: night),
-                duration: still ? Duration.zero : SubMotion.skyFade,
-                curve: SubMotion.ambient,
-                builder: (context, n, _) => Stack(fit: StackFit.expand, children: [
-                  if (n < 1) _picture('assets/bg/daylight.webp', 'daylight-bg', wide),
-                  if (n > 0) Opacity(opacity: n, child: _picture('assets/bg/night.webp', 'night-bg', wide)),
-                  // The light look keeps ink-dark text, which would vanish on the night picture: a soft veil of
-                  // daylight paper over the night keeps every word readable while the stars still show through.
-                  if (look < 1 && n > 0)
+                builder: (context, lk, _) => Stack(fit: StackFit.expand, children: [
+                  // The light look keeps ink-dark text: a veil of daylight paper over a dark or warm sky.
+                  if (lk < 1 && lightVeil > 0)
                     IgnorePointer(
-                      child: ColoredBox(key: const ValueKey('night-veil'), color: Palette.light.bg.withValues(alpha: lightNightVeil * n * (1 - look))),
+                      child: ColoredBox(key: const ValueKey('night-veil'), color: Palette.light.bg.withValues(alpha: lightVeil * (1 - lk))),
                     ),
-                  // The dark look keeps light text, which would wash out on the bright daylight picture: a veil of night
-                  // ink over the day keeps every word readable while the sky still shows it is daytime.
-                  if (look > 0 && n < 1)
+                  // The dark look keeps light text: a veil of night ink over a bright sky.
+                  if (lk > 0 && darkVeil > 0)
                     IgnorePointer(
-                      child: ColoredBox(key: const ValueKey('day-veil'), color: Palette.dark.bg.withValues(alpha: darkDayVeil * (1 - n) * look)),
+                      child: ColoredBox(key: const ValueKey('day-veil'), color: Palette.dark.bg.withValues(alpha: darkVeil * lk)),
                     ),
                 ]),
               ),
-              );
-              if (still) return sky;
-              final glow = Color.lerp(Colors.white, const Color(0xFF3D6BFF), night)!;
-              final glowBase = 0.22 - 0.12 * night;
-              final glowSwing = 0.10 - 0.04 * night;
-              return AnimatedBuilder(
-                animation: _phase,
-                // Its own layer: the slow drift then only moves a cached picture instead of repainting it every frame.
-                child: RepaintBoundary(child: sky),
-                builder: (context, child) {
-                  final a = _phase.value * 2 * math.pi;
-                  final d = skyDrift(a);
-                  final scale = d.scale;
-                  final dx = d.dx;
-                  final dy = d.dy;
-                  return Stack(fit: StackFit.expand, children: [
-                    Transform.scale(
-                      scale: scale,
-                      child: FractionalTranslation(translation: Offset(dx, dy), child: child),
-                    ),
-                    IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: Alignment(0.6 * math.cos(a), 0.7 * math.sin(a)),
-                            radius: 0.9,
-                            colors: [glow.withValues(alpha: glowBase + glowSwing * math.sin(a * 2)), glow.withValues(alpha: 0)],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ]);
-                },
-              );
-            }),
+            ]),
           ),
         ),
         widget.child,

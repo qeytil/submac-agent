@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../services/memory_store.dart';
 import '../theme.dart';
 import '../ui/tokens.dart';
+import '../widgets/lux_kit.dart';
 import '../widgets/surface.dart';
 import '../ui/i18n.dart';
 
@@ -12,27 +13,8 @@ import '../ui/i18n.dart';
 class MemoryScreen extends StatelessWidget {
   const MemoryScreen({super.key});
 
-  Future<String?> _edit(BuildContext context, {String initial = '', required String title}) {
-    final ctrl = TextEditingController(text: initial);
-    return showDialog<String>(
-      context: context,
-      builder: (d) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          minLines: 1,
-          maxLines: 4,
-          maxLength: 300,
-          decoration: const InputDecoration(hintText: 'e.g. Lives in Mogadishu and prefers short answers'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d), child: Text(tr('Cancel'))),
-          TextButton(onPressed: () => Navigator.pop(d, ctrl.text), child: Text(tr('Save'))),
-        ],
-      ),
-    );
-  }
+  Future<String?> _edit(BuildContext context, {String initial = '', required String title}) =>
+      luxPrompt(context, title: title, initial: initial, hint: 'e.g. Lives in Mogadishu and prefers short answers', maxLines: 4, maxLength: 300);
 
   @override
   Widget build(BuildContext context) {
@@ -56,9 +38,9 @@ class MemoryScreen extends StatelessWidget {
         padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 32),
         children: [
           SurfaceGroup(children: [
-            SwitchListTile(
-              title: const Text('Remember things'),
-              subtitle: const Text('SubMac keeps short notes about you to help next time'),
+            LuxSwitchRow(
+              title: tr('Remember things'),
+              sub: tr('SubMac keeps short notes about you to help next time'),
               value: state.memoryEnabled,
               onChanged: state.setMemoryEnabled,
             ),
@@ -77,24 +59,13 @@ class MemoryScreen extends StatelessWidget {
           }),
           if (facts.isNotEmpty) ...[
             const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: () async {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (d) => AlertDialog(
-                    title: const Text('Forget everything?'),
-                    content: const Text('SubMac will forget all saved notes about you.'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
-                      TextButton(
-                          onPressed: () => Navigator.pop(d, true),
-                          child: Text('Forget all', style: TextStyle(color: p.accent))),
-                    ],
-                  ),
-                );
-                if (ok == true) await state.clearMemories();
-              },
-              child: const Text('Forget everything'),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: LuxWordButton('Forget everything', destructive: true, onPressed: () async {
+                final ok = await luxConfirm(context,
+                    title: 'Forget everything?', message: 'SubMac will forget all saved notes about you.', action: 'Forget all', destructive: true);
+                if (ok) await state.clearMemories();
+              }),
             ),
           ],
         ],
@@ -110,18 +81,15 @@ class _FactTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
     final state = context.read<AppState>();
     // The shared sky surface: no border, rows apart by space.
     return SurfaceRow(
       margin: const EdgeInsets.only(bottom: Space.x2),
-      child: ListTile(
-        title: Text(fact.fact, style: const TextStyle(fontSize: AppText.body, height: 1.4)),
+      child: LuxRow(
+        title: fact.fact,
+        maxLines: 6,
         onTap: onEdit,
-        trailing: TextButton(
-          onPressed: () => state.removeMemory(fact),
-          child: Text(tr('Delete'), style: TextStyle(color: p.muted, fontSize: AppText.meta)),
-        ),
+        trailing: LuxWordButton('Delete', onPressed: () => state.removeMemory(fact)),
       ),
     );
   }

@@ -11,7 +11,6 @@ import '../services/bot_status.dart';
 import '../services/bots.dart';
 import '../services/offices.dart';
 import '../theme.dart';
-import '../ui/haptics.dart';
 import '../ui/i18n.dart';
 import '../ui/launch_flags.dart';
 import '../ui/tokens.dart';
@@ -23,6 +22,7 @@ import '../widgets/chat/edge_fade.dart';
 import '../widgets/chat/message_actions.dart';
 import '../widgets/composer.dart';
 import '../widgets/logo.dart' show AppLogo;
+import '../widgets/lux_kit.dart';
 import '../widgets/message_view.dart' show selectedReply;
 import '../widgets/status_ring.dart';
 import '../widgets/sub_icon.dart';
@@ -666,8 +666,8 @@ class _NoBots extends StatelessWidget {
             textAlign: TextAlign.center, style: AppText.bodyStyle.copyWith(color: p.muted)),
         const SizedBox(height: Space.x4),
         Row(mainAxisSize: MainAxisSize.min, children: [
-          TextButton(onPressed: onNew, child: Text(tr('New bot'))),
-          TextButton(onPressed: onStore, child: Text(tr('Bot store'))),
+          LuxWordButton('New bot', primary: true, onPressed: onNew),
+          LuxWordButton('Bot store', onPressed: onStore),
         ]),
       ]),
     );
@@ -788,11 +788,10 @@ class _Rail extends StatelessWidget {
                           button: true,
                           label: tr('Back to SubMac'),
                           excludeSemantics: true,
-                          child: IconButton(
+                          child: LuxTap(
                             key: const ValueKey('rail-submac'),
-                            tooltip: tr('Back to SubMac'),
-                            onPressed: onHome,
-                            icon: const AppLogo(size: IconSize.lg),
+                            onTap: onHome,
+                            child: const SizedBox(width: Lux.tap + Space.x2, height: Lux.tap + Space.x2, child: Center(child: AppLogo(size: IconSize.lg))),
                           ),
                         ),
                       ),
@@ -819,8 +818,9 @@ class _Rail extends StatelessWidget {
 BorderRadius railEdge(TextDirection dir) =>
     const BorderRadiusDirectional.only(topEnd: Radius.circular(Radii.sheet), bottomEnd: Radius.circular(Radii.sheet)).resolve(dir);
 
-/// One head in the rail: the face in its status ring, the name under it. The one on screen has a soft highlight
-/// behind it (no dot, no border). Tap swaps to it; hold for its options.
+/// One head in the rail: the face in its status ring, the name under it. The one on screen is told by its name alone
+/// (full ink, semibold) and its face at full strength; the others sit a step back. No highlight box, no dot, no border
+/// (fix/ui-restyle). Tap swaps to it; hold for its options.
 class RailHead extends StatelessWidget {
   const RailHead({
     super.key,
@@ -848,38 +848,34 @@ class RailHead extends StatelessWidget {
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Space.x1, vertical: 2),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: Radii.fieldAll,
-            onTap: onTap,
-            onLongPress: () {
-              SubHaptics.hold();
-              onHold();
-            },
-            child: AnimatedContainer(
-              duration: SubMotion.of(context, LuxMotion.quick),
-              curve: LuxMotion.ease,
-              padding: const EdgeInsets.symmetric(vertical: Space.x2),
-              decoration: BoxDecoration(color: selected ? p.bubble : p.bubble.withValues(alpha: 0), borderRadius: Radii.fieldAll),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                ListenableBuilder(
+        child: LuxTap(
+          selected: selected,
+          onTap: onTap,
+          onLongPress: onHold,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: Space.x2),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              AnimatedOpacity(
+                opacity: selected ? 1 : 0.78,
+                duration: SubMotion.of(context, LuxMotion.quick),
+                curve: LuxMotion.ease,
+                child: ListenableBuilder(
                   listenable: BotStatus.I,
                   builder: (context, _) => StatusRing(key: ValueKey('ring-$statusKey'), state: BotStatus.I.of(statusKey), size: Lux.railFace, child: face),
                 ),
-                const SizedBox(height: Space.x1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: AppText.microStyle.copyWith(color: selected ? p.text : p.muted, fontWeight: selected ? FontWeight.w600 : FontWeight.w500),
-                  ),
+              ),
+              const SizedBox(height: Space.x1),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AppText.microStyle.copyWith(color: selected ? p.text : p.muted, fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
                 ),
-              ]),
-            ),
+              ),
+            ]),
           ),
         ),
       ),
@@ -897,21 +893,16 @@ class RailAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return Semantics(
-      button: true,
+    return LuxTap(
       label: label,
-      excludeSemantics: true,
-      child: InkWell(
-        borderRadius: Radii.fieldAll,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Space.x2, horizontal: 2),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            SubIcon(icon, size: IconSize.md, color: p.text),
-            const SizedBox(height: 2),
-            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: AppText.microStyle.copyWith(color: p.muted)),
-          ]),
-        ),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.x2, horizontal: 2),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          SubIcon(icon, size: IconSize.md, color: p.text),
+          const SizedBox(height: 2),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: AppText.microStyle.copyWith(color: p.muted)),
+        ]),
       ),
     );
   }
