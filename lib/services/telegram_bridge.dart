@@ -8,15 +8,49 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Talk to SubMac from Telegram: the user makes a bot with @BotFather, pastes its token,
-/// and sends the pairing code to the bot. Only that chat is answered. The token stays on the phone.
-class TelegramBridge extends ChangeNotifier {
-  TelegramBridge._();
-  static final I = TelegramBridge._();
+import '../ui/i18n.dart';
 
+/// Where the bridge keeps its secrets (the bot token and the pairing code). Swapped out in tests.
+abstract class TelegramSecrets {
+  Future<String?> read(String key);
+  Future<void> write(String key, String value);
+  Future<void> delete(String key);
+}
+
+class _SecureSecrets implements TelegramSecrets {
+  const _SecureSecrets();
   // Kept on purpose: flutter_secure_storage 10 reads this to migrate data saved by 9.x. Drop it only after every phone ran a v10 build.
   // ignore: deprecated_member_use
   static const _secure = FlutterSecureStorage(aOptions: AndroidOptions(encryptedSharedPreferences: true));
+  @override
+  Future<String?> read(String key) => _secure.read(key: key);
+  @override
+  Future<void> write(String key, String value) => _secure.write(key: key, value: value);
+  @override
+  Future<void> delete(String key) => _secure.delete(key: key);
+}
+
+/// Talk to SubMac from Telegram: the user makes a bot with @BotFather, pastes its token,
+/// and sends the pairing code to the bot. Only that chat is answered. The token stays on the phone.
+class TelegramBridge extends ChangeNotifier {
+  TelegramBridge._({TelegramSecrets? secrets, http.Client Function()? client, Future<void> Function(Duration)? wait})
+      : _secure = secrets ?? const _SecureSecrets(),
+        _newClient = client ?? http.Client.new,
+        _wait = wait ?? ((d) => Future<void>.delayed(d));
+  static final I = TelegramBridge._();
+
+  /// A bridge with its own storage, HTTP client and clock, for tests.
+  @visibleForTesting
+  factory TelegramBridge.forTest({required TelegramSecrets secrets, required http.Client Function() client, Future<void> Function(Duration)? wait}) =>
+      TelegramBridge._(secrets: secrets, client: client, wait: wait);
+
+  final TelegramSecrets _secure;
+  final http.Client Function() _newClient;
+  final Future<void> Function(Duration) _wait;
+
+  /// How long a pairing code stays good. It is kept across restarts (CB-25) and replaced once it runs out.
+  static const pairCodeLife = Duration(hours: 24);
+  DateTime? pairCodeExpires;
 
   String _token = '';
   int? chatId;
@@ -33,14 +67,55 @@ class TelegramBridge extends ChangeNotifier {
 
   bool get on => enabled && _token.isNotEmpty;
   bool get paired => chatId != null;
+  bool get polling => _polling;
 
   Future<void> init() async {
     final p = await SharedPreferences.getInstance();
-    _token = await _secure.read(key: 'telegram_token') ?? '';
+    _token = await _secure.read('telegram_token') ?? '';
     chatId = p.getInt('telegram_chat');
     botName = p.getString('telegram_bot') ?? '';
     enabled = p.getBool('telegram_on') ?? false;
+    if (on && !paired) {
+      // CB-25: the code used to live only in memory, so after a restart nothing could pair. Keep it, or make a new one and show it.
+      pairCode = await _secure.read('telegram_pair_code') ?? '';
+      final exp = int.tryParse(await _secure.read('telegram_pair_expires') ?? '');
+      pairCodeExpires = exp == null ? null : DateTime.fromMillisecondsSinceEpoch(exp);
+      if (_pairCodeStale) await _newPairCode();
+      _showPairCode();
+    }
     if (on) unawaited(_loop());
+  }
+
+  bool get _pairCodeStale => pairCode.isEmpty || pairCodeExpires == null || DateTime.now().isAfter(pairCodeExpires!);
+
+  Future<void> _newPairCode() async {
+    pairCode = (100000 + Random.secure().nextInt(900000)).toString();
+    pairCodeExpires = DateTime.now().add(pairCodeLife);
+    await _secure.write('telegram_pair_code', pairCode);
+    await _secure.write('telegram_pair_expires', '${pairCodeExpires!.millisecondsSinceEpoch}');
+  }
+
+  Future<void> _clearPairCode() async {
+    pairCode = '';
+    pairCodeExpires = null;
+    await _secure.delete('telegram_pair_code');
+    await _secure.delete('telegram_pair_expires');
+  }
+
+  void _showPairCode() {
+    status = tr('Send {code} to @{bot} to link your chat.', {'code': pairCode, 'bot': botName});
+    notifyListeners();
+  }
+
+  /// Telegram turned the token down (401 or 404): stop for good until a new token is pasted.
+  Future<void> _tokenRejected() async {
+    enabled = false;
+    status = tr('The token was rejected. Paste a new one.');
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setBool('telegram_on', false);
+    } catch (_) {}
+    notifyListeners();
   }
 
   String _api(String m) => 'https://api.telegram.org/bot$_token/$m';
@@ -49,25 +124,30 @@ class TelegramBridge extends ChangeNotifier {
   Future<String?> connect(String token) async {
     token = token.trim();
     try {
-      final r = await http.get(Uri.parse('https://api.telegram.org/bot$token/getMe')).timeout(const Duration(seconds: 20));
+      final c = _newClient();
+      final http.Response r;
+      try {
+        r = await c.get(Uri.parse('https://api.telegram.org/bot$token/getMe')).timeout(const Duration(seconds: 20));
+      } finally {
+        c.close();
+      }
       final j = jsonDecode(r.body);
-      if (j['ok'] != true) return 'Telegram did not accept that token. Copy it again from @BotFather.';
+      if (j['ok'] != true) return tr('Telegram did not accept that token. Copy it again from @BotFather.');
       _token = token;
       botName = '${j['result']['username']}';
-      await _secure.write(key: 'telegram_token', value: token);
+      await _secure.write('telegram_token', token);
       final p = await SharedPreferences.getInstance();
       await p.setString('telegram_bot', botName);
       chatId = null;
       await p.remove('telegram_chat');
-      pairCode = (100000 + Random.secure().nextInt(900000)).toString();
+      await _newPairCode();
       enabled = true;
       await p.setBool('telegram_on', true);
-      status = 'Send $pairCode to @$botName to link your chat.';
-      notifyListeners();
+      _showPairCode();
       unawaited(_loop());
       return null;
     } catch (e) {
-      return 'Telegram isn\'t answering. Check the bot token and your internet, then try again.';
+      return tr('Telegram isn\'t answering. Check the bot token and your internet, then try again.');
     }
   }
 
@@ -78,7 +158,8 @@ class TelegramBridge extends ChangeNotifier {
     chatId = null;
     botName = '';
     status = '';
-    await _secure.delete(key: 'telegram_token');
+    await _secure.delete('telegram_token');
+    await _clearPairCode();
     final p = await SharedPreferences.getInstance();
     await p.remove('telegram_chat');
     await p.remove('telegram_bot');
@@ -92,12 +173,32 @@ class TelegramBridge extends ChangeNotifier {
     var fails = 0;
     while (on) {
       try {
-        _client = http.Client();
+        _client = _newClient();
         final r = await _client!
             .get(Uri.parse('${_api('getUpdates')}?timeout=45&offset=$_offset&allowed_updates=["message"]'))
             .timeout(const Duration(seconds: 60));
+        // CB-25: a revoked or wrong token is not a network blip. Retrying it forever only showed "Reconnecting…".
+        if (r.statusCode == 401 || r.statusCode == 404) {
+          await _tokenRejected();
+          break;
+        }
         final j = jsonDecode(utf8.decode(r.bodyBytes));
+        if (r.statusCode == 429 || j['error_code'] == 429) {
+          // Too many requests: wait as long as Telegram asks, then carry on. Not a failure.
+          final after = (j['parameters']?['retry_after'] as num?)?.toInt() ?? 5;
+          await _wait(Duration(seconds: after.clamp(1, 600)));
+          continue;
+        }
         if (j['ok'] != true) throw '${j['description']}';
+        if (fails > 0) {
+          // Back online: drop "Reconnecting…" and show the pairing code again if the chat isn't linked yet.
+          if (!paired && pairCode.isNotEmpty) {
+            _showPairCode();
+          } else {
+            status = '';
+            notifyListeners();
+          }
+        }
         fails = 0;
         for (final u in (j['result'] as List)) {
           _offset = (u['update_id'] as num).toInt() + 1;
@@ -108,9 +209,9 @@ class TelegramBridge extends ChangeNotifier {
       } catch (e) {
         if (!on) break;
         fails++;
-        status = 'Reconnecting to Telegram…';
+        status = tr('Reconnecting to Telegram…');
         notifyListeners();
-        await Future<void>.delayed(Duration(seconds: min(60, 3 * fails)));
+        await _wait(Duration(seconds: min(60, 3 * fails)));
       } finally {
         _client?.close();
       }
@@ -119,16 +220,26 @@ class TelegramBridge extends ChangeNotifier {
   }
 
   Future<void> _handle(Map<String, dynamic> m) async {
+    // Only a one-to-one chat with the bot pairs or gets answered. Groups and channels are ignored, so a code
+    // pasted in a group can't link the whole group to the phone.
+    final type = '${m['chat']?['type'] ?? 'private'}';
+    if (type != 'private') return;
     final id = (m['chat']['id'] as num).toInt();
     final text = (m['text'] ?? m['caption'] ?? '').toString().trim();
     final from = '${m['from']?['first_name'] ?? 'You'}';
     if (chatId == null) {
-      if (pairCode.isNotEmpty && text.contains(pairCode)) {
+      if (_pairCodeStale) {
+        // The code ran out (or was never made): make a new one and show it, and don't take this message.
+        await _newPairCode();
+        _showPairCode();
+        return;
+      }
+      if (text.contains(pairCode)) {
         chatId = id;
         final p = await SharedPreferences.getInstance();
         await p.setInt('telegram_chat', id);
-        pairCode = '';
-        status = 'Linked with $from.';
+        await _clearPairCode();
+        status = tr('Linked with {name}.', {'name': from});
         notifyListeners();
         await send('Linked. Message me here any time and I will work on it on your phone.');
       }
@@ -150,7 +261,7 @@ class TelegramBridge extends ChangeNotifier {
 
   Future<void> _typing() async {
     try {
-      await http.post(Uri.parse(_api('sendChatAction')), body: {'chat_id': '$chatId', 'action': 'typing'});
+      await _post(_api('sendChatAction'), {'chat_id': '$chatId', 'action': 'typing'});
     } catch (_) {}
   }
 
@@ -188,8 +299,17 @@ class TelegramBridge extends ChangeNotifier {
     for (var i = 0; i < text.length; i += 3900) {
       final part = text.substring(i, min(text.length, i + 3900));
       try {
-        await http.post(Uri.parse(_api('sendMessage')), body: {'chat_id': '$chatId', 'text': part});
+        await _post(_api('sendMessage'), {'chat_id': '$chatId', 'text': part});
       } catch (_) {}
+    }
+  }
+
+  Future<void> _post(String url, Map<String, String> body) async {
+    final c = _newClient();
+    try {
+      await c.post(Uri.parse(url), body: body).timeout(const Duration(seconds: 30));
+    } finally {
+      c.close();
     }
   }
 
