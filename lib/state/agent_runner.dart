@@ -3,7 +3,11 @@
 part of '../app_state.dart';
 
 extension AppStateAgentRunner on AppState {
-  Future<void> _runAgent(String convId, {bool side = false}) async {
+  /// Most follow-on runs in a row for messages that arrived after a run's last step (CB-1).
+  static const maxFollowOns = 3;
+
+  /// [chain]: how many runs in a row were started only to answer messages that arrived as the previous one ended (CB-1).
+  Future<void> _runAgent(String convId, {bool side = false, int chain = 0}) async {
     final list = _lists[convId] ?? messages;
     _lists[convId] = list;
     final ownerChat = !side && Bots.I.byConv(convId) == null;
@@ -197,7 +201,7 @@ extension AppStateAgentRunner on AppState {
           bannerArgs = const {};
         }
       }
-      if (res.end == RunEnd.failed && res.error != null && !run.cancelled) hooks.failWith(res.error!);
+      if (res.end == RunEnd.failed && res.error != null && !run.cancelled && !hooks.answeredFailure) hooks.failWith(res.error!);
     } finally {
       await journal?.close(run.cancelled ? 'stopped' : outcome);
       runs.remove(run);
@@ -236,6 +240,12 @@ extension AppStateAgentRunner on AppState {
         await repo.updateConversation(convId, {'model': model});
       } catch (_) {}
       if (!run.finished.isCompleted) run.finished.complete();
+      // CB-1: a message that reached the inbox after the last step was built (the final answer was already streaming,
+      // so it could not restart that step) is answered by a follow-on run, never left unanswered. At most
+      // [maxFollowOns] in a row, so a stuck inbox can never loop. A failed run shows its error instead.
+      if (!side && !run.cancelled && outcome != 'failed' && run.inbox.isNotEmpty && chain < AppStateAgentRunner.maxFollowOns) {
+        unawaited(_runAgent(convId, chain: chain + 1));
+      }
     }
   }
 
@@ -484,6 +494,32 @@ class _MainHooks extends CoreHooks {
   /// The current reply is kept as it is (cut off by the length limit) and the next one continues it.
   bool _keep = false;
 
+  /// CB-10: the message the next model call writes into (a cut-off reply it continues, or a dropped step it redoes), and
+  /// the text that message already holds from earlier calls. A continuation joins the same message: one bubble, one
+  /// save, and repair, the card check, Copy and Try again see the whole reply.
+  ChatMessage? _carry;
+  String _prefix = '';
+
+  /// CB-24: the carried message's own part came from a dropped call: it stays on screen until the retry's first word
+  /// replaces it.
+  bool _redo = false;
+
+  /// CB-1: the final reply is answered (kept and saved as it is) and the same run goes on to answer the inbox.
+  bool _answered = false;
+  int _inboxRounds = 0;
+
+  /// The run's failure was already answered in the chat (CB-30): no error card on top of it.
+  bool answeredFailure = false;
+
+  /// The recent part of the chat when even a compacted chat was too long ([_trimTo]). The latest summary stays in front,
+  /// so falling back to the recent part never drops what the summary kept (CB-30).
+  List<ChatMessage> _trimmed() {
+    final tail = app._tail(list, _trimTo);
+    final mark = list.lastWhere(AppState.isCompactMark, orElse: () => ChatMessage(id: '', role: 'system'));
+    if (mark.id.isEmpty || tail.contains(mark)) return tail;
+    return [mark, ...tail];
+  }
+
   /// Approval gates of this turn's calls, by call id (asked through an interrupt, then run with the user's answer).
   final Map<String, ToolGate> _gates = {};
   final Map<String, _GroupRow> _groupRows = {};
@@ -579,7 +615,7 @@ class _MainHooks extends CoreHooks {
         ? app._quickPayload(convId, list, askNote: stepNote)
         : _quickNow
         ? app._quickPayload(convId, list, askNote: askNote)
-        : app._payload(_trimTo > 0 ? app._tail(list, _trimTo) : list,
+        : app._payload(_trimTo > 0 ? _trimmed() : list,
             sideNote: stepNote, withShot: !side && run.browsing, request: side ? '' : run.brief.recital(), convId: convId);
     // From here a new message can't be in this step's payload: it reaches the task through its inbox.
     if (!side) run.payloadBuilt = true;
@@ -601,18 +637,74 @@ class _MainHooks extends CoreHooks {
 
   @override
   void modelStarted(int step) {
-    final asst = ChatMessage(id: _uuid.v4(), role: 'assistant', streaming: true)..animateIn = true;
-    _asst = asst;
     _keep = false;
-    list.add(asst);
-    run.wrote.add(asst.id);
+    final carry = _carry;
+    _carry = null;
+    if (carry != null && list.contains(carry)) {
+      // Continues (or redoes) the reply already on screen in the same bubble.
+      carry.streaming = true;
+      _asst = carry;
+    } else {
+      final asst = ChatMessage(id: _uuid.v4(), role: 'assistant', streaming: true)..animateIn = true;
+      _asst = asst;
+      _prefix = '';
+      _redo = false;
+      list.add(asst);
+      run.wrote.add(asst.id);
+    }
     run.inModel = true;
     app._notify();
+  }
+
+  @override
+  String partialText() => _asst?.content ?? '';
+
+  /// Stop while the reply streamed (CB-2): the words already on screen stay, are saved, and the bubble is marked as
+  /// stopped. Only an empty bubble leaves the chat.
+  @override
+  Future<void> onStopped(Reply r) async {
+    final asst = _asst;
+    _asst = null;
+    _carry = null;
+    run.inModel = false;
+    if (asst == null) return;
+    await _keepStopped(asst);
+  }
+
+  Future<void> _keepStopped(ChatMessage asst) async {
+    asst.streaming = false;
+    if (asst.content.trim().isEmpty) {
+      list.remove(asst);
+      app._notify();
+      return;
+    }
+    if (!list.contains(asst)) return;
+    asst.toolCalls = null;
+    asst.stopped = true;
+    // A card left open where it stopped is closed, so the half reply still draws.
+    asst.content = ReplySchema.repair(asst.content);
+    app._notify();
+    await app._save(convId, asst);
+  }
+
+  /// A step that is sent again (a steer, a drop): a continuation keeps the part it continues, anything else goes.
+  void _dropStep(ChatMessage? asst, {bool redo = false}) {
+    if (asst == null) return;
+    asst.streaming = false;
+    if (_prefix.isEmpty && (!redo || asst.content.isEmpty)) {
+      list.remove(asst);
+      return;
+    }
+    if (!redo) asst.content = _prefix;
+    _carry = asst;
+    _redo = redo && asst.content.length > _prefix.length;
   }
 
   /// The wire: one model call through ai-chat with the app's time limits and quiet retries (agent_stream.dart).
   Future<LlmResult> transport(Turn t) async {
     final asst = _asst ?? (ChatMessage(id: _uuid.v4(), role: 'assistant', streaming: true));
+    final redoFrom = _redo ? _prefix : null;
+    _redo = false;
     try {
       final r = await app._streamResilient(
         run: run,
@@ -620,6 +712,7 @@ class _MainHooks extends CoreHooks {
         payload: t.payload,
         tools: t.tools,
         asst: asst,
+        redoFrom: redoFrom,
         lane: '${t.hints['lane'] ?? QuickLane.full}',
         effort: t.hints['effort'] as String?,
       );
@@ -640,18 +733,39 @@ class _MainHooks extends CoreHooks {
     // The user spoke mid-step: the step starts again and hears them (it is not counted; nothing to rewind).
     if (run.client?.steered == true && !run.cancelled) {
       run.client?.steered = false;
-      if (asst != null) list.remove(asst);
+      _dropStep(asst);
       app._notify();
       return ErrorAction.retry;
     }
     if (run.cancelled) {
-      if (asst != null && asst.content.trim().isEmpty) list.remove(asst);
+      // CB-2: the words already shown stay (an empty bubble goes).
+      _asst = null;
+      if (asst != null) await _keepStopped(asst);
       return ErrorAction.stop;
     }
     final es = e.toString();
     // Too long for the model: quietly compact the chat and retry. Only if that is not possible, fall back to sending
     // the recent part. The user sees no error either way.
     final tooLong = Calm.isContextTooLong(es) || (e is LlmException && e.isTooLong);
+    // CB-30: the user's own message is the long part (a huge paste): folding the chat cannot make it fit, so nothing is
+    // sent again. The reply says so in the app's language and offers the two ways that work.
+    if (!side && tooLong && (asst?.content.isEmpty ?? true)) {
+      final mine = list.lastWhere((m) => m.role == 'user', orElse: () => ChatMessage(id: '', role: 'user'));
+      if (PasteGuard.messageAloneTooLong(mine.content)) {
+        final a = asst ?? ChatMessage(id: _uuid.v4(), role: 'assistant');
+        if (!list.contains(a)) {
+          list.add(a);
+          run.wrote.add(a.id);
+        }
+        a.streaming = false;
+        a.content = PasteGuard.tooLongReply(PasteGuard.kbOf(mine.content));
+        _asst = null;
+        answeredFailure = true;
+        app._notify();
+        await app._save(convId, a);
+        return ErrorAction.stop;
+      }
+    }
     if (!side && _trimTo == 0 && (asst?.content.isEmpty ?? true) && tooLong) {
       if (asst != null) list.remove(asst);
       if (!_compactedOnError && await app._autoCompact(convId, list, app.submacRef, force: true)) {
@@ -662,12 +776,13 @@ class _MainHooks extends CoreHooks {
       app._notify();
       return ErrorAction.retry;
     }
-    // The connection dropped in the middle of a reply: the partial reply is dropped and the step is sent again (never
-    // patched with "continue where it stopped"). At most twice in a row (PLAN 1.3).
+    // The connection dropped in the middle of a reply: the step is sent again (never patched with "continue where it
+    // stopped"). At most twice in a row (PLAN 1.3). too_long is final (CB-30): the same request is never re-sent.
+    // CB-24: the partial reply stays on screen until the retry's first word replaces it.
     if (!side && StreamPolicy.canReissueAfterDrop(run.dropsInRow) &&
-        !(e is LlmException && (e.isFinal || e.isAuth || e.message.startsWith('You have used today')))) {
+        !(e is LlmException && (e.isFinal || e.isAuth || e.isTooLong || e.message.startsWith('You have used today')))) {
       run.dropsInRow++;
-      if (asst != null) list.remove(asst);
+      _dropStep(asst, redo: true);
       run.status = 'Continuing';
       app._notify();
       return ErrorAction.retry;
@@ -697,10 +812,26 @@ class _MainHooks extends CoreHooks {
     final asst = _asst;
     if (asst == null) return;
     asst.streaming = false;
+    if (_answered) {
+      // CB-1: a final answer, kept and saved like any other; the next call answers the message that came in meanwhile.
+      _answered = false;
+      await commit(r);
+      _asst = null;
+      app._notify();
+      return;
+    }
     if (_keep) {
-      // Kept as it is (cut off by the length limit): the next reply continues it.
-      asst.content = r.text;
+      // Kept as it is (cut off by the length limit): the next reply continues it in the same message (CB-10).
+      asst.content = _prefix + r.text;
       asst.toolCalls = null;
+      await app._save(convId, asst);
+      _prefix = asst.content;
+      _carry = asst;
+    } else if (_prefix.isNotEmpty) {
+      // A continuation sent back by another check: the part it continued stays as it was (never deleted with it).
+      asst.content = hold ? _prefix + r.text : _prefix;
+      asst.toolCalls = null;
+      if (!hold) asst.content = ReplySchema.repair(asst.content);
       await app._save(convId, asst);
     } else if (hold) {
       asst.content = r.text;
@@ -721,7 +852,8 @@ class _MainHooks extends CoreHooks {
     run.inModel = false;
     asst.streaming = false;
     run.dropsInRow = 0;
-    asst.content = r.text;
+    // CB-10: a continuation is joined to the part it continues (one message).
+    asst.content = _prefix + r.text;
     asst.toolCalls = r.callsOrNull;
     // Entrance animation is for the moment it arrives, never again on a later rebuild.
     Future<void>.delayed(const Duration(seconds: 2), () => asst.animateIn = false);
@@ -897,6 +1029,15 @@ class _MainHooks extends CoreHooks {
   /// Checks a final reply must pass, in order: not blank, proven, page checked, not cut off, checklist done, work
   /// checked, valid cards.
   List<FinishGate> gates() => [
+        // CB-1: a message the user sent while this final answer streamed (too late to restart the step). The answer is
+        // kept as it is, and the same run answers the new message next (buildTurn reads the inbox), at most 3 times.
+        (r) async {
+          if (run.cancelled || run.inbox.isEmpty || r.blank || r.cutOff || _inboxRounds >= AppStateAgentRunner.maxFollowOns) return null;
+          _inboxRounds++;
+          _answered = true;
+          run.status = 'Reading your message';
+          return (note: '', hold: false);
+        },
         // Blank: models sometimes go blank mid-task (often after a screenshot). Nudge once or twice instead of going silent.
         (r) async {
           if (!r.blank || run.cancelled) return null;
@@ -1006,7 +1147,8 @@ class _MainHooks extends CoreHooks {
           if (r.blank || r.cutOff || run.formatFixes >= 1) return null;
           // What the app fixes by itself (a markdown table, a card left open at the end) never costs a model call:
           // commit() repairs it. Only what needs the model goes back.
-          final problems = ReplySchema.problems(ReplySchema.repair(r.text));
+          // CB-10: checked on the whole reply, a continuation joined to the part it continues.
+          final problems = ReplySchema.problems(ReplySchema.repair(_prefix + r.text));
           if (problems.isEmpty) return null;
           run.formatFixes++;
           run.status = 'Tidying the answer';

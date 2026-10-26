@@ -42,6 +42,7 @@ import 'services/mcp_client.dart';
 import 'services/memory_store.dart';
 import 'services/phone_tools.dart';
 import 'services/rate_limiter.dart';
+import 'services/paste_guard.dart';
 import 'services/web_tools.dart';
 import 'services/browser_agent.dart';
 import 'services/browser_jobs.dart';

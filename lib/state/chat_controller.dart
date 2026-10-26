@@ -334,6 +334,8 @@ extension AppStateChat on AppState {
     if (text.trim().isEmpty && attachments.isEmpty) return;
     // An API key pasted in chat is moved to the phone's encrypted storage before the message is saved or synced.
     text = AiKeys.redact(text).text;
+    // CB-30: a paste too long for one model call never goes out as it is (it was uploaded four times and then lost).
+    if (PasteGuard.tooBig(text)) return _sendTooLong(text, attachments);
     // PLAN 1.4: claim this chat's run before anything is awaited. A message sent while the first one is still saving
     // or uploading its photo joins the same task instead of starting a second agent (double answers, double charges).
     final claimed = _sendGate.openOn(currentId);
@@ -545,6 +547,31 @@ extension AppStateChat on AppState {
     } finally {
       _clearAwaiting(m.id);
     }
+  }
+
+  /// CB-30: the user picks how a too-long paste goes: as a file (its first words stay the message), or as a file to be
+  /// summarised a part at a time. Either way the model reads it from the workspace in parts. Nothing goes out unasked.
+  Future<void> _sendTooLong(String text, List<Attachment> attachments) async {
+    final name = PasteGuard.fileName();
+    final file = Attachment(name: name, mime: 'text/plain', bytes: utf8.encode(text));
+    final attach = PasteGuard.attachOption(), parts = PasteGuard.partsOption();
+    final got = await askUser(UserAsk(
+      kind: 'text',
+      convId: currentId ?? '',
+      title: PasteGuard.title(),
+      prompt: PasteGuard.prompt(PasteGuard.kbOf(text)),
+      options: [attach, parts],
+    ));
+    final answer = (got?['answer'] ?? '').trim();
+    if (answer == attach) return send(PasteGuard.head(text), [...attachments, file]);
+    if (answer == parts) return send(PasteGuard.partsAsk(), [...attachments, file]);
+    // Their own words instead of a button: those words go with the file.
+    if (answer.isNotEmpty && !PasteGuard.tooBig(answer)) return send(answer, [...attachments, file]);
+    // Dismissed: nothing is sent, and the text is not lost.
+    await _copyToWorkspace(file);
+    banner = PasteGuard.notSent(name);
+    bannerArgs = const {};
+    _notify();
   }
 
   Future<void> _copyToWorkspace(Attachment a) async {
