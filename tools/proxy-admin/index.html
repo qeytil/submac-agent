@@ -46,6 +46,15 @@
   .route .m { flex:1; }
   details summary { cursor:pointer; }
   .hide { display:none !important; }
+  .fb { border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:10px; background:#10141c; }
+  .fb.new { border-color:var(--acc); }
+  .fb .msg { white-space:pre-wrap; word-break:break-word; margin:8px 0; }
+  .fb .meta { color:var(--mute); font-size:12px; display:flex; flex-wrap:wrap; gap:4px 14px; }
+  .shots { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0; }
+  .shots img { width:96px; height:96px; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:zoom-in; background:#0f131a; }
+  .lightbox { position:fixed; inset:0; background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; z-index:30; cursor:zoom-out; }
+  .lightbox img { max-width:94vw; max-height:92vh; border-radius:8px; }
+  nav button .pill { margin-left:6px; padding:0 7px; }
 </style>
 </head>
 <body>
@@ -70,6 +79,7 @@
   <main id="view"></main>
 </div>
 <div id="toast" class="toast"></div>
+<div id="lightbox" class="lightbox hide" onclick="this.classList.add('hide');this.innerHTML=''"></div>
 
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -96,6 +106,20 @@ async function api(action, body = {}) {
 }
 window.api = api;
 
+// Feedback (in-app feedback from users): edge function feedback-admin, same sign-in and ai_admins allowlist as ai-admin.
+async function fbApi(action, body = {}) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch(SB_URL + "/functions/v1/feedback-admin", {
+    method: "POST",
+    headers: { "content-type": "application/json", apikey: SB_ANON, authorization: "Bearer " + session?.access_token },
+    body: JSON.stringify({ action, ...body }),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok || j.error) throw new Error(j.error || res.statusText);
+  return j;
+}
+window.fbApi = fbApi;
+
 window.signIn = async () => {
   const email = $("#email").value.trim();
   const password = $("#password").value;
@@ -121,13 +145,15 @@ async function boot() {
   }
   $("#app").classList.remove("hide");
   renderTabs();
+  loadFbCount();
+  setInterval(loadFbCount, 120000);
   await load();
 }
 sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_IN" && $("#app").classList.contains("hide")) { $("#login").classList.add("hide"); boot(); } });
 
-const TABS = [["overview", "Overview"], ["aliases", "Models users get"], ["providers", "Providers, keys & models"], ["live", "Live calls"], ["users", "Users"], ["safety", "Safety"], ["messages", "Messages"], ["rewards", "Rewards"], ["events", "Events"], ["updates", "Updates"], ["settings", "Settings"]];
+const TABS = [["overview", "Overview"], ["aliases", "Models users get"], ["providers", "Providers, keys & models"], ["live", "Live calls"], ["users", "Users"], ["safety", "Safety"], ["messages", "Messages"], ["rewards", "Rewards"], ["events", "Events"], ["updates", "Updates"], ["feedback", "Feedback"], ["settings", "Settings"]];
 function renderTabs() {
-  $("#tabs").innerHTML = TABS.map(([k, l]) => `<button class="${S.tab === k ? "on" : ""}" onclick="go('${k}')">${l}</button>`).join("");
+  $("#tabs").innerHTML = TABS.map(([k, l]) => `<button class="${S.tab === k ? "on" : ""}" onclick="go('${k}')">${l}${k === "feedback" && S.fbNew ? ` <span class="pill warn" title="Unread feedback">${S.fbNew}</span>` : ""}</button>`).join("");
 }
 window.go = async (t) => { S.tab = t; renderTabs(); render(); };
 
@@ -135,7 +161,7 @@ async function load() {
   const [d, st] = await Promise.all([api("get_all"), api("stats", { hours: S.hours })]);
   S.data = d; S.stats = st; render();
 }
-window.reload = async () => { if (S.tab === "live") await loadLive(); S.ulist = null; S.udata = null; S.rew = null; S.msgs = null; S.flags = null; S.ev = null; S.upd = null; await load(); toast("Refreshed"); };
+window.reload = async () => { if (S.tab === "live") await loadLive(); S.ulist = null; S.udata = null; S.rew = null; S.msgs = null; S.flags = null; S.ev = null; S.upd = null; S.fb = null; loadFbCount(); await load(); toast("Refreshed"); };
 
 const setting = (k, dflt) => { const r = S.data.settings.find((x) => x.key === k); return r ? r.value : dflt; };
 const prov = (id) => S.data.providers.find((p) => p.id === id);
@@ -146,7 +172,7 @@ function render() {
   const v = $("#view");
   if (!S.data) { v.innerHTML = "Loading…"; return; }
   if (S.tab === "live" && !S.live) { v.innerHTML = "Loading…"; loadLive().then(render).catch((e) => { v.innerHTML = '<div class="card">' + esc(e.message) + "</div>"; }); return; }
-  v.innerHTML = ({ overview, aliases, providers, live, users, safety, messages, rewards, events, updates, settings })[S.tab]();
+  v.innerHTML = ({ overview, aliases, providers, live, users, safety, messages, rewards, events, updates, feedback, settings })[S.tab]();
 }
 // Inline onclick handlers run in the page's global scope, so they need render on window (Updates edit, Events refresh).
 window.render = render;
@@ -938,6 +964,71 @@ window.updDelete = async (id, name) => {
   if (!confirm(`Delete update ${name} and its file? Phones that already downloaded it can still install it until they check again.`)) return;
   try { await updApi("delete_release", { id }); S.upd = null; render(); toast("Deleted"); } catch (e) { toast(e.message, true); }
 };
+
+// ---------- Feedback (users' in-app feedback; edge function feedback-admin, table public.feedback) ----------
+// Screenshots live in the private bucket feedback-screenshots; the function hands back signed links that last an hour.
+async function loadFbCount() {
+  try { const c = await fbApi("counts"); S.fbCounts = c; if (S.fbNew !== c.new) { S.fbNew = c.new; renderTabs(); } } catch { /* the tab shows the error */ }
+}
+async function loadFb() { const r = await fbApi("list", { status: S.fbStatus || "all", limit: 200 }); S.fb = r.items || []; S.fbAt = Date.now(); }
+const FB_STATUS = { new: '<span class="pill warn">new</span>', read: '<span class="pill">read</span>', resolved: '<span class="pill ok">resolved</span>' };
+const FB_CAT = { bug: "Problem", idea: "Idea", other: "Other" };
+function feedback() {
+  if (!S.fb) { loadFb().then(render).catch((e) => { $("#view").innerHTML = '<div class="card">' + esc(e.message) + "</div>"; }); return "Loading…"; }
+  if (S.fbAt && Date.now() - S.fbAt > 50 * 60 * 1000) { S.fb = null; return feedback(); } // signed links last an hour
+  const c = S.fbCounts || {};
+  const st = S.fbStatus || "all";
+  const item = (f) => {
+    const who = f.display_name ? `${esc(f.display_name)} · ${esc(f.email || "")}` : esc(f.email || "(deleted account)");
+    const dev = [f.device_model, f.os_version].filter(Boolean).map(esc).join(" · ") || "–";
+    const ver = f.app_version ? `${esc(f.app_version)}${f.build_number ? ` (${esc(f.build_number)})` : ""}` : "–";
+    const shots = (f.shots || []).map((x) => x.url
+      ? `<img src="${esc(x.url)}" alt="screenshot" loading="lazy" onclick="fbZoom(this.src)">`
+      : `<span class="pill bad" title="${esc(x.path)}">screenshot missing</span>`).join("");
+    return `<div class="fb ${f.status === "new" ? "new" : ""}">
+      <div class="row"><b style="flex:1">${who}</b>${f.category ? `<span class="pill">${esc(FB_CAT[f.category] || f.category)}</span>` : ""}${FB_STATUS[f.status] || esc(f.status)}<span class="mute">${when(f.created_at)}</span></div>
+      <div class="msg">${esc(f.message)}</div>
+      ${shots ? `<div class="shots">${shots}</div>` : ""}
+      <div class="meta">
+        <span>uid <a href="#" class="mono" onclick="openUser('${esc(f.user_id)}');return false">${esc(f.user_id)}</a></span>
+        <span>plan ${esc(f.plan || "Free / none")}</span>
+        <span>app ${ver}</span>
+        <span>device ${dev}</span>
+        <span>locale ${esc(f.locale || "–")}</span>
+        ${f.last_device ? `<span>last seen ${when(f.last_device.last_seen)}${f.last_device.app_version ? ` on ${esc(f.last_device.app_version)}` : ""}</span>` : ""}
+        <span>joined ${when(f.user_created_at)}</span>
+      </div>
+      <div class="row" style="margin-top:8px;align-items:flex-start">
+        <textarea id="fbn_${esc(f.id)}" placeholder="Admin note (only you see this)" maxlength="4000" style="flex:1;min-height:44px">${esc(f.admin_note || "")}</textarea>
+        <div class="row" style="flex-direction:column;align-items:stretch;gap:6px">
+          <button class="b" onclick="fbNote('${esc(f.id)}', this)">Save note</button>
+          ${f.status !== "read" ? `<button class="b" onclick="fbSet('${esc(f.id)}','read', this)">Mark read</button>` : ""}
+          ${f.status !== "resolved" ? `<button class="b p" onclick="fbSet('${esc(f.id)}','resolved', this)">Resolve</button>` : `<button class="b" onclick="fbSet('${esc(f.id)}','new', this)">Reopen</button>`}
+        </div>
+      </div>
+      ${f.updated_at ? `<div class="mute" style="font-size:12px;margin-top:4px">Updated ${when(f.updated_at)}</div>` : ""}
+    </div>`;
+  };
+  return `<div class="card"><div class="row"><h2 style="margin:0;flex:1">Feedback</h2>
+      <span class="mute">${fmt(c.new)} unread · ${fmt(c.read)} read · ${fmt(c.resolved)} resolved</span>
+      <select onchange="S.fbStatus=this.value;S.fb=null;render()">${[["all", "All"], ["new", "New"], ["read", "Read"], ["resolved", "Resolved"]].map(([k, l]) => `<option value="${k}" ${st === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <button class="b" onclick="S.fb=null;loadFbCount();render()">Refresh</button></div>
+    <p class="mute" style="margin:6px 0 12px">What users send from Settings › Help › Send feedback, newest first. Click a screenshot to enlarge it.</p>
+    ${S.fb.map(item).join("") || '<p class="mute">Nothing here yet.</p>'}</div>`;
+}
+window.fbZoom = (src) => { const l = $("#lightbox"); l.innerHTML = `<img src="${esc(src)}" alt="screenshot">`; l.classList.remove("hide"); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { const l = $("#lightbox"); l.classList.add("hide"); l.innerHTML = ""; } });
+async function fbUpdate(id, body, btn, msg) {
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fbApi("update", { id, ...body });
+    const f = (S.fb || []).find((x) => x.id === id);
+    if (f) { f.status = r.status; f.admin_note = r.admin_note; f.updated_at = r.updated_at; }
+    await loadFbCount(); render(); toast(msg);
+  } catch (e) { toast(e.message, true); if (btn) btn.disabled = false; }
+}
+window.fbSet = (id, status, btn) => fbUpdate(id, { status }, btn, status === "resolved" ? "Resolved" : status === "read" ? "Marked read" : "Reopened");
+window.fbNote = (id, btn) => fbUpdate(id, { admin_note: document.getElementById("fbn_" + id).value }, btn, "Note saved");
 
 // ---------- Settings ----------
 const SETTINGS = [
