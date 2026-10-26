@@ -74,6 +74,8 @@ extension AppStateAgentPrompt on AppState {
           'If blocked: what blocked you and the one thing they can do. Never end silently.')
       ..writeln('- Your tool list is the truth about what you can do now. Errors: fix the cause; tell the user only what you can\'t fix, in plain words.')
       ..writeln()
+      ..writeln(AgentCraft.block)
+      ..writeln()
       ..writeln('# Approvals')
       ..writeln('Anything that sends, posts, pays or deletes shows the user one approval card (Approve · Edit · Not now) by itself; similar asks '
           'are grouped into one card. Just call the tool: do not also ask in text. "Not now" means drop it; "Edit" means they changed the text, '
@@ -644,8 +646,8 @@ extension AppStateAgentPrompt on AppState {
             : s;
         text.write('\n\nAttached file "${a.name}":\n```\n$clipped\n```');
       } else {
-        text.write('\n\n[Attached file "${a.name}" (${a.mime})'
-            '${a.localPath != null ? ' saved at ${a.localPath}' : ''}]');
+        // Launch hardening M-3: says how to read it (or that it cannot be heard or watched), so nothing is guessed.
+        text.write('\n\n${AgentCraft.attachLine(a.name, a.mime, a.localPath)}');
       }
     }
     if (parts.isEmpty) return text.toString();

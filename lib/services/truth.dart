@@ -84,12 +84,39 @@ final List<_Claim> _claims = [
     r"(?:i(?:'ve| have)? (?:just )?ran|command (?:completed|succeeded|finished)|script (?:completed|succeeded|finished)|tests? (?:passed|pass))",
     const ['run_shell', 'shell', 'exec', 'terminal', 'code_run', 'bash', 'script'],
   ),
+
+  // Launch hardening H-2: the same claims in Somali and Arabic (most SubMac users write one of them). Before, "Fariinta
+  // waa la diray" or "تم إرسال الرسالة" passed the gate with no tool behind it.
+  _Claim('a message was sent', r"\b(?:waan|waannu|waanu|ayaan|waa la|ayaa la|baa la)\s+(?:u\s+|soo\s+|ugu\s+)?(?:diray|diray|gudbiyay|gudbiyey)\b|(?:أرسلت|ارسلت|تم إرسال|تم ارسال|تم الإرسال|تم الارسال)",
+      const ['send', 'whatsapp', 'telegram', 'sms', 'email', 'mail', 'imessage', 'signal', 'dm']),
+  _Claim('a booking was made', r"\b(?:waan|ayaan|waa la|ayaa la)\s+(?:kuu\s+|u\s+)?(?:ballansaday|ballansaday|qabsaday)\b|(?:حجزت|تم الحجز|تم حجز)",
+      const ['book', 'calend', 'reserv', 'ticket', 'flight', 'appoint']),
+  _Claim('a file was saved', r"\b(?:waan|ayaan|waa la|ayaa la)\s+(?:kaydiyay|keydiyay|kaydiyey|keydiyey|xafiday|soo dejiyay|soo dejiyey)\b|(?:حفظت|تم الحفظ|تم حفظ|تم تنزيل|تم التنزيل)",
+      const ['write_file', 'append_file', 'edit_file', 'download', 'save', 'export', 'create_file', 'upload']),
+  _Claim('something was created', r"\b(?:waan|ayaan|waa la|ayaa la)\s+(?:kuu\s+|u\s+)?(?:sameeyay|sameeyey|abuuray|diyaariyay|diyaariyey|ku daray|dhisay|qorsheeyay)\b|(?:أنشأت|انشأت|تم إنشاء|تم انشاء|تمت إضافة|تم إضافة|تمت جدولة|تم جدولة)",
+      const ['create', 'write_file', 'append_file', 'generate', 'make', 'add_', 'calendar', 'alarm', 'reminder', 'doc', 'sheet', 'slide']),
+  _Claim('something was deleted', r"\b(?:waan|ayaan|waa la|ayaa la)\s+(?:tirtiray|masaxay|ka saaray)\b|(?:حذفت|تم الحذف|تم حذف|تمت إزالة)",
+      const ['delete', 'remove', 'clear', 'trash']),
+  _Claim('something was posted', r"\b(?:waan|ayaan|waa la|ayaa la)\s+(?:soo\s+)?(?:daabacay|dhejiyay|dhejiyey|baahiyay|faafiyay)\b|(?:نشرت|تم النشر|تم نشر|تم رفع)",
+      const ['post', 'publish', 'upload', 'share', 'tweet', 'social']),
+  _Claim('a payment went through', r"\b(?:waan|ayaan|waa la|ayaa la)\s+(?:bixiyay|bixiyey|iibsaday|dalbaday)\b|(?:دفعت|تم الدفع|تم دفع|اشتريت|تم الشراء)",
+      const ['pay', 'buy', 'order', 'purchase', 'checkout', 'cart', 'stripe']),
+  _Claim('a call was placed', r"\b(?:waan|ayaan|waa la)\s+(?:soo\s+)?wacay\b|(?:اتصلت|تم الاتصال)",
+      const ['call', 'phone_', 'dial', 'twilio']),
+  _Claim('an app was installed', r"\b(?:waan|ayaan|waa la)\s+(?:ku\s+)?rakibay\b|(?:تم التثبيت|تم تثبيت)",
+      const ['install', 'apk', 'package']),
 ];
 
-final RegExp _split = RegExp(r'(?<=[.!?])\s+|\n+|\r+');
+final RegExp _split = RegExp(r'(?<=[.!?؟])\s+|\n+|\r+');
 final RegExp _fence = RegExp(r'```[\s\S]*?(?:```|$)');
 final RegExp _negated = RegExp(
     r"\b(?:not|never|couldn't|could not|can't|cannot|unable|failed|didn't|did not|wasn't|was not|isn't|is not|hasn't|has not|haven't|have not|yet to)\b",
+    caseSensitive: false);
+
+/// Negation in Somali (ma / lama / weli ...: "lama dirin", "ma awoodo") and Arabic (لم / لا / تعذر ...), and a Somali
+/// question ("Ma rabtaa inaan diro?") is never a claim either.
+final RegExp _negatedSoAr = RegExp(
+    r"\b(?:ma|maan|maanan|lama|kuma|kama|weli|wali|ma awoodo|ma suurtagalin)\b|(?:^|[\s,،])(?:لم|لن|لا|ليس|لست|تعذر|فشل|يتعذر)(?=[\s,،]|$)",
     caseSensitive: false);
 
 class Truth {
@@ -103,7 +130,7 @@ class Truth {
     final missing = <String>[];
     for (final sentence in text.split(_split)) {
       final s = sentence.trim();
-      if (s.isEmpty || _negated.hasMatch(s)) continue;
+      if (s.isEmpty || _negated.hasMatch(s) || _negatedSoAr.hasMatch(s)) continue;
       for (final c in _claims) {
         if (!c.re.hasMatch(s)) continue;
         final ok = proved.any((tool) => c.tools.any(tool.contains));

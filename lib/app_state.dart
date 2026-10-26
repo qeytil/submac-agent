@@ -38,6 +38,8 @@ import 'services/device_access.dart';
 import 'services/live_session.dart';
 import 'services/tools.dart';
 import 'services/truth.dart';
+import 'services/agent_craft.dart';
+import 'services/reply_lang.dart';
 import 'services/connector_tools.dart';
 import 'services/doc_tools.dart';
 import 'services/mcp_client.dart';

@@ -220,7 +220,8 @@ void main() {
       expect(r.end, RunEnd.done, reason: '${r.error}');
       expect(r.reply?.text, 'Answered without it.');
       expect(h.ran, isEmpty, reason: 'the app never runs an unknown tool');
-      expect(h.results[ToolNames.unknown], 'Error: there is no tool named "browser.search". Use one of the tools you were given.');
+      // Launch hardening H-3: the error also names the real tools that look like it, so the model retries with one.
+      expect(h.results[ToolNames.unknown], startsWith('Error: there is no tool named "browser.search". Closest real tools: web_search.'));
     });
 
     test('a tool call written as text with an unknown name does not end the task', () async {

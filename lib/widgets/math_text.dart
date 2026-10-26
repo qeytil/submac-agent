@@ -31,6 +31,24 @@ class MathBlockSyntax extends md.BlockSyntax {
   @override
   RegExp get pattern => RegExp(r'^\s*(\$\$|\\\[)');
 
+  /// Launch hardening M-4: only a formula that is closed counts. An unclosed `$$` (a cut-off reply, a price written
+  /// "$$$") turned the whole rest of the reply into one broken formula; now it stays plain text.
+  @override
+  bool canParse(md.BlockParser parser) {
+    if (!super.canParse(parser)) return false;
+    final first = parser.current.content.trim();
+    final open = first.startsWith(r'$$') ? r'$$' : r'\[';
+    final close = open == r'$$' ? r'$$' : r'\]';
+    final rest = first.substring(open.length);
+    if (rest.trim().isNotEmpty && rest.trimRight().endsWith(close)) return true;
+    for (var i = 1; i <= 200; i++) {
+      final l = parser.peek(i);
+      if (l == null) return false;
+      if (l.content.contains(close)) return true;
+    }
+    return false;
+  }
+
   @override
   md.Node parse(md.BlockParser parser) {
     final first = parser.current.content.trim();

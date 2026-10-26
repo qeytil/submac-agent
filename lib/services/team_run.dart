@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../agent/core.dart';
 import '../models.dart';
+import 'agent_craft.dart';
 import 'bot_manner.dart';
 import 'llm_client.dart';
 import 'bots.dart';
@@ -723,7 +724,7 @@ class TeamRun extends ChangeNotifier {
       final notes = before.isEmpty
           ? ''
           : '\n\nWhat teammates already reported:\n${[for (final d in before) '- ${d.bot.name}: ${_short(d.text, 600)}'].join('\n')}';
-      final sys = '${promptOf(b)}\n\n${BotManner.member(lead.name)}\n\n# Your part\nYou are in the team "${o.name}", led by ${lead.name}. '
+      final sys = '${promptOf(b)}\n\n${BotManner.member(lead.name)}\n${AgentCraft.teamLine}\n\n# Your part\nYou are in the team "${o.name}", led by ${lead.name}. '
           'The owner asked the team: "${plan.job}"${_ownerSaid(o)}$notes\n\n${lead.name} gave you the part below. Do it well, then reply in two '
           'pieces: first one or two short sentences to ${lead.name} for the team chat (what you did and anything they should know; name a '
           'teammate if you build on their work), then a line with only ---, then your full result: concrete, no greeting, no questions back.';

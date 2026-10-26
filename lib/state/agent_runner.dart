@@ -206,7 +206,7 @@ extension AppStateAgentRunner on AppState {
       // CB-42: the stop after repeated unknown tools (CB-3) ended the run with only a banner that goes away, so the
       // user saw nothing in the chat. When the run wrote nothing visible, it leaves one short reply that says so.
       if (res.end == RunEnd.halted && halt == ToolNames.stopText && !side && !run.cancelled && !_visibleSince(list, runFrom)) {
-        await _sayIn(convId, ToolNames.stopReply);
+        await _sayIn(convId, ToolNames.stopReplyFor(hooks.userLang));
       }
       if (res.end == RunEnd.failed && res.error != null && !run.cancelled && !hooks.answeredFailure) hooks.failWith(res.error!);
     } finally {
@@ -536,6 +536,13 @@ class _MainHooks extends CoreHooks {
     return [mark, ...tail];
   }
 
+  /// Launch hardening H-1: the language of the user's latest message that says enough to tell (null: unknown).
+  String? get userLang => ReplyLang.ofChat(
+      list.reversed.where((m) => m.role == 'user' && !m.content.startsWith(botWakeMark)).map((m) => m.content));
+
+  /// Replies sent back for being in the wrong language (one round per run).
+  int _langFixes = 0;
+
   /// Approval gates of this turn's calls, by call id (asked through an interrupt, then run with the user's answer).
   final Map<String, ToolGate> _gates = {};
   final Map<String, _GroupRow> _groupRows = {};
@@ -611,6 +618,9 @@ class _MainHooks extends CoreHooks {
       add(run.todo.isNotEmpty ? Recite.checklist(run.todo, run.todoDone) : (run.toolCalls >= 3 ? Recite.finalCheck(selfCheck: run.must.selfCheck()) : ''));
       // The hard constraints in the user's words (count, language, format, don't/only), compact, every step.
       add(run.must.mustLine());
+      // Launch hardening H-1: the reply's language, at the end of every step (tool results in English no longer pull a
+      // Somali or Arabic answer into English). Not for app-made wakes (a routine, a team job).
+      if (!(lastUserText ?? '').startsWith(botWakeMark)) add(ReplyLang.anchor(userLang, setting: app.replyLanguage));
       // Plan, then act: a request with several parts starts with a visible checklist.
       if (step == 0 && ownerChat && run.todo.isEmpty && lane == QuickLane.full && TurnRouter.needsPlan(lastUserText ?? '')) {
         add('# This request has several parts\n'
@@ -1194,6 +1204,20 @@ class _MainHooks extends CoreHooks {
           run.formatFixes++;
           run.nextCall = (RunStatus.revising, const {});
           return (note: ReplySchema.fixNote(problems), hold: false);
+        },
+        // Launch hardening H-1: a final reply plainly in another language than the user's (a Somali question answered in
+        // English after English web pages) goes back once to be written in their language. Never when they asked for a
+        // translation or another language, and never when the app's reply language is set by hand.
+        (r) async {
+          // A continuation (_prefix) is not rewritten: its first part is already on screen.
+          if (r.blank || r.cutOff || _prefix.isNotEmpty || run.wrapUpAt >= 0 || _langFixes >= 1 || app.replyLanguage != 'auto') return null;
+          final ask = lastUserText ?? '';
+          if (ask.startsWith(botWakeMark)) return null;
+          final lang = userLang;
+          if (lang == null || !ReplyLang.mismatch(r.text, lang, userText: [ask, ...run.brief.changes].join('\n'))) return null;
+          _langFixes++;
+          run.nextCall = (RunStatus.revising, const {});
+          return (note: ReplyLang.fixNote(lang), hold: false);
         },
       ];
 
