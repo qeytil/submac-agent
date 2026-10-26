@@ -48,6 +48,7 @@ import 'package:agent/services/choices.dart';
 import 'package:agent/services/context_window.dart';
 import 'package:agent/services/llm_client.dart';
 import 'package:agent/services/offices.dart';
+import 'package:agent/services/paste_guard.dart';
 import 'package:agent/services/team_run.dart';
 import 'package:agent/services/telegram_bridge.dart';
 import 'package:agent/widgets/ask_bar.dart';
@@ -876,8 +877,11 @@ void main() {
         final cards = find.byType(ChoicesCard);
         final n = cards.evaluate().length;
         final users0 = st().messages.where((m) => m.role == 'user').length;
-        if (n >= 2) {
-          final opt = find.descendant(of: cards.first, matching: find.text('Not now'));
+        // The chat list is reversed (newest first in the tree), so cards.first was the NEW, live card (run 40222543795).
+        // Tap the answered one by the message it sits in.
+        final oldCard = find.byWidgetPredicate((w) => w is ChoicesCard && w.owner == 'a5a1');
+        if (n >= 2 && oldCard.evaluate().isNotEmpty) {
+          final opt = find.descendant(of: oldCard.first, matching: find.text('Not now'));
           if (opt.evaluate().isNotEmpty) {
             await tester.ensureVisible(opt.first);
             await wait(500);
@@ -886,7 +890,8 @@ void main() {
           await wait(2500);
         }
         final users1 = st().messages.where((m) => m.role == 'user').length;
-        cb('CB-5', n >= 2 ? users1 == users0 : null, 'choice cards=$n; tap on the answered card sent a message=${users1 > users0}');
+        cb('CB-5', n >= 2 && oldCard.evaluate().isNotEmpty ? users1 == users0 : null,
+            'choice cards=$n oldCardFound=${oldCard.evaluate().isNotEmpty}; tap on the answered card sent a message=${users1 > users0}');
         stopAll('a05 stale choice');
         await wait(2000);
 
@@ -911,9 +916,19 @@ void main() {
         if (copy.evaluate().isEmpty) {
           cb('CB-8', null, 'no Copy action on screen');
         } else {
-          await tester.tap(copy.first, warnIfMissed: false);
-          await wait(1200);
-          final got = (await Clipboard.getData('text/plain'))?.text ?? '';
+          String? written;
+          final bm = tester.binding.defaultBinaryMessenger;
+          bm.setMockMethodCallHandler(SystemChannels.platform, (c) async {
+            if (c.method == 'Clipboard.setData') written = (c.arguments as Map)['text'] as String?;
+            return null;
+          });
+          try {
+            await tester.tap(copy.first, warnIfMissed: false);
+            await wait(1200);
+          } finally {
+            bm.setMockMethodCallHandler(SystemChannels.platform, null);
+          }
+          final got = written ?? (await Clipboard.getData('text/plain'))?.text ?? '';
           cb('CB-8', got.contains('Passport') && got.contains('evisa'), 'copied="${got.replaceAll('\n', '⏎')}"');
         }
 
@@ -1060,11 +1075,24 @@ void main() {
         final huge = 'Summarise this text in 3 bullets:\n${List.filled(5200, para).join()}';
         seam.countMarker = 'Mogadishu port records show';
         seam.countHits = 0;
-        await st().send(huge, const []);
+        seam.maxBody = 0;
+        // Since PR #11 send() asks "Attach as a file / Summarise in parts" and waits for the answer; the watchdog only
+        // answers inside wait(), so the send is not awaited here (awaiting it hung the step in run 40222543795).
+        final asks0 = askSeen.length;
+        scripted = PasteGuard.attachOption();
+        unawaited(st().send(huge, const []).catchError((Object e) => log('QAWARN a10 send threw $e')));
+        final ta = DateTime.now();
+        while (DateTime.now().difference(ta).inSeconds < 30 && askSeen.length == asks0 && st().runs.isEmpty) {
+          await wait(500);
+        }
+        final asked = askSeen.length > asks0;
+        await wait(3000);
+        scripted = null;
         await settle(150, key: 'a10');
         seam.countMarker = null;
         final last = st().messages.where((m) => m.role == 'assistant').lastOrNull;
-        cb('CB-30', seam.countHits <= 1, 'paste chars=${huge.length} uploads=${seam.countHits} lastError=${last?.error} banner=${st().banner}');
+        cb('CB-30', seam.countHits <= 1,
+            'paste chars=${huge.length} asked=$asked uploads=${seam.countHits} largestBody=${seam.maxBody} lastError=${last?.error} banner=${st().banner}');
         await shot('a10_too_long');
         st().newChat(); // keep the 530 KB chat out of later steps
       }, limit: 240);

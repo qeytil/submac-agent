@@ -75,6 +75,11 @@ if [ -n "$DUE" ]; then
     adb shell input keyevent KEYCODE_HOME; sleep 5
     PID=$(adb shell pidof $PKG | tr -d '\r')
     adb root >/dev/null 2>&1; sleep 4
+    # adb root restarts adbd, which ends the logcat capture: in run 40222543795 every P3 line (CB-46) was lost.
+    # Start it again, appending, from the newest line on.
+    adb wait-for-device; kill $LOGC 2>/dev/null || true
+    ( adb logcat -v time -T 1 >> out/logs/logcat.txt ) & LOGC=$!
+    note "P3 logcat capture restarted after adb root"
     adb shell kill -9 $PID 2>/dev/null || adb shell am kill $PKG
     sleep 2
     note "P3 killed pid $PID (now '$(adb shell pidof $PKG | tr -d '\r')'), rk2 due $(date -u -d @$DUE3 +%T)"
