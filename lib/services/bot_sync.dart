@@ -29,7 +29,9 @@ import 'skill_library.dart';
 ///
 /// Bots belong to the account, not to the phone. Signing out, or another account signing in, takes every bot and
 /// team off this phone (anything still waiting is sent first, while the session is still that account's), and
-/// signing back in brings them back from the account. Nothing of one account is ever left for the next one.
+/// signing back in brings them back: from the copy this phone kept for that account (hidden from every other account;
+/// teams are only kept there), then from the account. Deleting the account keeps nothing. No account ever sees or
+/// sends up another account's bots.
 /// What the last sync round is doing. Shown in the bot's profile so a sync can never fail in silence.
 enum BotSyncState {
   /// Nothing has run yet in this session.
@@ -49,7 +51,16 @@ class BotSync {
   BotSync._();
   static final BotSync I = BotSync._();
 
-  SupabaseClient get _c => Supabase.instance.client;
+  SupabaseClient get _c => debugClient ?? Supabase.instance.client;
+
+  /// Tests: a client on a fake account (PostgREST over a mock http client), and who is signed in.
+  @visibleForTesting
+  static SupabaseClient? debugClient;
+  @visibleForTesting
+  static String? Function()? debugUid;
+
+  /// The signed-in account on this phone right now.
+  String? get _authUid => debugUid != null ? debugUid!() : _c.auth.currentUser?.id;
   SharedPreferences? _p;
   Timer? _timer;
   bool _busy = false;
@@ -131,6 +142,8 @@ class BotSync {
       j[k] = BotPackage.scrubSecrets('${j[k] ?? ''}');
     }
     j['skills'] = SkillLibrary.I.of(b.id);
+    // R2 item 3: which bot is the Chief belongs to the account too (it was only a setting on the phone).
+    if (Bots.I.isChief(b)) j['chief'] = true;
     return j;
   }
 
@@ -217,22 +230,25 @@ class BotSync {
 
   /// After sign-in: wire up, then a first round (a new phone gets its bots back here).
   Future<void> start() async {
-    final user = _c.auth.currentUser;
-    if (user == null) return;
+    final uid = _authUid;
+    if (uid == null || uid.isEmpty) return;
     await _load();
     for (var i = 0; i < 40 && !Bots.I.ready; i++) {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
     if (!Bots.I.ready) return;
     final owner = '${_st['owner'] ?? ''}';
-    if (owner.isNotEmpty && owner != user.id) {
-      // Another account used this phone before. Its bots are in its own account; nothing of it stays here,
-      // so this account never sees another account's bots and never sends them up as its own.
-      await _takeOff();
+    if (owner.isNotEmpty && owner != uid) {
+      // Another account used this phone before (its session ended without a sign-out). Its bots are put away under
+      // that account (hidden, see [_stash]) and this account never sees them or sends them up as its own.
+      await _takeOff(stashFor: owner);
     }
     _leaving = false;
-    _st['owner'] = user.id;
-    _uid = user.id;
+    // R2 item 3: this account signed out on this phone earlier: its bots, teams and their sync state come back
+    // exactly as they were, before the account is asked (they were never in the account until the sync fix).
+    if (owner != uid) await _unstash(uid);
+    _st['owner'] = uid;
+    _uid = uid;
     await _saveState();
     Bots.I.onChanged = changed;
     Bots.I.cloudOwns = cloudOwns;
@@ -242,14 +258,81 @@ class BotSync {
   /// The account's session ended on this phone (sign-out, or the account was deleted): its bots go with it.
   /// Anything still waiting is sent first, while the session is still that account's, so a sign-out on a
   /// connection loses nothing; signing back in brings every bot back from the account.
+  ///
+  /// R2 item 3: a sign-out ([send] true) also keeps the account's bots and teams on this phone under that account
+  /// (hidden from every other account), so signing back in brings them back even when the account copy is behind.
+  /// Deleting the account ([send] false) keeps nothing.
   Future<void> leave({bool send = true}) async {
-    final owner = '${_st['owner'] ?? ''}';
-    if (send && owner.isNotEmpty && _c.auth.currentUser?.id == owner) await flush();
-    await _takeOff();
+    if (_p == null) await _load();
+    final owner = '${_st['owner'] ?? ''}'.isNotEmpty ? '${_st['owner']}' : (send ? (_authUid ?? '') : '');
+    if (send && owner.isNotEmpty && _authUid == owner) await flush();
+    await _takeOff(stashFor: send ? owner : '');
   }
 
+  // ---------------------------------------------------------------- per-account keep (sign-out / sign-in)
+
+  static const _stashKey = 'bot_acct_stash_v1';
+
+  /// Accounts kept on this phone at most (the oldest goes first).
+  static const maxStashed = 5;
+
+  Map<String, dynamic> _stashes() {
+    try {
+      return Map<String, dynamic>.from(jsonDecode(_p?.getString(_stashKey) ?? '{}') as Map);
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// Puts this account's bots, their knowledge and skills, the Chief, the teams and the sync state away under [uid].
+  Future<void> _stash(String uid) async {
+    if (uid.isEmpty || _p == null) return;
+    final bots = Bots.I.bots;
+    if (bots.isEmpty && Offices.I.offices.isEmpty) return;
+    final all = _stashes()..remove(uid);
+    all[uid] = {
+      'at': DateTime.now().toUtc().toIso8601String(),
+      'bots': Bots.I.snapshot(),
+      'skills': {for (final b in bots) if (SkillLibrary.I.of(b.id).isNotEmpty) b.id: SkillLibrary.I.of(b.id)},
+      'teams': Offices.I.snapshot(),
+      'sync': _st,
+    };
+    while (all.length > maxStashed) {
+      final oldest = all.entries.reduce((a, b) => '${(a.value as Map)['at']}'.compareTo('${(b.value as Map)['at']}') <= 0 ? a : b).key;
+      all.remove(oldest);
+    }
+    await _p!.setString(_stashKey, jsonEncode(all));
+  }
+
+  /// Brings back what [_stash] kept for [uid] (only for that account), then forgets the kept copy.
+  Future<bool> _unstash(String uid) async {
+    final all = _stashes();
+    final k = all.remove(uid);
+    if (k is! Map) return false;
+    try {
+      final m = Map<String, dynamic>.from(k);
+      await Bots.I.adopt(Map<String, dynamic>.from((m['bots'] as Map?) ?? const {}));
+      final sk = Map<String, dynamic>.from((m['skills'] as Map?) ?? const {});
+      for (final e in sk.entries) {
+        SkillLibrary.I.adopt(e.key, [for (final x in (e.value as List)) '$x']);
+      }
+      await Offices.I.adopt(Map<String, dynamic>.from((m['teams'] as Map?) ?? const {}));
+      final st = m['sync'];
+      if (st is Map && '${_st['owner'] ?? ''}'.isEmpty) _st = Map<String, dynamic>.from(st);
+    } catch (e) {
+      debugPrint('bot sync: could not restore kept bots: $e');
+    }
+    await _p?.setString(_stashKey, jsonEncode(all));
+    return true;
+  }
+
+  /// Tests: is anything kept on this phone for [uid]?
+  @visibleForTesting
+  bool hasKeptFor(String uid) => _stashes().containsKey(uid);
+
   /// Takes every bot and team off this phone and forgets which account they belonged to. Sends nothing.
-  Future<void> _takeOff() async {
+  /// [stashFor]: the account they belong to; they are kept under it first (see [_stash]).
+  Future<void> _takeOff({String stashFor = ''}) async {
     _leaving = true;
     _timer?.cancel();
     _timer = null;
@@ -258,6 +341,7 @@ class BotSync {
     try {
       await _round?.timeout(const Duration(seconds: 30));
     } catch (_) {}
+    if (stashFor.isNotEmpty) await _stash(stashFor);
     _uid = '';
     // Nothing may schedule a round while they are being removed.
     Bots.I.onChanged = null;
@@ -357,7 +441,7 @@ class BotSync {
 
   Future<bool> syncNow() async {
     if (_leaving) return false;
-    if (_uid.isEmpty || _c.auth.currentUser?.id != _uid) return false;
+    if (_uid.isEmpty || _authUid != _uid) return false;
     if (_busy) {
       _again = true;
       return false;
@@ -454,6 +538,8 @@ class BotSync {
     final rows = await _rows('cloud_bots',
         'bot_id,setup,knowledge_hash,deleted,run_state,last_run_at,device_id,updated_at', 'bots');
     final needKnowledge = <String>[];
+    // The bot the account names as the Chief (setup `chief: true`).
+    String? chiefInAccount;
     for (final r in rows) {
       final id = '${r['bot_id']}';
       var b = Bots.I.byId(id);
@@ -467,6 +553,7 @@ class BotSync {
         continue;
       }
       final setup = Map<String, dynamic>.from((r['setup'] as Map?) ?? const {});
+      if (setup['chief'] == true) chiefInAccount = id;
       if (!_echo(r, first) && setup.isNotEmpty) {
         final s = _bs(id);
         final rh = setupHash(setup);
@@ -507,6 +594,11 @@ class BotSync {
       }
     }
     _advance('bots', rows);
+    // A phone that has no Chief (signed back in, a new phone) takes the account's.
+    if (chiefInAccount != null && Bots.I.chief == null && Bots.I.byId(chiefInAccount) != null) {
+      await Bots.I.adoptChief(chiefInAccount);
+      touched = true;
+    }
     for (final id in needKnowledge) {
       final b = Bots.I.byId(id);
       if (b == null) continue;
@@ -632,6 +724,32 @@ class BotSync {
 
   // ---------------------------------------------------------------- up
 
+  /// R2 item 3 (root cause): writes rows without ever updating a key column. The account lets the app insert
+  /// `bot_id`/`item_id` but update only the other columns (column grants in 20261019_bot_cloud.sql), and a PostgREST
+  /// upsert updates EVERY column it sends (`ON CONFLICT … DO UPDATE SET bot_id = EXCLUDED.bot_id, …`), so every
+  /// upsert failed with 42501 "permission denied for table cloud_bots" and no bot ever reached the account.
+  /// New rows are inserted with ON CONFLICT DO NOTHING (insert rights only); rows that already exist are updated by
+  /// their keys with the non-key columns only.
+  Future<void> _write(String table, List<Map<String, dynamic>> rows, List<String> keys) async {
+    String keyOf(Map r) => [for (final k in keys) '${r[k]}'].join('|');
+    for (var i = 0; i < rows.length; i += 200) {
+      final chunk = rows.sublist(i, min(i + 200, rows.length));
+      final inserted = await _c
+          .from(table)
+          .upsert(chunk, onConflict: ['user_id', ...keys].join(','), ignoreDuplicates: true)
+          .select(keys.join(','));
+      final got = {for (final r in inserted) keyOf(r)};
+      for (final r in chunk) {
+        if (got.contains(keyOf(r))) continue;
+        var q = _c.from(table).update({for (final e in r.entries) if (!keys.contains(e.key) && e.key != 'user_id') e.key: e.value});
+        for (final k in keys) {
+          q = q.eq(k, r[k] as Object);
+        }
+        await q;
+      }
+    }
+  }
+
   /// Returns true when a bot's schedule or cloud switch was sent (its alarms may change hands).
   Future<bool> _push() async {
     var sentSchedule = false;
@@ -642,11 +760,13 @@ class BotSync {
       // Signing out takes the bots off this phone, which is not removing them from the account (SYNC-1).
       if (_leaving) return sentSchedule;
       if (mineIds.contains(id)) continue;
-      await _c.from('cloud_bots').upsert({
-        'bot_id': id, 'name': '', 'setup': <String, dynamic>{}, 'knowledge': <dynamic>[], 'knowledge_hash': '',
-        'schedule': <dynamic>[], 'cloud_enabled': false, 'next_run_at': null, 'deleted': true,
-        'device_id': _device, 'origin': 'phone',
-      }, onConflict: 'user_id,bot_id');
+      await _write('cloud_bots', [
+        {
+          'bot_id': id, 'name': '', 'setup': <String, dynamic>{}, 'knowledge': <dynamic>[], 'knowledge_hash': '',
+          'schedule': <dynamic>[], 'cloud_enabled': false, 'next_run_at': null, 'deleted': true,
+          'device_id': _device, 'origin': 'phone',
+        }
+      ], const ['bot_id']);
       for (final t in const ['cloud_bot_memory', 'cloud_bot_desk', 'cloud_bot_journal']) {
         await _c.from(t).delete().eq('bot_id', id);
       }
@@ -676,7 +796,7 @@ class BotSync {
       final sched = jsonEncode([on, jobs, offset]);
       if (sh != s['s'] || kh != s['k'] || sched != s['sc']) {
         try {
-        await _c.from('cloud_bots').upsert({
+        await _write('cloud_bots', [{
           'bot_id': b.id,
           'name': b.name.length > 120 ? b.name.substring(0, 120) : b.name,
           'setup': setup,
@@ -690,7 +810,7 @@ class BotSync {
           'deleted': false,
           'device_id': _device,
           'origin': 'phone',
-        }, onConflict: 'user_id,bot_id');
+        }], const ['bot_id']);
         } on PostgrestException catch (e) {
           // The server refuses to bring back a removed bot (SYNC-5): it was removed on another phone, so it goes here too.
           if (e.code != '23514') rethrow;
@@ -720,9 +840,7 @@ class BotSync {
         ...add,
         for (final k in gone) {'bot_id': b.id, 'item_id': k, 'data': <String, dynamic>{}, 'deleted': true, 'device_id': _device, 'origin': 'phone'},
       ];
-      for (var i = 0; i < memRows.length; i += 200) {
-        await _c.from('cloud_bot_memory').upsert(memRows.sublist(i, min(i + 200, memRows.length)), onConflict: 'user_id,bot_id,item_id');
-      }
+      await _write('cloud_bot_memory', memRows, const ['bot_id', 'item_id']);
       for (final r in add) {
         m[r['item_id']] = 1;
       }
@@ -748,9 +866,7 @@ class BotSync {
       for (final k in deskGone) {
         deskRows.add({'bot_id': b.id, 'item_id': k, 'data': <String, dynamic>{}, 'deleted': true, 'device_id': _device, 'origin': 'phone'});
       }
-      for (var i = 0; i < deskRows.length; i += 200) {
-        await _c.from('cloud_bot_desk').upsert(deskRows.sublist(i, min(i + 200, deskRows.length)), onConflict: 'user_id,bot_id,item_id');
-      }
+      await _write('cloud_bot_desk', deskRows, const ['bot_id', 'item_id']);
       d.addAll(hashes);
       for (final k in deskGone) {
         d.remove(k);
