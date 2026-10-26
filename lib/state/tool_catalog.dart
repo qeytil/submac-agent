@@ -18,6 +18,11 @@ extension AppStateToolCatalog on AppState {
         ...AiModels.definitions,
         AppState.sayTool,
         AppState.todoTool,
+        // CB-42: an email to write is a draft card in the chat whenever there is no email_send to use: no mail account
+        // connected, or "Let it take action" off. The card only prepares the email; its Send button opens the phone's
+        // mail app filled in and the user presses send there, so it is offered with actions off too. A real send
+        // (email_send) stays behind "Let it take action" and the send approval.
+        if (!agentEnabled || ConnectorCatalog.connectedEmails().isEmpty) OutboundGuard.draftToolDef,
         if (memoryEnabled) ...MemoryStore.definitions,
         SystemTools.settingsTool,
         if (agentEnabled) ...[
@@ -31,8 +36,6 @@ extension AppStateToolCatalog on AppState {
           ...DocTools.definitions,
           ...DocMaker.definitions,
           ...ConnectorCatalog.definitions(),
-          // CB-42: with no mail account connected, an email to send is a draft card with a Send button (mail app).
-          if (ConnectorCatalog.connectedEmails().isEmpty) OutboundGuard.draftToolDef,
           ConnectorCatalog.apiCallTool,
           ...SetupTools.definitions,
           AppState.askUserTool,

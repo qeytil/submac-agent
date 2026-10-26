@@ -8,6 +8,7 @@ import 'package:agent/services/browser/actions.dart';
 import 'package:agent/services/browser/page_model.dart';
 import 'package:agent/services/full_access.dart';
 import 'package:agent/services/outbound_guard.dart';
+import 'package:agent/services/tool_scope.dart';
 import 'package:agent/services/tools.dart';
 import 'package:agent/theme.dart';
 import 'package:agent/ui/i18n.dart';
@@ -224,6 +225,64 @@ void main() {
       expect(req.timedOut, isTrue);
       expect(g.refusal, contains('did not answer in time'));
       expect(g.refusal, isNot(contains('said no')));
+    });
+  });
+
+  // ---------------------------------------------------------------- CB-42 (actions off)
+  group('CB-42 drafting an email works with "Let it take action" off; a real send stays behind it', () {
+    late AppState app;
+    setUp(() async {
+      app = AppState();
+      await app.local.init();
+      app.agentEnabled = false; // the emulator harness runs this way (run 40222543795: no draft tool, 3 guessed names)
+    });
+
+    test('email_draft is offered with actions off; phone, browser, open_app and email_send are not', () {
+      app.listsForTest['c42g'] = [_user('Write an email to ali@example.com saying I will be 10 minutes late')];
+      final names = _toolNames(app.allToolsForTest('c42g'));
+      expect(names, contains(OutboundGuard.draftTool), reason: 'CB-42: with actions off the model had no way to write the draft');
+      for (final gated in ['email_send', 'open_app', 'phone_tap', 'phone_type', 'browser_task']) {
+        expect(names, isNot(contains(gated)), reason: '$gated must stay behind "Let it take action"');
+      }
+    });
+
+    test('an email request opens the group email_draft is in, so the scoped toolbox carries it', () {
+      expect(ToolScope.groupOf(OutboundGuard.draftTool), ToolScope.apps);
+      expect(ToolScope.hinted('Write an email to Ali saying I will be late'), contains(ToolScope.apps));
+      final scoped = ToolScope.filter(app.allToolsForTest('c42h'), {ToolScope.apps});
+      expect(_toolNames(scoped), contains(OutboundGuard.draftTool));
+    });
+
+    test('with actions off the draft needs no approval and lands in the chat as a draft card', () async {
+      var asked = 0;
+      app.confirmCallback = (_) async {
+        asked++;
+        return true;
+      };
+      app.listsForTest['c42i'] = [_user('Email ali@example.com that I will be 10 minutes late')];
+      final g = await app.toolGate(OutboundGuard.draftTool, {'to': 'ali@example.com', 'subject': 'Late', 'body': 'Hi Ali'}, 'c42i');
+      expect(g.blocked, isNull);
+      expect(g.ask, isNull, reason: 'a draft sends nothing, so it never asks');
+      final out = await app.runToolWithApproval(
+          OutboundGuard.draftTool, {'to': 'ali@example.com', 'subject': 'Running late', 'body': 'Hi Ali,\n\nI will be 10 minutes late.'},
+          convId: 'c42i');
+      expect(out, contains('they press send there themselves'));
+      expect(asked, 0);
+      final last = app.listsForTest['c42i']!.last;
+      expect(last.role, 'assistant');
+      expect(last.content, startsWith('```draft'));
+      expect(last.content, contains('To: ali@example.com'));
+    });
+
+    test('the draft tool says it sends nothing and works without a connected account', () {
+      final d = '${(OutboundGuard.draftToolDef['function'] as Map)['description']}';
+      expect(d, contains('sends nothing itself'));
+      expect(d, isNot(contains('when no email account is connected')));
+    });
+
+    test('with actions on and no mail account, email_draft is still offered (unchanged)', () {
+      app.agentEnabled = true;
+      expect(_toolNames(app.allToolsForTest('c42j')), contains(OutboundGuard.draftTool));
     });
   });
 

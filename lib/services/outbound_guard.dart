@@ -12,7 +12,8 @@ import 'system_bridge.dart';
 class OutboundGuard {
   OutboundGuard._();
 
-  /// The tool that shows an email draft in the chat when no mail account is connected.
+  /// The tool that shows an email draft in the chat when there is no email_send to use (no mail account connected, or
+  /// "Let it take action" off). It only prepares the draft; the user sends it from their mail app.
   static const draftTool = 'email_draft';
 
   static const _send = r'send|reply|respond to|forward|post|tweet|publish|dm|u dir|soo dir|ii dir|dir u|jawaab';
@@ -69,9 +70,10 @@ class OutboundGuard {
     'type': 'function',
     'function': {
       'name': draftTool,
-      'description': 'Write an email for the user when no email account is connected. It shows the draft as a card in '
-          'this chat; its Send button opens the phone\'s mail app with everything filled in, and the user sends it there. '
-          'Use this for every email to send. Never open Gmail or another mail app, and never tap or type in one, to send.',
+      'description': 'Write an email for the user (you have no email_send). It shows the draft as a card in this chat; '
+          'its Send button opens the phone\'s mail app with everything filled in, and the user sends it there. It sends '
+          'nothing itself. Use this for every email the user asks you to write or send. Never open Gmail or another mail '
+          'app, and never tap or type in one, to send.',
       'parameters': {
         'type': 'object',
         'properties': {
