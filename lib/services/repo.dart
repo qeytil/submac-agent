@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -50,7 +51,18 @@ class Repo {
   SupabaseClient get _c => Supabase.instance.client;
   final store = ChatStore();
 
-  String? get userId => _c.auth.currentUser?.id;
+  /// Test seam: a signed-in user id without Supabase (the backup is then never contacted).
+  @visibleForTesting
+  String? testUserId;
+
+  String? get userId => testUserId ?? _c.auth.currentUser?.id;
+
+  /// CB-18: chats deleted on this phone this session. A late write from a run that was still finishing (a step that
+  /// ignored stop) is ignored instead of bringing the chat back as an unknown entry that syncs to the backup again.
+  final Set<String> _deletedHere = {};
+
+  @visibleForTesting
+  bool wasDeletedHere(String id) => _deletedHere.contains(id);
   String? get email => _c.auth.currentUser?.email;
 
   Future<ChatStore> _s() async {
@@ -152,7 +164,9 @@ class Repo {
     _kick();
   }
 
-  Future<void> deleteConversation(String id) async {
+  /// [keepWritable]: a chat whose id is reused afterwards (a bot's chat), so later writes to it are allowed.
+  Future<void> deleteConversation(String id, {bool keepWritable = false}) async {
+    if (!keepWritable) _deletedHere.add(id);
     final s = await _s();
     final m = s.index[id];
     if (m == null || m['_remote'] != false) s.deletedChats[id] = (m?['archive_path'] ?? '') as String;
@@ -160,9 +174,11 @@ class Repo {
     _kick();
   }
 
-  Future<void> deleteAllConversations() async {
+  /// [keepWritable]: chat ids reused afterwards (bots' chats), so later writes to them are allowed.
+  Future<void> deleteAllConversations({Set<String> keepWritable = const {}}) async {
     if (userId == null) return;
     final s = await _s();
+    _deletedHere.addAll(s.index.keys.where((id) => !keepWritable.contains(id)));
     s.deleteAllPending = true;
     await s.wipe();
     _kick(const Duration(milliseconds: 200));
@@ -245,6 +261,7 @@ class Repo {
   final Map<String, (String, int, String)> _tomb = {};
 
   Future<void> insertMessage(String conversationId, ChatMessage m) async {
+    if (_deletedHere.contains(conversationId)) return;
     final s = await _s();
     final id = conversationId;
     var meta = s.index[id];
@@ -303,6 +320,7 @@ class Repo {
   int _fails = 0;
 
   void _kick([Duration d = const Duration(seconds: 4)]) {
+    if (testUserId != null) return;
     _kickTimer?.cancel();
     _kickTimer = Timer(d, () => unawaited(sync()));
   }

@@ -105,9 +105,10 @@ class ChatStore {
     await d.create(recursive: true);
     _dir = d;
     _uid = uid;
-    try {
-      final f = File('${d.path}/index.json');
-      if (await f.exists()) {
+    // The chat list, or its last good copy when the list is missing or broken (CB-14).
+    for (final f in [File('${d.path}/index.json'), File('${d.path}/index.json.bak')]) {
+      try {
+        if (!await f.exists()) continue;
         final j = jsonDecode(await f.readAsString()) as Map;
         for (final e in (j['chats'] as List? ?? const [])) {
           final m = Map<String, dynamic>.from(e as Map);
@@ -121,9 +122,14 @@ class ChatStore {
         for (final x in (j['orphan_deletes'] as List? ?? const [])) {
           orphanDeletes.add('$x');
         }
+        break;
+      } catch (_) {
+        // A broken list: try the last good copy; with neither, it is rebuilt from the backup on the next refresh.
+        index.clear();
+        deletedChats.clear();
+        deleteAllPending = false;
+        orphanDeletes.clear();
       }
-    } catch (_) {
-      // A broken list is rebuilt from the backup on the next refresh.
     }
   }
 
@@ -160,15 +166,19 @@ class ChatStore {
     final c = _chats[id];
     if (c != null) return c;
     if (_dir == null) return null;
-    try {
-      final f = _chatFile(id);
-      if (!await f.exists()) return null;
-      final lc = LocalChat.fromJson(Map<String, dynamic>.from(jsonDecode(await f.readAsString()) as Map));
-      _chats[id] = lc;
-      return lc;
-    } catch (_) {
-      return null;
+    // CB-14: the main file first; when it is missing or broken (a write cut off by a kill), the last good copy.
+    final f = _chatFile(id);
+    for (final file in [f, File('${f.path}.bak')]) {
+      try {
+        if (!await file.exists()) continue;
+        final lc = LocalChat.fromJson(Map<String, dynamic>.from(jsonDecode(await file.readAsString()) as Map));
+        _chats[id] = lc;
+        return lc;
+      } catch (_) {
+        // Broken: try the next copy.
+      }
     }
+    return null;
   }
 
   /// The chat on the phone, made if missing (incomplete when the backup may hold older rows).
@@ -202,10 +212,14 @@ class ChatStore {
     _unsaved.remove(chatId);
     index.remove(chatId);
     _indexUnsaved = true;
-    try {
-      final f = _chatFile(chatId);
-      if (await f.exists()) await f.delete();
-    } catch (_) {}
+    await _idle();
+    final f = _chatFile(chatId);
+    // The last good copy and a half-written one go too, or a deleted chat could come back from them.
+    for (final file in [f, File('${f.path}.bak'), File('${f.path}.tmp')]) {
+      try {
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
+    }
     _scheduleSave();
   }
 
@@ -215,10 +229,14 @@ class ChatStore {
     index.clear();
     deletedChats.clear();
     _indexUnsaved = true;
+    // A flush already writing holds the old rows: let it finish before the files go, or it writes one back.
+    await _idle();
     try {
       if (_dir != null) {
         await for (final e in _dir!.list()) {
-          if (e is File && e.path.endsWith('.json') && !e.path.endsWith('index.json')) await e.delete();
+          final p = e.path;
+          final chatFile = p.endsWith('.json') || p.endsWith('.json.bak') || p.endsWith('.json.tmp');
+          if (e is File && chatFile && !p.contains('index.json')) await e.delete();
         }
       }
     } catch (_) {}
@@ -230,15 +248,64 @@ class ChatStore {
     _saveTimer = Timer(const Duration(milliseconds: 400), () => unawaited(flush()));
   }
 
+  /// Writes [text] to `<file>.tmp`, keeps the current file as `<file>.bak` (the last good copy), then moves the new
+  /// file into place. Both renames stay in the same folder, so each one is atomic.
   Future<void> _writeAtomic(File f, String text) async {
     final tmp = File('${f.path}.tmp');
     await tmp.writeAsString(text, flush: true);
+    if (await f.exists()) {
+      try {
+        await f.rename('${f.path}.bak');
+      } catch (_) {
+        // No last good copy this time; the new file still replaces the old one below.
+      }
+    }
     await tmp.rename(f.path);
   }
 
+  /// The flush writing now, and the one queued behind it (at most one waits: it writes whatever is newest when it runs).
+  Future<void>? _flushing;
+  Future<void>? _flushQueued;
+
   /// Writes everything waiting to disk now (also called when the app goes to the background).
-  Future<void> flush() async {
+  ///
+  /// CB-14: flushes never overlap. The 400 ms save timer, "app went to the background" and the end of a backup round
+  /// all call this; a second call while one is writing waits for it and then writes the newest state, so the last
+  /// snapshot always wins and two writers never share `<chat>.json.tmp`.
+  Future<void> flush() {
     _saveTimer?.cancel();
+    final queued = _flushQueued;
+    if (queued != null) return queued;
+    final running = _flushing;
+    if (running == null) return _startFlush();
+    late final Future<void> next;
+    next = running.catchError((Object _) {}).then((_) {
+      if (identical(_flushQueued, next)) _flushQueued = null;
+      return _startFlush();
+    });
+    _flushQueued = next;
+    return next;
+  }
+
+  /// Waits for the flush that is writing now, if any.
+  Future<void> _idle() async {
+    final f = _flushing;
+    if (f == null) return;
+    try {
+      await f;
+    } catch (_) {}
+  }
+
+  Future<void> _startFlush() {
+    late final Future<void> f;
+    f = _flushNow().whenComplete(() {
+      if (identical(_flushing, f)) _flushing = null;
+    });
+    _flushing = f;
+    return f;
+  }
+
+  Future<void> _flushNow() async {
     if (_dir == null) return;
     final ids = _unsaved.toList();
     _unsaved.clear();
