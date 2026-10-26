@@ -13,8 +13,8 @@ import '../ui/motion.dart';
 
 /// The first-launch intro (owner, 2026-10-26): on a clean white page the wordmark "SubMac" draws itself in behind a
 /// thin brand-blue pen line, then resolves into the logo (it scales and fades in), and the white dot lands last.
-/// A soft whoosh plays under the drawing and a warm two-note bloom as the logo lands, with light selection ticks as
-/// the pen passes each letter and one soft impact when the dot touches down. About three seconds; a tap anywhere skips
+/// As the pen passes each letter a light selection tick fires with one soft glass-like pluck (rising A-major
+/// pentatonic notes), then a warm two-note bloom plays as the logo lands, with one soft impact when the dot touches down. About three seconds; a tap anywhere skips
 /// it (sound and ticks stop at once). With Remove animations the finished logo simply fades in, with one light tick.
 ///
 /// Pure Flutter: one AnimationController, every beat a fraction of it (IntroMotion).

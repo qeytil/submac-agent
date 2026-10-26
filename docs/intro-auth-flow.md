@@ -16,9 +16,12 @@ sound effect".
   so it lands last.
 - Remove animations: the finished logo fades in (900 ms total), one selection tick, no sound.
 - Haptics: `HapticFeedback.selectionClick` as the reveal passes each of the 6 letters, one `mediumImpact` when the dot lands.
-- Sound: assets/intro/intro_sound.m4a (3.3 s, AAC 64 kb/s mono, 28 KB, -17.5 LUFS, true peak -4 dBFS), synthesized
-  by tools/intro_sound.py (no samples, no licence): filtered-noise whoosh + soft shimmer (<3.6 kHz) under the draw,
-  warm A4 then E5 bloom (sine + soft harmonics, 18 ms attack, exp decay) at 1.75 s and 2.30 s, low pad, short reverb.
+- Sound: assets/intro/intro_sound.m4a (3.3 s, AAC 64 kb/s mono, 27 KB, -17.5 LUFS, true peak about -5 dBFS, nothing
+  above 4 kHz), synthesized by tools/intro_sound.py (no samples, no licence). Revised 2026-10-26 after the owner's
+  listen ("the starting whoosh seems slobby"): the noise whoosh and shimmer are gone. Instead, one soft rounded pluck
+  per letter, on the haptic ticks (IntroMotion.ticks(): 0.302, 0.520, 0.677, 0.823, 0.980, 1.198 s), rising A4 B4 C#5
+  E5 F#5 A5 (sine + a little 2nd harmonic, 3 ms attack, ~150 ms exponential decay, about 12 dB under the chime,
+  velocity rising across the word); then the warm A4 and E5 bloom (unchanged) at 1.75 s and 2.30 s, low pad, short reverb.
   Played with **audioplayers 6.8.1 (new dependency)**: Android usage `assistanceSonification` / content `sonification`
   (system stream, so silent/vibrate mutes it) with `gainTransientMayDuck` focus (music ducks briefly, never stops);
   iOS `ambient` category (mixes, follows the mute switch). Any load/play error is swallowed; skip stops it at once.

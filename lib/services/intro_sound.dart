@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 
-/// The intro's sound: a soft airy whoosh under the wordmark, then a warm two-note bloom as the logo resolves and the
-/// dot lands (assets/intro/intro_sound.m4a, 3.3 s, about -17.5 LUFS; synthesized for SubMac, no samples).
+/// The intro's sound: one soft rounded pluck per letter of the wordmark, on the haptic ticks, then a warm two-note bloom
+/// as the logo resolves and the dot lands (assets/intro/intro_sound.m4a, 3.3 s, about -17.5 LUFS; synthesized for
+/// SubMac by tools/intro_sound.py, no samples).
 ///
 /// It never gets in the way:
 /// * an ambient session: it mixes with (and on Android briefly ducks) the user's music, never stops it;
