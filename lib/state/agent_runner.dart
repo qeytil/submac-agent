@@ -189,6 +189,8 @@ extension AppStateAgentRunner on AppState {
     );
     run.onStop = core.stop;
     var outcome = 'done';
+    // Where this run's own messages start (CB-42: did the user see any reply from it?).
+    final runFrom = list.length;
     try {
       final res = await core.run();
       outcome = res.end.name;
@@ -200,6 +202,11 @@ extension AppStateAgentRunner on AppState {
           banner = halt;
           bannerArgs = const {};
         }
+      }
+      // CB-42: the stop after repeated unknown tools (CB-3) ended the run with only a banner that goes away, so the
+      // user saw nothing in the chat. When the run wrote nothing visible, it leaves one short reply that says so.
+      if (res.end == RunEnd.halted && halt == ToolNames.stopText && !side && !run.cancelled && !_visibleSince(list, runFrom)) {
+        await _sayIn(convId, ToolNames.stopReply);
       }
       if (res.end == RunEnd.failed && res.error != null && !run.cancelled && !hooks.answeredFailure) hooks.failWith(res.error!);
     } finally {
@@ -247,6 +254,15 @@ extension AppStateAgentRunner on AppState {
         unawaited(_runAgent(convId, chain: chain + 1));
       }
     }
+  }
+
+  /// Whether an assistant message with words the user can read was added to [list] at or after [from].
+  bool _visibleSince(List<ChatMessage> list, int from) {
+    for (var i = from < 0 ? 0 : from; i < list.length; i++) {
+      final m = list[i];
+      if (m.role == 'assistant' && m.error == null && m.content.trim().isNotEmpty) return true;
+    }
+    return false;
   }
 
   /// Tasks the phone killed in the middle (their journal has no end and a stale heartbeat) pick up where they left off:

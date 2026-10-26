@@ -82,6 +82,7 @@ String _chunk(Map<String, dynamic> delta, {String? finish}) =>
 class _Say {
   _Say.text(this.text) : calls = const [];
   _Say.calls(this.calls) : text = '';
+  _Say.both(this.text, this.calls);
   final String text;
   final List<(String, Map<String, dynamic>)> calls;
 }
@@ -112,6 +113,7 @@ class _FakeCloud {
           out.write(_chunk({'content': a.text}));
           out.write(_chunk({}, finish: 'stop'));
         } else {
+          if (a.text.isNotEmpty) out.write(_chunk({'content': a.text}));
           for (var i = 0; i < a.calls.length; i++) {
             out.write(_chunk({
               'tool_calls': [
@@ -290,6 +292,42 @@ void main() {
       expect(s.banner, ToolNames.stopText);
       // The model was told, in the request after each unknown call, that the tool does not exist.
       expect(cloud.agentRaw[1], contains('there is no tool named'));
+    });
+
+    test('CB-42: the unknown-tool stop leaves a short visible reply in the chat, not just a banner', () async {
+      // Emulator run 40222543795 (CB-42): more_tools, skill_use, then guessed names until the stop; the chat stayed empty.
+      final cloud = _FakeCloud([
+        _Say.calls([('email_send_draft', {'to': 'ali@example.com'})]),
+        _Say.calls([('functions.compose_mail', {'to': 'ali@example.com'})]),
+        _Say.calls([('gmail.create_draft', {'to': 'ali@example.com'})]),
+      ]);
+      final s = await _app(cloud, tmp);
+      unawaited(s.send('Write an email to ali@example.com saying I will be 10 minutes late', const []));
+      await _until(() => s.runs.isNotEmpty, ms: 2000);
+      await _until(() => s.runs.isEmpty, ms: 12000);
+      expect(s.runs, isEmpty);
+      expect(cloud.agentRaw.length, ToolNames.maxUnknownTurns);
+      final visible = [for (final m in s.messages) if (m.role == 'assistant' && m.error == null && m.content.trim().isNotEmpty) m.content];
+      expect(visible, [ToolNames.stopReply], reason: 'CB-42: the user must get one short reply, never nothing');
+      expect(ToolNames.stopReply.length, lessThan(160));
+      expect(s.banner, ToolNames.stopText, reason: 'the banner stays as it was');
+    });
+
+    test('CB-42: no extra reply when the run already said something before the stop', () async {
+      // Words next to the unknown calls are the visible reply; nothing is added after the stop.
+      final cloud = _FakeCloud([
+        _Say.both('Let me check that for you.', [('lookup_thing', {'q': 'weather'})]),
+        _Say.calls([('lookup_thing', {'q': 'weather'})]),
+      ]);
+      final s = await _app(cloud, tmp);
+      unawaited(s.send('What is the weather in Mogadishu?', const []));
+      await _until(() => s.runs.isNotEmpty, ms: 2000);
+      await _until(() => s.runs.isEmpty, ms: 12000);
+      expect(s.runs, isEmpty);
+      expect(cloud.agentRaw.length, ToolNames.maxUnknownTurns);
+      final visible = [for (final m in s.messages) if (m.role == 'assistant' && m.error == null && m.content.trim().isNotEmpty) m.content];
+      expect(visible.join(' '), contains('Let me check that for you.'));
+      expect(visible, isNot(contains(ToolNames.stopReply)));
     });
 
     test('runner: an unknown tool once, then an answer: the user gets the answer', () async {
