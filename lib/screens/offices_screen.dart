@@ -26,7 +26,6 @@ import '../widgets/chat/entrance.dart';
 import '../widgets/chat/message_actions.dart';
 import '../widgets/chat/long_text.dart';
 import '../widgets/chat/reply_quote.dart';
-import '../widgets/motion.dart' show SendIn;
 import '../widgets/status_ring.dart';
 import '../widgets/team_face.dart';
 import '../services/bot_status.dart';
@@ -396,8 +395,9 @@ class _TeamChatState extends State<TeamChat> {
       child: SwipeToReply(
         enabled: x.kind != 'system',
         onReply: () => _reply(x),
-        // New posts enter like the main chat (fade and a small rise; yours settle in from the box). Reduced motion: none.
-        child: x.from == 'you' ? SendIn(enabled: fresh, child: view) : Entrance(enabled: fresh, child: view),
+        // New posts arrive like the main chat (MessageArrive: 1 s fade, slight rise and scale; yours from the box side).
+        // Reduced motion: none.
+        child: MessageArrive(id: 'post-${x.id}', enabled: fresh, mine: x.from == 'you', child: view),
       ),
     );
   }

@@ -118,6 +118,10 @@ class _ReplyViewState extends State<ReplyView> with SingleTickerProviderStateMix
 
   bool get _reveals => widget.message.streaming || widget.message.animateIn;
 
+  /// Whether block i rises in on its own, decided once when the block first shows: never while the whole message is
+  /// still arriving (MessageArrive), so the two entrances never stack, and never flipped by a later rebuild.
+  final Map<int, bool> _blockEnters = {};
+
   @override
   void initState() {
     super.initState();
@@ -195,7 +199,7 @@ class _ReplyViewState extends State<ReplyView> with SingleTickerProviderStateMix
             kind: blockKindOf(blocks[i].lang),
             first: i == 0,
             child: Entrance(
-              enabled: message.animateIn,
+              enabled: _blockEnters.putIfAbsent(i, () => message.animateIn && !MessageArrive.playingAround(context)),
               delay: live ? Duration.zero : Entrance.staggerFor(i),
               child: _block(blocks[i], live && i == blocks.length - 1),
             ),

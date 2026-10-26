@@ -79,9 +79,12 @@ class UserMessageView extends StatelessWidget {
     final style = serif
         ? Brand.serif(size: Lux.prompt, color: p.text, height: 1.3)
         : TextStyle(fontSize: Lux.read, height: Lux.readHeight, color: p.text);
-    return SendIn(
+    // Arrives like every new message (fade, slight rise and scale, 1 s); history never animates.
+    return MessageArrive(
       key: ValueKey('in-${message.id}'),
+      id: message.id,
       enabled: message.animateIn,
+      mine: true,
       onDone: () => message.animateIn = false,
       child: Padding(
         padding: const EdgeInsetsDirectional.fromSTEB(Lux.promptInset, Lux.turnGap / 2, Lux.gutter, Space.x3),
@@ -418,7 +421,7 @@ class AssistantMessageView extends StatelessWidget {
     final note = steps && narration && text.isNotEmpty && plainNarration(text) ? text : '';
     if (!showText && note.isEmpty && visible.isEmpty && message.error == null) return const SizedBox.shrink();
     if (!showText && visible.isEmpty && message.error == null) {
-      return Padding(
+      return _arrive(Padding(
         padding: const EdgeInsetsDirectional.fromSTEB(Lux.gutter, Space.x1, Lux.gutter, Space.x1),
         child: Text(
           note,
@@ -427,12 +430,12 @@ class AssistantMessageView extends StatelessWidget {
           textDirection: textDirOf(note),
           style: AppText.metaStyle.copyWith(color: p.faint),
         ),
-      );
+      ));
     }
     final finished = showActions && !message.streaming && showText;
     // Only the likely replies to a question wait under the last answer. Copy, Read aloud, Share and Try again fade in after a tap; the long-press
     // sheet has everything, with the steps the task took and replies to tap.
-    return ValueListenableBuilder<String?>(
+    return _arrive(ValueListenableBuilder<String?>(
       valueListenable: selectedReply,
       builder: (context, sel, _) {
         final open = finished && sel == message.id;
@@ -475,8 +478,14 @@ class AssistantMessageView extends StatelessWidget {
           ),
         );
       },
-    );
+    ));
   }
+
+  /// A reply (SubMac's or a bot's) arrives like every new message: once, the moment its first words show, and only
+  /// when it is new this session. It mounts with the content (not with the empty streaming message), so the second of
+  /// arrival is seen; streamed words after that never restart it.
+  Widget _arrive(Widget child) =>
+      MessageArrive(key: ValueKey('arrive-${message.id}'), id: message.id, enabled: message.animateIn, child: child);
 
   List<MessageAction> _actionList(BuildContext context, String text) {
     final state = context.read<AppState>();
@@ -592,7 +601,10 @@ class TeamMessageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return Padding(
+    return MessageArrive(
+      id: message.id,
+      enabled: message.animateIn,
+      child: Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 10),
       child: Container(
         width: double.infinity,
@@ -611,6 +623,7 @@ class TeamMessageCard extends StatelessWidget {
           ReplyView(message: message),
         ]),
       ),
+    ),
     );
   }
 }
