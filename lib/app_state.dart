@@ -31,6 +31,7 @@ import 'services/setup_tools.dart';
 import 'services/projects.dart';
 import 'services/cloud.dart';
 import 'services/llm_client.dart';
+import 'services/usage_accounting.dart';
 import 'services/local_store.dart';
 import 'services/repo.dart';
 import 'services/device_access.dart';

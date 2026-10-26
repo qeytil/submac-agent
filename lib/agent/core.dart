@@ -67,11 +67,13 @@ typedef Transport = Future<LlmResult> Function(Turn turn);
 
 /// What one model call gave back, in app terms.
 class Reply {
-  Reply({required this.text, required this.calls, this.finish, this.tokensIn = 0, this.tokensOut = 0, this.tokens = 0, this.step = 0});
+  Reply({required this.text, required this.calls, this.finish, this.tokensIn = 0, this.tokensOut = 0, this.tokens = 0, this.step = 0, this.tokensCached = 0});
   String text;
   List<ToolCall> calls;
   final String? finish;
   final int tokensIn, tokensOut, tokens;
+  /// CB-20: the cached part of [tokensIn].
+  final int tokensCached;
   final int step;
   bool get cutOff => finish == 'length' || finish == 'max_tokens';
   bool get hasCalls => calls.isNotEmpty;
@@ -252,7 +254,7 @@ ModelResponse responseOf(LlmResult r) {
     message: Message(role: Role.model, content: parts.isEmpty ? [TextPart(text: '')] : parts),
     finishReason: fr,
     usage: GenerationUsage(inputTokens: r.tokensIn, outputTokens: r.tokensOut, totalTokens: r.tokens),
-    custom: {'finish': r.finishReason, 'tokens': r.tokens},
+    custom: {'finish': r.finishReason, 'tokens': r.tokens, 'cached': r.tokensCached},
   );
 }
 
@@ -271,6 +273,7 @@ Reply replyOf(ModelResponse resp, {int step = 0}) {
     tokensOut: u?.outputTokens ?? 0,
     tokens: custom['tokens'] is int ? custom['tokens'] as int : (u?.totalTokens ?? 0),
     step: step,
+    tokensCached: custom['cached'] is int ? custom['cached'] as int : 0,
   );
 }
 
@@ -472,7 +475,7 @@ class TurnMiddleware extends GenerateMiddleware {
     if (parseTextCalls && r.calls.isEmpty && r.text.isNotEmpty) {
       final parsed = TextToolCalls.parse(r.text);
       if (parsed.calls.isNotEmpty) {
-        r = Reply(text: parsed.rest, calls: parsed.calls, finish: r.finish, tokensIn: r.tokensIn, tokensOut: r.tokensOut, tokens: r.tokens, step: step);
+        r = Reply(text: parsed.rest, calls: parsed.calls, finish: r.finish, tokensIn: r.tokensIn, tokensOut: r.tokensOut, tokens: r.tokens, step: step, tokensCached: r.tokensCached);
         changed = true;
       }
     }

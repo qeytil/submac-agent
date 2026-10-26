@@ -10,6 +10,7 @@ import 'cloud.dart';
 import 'context_window.dart';
 import 'house_rules.dart';
 import 'stream_policy.dart';
+import 'usage_accounting.dart';
 
 class LlmException implements Exception {
   final String message;
@@ -45,7 +46,9 @@ class LlmResult {
   final int tokens;
   /// The prompt and output parts of [tokens] (0 when unknown).
   final int tokensIn, tokensOut;
-  LlmResult(this.content, this.toolCalls, this.finishReason, [this.tokens = 0, this.tokensIn = 0, this.tokensOut = 0]);
+  /// CB-20: the part of [tokensIn] the provider read from its prompt cache (billed at the cached weight).
+  final int tokensCached;
+  LlmResult(this.content, this.toolCalls, this.finishReason, [this.tokens = 0, this.tokensIn = 0, this.tokensOut = 0, this.tokensCached = 0]);
   /// The model ran out of room for its answer (it was cut off mid-way).
   bool get cutOff => finishReason == 'length' || finishReason == 'max_tokens';
 }
@@ -156,6 +159,7 @@ class LlmClient {
     final calls = <int, ToolCall>{};
     String? finish;
     int? usedIn, usedOut;
+    var usedCached = 0;
     // CB-24: the server always ends a reply with a finish_reason and `data: [DONE]`. A stream that just stops (a proxy or
     // gateway cut, a radio switch) is a dropped line, never the whole answer.
     var ended = false;
@@ -214,6 +218,8 @@ class LlmClient {
         if (u is Map) {
           usedIn = (u['prompt_tokens'] as num?)?.toInt() ?? usedIn;
           usedOut = (u['completion_tokens'] as num?)?.toInt() ?? usedOut;
+          final hit = UsageUnits.cachedOf(u);
+          if (hit > 0) usedCached = hit;
         }
         final choices = j['choices'] as List?;
         if (choices == null || choices.isEmpty) continue;
@@ -282,7 +288,7 @@ class LlmClient {
     final toolText = calls.values.fold<int>(0, (a, c) => a + c.arguments.length + c.name.length);
     final tin = usedIn ?? (req.body.replaceAll(RegExp(r'data:[^"]{200,}'), '').length ~/ 4 + 0);
     final tout = usedOut ?? ((buf.length + toolText) ~/ 4);
-    return LlmResult(buf.toString(), [for (final k in keys) calls[k]!], finish, tin + tout, tin, tout);
+    return LlmResult(buf.toString(), [for (final k in keys) calls[k]!], finish, tin + tout, tin, tout, usedIn == null ? 0 : usedCached);
   }
 
   Future<String> complete({

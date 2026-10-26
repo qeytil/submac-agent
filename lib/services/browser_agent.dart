@@ -1309,8 +1309,15 @@ class BrowserAgent extends ChangeNotifier {
         t.signature = set.signature;
         t.thumb = set.clean;
         frame.value = set.clean;
-        lastShot = set.marked;
-        shotForCall = callId;
+        // CB-40: the model gets a picture only when the screen changed since the last one it got.
+        if (callId == null || shotForCall == callId || ShotGate.fresh('${t.id}|${t.owner ?? ''}', set.fine)) {
+          lastShot = set.marked;
+          shotForCall = callId;
+        } else {
+          ShotGate.noteSame(callId);
+          lastShot = null;
+          shotForCall = null;
+        }
       }
     }
     notifyListeners();
@@ -1333,6 +1340,7 @@ class BrowserAgent extends ChangeNotifier {
     if (t.desktop) sb.writeln('(Desktop site mode.)');
     if (snap.moneyPage) sb.writeln('(Payment page: buttons that move on here ask the user first.)');
     if (shots && rawShot == null) sb.writeln('(No screenshot this time: rely on the element list.)');
+    if (callId != null && ShotGate.same(callId)) sb.writeln(ShotGate.sameText);
     final out = sb.toString().trimRight();
     return out.length > 10000 ? '${out.substring(0, 10000)}\n…' : out;
   }
