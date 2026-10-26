@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/phone_tools.dart';
+import '../services/reply_text.dart' show majorityDir;
 import '../theme.dart';
 import '../ui/tokens.dart';
 import 'chat/message_actions.dart';
@@ -171,9 +172,13 @@ class SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final (title, rest) = parts;
+    // The card takes the direction of its own words, like a plain reply does (CB-9): an Arabic document split out of a
+    // long reply previews right-to-left, aligned to the right edge, even though the chat around it is left-to-right.
+    final dir = summaryDirOf(title, rest);
     return Semantics(
       container: true,
       button: true,
+      textDirection: dir,
       label: 'Open summary${title.isEmpty ? '' : ': $title'}',
       child: GestureDetector(
         onTap: () => openSummaryReader(context, title: title, body: rest, raw: body.trim()),
@@ -196,8 +201,9 @@ class SummaryCard extends StatelessWidget {
               ).createShader(r),
               blendMode: BlendMode.dstIn,
               child: ClipRect(
+                // The preview's start edge follows the card's own words (CB-9).
                 child: OverflowBox(
-                  alignment: AlignmentDirectional.topStart,
+                  alignment: dir == TextDirection.rtl ? Alignment.topRight : Alignment.topLeft,
                   maxHeight: double.infinity,
                   child: Padding(
                     padding: const EdgeInsets.all(Space.x4),
@@ -213,19 +219,28 @@ class SummaryCard extends StatelessWidget {
   }
 }
 
+/// The direction of a summary card (or any card split out of a long reply): the majority of the strong letters in its
+/// title and body decides, the same rule as plain message text (CB-9).
+TextDirection summaryDirOf(String title, String body) => majorityDir(title.isEmpty ? body : '$title\n$body');
+
 class _SummaryBody extends StatelessWidget {
   const _SummaryBody({required this.title, required this.body});
   final String title, body;
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      if (title.isNotEmpty) ...[
-        Text(title, style: Brand.serif(size: AppText.display, color: p.text, height: 1.15)),
-        const SizedBox(height: Space.x2),
-      ],
-      if (body.isNotEmpty) MarkdownView(body),
-    ]);
+    final dir = summaryDirOf(title, body);
+    // Used by the card preview and by the reader; both get the words' own direction (CB-9).
+    return Directionality(
+      textDirection: dir,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        if (title.isNotEmpty) ...[
+          Text(title, textDirection: dir, style: Brand.serif(size: AppText.display, color: p.text, height: 1.15)),
+          const SizedBox(height: Space.x2),
+        ],
+        if (body.isNotEmpty) MarkdownView(body),
+      ]),
+    );
   }
 }
 

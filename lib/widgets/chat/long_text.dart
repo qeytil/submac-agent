@@ -61,7 +61,6 @@ class _ExpandableTextState extends State<ExpandableText> {
     final inner = KeyedSubtree(key: _childKey, child: widget.child);
     if (!long) return inner;
     final p = Palette.of(context);
-    final d = SubMotion.of(context, SubMotion.base);
     final folded = ShaderMask(
       key: const ValueKey('long-text-folded'),
       shaderCallback: (r) => LinearGradient(
@@ -80,12 +79,9 @@ class _ExpandableTextState extends State<ExpandableText> {
     );
     final body = _open ? KeyedSubtree(key: const ValueKey('long-text-open'), child: inner) : folded;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      // Reduced motion: no AnimatedSize at all. A zero-length AnimatedSize finishes inside its own layout and re-dirties
-      // itself ("RenderAnimatedSize was mutated in its own performLayout").
-      if (d == Duration.zero)
-        body
-      else
-        AnimatedSize(duration: d, curve: SubMotion.settle, alignment: AlignmentDirectional.topStart, child: body),
+      // Reduced motion: no AnimatedSize at all (SubSize). A zero-length AnimatedSize finishes inside its own layout and
+      // re-dirties itself ("RenderAnimatedSize was mutated in its own performLayout").
+      SubSize(duration: SubMotion.base, child: body),
       Padding(
         padding: const EdgeInsets.only(top: Space.x1),
         child: Wrap(spacing: Space.x2, children: [

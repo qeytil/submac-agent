@@ -1096,9 +1096,8 @@ class _ChatListState extends State<ChatList> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (userFirst) MessageAnchor(key: ValueKey(turn.first.id), id: turn.first.id, child: UserMessageView(message: turn.first)),
-            AnimatedSize(
-              duration: SubMotion.of(context, LuxMotion.base),
-              curve: LuxMotion.ease,
+            SubSize(
+              duration: LuxMotion.base,
               alignment: AlignmentDirectional.topStart,
               child: AnimatedSwitcher(
                 duration: SubMotion.of(context, LuxMotion.base),

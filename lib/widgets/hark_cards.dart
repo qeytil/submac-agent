@@ -505,7 +505,8 @@ class MediaCard extends StatelessWidget {
   }
 }
 
-/// Decodes JSON loosely (cards are written by a model).
+/// Decodes JSON loosely (cards are written by a model): text around the JSON is ignored, and a body with trailing
+/// commas or missing closers (a cut-off or sloppy card, CB-7) is repaired before it is given up on.
 dynamic looseJson(String body) {
   final t = body.trim();
   try {
@@ -513,7 +514,75 @@ dynamic looseJson(String body) {
   } catch (_) {
     final s = t.indexOf(RegExp(r'[\[{]'));
     final e = t.lastIndexOf(RegExp(r'[\]}]'));
-    if (s >= 0 && e > s) return jsonDecode(t.substring(s, e + 1));
+    if (s >= 0 && e > s) {
+      try {
+        return jsonDecode(t.substring(s, e + 1));
+      } catch (_) {}
+    }
+    final fixed = repairJson(t);
+    if (fixed != null) return jsonDecode(fixed);
     rethrow;
   }
+}
+
+/// Mends the usual slips in model-written JSON: trailing commas, a string, array or object left open at the end, a
+/// dangling key or comma. Returns null when there is no JSON to mend. The result may still be invalid.
+String? repairJson(String text) {
+  final start = text.indexOf(RegExp(r'[\[{]'));
+  if (start < 0) return null;
+  final out = StringBuffer();
+  final stack = <String>[];
+  var inStr = false, esc = false;
+  void dropTrailingComma() {
+    final cur = out.toString().replaceFirst(RegExp(r',\s*$'), '');
+    out
+      ..clear()
+      ..write(cur);
+  }
+
+  for (var i = start; i < text.length; i++) {
+    final c = text[i];
+    if (inStr) {
+      if (c == '\n') {
+        out.write(r'\n');
+        continue;
+      }
+      out.write(c);
+      if (esc) {
+        esc = false;
+      } else if (c == '\\') {
+        esc = true;
+      } else if (c == '"') {
+        inStr = false;
+      }
+      continue;
+    }
+    if (c == '"') {
+      inStr = true;
+      out.write(c);
+    } else if (c == '{' || c == '[') {
+      stack.add(c == '{' ? '}' : ']');
+      out.write(c);
+    } else if (c == '}' || c == ']') {
+      if (!stack.contains(c)) continue; // a stray closer
+      while (stack.isNotEmpty && stack.last != c) {
+        dropTrailingComma();
+        out.write(stack.removeLast());
+      }
+      dropTrailingComma();
+      out.write(stack.removeLast());
+      if (stack.isEmpty) break; // the JSON value is complete; anything after it is not JSON
+    } else {
+      out.write(c);
+    }
+  }
+  if (inStr) out.write(esc ? '\\"' : '"');
+  var r = out.toString().trimRight();
+  // A dangling key ("rows":) or a trailing comma or colon at the cut.
+  r = r.replaceFirst(RegExp(r'(,\s*"(?:[^"\\]|\\.)*"\s*:\s*|[,:]\s*)$'), '');
+  final buf = StringBuffer(r);
+  for (final closer in stack.reversed) {
+    buf.write(closer);
+  }
+  return buf.toString();
 }
