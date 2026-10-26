@@ -77,6 +77,7 @@ import 'services/life_tools.dart';
 import 'services/quick_lane.dart';
 import 'services/offices.dart';
 import 'services/bot_status.dart';
+import 'services/bot_manner.dart';
 import 'services/team_run.dart';
 import 'widgets/chat/reply_quote.dart' show ReplyRef, ReplyCodec;
 import 'widgets/composer.dart' show Composer;
@@ -329,6 +330,8 @@ class AppState extends ChangeNotifier {
   final Map<String, String> _officeCtx = {};
   /// Bots running an office job now.
   final Set<String> _officeBusy = {};
+  /// The office each of those bots works for (CB-34: a team's "stop" reaches its members' reply jobs).
+  final Map<String, String> _officeBusyIn = {};
   /// Office sessions the pump started that have not counted themselves in runsToday yet, by office: the daily limit
   /// counts them too, so two jobs started in one pass never go one past it.
   final Map<String, int> _officeStarting = {};

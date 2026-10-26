@@ -1,4 +1,5 @@
 import 'bot_ask.dart';
+import 'somali.dart';
 
 /// How every bot and team member speaks and follows instructions (owner, 2026-10-24): "Every bot should feel like a
 /// person in a job group: clean, professional, respectful, gentle and adult", and "follow the user's instructions
@@ -44,32 +45,61 @@ class BotManner {
   static String memberLine(String lead) =>
       '- Do the part $lead gives you exactly as asked, with the owner\'s words above all. Unclear? Ask $lead in one short line.';
 
-  /// Fixed phrases the app posts in a team chat on a bot's behalf (hand-offs, acknowledgements). English and Somali.
-  static String handOff(String member, String ask, {bool somali = false}) =>
-      somali ? '$member, fadlan qaybtan qaado: $ask' : '$member, could you please take this part: $ask';
-  static String stopped({bool somali = false}) =>
-      somali ? 'Waa la joojiyay. Kooxdu way istaagtay.' : 'Understood. I have stopped the team.';
-  static String planCancelled({bool somali = false}) =>
-      somali ? 'Waa hagaag, qorshaha waan dhaafay. Ii sheeg markaad diyaar u tahay.' : 'Understood, I have set this plan aside. Let me know when you are ready.';
-  static String startingNow({bool somali = false}) =>
-      somali ? 'Hadda ayaan bilaabaynaa. Waxaan idiin soo sheegi doonaa marka aan dhammayno.' : 'We are starting now. I will report back when we are done.';
-  static String askGo({bool somali = false}) =>
-      somali ? 'Ma bilaabaa? Ku jawaab "Haa" ama ii sheeg waxa la beddelayo.' : 'Shall we start? Reply "Go", or tell me what to change.';
-  static String couldNotFinish({bool somali = false}) =>
-      somali ? 'Kooxdu ma dhammayn karin hawshan hadda. Fadlan mar kale isku day.' : 'The team could not finish this just now. Please try again in a moment.';
-  static String partFailed({bool somali = false}) =>
-      somali ? 'Qaybtayda ma dhammayn karin hadda.' : 'I could not finish my part this time.';
+  /// The language of the owner's [text] for the fixed phrases: 'ar' (Arabic script), 'so' (Somali) or 'en'.
+  /// CB-63: teams used to know only Somali, so an Arabic team got English plan headers, hand-offs and stop lines.
+  static String langOf(String text) {
+    final arabic = RegExp(r'[\u0600-\u06FF\u0750-\u077F]').allMatches(text).length;
+    final latin = RegExp(r'[A-Za-z]').allMatches(text).length;
+    if (arabic > 0 && arabic >= latin) return 'ar';
+    return Somali.detect(text) ? 'so' : 'en';
+  }
+
+  static String _l(String lang, String en, String so, String ar) => switch (lang) { 'so' => so, 'ar' => ar, _ => en };
+
+  /// Fixed phrases the app posts in a team chat on a bot's behalf (hand-offs, acknowledgements). English, Somali and
+  /// Arabic (CB-63; the Arabic still needs a native speaker's review).
+  static String handOff(String member, String ask, {String lang = 'en'}) =>
+      _l(lang, '$member, could you please take this part: $ask', '$member, fadlan qaybtan qaado: $ask', '$member، هل يمكنك من فضلك تولي هذا الجزء: $ask');
+  static String stopped({String lang = 'en'}) =>
+      _l(lang, 'Understood. I have stopped the team.', 'Waa la joojiyay. Kooxdu way istaagtay.', 'حسنًا. لقد أوقفت عمل الفريق.');
+  static String planCancelled({String lang = 'en'}) => _l(lang, 'Understood, I have set this plan aside. Let me know when you are ready.',
+      'Waa hagaag, qorshaha waan dhaafay. Ii sheeg markaad diyaar u tahay.', 'حسنًا، وضعت هذه الخطة جانبًا. أخبرني عندما تكون جاهزًا.');
+  static String startingNow({String lang = 'en'}) => _l(lang, 'We are starting now. I will report back when we are done.',
+      'Hadda ayaan bilaabaynaa. Waxaan idiin soo sheegi doonaa marka aan dhammayno.', 'سنبدأ الآن. سأوافيك بالنتيجة عندما ننتهي.');
+  static String askGo({String lang = 'en'}) => _l(lang, 'Shall we start? Reply "Go", or tell me what to change.',
+      'Ma bilaabaa? Ku jawaab "Haa" ama ii sheeg waxa la beddelayo.', 'هل نبدأ؟ اكتب "ابدأ"، أو أخبرني بما تريد تغييره.');
+  static String couldNotFinish({String lang = 'en'}) => _l(lang, 'The team could not finish this just now. Please try again in a moment.',
+      'Kooxdu ma dhammayn karin hawshan hadda. Fadlan mar kale isku day.', 'لم يتمكن الفريق من إنهاء هذا الآن. يرجى المحاولة مرة أخرى بعد قليل.');
+  static String partFailed({String lang = 'en'}) =>
+      _l(lang, 'I could not finish my part this time.', 'Qaybtayda ma dhammayn karin hadda.', 'لم أتمكن من إنهاء الجزء الخاص بي هذه المرة.');
+  static String planHeader({String lang = 'en'}) => _l(lang, 'The plan:', 'Qorshaha:', 'الخطة:');
+
+  /// System lines in a team chat (CB-37, CB-64), in the owner's language.
+  static String noted({String lang = 'en'}) =>
+      _l(lang, 'Noted. The team will include this.', 'Waa la qoray. Kooxdu way ku dari doontaa.', 'تم. سيأخذ الفريق هذا في الاعتبار.');
+  static String nobody({String lang = 'en'}) => _l(lang, 'Nobody picked this up. Mention a teammate with @ to ask them directly.',
+      'Cidna ma qaadan. Xubin @ ku xus si aad si toos ah u weydiiso.', 'لم يتولَّ أحد هذا. اذكر أحد أعضاء الفريق بـ @ لتسأله مباشرة.');
+  static String noReply(String member, {String lang = 'en'}) => _l(lang, '$member did not reply. Ask again, or mention another teammate with @.',
+      '$member kama jawaabin. Mar kale weydii, ama xubin kale @ ku xus.', 'لم يرد $member. اسأل مرة أخرى، أو اذكر عضوًا آخر بـ @.');
+  static String interrupted({String lang = 'en'}) => _l(lang, 'The team\'s work was interrupted when SubMac closed. Say "go" to restart.',
+      'Shaqada kooxda way go\'day markii SubMac xirmay. Dheh "go" si dib loogu bilaabo.', 'توقف عمل الفريق عندما أُغلق SubMac. اكتب "go" لإعادة البدء.');
+
+  static const langs = ['en', 'so', 'ar'];
 
   /// Every fixed phrase above, for the tone test.
   static List<String> get phrases => [
-        for (final so in [false, true]) ...[
-          handOff('Nova', 'compare the three prices', somali: so),
-          stopped(somali: so),
-          planCancelled(somali: so),
-          askGo(somali: so),
-          startingNow(somali: so),
-          couldNotFinish(somali: so),
-          partFailed(somali: so),
+        for (final l in langs) ...[
+          handOff('Nova', 'compare the three prices', lang: l),
+          stopped(lang: l),
+          planCancelled(lang: l),
+          askGo(lang: l),
+          startingNow(lang: l),
+          couldNotFinish(lang: l),
+          partFailed(lang: l),
+          noted(lang: l),
+          nobody(lang: l),
+          noReply('Nova', lang: l),
+          interrupted(lang: l),
         ],
       ];
 }
