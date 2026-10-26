@@ -144,6 +144,10 @@ extension AppStateSystem on AppState {
     ]);
     try {
       await Bots.I.init();
+      // The Chief makes a bot only after the owner answered its draft (a newer message of theirs in that chat).
+      Bots.I.lastOwnerMessage = (convId) =>
+          (_lists[convId] ?? const <ChatMessage>[]).lastWhere((m) => m.role == 'user' && !m.content.startsWith(botWakeMark),
+              orElse: () => ChatMessage(id: '', role: 'user')).id;
       // Plan 5.2: bots from before trust levels take the level that matches how SubMac was set ("full" = Trusted).
       var moved = false;
       for (final x in Bots.I.bots.where((x) => x.trust.isEmpty)) {
