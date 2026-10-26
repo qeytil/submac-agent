@@ -57,7 +57,9 @@ extension AppStateBots on AppState {
     final list = _lists[b.convId];
     if (list == null || list.any((m) => m.id == id)) return;
     Events.I.result(b.id, 'cloud');
-    final m = ChatMessage(id: id, role: 'assistant', content: text.trim());
+    // New this session: it arrives with the chat's message animation (once).
+    final m = ChatMessage(id: id, role: 'assistant', content: text.trim())..animateIn = true;
+    Future<void>.delayed(const Duration(seconds: 2), () => m.animateIn = false);
     list.add(m);
     _notify();
     try {
@@ -490,7 +492,9 @@ extension AppStateBots on AppState {
     if (!await _ensureBotConv(b)) return;
     final list = _lists[b.convId];
     if (list == null) return;
-    final m = ChatMessage(id: _uuid.v4(), role: 'assistant', content: text.trim());
+    // New this session: it arrives with the chat's message animation (once).
+    final m = ChatMessage(id: _uuid.v4(), role: 'assistant', content: text.trim())..animateIn = true;
+    Future<void>.delayed(const Duration(seconds: 2), () => m.animateIn = false);
     list.add(m);
     _notify();
     try {
