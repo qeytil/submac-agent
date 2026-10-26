@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/outbound_guard.dart';
 import '../services/phone_tools.dart';
 import '../services/reply_text.dart' show majorityDir;
 import '../theme.dart';
@@ -109,30 +110,39 @@ void harkCopy(BuildContext context, String text) {
 
 /// An email or text draft (Hark's text-template card): title (the subject, or "Draft"), a faint hairline, the body
 /// in muted text with placeholders left as they are, and a Copy corner button. Hold for Share / Open in mail.
+///
+/// CB-42: an email draft with a "To:" line (from email_draft, when no mail account is connected) has a Send button:
+/// it opens the phone's mail app (a mailto: compose intent) with the address, subject and body filled in, and the
+/// user presses send there. That tap is the user's OK for the task's send.
 class DraftCard extends StatelessWidget {
   final String body;
   const DraftCard(this.body, {super.key});
 
   (String?, String) get parts {
-    final text = body.trim();
-    final first = text.split('\n').first;
-    if (first.toLowerCase().startsWith('subject:')) return (first.substring(8).trim(), text.substring(first.length).trim());
-    return (null, text);
+    final d = OutboundGuard.parse(body);
+    return (d.subject, d.body);
   }
 
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final text = body.trim();
-    final (subject, content) = parts;
+    final d = OutboundGuard.parse(text);
+    final subject = d.subject;
+    final content = d.body;
+    final email = d.to.isNotEmpty;
+    Future<void> openMail() async {
+      OutboundGuard.approveDraft(text);
+      final uri = OutboundGuard.mailto(to: d.to, cc: d.cc, subject: subject ?? '', body: content);
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+    }
+
     void more() => showMessageActions(context, actions: [
           MessageAction('Copy', 'copy', () => harkCopy(context, text)),
           MessageAction('Share', 'share', () => SharePlus.instance.share(ShareParams(text: content, subject: subject))),
-          if (subject != null)
-            MessageAction('Open in mail', 'send', () {
-              final uri = Uri(scheme: 'mailto', queryParameters: {'subject': subject, 'body': content});
-              launchUrl(Uri.parse(uri.toString().replaceAll('+', '%20')));
-            }),
+          if (subject != null || email) MessageAction('Open in mail', 'send', openMail),
         ]);
     return GestureDetector(
       onLongPress: more,
@@ -140,10 +150,20 @@ class DraftCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           HarkTitleRow(
             title: subject ?? 'Draft',
+            sub: email ? 'To ${d.to}' : null,
             action: HarkCornerButton(icon: 'copy', label: 'Copy', onTap: () => harkCopy(context, subject == null ? content : 'Subject: $subject\n\n$content')),
           ),
           const HarkHairline(),
           SelectableText(content, style: AppText.bodyStyle.copyWith(color: p.muted)),
+          if (email)
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                key: const ValueKey('draft-send'),
+                onPressed: openMail,
+                child: Text(tr('Send'), style: AppText.bodyStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
+              ),
+            ),
         ]),
       ),
     );

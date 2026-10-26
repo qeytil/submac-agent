@@ -23,6 +23,8 @@ object Notifier {
     const val CALLS = "submac_bot_calls"
     /** A message from a bot: like a text from a colleague. */
     const val BOTS = "submac_bot_msgs"
+    /** A running task waits for the user's OK while SubMac is behind another app: pops up so the ask is never hidden. */
+    const val ASKS = "submac_asks"
 
     fun ensureChannels(ctx: Context) {
         if (Build.VERSION.SDK_INT < 26) return
@@ -82,6 +84,21 @@ object Notifier {
             }
         )
         nm.createNotificationChannel(
+            NotificationChannel(ASKS, "Needs your OK", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "When a task waits for your OK while you are in another app"
+                setSound(
+                    Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.submac_done),
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 14, 110, 22)
+                enableLights(false)
+            }
+        )
+        nm.createNotificationChannel(
             NotificationChannel(WAKE, "Hello SubMac", NotificationManager.IMPORTANCE_MIN).apply {
                 description = "Shown while SubMac listens for its name"
                 setShowBadge(false)
@@ -104,6 +121,7 @@ object Notifier {
     private fun kicker(kind: String) = when (kind) {
         "scheduled" -> "SUBMAC  ·  ON SCHEDULE"
         "attention" -> "SUBMAC  ·  FOR YOU"
+        "approval" -> "SUBMAC  ·  NEEDS YOUR OK"
         "paused" -> "SUBMAC  ·  PAUSED"
         "info" -> "SUBMAC"
         else -> "SUBMAC  ·  READY"
@@ -119,10 +137,10 @@ object Notifier {
             if (System.currentTimeMillis() - last < 6 * 3600_000L) return
             prefs.edit().putLong("paused_at", System.currentTimeMillis()).apply()
         }
-        val loud = kind == "scheduled" || kind == "attention"
+        val loud = kind == "scheduled" || kind == "attention" || kind == "approval"
         var line = (if (body.isNotBlank()) body else title).replace(Regex("\\s+"), " ").trim()
         if (line.length > 110) line = line.substring(0, 108).trimEnd() + "…"
-        val b = builder(ctx, if (loud) TASKS else QUIET)
+        val b = builder(ctx, if (kind == "approval") ASKS else if (loud) TASKS else QUIET)
             .setSmallIcon(R.drawable.ic_stat_submac)
             .setColor(0xFF17150F.toInt())
             // One plain line that says what matters ("Your image is ready"). No big custom card.
