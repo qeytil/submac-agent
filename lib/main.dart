@@ -78,10 +78,12 @@ Future<void> main() async {
   }
   // Push (plan 2.1). Optional: if Firebase fails the app runs as before, just without push.
   unawaited(Push.I.init().catchError((_) {}));
+  // The real build's version (touch_device reports it on sign-in), before anything sends it.
+  await Updater.loadBuildVersion();
   // Plan 2.4 rewards (invite link, claim a referral once after sign-up) and the "From SubMac" inbox.
   unawaited(Rewards.I.init().catchError((_) {}));
   unawaited(Inbox.I.init().catchError((_) {}));
-  // In-app updates: the update window shows on every start while a newer version is published.
+  // In-app updates: the update window shows while a newer version is published ("Later" snoozes that version).
   unawaited(Updater.I.init().catchError((_) {}));
   // Billing (step 6): inert until /status says billing is on; finishes checking payments started before a restart.
   Billing.I.onToast = (m) {

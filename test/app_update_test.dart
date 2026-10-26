@@ -150,7 +150,8 @@ void main() {
       expect(m.start().phase, UpdatePhase.downloading);
       expect(m.onNative('running', bytes: 10, total: 100).progress, closeTo(0.1, 1e-9));
       expect(m.onNative('ready').phase, UpdatePhase.downloaded);
-      expect(m.install().phase, UpdatePhase.installing);
+      expect(m.install().phase, UpdatePhase.verifying); // checked again before the installer opens
+      expect(m.onVerified(VerifyVerdict.ok).phase, UpdatePhase.installing);
       expect(m.onInstallResult('started').phase, UpdatePhase.installing);
     });
     test('cancel brings the window back to Download', () {
@@ -178,7 +179,8 @@ void main() {
       final m = fresh()
         ..start()
         ..onNative('ready')
-        ..install();
+        ..install()
+        ..onVerified(VerifyVerdict.ok);
       expect(m.onResumed().phase, UpdatePhase.downloaded);
     });
     test('install needs the "Install unknown apps" switch', () {

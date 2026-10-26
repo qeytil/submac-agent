@@ -286,11 +286,6 @@
       "10": 1,
       "16": 3,
       "18": 1
-    },
-    "lib/widgets/update_window.dart": {
-      "14": 1,
-      "22": 1,
-      "99": 1
     }
   },
   "version": 1,
@@ -362,7 +357,7 @@
       ".accent": 2
     },
     "lib/widgets/update_window.dart": {
-      ".accent": 3
+      ".accent": 1
     }
   },
   "letterSpacing": {

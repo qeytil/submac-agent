@@ -20,9 +20,9 @@ progress, and Install opens Android's installer. A required update blocks the ap
    The file then goes to Cloudflare R2 through the dashboard in 32 MiB pieces and is stored as one file.
 5. **When does it become required?**
    - **Now**: everyone on an older version gets a full-screen "Please update SubMac" with only Download / Install.
-   - **From (date and time)**: until then people may tap Later (the window comes back on every start); from then on
+   - **From (date and time)**: until then people may tap Later (hides that version for 24 h); from then on
      it becomes the full-screen block. The time is in your browser's time zone (shown under the picker).
-   - **Never**: people may always skip (the window still comes back on every start).
+   - **Never**: people may always skip (Later hides that version for 24 h; a newer version shows at once).
 6. Leave **Publish right away** ticked (or untick to save a draft and publish later from the list) and press
    **Upload and save**. The progress bar shows the upload; a toast says "Published".
 7. The list shows every release (draft / published, required state, size). **Edit** changes what's new and the
@@ -76,6 +76,42 @@ phone. R2 has no such cap, so a release is now one public file and the phone dow
   path and fail the check; that build was never released to users.
 - Migration `supabase/migrations/20261021_app_releases_r2.sql` (additive, applied): `storage`, `file_url`,
   `file_key`, checks, the public-base setting and `latest_release()` returning `storage` and `file_url`.
+
+## Updater improvements (fix/app-updater, after v1.13.104+174)
+
+This replaces parts of "How it works" below; where they differ, this section is current.
+- **Download**: our own downloader in `AppUpdater.kt`, run by `UpdateService` (dataSync foreground service, quiet
+  progress notification), instead of Android's DownloadManager. DownloadManager cannot resume a part itself on a
+  new request (it refuses a 206 it did not ask for) and deletes the partial file when a download fails.
+  Each part is `updates/part-<code>-<i>.bin`; finished parts are kept; a partial part continues with
+  `Range: bytes=<have>-` (206 appends, 200 restarts only that part, 416 with the whole part = done). A lost
+  connection waits for the network and continues by itself; server errors are retried 3 times, then reported.
+  Cancel download stops but keeps the bytes; Download continues from there. Files are deleted only when another
+  release replaces this one or the phone runs the new build. Dart plans the offsets (`planResume`, `rangeOutcome`
+  in `update_logic.dart`, tested); Kotlin follows the same rules.
+- **Why it stopped**: the window says Waiting for a connection (download keeps waiting) / Not enough space (free up
+  about X MB) / The update server isn't answering / The download stopped, each with Try again or Continue download.
+  Free space (about 2× the APK, minus what is already on the phone) is checked before starting and before joining.
+- **Verify**: after the parts are joined the sha256 must match (verifying state). Before the installer opens, the
+  file is checked again and its package and signing certificate must match the installed app (same signer set, or
+  a key rotated from ours). A wrong sha256 deletes the file (Download again); a wrong signer blocks the install with
+  "This update isn't signed by SubMac" and no download button. If Android cannot read the file's signer here, the
+  check is left to Android's installer (which refuses a different key anyway).
+- **Later**: hides that version for `snoozeLength` (24 h, one constant in `update_logic.dart`; set it to
+  `Duration.zero` for the old "every start"), saved in `app_update_snooze_v1`. Never for a required update; a newer
+  version clears it.
+- **Words**: English, Somali and Arabic from the app language (Settings > Language), not the reply language. The
+  native notifications ("Downloading the SubMac update", "Your SubMac update is ready") get their words from Dart.
+- **Sheet**: a bottom sheet (full screen when required) with the logo, version and size, what's new, Update now /
+  Later, a progress bar with %, "x MB of y MB" and Cancel, Checking the update…, Install, and the "Install unknown
+  apps" guidance with Open settings (installing continues on return). Reduced motion: no slide, no easing, no
+  spinner.
+- **What's new after updating**: on the first start on the new build, "What's new in X" shows once (from the
+  release notes saved before installing). Not shown after a manual install (no notes on the phone).
+- **Version reported**: `AppConfig.version` is the build's real versionName from Android (was a stale constant
+  "1.13.79" sent by touch_device, so "devices by version" was wrong). `AppConfig.pubspecVersion` is only the
+  fallback off Android; a test fails when it drifts from pubspec.yaml.
+- Tests: `test/app_updater_rules_test.dart`, `test/update_sheet_test.dart`.
 
 ## How it works (original Supabase parts path; still used for old releases)
 
@@ -155,7 +191,8 @@ with a higher build (bump pubspec and AppConfig.version, run Dev check, download
 1. Install A. Open Settings > App update: shows "This version 1.13.51"; Check now says "You're up to date".
 2. Dashboard > Updates: pick B, What's new "Test update", Required **Never**, Publish. Close SubMac fully and open
    it: the update window appears (version, size, what's new, Download / Later).
-3. Tap Later: the window goes. Close SubMac (swipe it away) and open it: the window is back.
+3. Tap Later: the window goes and stays away for that version for 24 h (also after closing and opening SubMac).
+   Publish a higher build: it shows at once.
 4. Tap Download: progress moves; Android's notification shows the download. Press Home, wait, come back: progress
    continued (or Install is waiting). Lock the phone during the download: it still finishes.
 5. Start again, tap Cancel download: the download stops, the notification goes, the window shows Download again.
@@ -170,8 +207,11 @@ with a higher build (bump pubspec and AppConfig.version, run Dev check, download
    not reveal it. Download → Install works from there.
 10. Required later: Edit → From = 3 minutes from now. Open SubMac: Later is shown with "Required from …". Wait past
     the time with the app open: within ~30 s the window turns into the full-screen block.
-11. Somali: Settings > Reply language Somali → window and Settings entry in Somali.
-12. Clean up: Unpublish or Delete the test releases in the dashboard.
+11. Language: Settings > Language Somali / Arabic → the sheet, Settings entry and notifications in that language.
+12. Resume: start a download, turn on airplane mode at ~40%: "Waiting for a connection"; turn it off: it continues
+    from ~40%. Cancel at ~60%, tap Continue download: it continues from ~60%.
+13. Low space: fill the phone to less than 2× the update size free: "Not enough space… free up about X MB".
+14. Clean up: Unpublish or Delete the test releases in the dashboard.
 
 ## Limits
 
@@ -183,6 +223,5 @@ with a higher build (bump pubspec and AppConfig.version, run Dev check, download
 - The build number must go up for every published update; phones ignore equal or lower builds (no downgrades).
 - The full-screen block is drawn over the app; it does not stop background work that was already running
   (bots, wake word) until the user updates.
-- Users who removed SubMac's download from Android's Downloads app see "The download stopped" and can download again.
 - HyperOS/MIUI may show their own "Install unknown apps" wording or an extra security scan before installing.
 - Not phone-tested yet (no device in this run); the Kotlin side is compiled and checked by the Dev check build.

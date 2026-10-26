@@ -127,11 +127,184 @@ class Release {
   bool newerThan(int? currentCode) => currentCode != null && versionCode > currentCode;
 }
 
-/// What the update window is doing.
-enum UpdatePhase { idle, downloading, cancelled, downloaded, installing }
+/// What the update window is doing. [verifying] = the file is being joined and checked (sha256, then the signing
+/// certificate right before the installer opens).
+enum UpdatePhase { idle, downloading, cancelled, downloaded, verifying, installing }
 
-/// Why the last step did not go through (shown as one plain line).
-enum UpdateIssue { none, failed, badFile, needsPermission }
+/// Why the last step did not go through (shown as one plain line). [badSignature] blocks the install for good: the
+/// file is not signed with SubMac's key, so downloading it again would not help.
+enum UpdateIssue { none, failed, badFile, needsPermission, badSignature }
+
+/// Why a download stopped or waits, from the native downloader (or Android's DownloadManager codes).
+enum StopReason { none, waitingNetwork, lowStorage, server, unknown }
+
+/// Maps what the native side reports to a [StopReason].
+/// [reason] is the native downloader's word ('network' | 'storage' | 'server' | 'unknown'); [code] is a numeric
+/// DownloadManager COLUMN_REASON (PAUSED_* 1-4, ERROR_* 1000-1009, or an HTTP status) for downloads Android ran.
+StopReason stopReasonFrom(dynamic reason, {int code = 0, int http = 0}) {
+  switch ('${reason ?? ''}') {
+    case 'network':
+      return StopReason.waitingNetwork;
+    case 'storage':
+      return StopReason.lowStorage;
+    case 'server':
+      return StopReason.server;
+    case 'unknown':
+      return StopReason.unknown;
+  }
+  if (http >= 400) return StopReason.server;
+  switch (code) {
+    case 0:
+      return StopReason.none;
+    case 1: // PAUSED_WAITING_TO_RETRY
+    case 2: // PAUSED_WAITING_FOR_NETWORK
+    case 3: // PAUSED_QUEUED_FOR_WIFI
+      return StopReason.waitingNetwork;
+    case 1006: // ERROR_INSUFFICIENT_SPACE
+    case 1007: // ERROR_DEVICE_NOT_FOUND (no external storage)
+      return StopReason.lowStorage;
+    case 1002: // ERROR_UNHANDLED_HTTP_CODE
+    case 1004: // ERROR_HTTP_DATA_ERROR
+    case 1005: // ERROR_TOO_MANY_REDIRECTS
+      return StopReason.server;
+  }
+  if (code >= 400 && code <= 599) return StopReason.server;
+  return StopReason.unknown;
+}
+
+// ---------------- storage ----------------
+
+/// Bytes that must be free before a download starts: about twice the APK, because the parts and the joined file
+/// sit side by side while joining. Bytes already on the phone (finished or partial parts) count as paid.
+int bytesNeeded({required int size, int have = 0}) {
+  final need = 2 * size - have;
+  return need < 0 ? 0 : need;
+}
+
+/// True when [free] bytes are enough to start (or resume). Unknown free space (< 0) never blocks.
+bool hasRoomFor({required int size, required int free, int have = 0}) => free < 0 || free >= bytesNeeded(size: size, have: have);
+
+// ---------------- resume (HTTP Range per part) ----------------
+
+/// Where one part starts when the download (re)starts: [done] parts are kept and skipped; otherwise the request
+/// asks for `Range: bytes=<offset>-` (offset 0 = a normal request).
+class PartPlan {
+  final int index;
+  final int offset;
+  final bool done;
+  const PartPlan(this.index, this.offset, {this.done = false});
+  @override
+  bool operator ==(Object o) => o is PartPlan && o.index == index && o.offset == offset && o.done == done;
+  @override
+  int get hashCode => Object.hash(index, offset, done);
+  @override
+  String toString() => 'PartPlan($index, $offset${done ? ', done' : ''})';
+}
+
+/// [expected] = each part's size from the release (0 = unknown); [have] = bytes of that part already on the phone;
+/// [finished] = parts the downloader marked complete (needed when the size is unknown).
+List<PartPlan> planResume({required List<int> expected, required List<int> have, List<bool> finished = const []}) {
+  return [
+    for (var i = 0; i < expected.length; i++)
+      () {
+        final want = expected[i];
+        final got = i < have.length && have[i] > 0 ? have[i] : 0;
+        final fin = i < finished.length && finished[i];
+        if (want > 0 && got > want) return PartPlan(i, 0); // bigger than it should be: start that part over
+        if (want > 0 && got == want) return PartPlan(i, got, done: true);
+        if (want <= 0 && fin && got > 0) return PartPlan(i, got, done: true);
+        return PartPlan(i, got);
+      }(),
+  ];
+}
+
+/// What to do with the answer to a (possibly ranged) request for one part.
+enum RangeOutcome { append, restart, fresh, complete, serverError }
+
+/// 206 to a ranged request appends; 200 means the server ignored Range, so the part starts over (the bytes on the
+/// phone are dropped); 416 with the whole part already here is complete; other errors are the server's.
+RangeOutcome rangeOutcome({required int status, required int offset, int expected = 0}) {
+  if (status == 206 && offset > 0) return RangeOutcome.append;
+  if (status == 200) return offset > 0 ? RangeOutcome.restart : RangeOutcome.fresh;
+  if (status == 416 && offset > 0) return (expected <= 0 || offset == expected) ? RangeOutcome.complete : RangeOutcome.restart;
+  return RangeOutcome.serverError;
+}
+
+// ---------------- verify before installing ----------------
+
+/// The installed app's signing certificate digests must match the downloaded APK's: the same current signers, or the
+/// APK's rotation history contains every signer the app has now (a key rotated from ours).
+bool signersMatch({required List<String> app, required List<String> apk, List<String> apkHistory = const []}) {
+  String n(String s) => s.toLowerCase().replaceAll(':', '').trim();
+  final a = app.map(n).where((s) => s.isNotEmpty).toSet();
+  final b = apk.map(n).where((s) => s.isNotEmpty).toSet();
+  if (a.isEmpty || b.isEmpty) return false;
+  if (a.length == b.length && a.containsAll(b)) return true;
+  final h = apkHistory.map(n).toSet();
+  return h.containsAll(a) && h.containsAll(b);
+}
+
+enum VerifyVerdict { ok, notReady, badHash, badSignature }
+
+/// What the native `verify` call found, turned into one verdict: sha256 first, then package and signer.
+VerifyVerdict verifyVerdict(dynamic facts, {String? expectedSha}) {
+  if (facts is! Map || facts['ready'] != true) return VerifyVerdict.notReady;
+  final got = '${facts['sha256'] ?? ''}'.toLowerCase();
+  final want = (expectedSha ?? '${facts['expected_sha256'] ?? ''}').toLowerCase();
+  if (got.isEmpty || want.isEmpty || got != want) return VerifyVerdict.badHash;
+  if (facts['package'] != facts['app_package'] || facts['package'] == null) return VerifyVerdict.badSignature;
+  List<String> l(dynamic v) => v is List ? [for (final x in v) '$x'] : const [];
+  // Android could parse the file as our package but not read its signer here: its installer still refuses a
+  // different key, so this is not treated as a mismatch.
+  if (facts['apk_signers_unreadable'] == true && l(facts['apk_signers']).isEmpty && l(facts['app_signers']).isNotEmpty) return VerifyVerdict.ok;
+  final ok = signersMatch(app: l(facts['app_signers']), apk: l(facts['apk_signers']), apkHistory: l(facts['apk_history']));
+  return ok ? VerifyVerdict.ok : VerifyVerdict.badSignature;
+}
+
+// ---------------- "Later" ----------------
+
+/// How long "Later" hides the window for one version. Owner decision point: the owner once asked for the window on
+/// every start; set this to Duration.zero for that (Later then only hides it until SubMac is opened again).
+const Duration snoozeLength = Duration(hours: 24);
+
+/// "Later" for one version, until a time. A newer version is not covered.
+class Snooze {
+  final int code;
+  final DateTime until;
+  const Snooze(this.code, this.until);
+  Map<String, dynamic> toJson() => {'code': code, 'until': until.toUtc().toIso8601String()};
+  static Snooze? fromJson(dynamic j) {
+    if (j is! Map) return null;
+    final c = j['code'] is num ? (j['code'] as num).toInt() : null;
+    final u = DateTime.tryParse('${j['until']}');
+    return c == null || u == null ? null : Snooze(c, u.toUtc());
+  }
+}
+
+/// The snooze "Later" leaves for [release] at [now]; null when it cannot be snoozed (required).
+Snooze? snoozeFor(Release release, DateTime now, {required bool forced, Duration length = snoozeLength}) =>
+    forced ? null : Snooze(release.versionCode, now.toUtc().add(length));
+
+/// Still snoozed: same version, not required, and the time has not passed.
+bool isSnoozed(Snooze? s, {required Release? release, required DateTime now, required bool forced}) {
+  if (s == null || release == null || forced) return false;
+  if (s.code != release.versionCode) return false; // a newer version clears the snooze
+  return now.toUtc().isBefore(s.until);
+}
+
+// ---------------- "What's new" after an update ----------------
+
+/// The release whose notes to show once on the first start after updating to it: the saved release is the version
+/// now running, the previous start ran an older build (or is unknown: the first start with this feature, which an
+/// in-app update to it implies), and that version was not shown yet. A fresh install has no saved release.
+Release? whatsNewToShow({required Release? saved, required int? currentCode, required int? lastRunCode, required int? shownCode}) {
+  if (saved == null || currentCode == null) return null;
+  if (lastRunCode != null && currentCode <= lastRunCode) return null;
+  if (saved.versionCode != currentCode) return null;
+  if (shownCode != null && shownCode >= currentCode) return null;
+  if (saved.notes.trim().isEmpty) return null;
+  return saved;
+}
 
 class UpdateState {
   final UpdatePhase phase;
@@ -140,19 +313,34 @@ class UpdateState {
   final int total;
   final UpdateIssue issue;
 
-  const UpdateState({this.phase = UpdatePhase.idle, this.releaseCode = 0, this.bytes = 0, this.total = 0, this.issue = UpdateIssue.none});
+  /// Why the download waits ([UpdatePhase.downloading]) or stopped ([UpdatePhase.cancelled] with [UpdateIssue.failed]).
+  final StopReason reason;
+
+  const UpdateState({
+    this.phase = UpdatePhase.idle,
+    this.releaseCode = 0,
+    this.bytes = 0,
+    this.total = 0,
+    this.issue = UpdateIssue.none,
+    this.reason = StopReason.none,
+  });
 
   double? get progress => total > 0 ? (bytes / total).clamp(0.0, 1.0) : null;
 
-  UpdateState copyWith({UpdatePhase? phase, int? releaseCode, int? bytes, int? total, UpdateIssue? issue}) => UpdateState(
+  /// Whole percent for the progress line (never 100 before the file is checked).
+  int? get percent => progress == null ? null : (progress! * 100).floor().clamp(0, phase == UpdatePhase.downloading ? 99 : 100);
+
+  UpdateState copyWith({UpdatePhase? phase, int? releaseCode, int? bytes, int? total, UpdateIssue? issue, StopReason? reason}) => UpdateState(
         phase: phase ?? this.phase,
         releaseCode: releaseCode ?? this.releaseCode,
         bytes: bytes ?? this.bytes,
         total: total ?? this.total,
         issue: issue ?? this.issue,
+        reason: reason ?? this.reason,
       );
 
-  Map<String, dynamic> toJson() => {'phase': phase.name, 'code': releaseCode, 'bytes': bytes, 'total': total, 'issue': issue.name};
+  Map<String, dynamic> toJson() =>
+      {'phase': phase.name, 'code': releaseCode, 'bytes': bytes, 'total': total, 'issue': issue.name, 'reason': reason.name};
 
   static UpdateState fromJson(dynamic j) {
     if (j is! Map) return const UpdateState();
@@ -163,11 +351,13 @@ class UpdateState {
       bytes: j['bytes'] is num ? (j['bytes'] as num).toInt() : 0,
       total: j['total'] is num ? (j['total'] as num).toInt() : 0,
       issue: pick(UpdateIssue.values, j['issue'], UpdateIssue.none),
+      reason: pick(StopReason.values, j['reason'], StopReason.none),
     );
   }
 }
 
-/// The download state machine: idle -> downloading -> downloaded -> installing, with cancelled as the way back.
+/// The download state machine: idle -> downloading -> verifying -> downloaded -> verifying -> installing, with
+/// cancelled as the way back. Bytes already on the phone are kept across a stop or failure (the next start resumes).
 /// Every method returns the next state; illegal moves return the state unchanged.
 class UpdateMachine {
   UpdateState state;
@@ -181,7 +371,7 @@ class UpdateMachine {
       return hadFiles;
     }
     if (r.versionCode != state.releaseCode) {
-      final hadFiles = state.releaseCode != 0 && state.phase != UpdatePhase.idle;
+      final hadFiles = state.releaseCode != 0 && (state.phase != UpdatePhase.idle || state.bytes > 0);
       state = UpdateState(releaseCode: r.versionCode, total: r.sizeBytes);
       return hadFiles;
     }
@@ -190,61 +380,116 @@ class UpdateMachine {
 
   UpdateState start() {
     if (state.releaseCode == 0) return state;
+    if (state.issue == UpdateIssue.badSignature) return state; // blocked: the same file would come back
     if (state.phase == UpdatePhase.idle || state.phase == UpdatePhase.cancelled) {
-      state = state.copyWith(phase: UpdatePhase.downloading, bytes: 0, issue: UpdateIssue.none);
+      state = state.copyWith(phase: UpdatePhase.downloading, issue: UpdateIssue.none, reason: StopReason.none);
     }
     return state;
   }
 
-  UpdateState cancel() {
-    if (state.phase == UpdatePhase.downloading) state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.none);
+  /// The free-space check before starting failed: nothing was started.
+  UpdateState lowStorage() {
+    if (state.releaseCode == 0) return state;
+    if (state.phase == UpdatePhase.idle || state.phase == UpdatePhase.cancelled || state.phase == UpdatePhase.downloading) {
+      state = state.copyWith(phase: UpdatePhase.cancelled, issue: UpdateIssue.failed, reason: StopReason.lowStorage);
+    }
     return state;
   }
 
-  /// What Android's download reports: none | running | paused | failed | bad | ready.
-  UpdateState onNative(String native, {int bytes = 0, int total = 0}) {
+  /// Cancel: stops the download. What arrived stays on the phone, so Download continues from there.
+  UpdateState cancel() {
+    if (state.phase == UpdatePhase.downloading) state = state.copyWith(phase: UpdatePhase.cancelled, issue: UpdateIssue.none, reason: StopReason.none);
+    return state;
+  }
+
+  /// What the native downloader reports: none | running | paused | stopped | failed | verifying | bad | ready.
+  /// [reason]/[code]/[http] say why it waits or stopped (see [stopReasonFrom]).
+  UpdateState onNative(String native, {int bytes = 0, int total = 0, dynamic reason, int code = 0, int http = 0}) {
     if (state.releaseCode == 0) return state;
     final t = total > 0 ? total : state.total;
+    final active = state.phase == UpdatePhase.idle || state.phase == UpdatePhase.downloading || state.phase == UpdatePhase.cancelled;
     switch (native) {
       case 'running':
+        if (active && state.issue != UpdateIssue.badSignature) {
+          state = state.copyWith(phase: UpdatePhase.downloading, bytes: bytes, total: t, issue: UpdateIssue.none, reason: StopReason.none);
+        }
       case 'paused':
-        if (state.phase == UpdatePhase.idle || state.phase == UpdatePhase.downloading || state.phase == UpdatePhase.cancelled) {
-          state = state.copyWith(phase: UpdatePhase.downloading, bytes: bytes, total: t, issue: UpdateIssue.none);
+        // Waiting (usually for the network); the downloader goes on by itself when it can.
+        if (active && state.issue != UpdateIssue.badSignature) {
+          final r = stopReasonFrom(reason, code: code, http: http);
+          state = state.copyWith(
+              phase: UpdatePhase.downloading, bytes: bytes, total: t, issue: UpdateIssue.none, reason: r == StopReason.none ? StopReason.waitingNetwork : r);
+        }
+      case 'stopped':
+        if (state.phase == UpdatePhase.downloading) state = state.copyWith(phase: UpdatePhase.cancelled, bytes: bytes, issue: UpdateIssue.none, reason: StopReason.none);
+      case 'verifying':
+        if (active || state.phase == UpdatePhase.verifying) {
+          state = state.copyWith(phase: UpdatePhase.verifying, bytes: t, total: t, issue: UpdateIssue.none, reason: StopReason.none);
         }
       case 'ready':
-        if (state.phase != UpdatePhase.installing) {
-          state = state.copyWith(phase: UpdatePhase.downloaded, bytes: t, total: t, issue: state.issue == UpdateIssue.needsPermission ? state.issue : UpdateIssue.none);
+        if (state.phase != UpdatePhase.installing && state.issue != UpdateIssue.badSignature) {
+          state = state.copyWith(
+              phase: UpdatePhase.downloaded,
+              bytes: t,
+              total: t,
+              issue: state.issue == UpdateIssue.needsPermission ? state.issue : UpdateIssue.none,
+              reason: StopReason.none);
         }
       case 'failed':
-        if (state.phase == UpdatePhase.downloading) state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.failed);
+        if (state.phase == UpdatePhase.downloading || state.phase == UpdatePhase.verifying) {
+          final r = stopReasonFrom(reason, code: code, http: http);
+          state = state.copyWith(
+              phase: UpdatePhase.cancelled, bytes: bytes, issue: UpdateIssue.failed, reason: r == StopReason.none ? StopReason.unknown : r);
+        }
       case 'bad':
-        state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.badFile);
+        state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.badFile, reason: StopReason.none);
       case 'none':
-        // The files are gone (removed from Android's Downloads list, or never started).
-        if (state.phase == UpdatePhase.downloading) {
-          state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.failed);
+        // The files are gone (removed, or never started).
+        if (state.phase == UpdatePhase.downloading || state.phase == UpdatePhase.verifying) {
+          state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.failed, reason: StopReason.unknown);
         } else if (state.phase == UpdatePhase.downloaded || state.phase == UpdatePhase.installing) {
-          state = state.copyWith(phase: UpdatePhase.idle, bytes: 0, issue: UpdateIssue.none);
+          state = state.copyWith(phase: UpdatePhase.idle, bytes: 0, issue: UpdateIssue.none, reason: StopReason.none);
         }
     }
     return state;
   }
 
+  /// Install tapped: the file is checked again (sha256, signer) before the installer opens.
   UpdateState install() {
-    if (state.phase == UpdatePhase.downloaded) state = state.copyWith(phase: UpdatePhase.installing, issue: UpdateIssue.none);
+    if (state.phase == UpdatePhase.downloaded) state = state.copyWith(phase: UpdatePhase.verifying, issue: UpdateIssue.none);
     return state;
   }
 
-  /// What opening the installer returned: started | needs_permission | bad | not_ready.
+  /// The check before installing: ok opens the installer; a wrong sha256 throws the file away (download again);
+  /// a wrong signer blocks.
+  UpdateState onVerified(VerifyVerdict v) {
+    if (state.phase != UpdatePhase.verifying) return state;
+    switch (v) {
+      case VerifyVerdict.ok:
+        state = state.copyWith(phase: UpdatePhase.installing);
+      case VerifyVerdict.badHash:
+        state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.badFile);
+      case VerifyVerdict.badSignature:
+        state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.badSignature);
+      case VerifyVerdict.notReady:
+        state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.failed, reason: StopReason.unknown);
+    }
+    return state;
+  }
+
+  /// What opening the installer returned: started | needs_permission | bad | bad_signer | not_ready.
   UpdateState onInstallResult(String r) {
-    if (state.phase != UpdatePhase.installing) return state;
-    if (r == 'started') return state;
-    if (r == 'needs_permission') {
+    if (state.phase != UpdatePhase.installing && state.phase != UpdatePhase.verifying) return state;
+    if (r == 'started') {
+      state = state.copyWith(phase: UpdatePhase.installing);
+    } else if (r == 'needs_permission') {
       state = state.copyWith(phase: UpdatePhase.downloaded, issue: UpdateIssue.needsPermission);
     } else if (r == 'bad') {
       state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.badFile);
+    } else if (r == 'bad_signer') {
+      state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.badSignature);
     } else {
-      state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.failed);
+      state = state.copyWith(phase: UpdatePhase.cancelled, bytes: 0, issue: UpdateIssue.failed, reason: StopReason.unknown);
     }
     return state;
   }
@@ -256,9 +501,24 @@ class UpdateMachine {
   }
 }
 
-/// The window shows while a newer release is pending, unless the user tapped Later in this run of the app.
-/// A required update always shows (and cannot be dismissed).
-bool shouldShowWindow({required Release? release, required int? currentCode, required bool forced, required bool dismissed}) {
+/// The window shows while a newer release is pending, unless the user tapped Later in this run of the app or that
+/// version is snoozed. A required update always shows (and cannot be dismissed or snoozed).
+bool shouldShowWindow({
+  required Release? release,
+  required int? currentCode,
+  required bool forced,
+  required bool dismissed,
+  Snooze? snooze,
+  DateTime? now,
+}) {
   if (release == null || !release.newerThan(currentCode)) return false;
-  return forced || !dismissed;
+  if (forced) return true;
+  if (dismissed) return false;
+  return !isSnoozed(snooze, release: release, now: now ?? DateTime.now().toUtc(), forced: forced);
+}
+
+/// The version string to report (touch_device, Settings, mails): the real build's name from Android, else [fallback].
+String buildVersionName(dynamic native, String fallback) {
+  final n = native is String ? native.trim() : '';
+  return n.isNotEmpty ? n.split('+').first : fallback;
 }

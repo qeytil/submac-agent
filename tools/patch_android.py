@@ -147,9 +147,11 @@ components = '''
         <provider android:name=".WaFiles" android:authorities="com.submac.agent.wafiles"
             android:exported="false" android:grantUriPermissions="true"/>
         <!-- In-app updates: the joined update file for the installer (read-only, one-time grants, never exported),
-             and DownloadManager's "download finished" broadcast (sent from the system, so exported). -->
+             the downloader's foreground service (resumable, part by part), and the old DownloadManager receiver
+             (ignored since the service took over; kept so older pending broadcasts have a target). -->
         <provider android:name=".UpdateFiles" android:authorities="com.submac.agent.updates"
             android:exported="false" android:grantUriPermissions="true"/>
+        <service android:name=".UpdateService" android:exported="false" android:foregroundServiceType="dataSync"/>
         <receiver android:name=".UpdateDone" android:exported="true">
             <intent-filter><action android:name="android.intent.action.DOWNLOAD_COMPLETE"/></intent-filter>
         </receiver>
