@@ -28,6 +28,7 @@ import 'package:genkit/genkit.dart'
         ModelResponse,
         ModelResponseChunk,
         Part,
+        StatusCode,
         PartExtension,
         Role,
         TextPart,
@@ -66,11 +67,13 @@ typedef Transport = Future<LlmResult> Function(Turn turn);
 
 /// What one model call gave back, in app terms.
 class Reply {
-  Reply({required this.text, required this.calls, this.finish, this.tokensIn = 0, this.tokensOut = 0, this.tokens = 0, this.step = 0});
+  Reply({required this.text, required this.calls, this.finish, this.tokensIn = 0, this.tokensOut = 0, this.tokens = 0, this.step = 0, this.tokensCached = 0});
   String text;
   List<ToolCall> calls;
   final String? finish;
   final int tokensIn, tokensOut, tokens;
+  /// CB-20: the cached part of [tokensIn].
+  final int tokensCached;
   final int step;
   bool get cutOff => finish == 'length' || finish == 'max_tokens';
   bool get hasCalls => calls.isNotEmpty;
@@ -103,6 +106,9 @@ class RunState {
     _notes.clear();
     return s;
   }
+
+  /// CB-3: model replies in a row whose only tool calls named tools this run does not have.
+  int unknownTurns = 0;
 
   /// Set by a guard: the model may not call tools any more; the next reply is the final one (wrap-up / stuck stop).
   bool noMoreTools = false;
@@ -139,6 +145,67 @@ class TurnBox {
   TurnBox(this.transport);
   final Transport transport;
   Turn? next;
+}
+
+/// CB-3: tool names as the model writes them, matched to the tools a run really has. Genkit fails the whole run on a
+/// name it has no tool for (NOT_FOUND, before any middleware's tool() runs), so every call is mapped here first, in the
+/// model adapter: a known name stays, a decorated one is cleaned (gpt-oss `web_search<|channel|>commentary`,
+/// `functions.web_search`, `default_api.web_search`), and anything still unknown becomes a call to [unknown], a
+/// registered stub whose result tells the model the name does not exist.
+class ToolNames {
+  ToolNames._();
+
+  /// The stub every run registers (never offered to the model; only reached through [resolve]).
+  static const unknown = 'unknown_tool';
+
+  /// Model replies in a row with only unknown tools before the run stops on its own (no endless re-sends).
+  static const maxUnknownTurns = 3;
+
+  static final _zeroWidth = RegExp('[\u200B-\u200D\u2060\uFEFF]');
+  static const _prefixes = ['functions.', 'default_api.'];
+
+  /// The name without channel suffixes, zero-width characters and namespace prefixes.
+  static String clean(String raw) {
+    var n = raw.replaceAll(_zeroWidth, '').trim();
+    final cut = n.indexOf('<|');
+    if (cut >= 0) n = n.substring(0, cut);
+    final lt = n.indexOf('<');
+    if (lt > 0) n = n.substring(0, lt);
+    n = n.trim();
+    var again = true;
+    while (again) {
+      again = false;
+      for (final p in _prefixes) {
+        if (n.startsWith(p) && n.length > p.length) {
+          n = n.substring(p.length);
+          again = true;
+        }
+      }
+    }
+    return n;
+  }
+
+  /// The call as the run can execute it: same call, cleaned name, or a call to [unknown] that names what was asked.
+  static ToolCall resolve(ToolCall c, Set<String> known) {
+    if (known.contains(c.name)) return c;
+    final n = clean(c.name);
+    if (n.isNotEmpty && n != unknown && known.contains(n)) return ToolCall(id: c.id, name: n, arguments: c.arguments, extra: c.extra);
+    return ToolCall(id: c.id, name: unknown, arguments: jsonEncode({'tool': n.isEmpty ? c.name : n}), extra: c.extra);
+  }
+
+  /// What the model reads back for a call to a tool that does not exist.
+  static String unknownText(Object? name) =>
+      'Error: there is no tool named "${'$name'.trim().isEmpty ? '?' : name}". Use one of the tools you were given.';
+
+  /// Why a run that kept calling tools that do not exist was stopped (shown to the user).
+  static const stopText = 'Stopped: the AI kept asking for a tool SubMac doesn\'t have. Send your message again or put it another way.';
+
+  /// The short reply the chat keeps when that stop ended a run that wrote nothing (CB-42): never an empty answer.
+  static const stopReply = 'I couldn\'t finish this: I kept reaching for a tool SubMac doesn\'t have. Please send it again or put it '
+      'another way.';
+
+  /// Genkit's own "Tool … not found": a backstop in case a name ever slips past [resolve]. Never a dropped line.
+  static bool isMissingTool(Object? e) => e is GenkitException && e.status == StatusCode.notFound;
 }
 
 /// The model every SubMac agent uses: a Genkit model whose wire is the app's own transport (ai-chat, or a test fake).
@@ -187,7 +254,7 @@ ModelResponse responseOf(LlmResult r) {
     message: Message(role: Role.model, content: parts.isEmpty ? [TextPart(text: '')] : parts),
     finishReason: fr,
     usage: GenerationUsage(inputTokens: r.tokensIn, outputTokens: r.tokensOut, totalTokens: r.tokens),
-    custom: {'finish': r.finishReason, 'tokens': r.tokens},
+    custom: {'finish': r.finishReason, 'tokens': r.tokens, 'cached': r.tokensCached},
   );
 }
 
@@ -206,6 +273,7 @@ Reply replyOf(ModelResponse resp, {int step = 0}) {
     tokensOut: u?.outputTokens ?? 0,
     tokens: custom['tokens'] is int ? custom['tokens'] as int : (u?.totalTokens ?? 0),
     step: step,
+    tokensCached: custom['cached'] is int ? custom['cached'] as int : 0,
   );
 }
 
@@ -236,7 +304,7 @@ typedef ToolExec = Future<String> Function(ToolCall call, Map<String, dynamic> a
 List<Tool<Map<String, dynamic>, String>> genkitTools(List<Map<String, dynamic>> defs, ToolExec exec) {
   final seen = <String>{};
   final out = <Tool<Map<String, dynamic>, String>>[];
-  for (final d in defs) {
+  for (final d in [...defs, _unknownDef]) {
     final f = (d['function'] as Map?) ?? d;
     final name = '${f['name'] ?? ''}';
     if (name.isEmpty || !seen.add(name)) continue;
@@ -261,6 +329,21 @@ List<Tool<Map<String, dynamic>, String>> genkitTools(List<Map<String, dynamic>> 
   return out;
 }
 
+/// CB-3: the stub that unknown tool names are mapped to. [CommitMiddleware] answers it without the app.
+final Map<String, dynamic> _unknownDef = {
+  'type': 'function',
+  'function': {
+    'name': ToolNames.unknown,
+    'description': 'Not a real tool: calls to tool names that do not exist end up here.',
+    'parameters': {
+      'type': 'object',
+      'properties': {
+        'tool': {'type': 'string'}
+      }
+    },
+  },
+};
+
 /// The app side of a run: what to send each turn, how to run tools, approvals, and what to show.
 abstract class CoreHooks {
   /// The request for model call [step]: rebuilt from the chat every time (with this step's [notes]).
@@ -274,6 +357,13 @@ abstract class CoreHooks {
 
   /// A reply that a finish gate sent back: it leaves the chat (or is held on screen until the next reply replaces it).
   Future<void> discard(Reply r, {bool hold = false}) async {}
+
+  /// The words of the current model call that already reached the screen (CB-2): what a stopped call gives back.
+  String partialText() => '';
+
+  /// The user stopped the run while a model call was streaming (CB-2). Called instead of [commit]: the reply is not
+  /// final, and the app decides what stays (the words already shown are kept; an empty bubble goes).
+  Future<void> onStopped(Reply r) async {}
 
   /// Runs one tool (approval, when needed, was already given: [approved]).
   Future<String> runTool(ToolCall call, Map<String, dynamic> args, {Object? approved});
@@ -348,11 +438,14 @@ class RunLog {
 
 /// Innermost: builds each turn from the chat, sends it, and keeps the true token usage.
 class TurnMiddleware extends GenerateMiddleware {
-  TurnMiddleware(this.hooks, this.state, this.box, {this.parseTextCalls = true});
+  TurnMiddleware(this.hooks, this.state, this.box, {this.parseTextCalls = true, this.known = const {}});
   final CoreHooks hooks;
   final RunState state;
   final TurnBox box;
   final bool parseTextCalls;
+
+  /// Every tool name the run registered (CB-3). Empty: names are not checked (a caller that registers nothing).
+  final Set<String> known;
 
   @override
   Future<ModelResponse> model(ModelRequest request, ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
@@ -378,14 +471,33 @@ class TurnMiddleware extends GenerateMiddleware {
     if (r.tokensIn > 0) state.lastPromptTokens = r.tokensIn;
     hooks.usage(r);
     // Some models write their tool calls as text (<tool_call>…): real calls from here on.
+    var changed = false;
     if (parseTextCalls && r.calls.isEmpty && r.text.isNotEmpty) {
       final parsed = TextToolCalls.parse(r.text);
       if (parsed.calls.isNotEmpty) {
-        r = Reply(text: parsed.rest, calls: parsed.calls, finish: r.finish, tokensIn: r.tokensIn, tokensOut: r.tokensOut, tokens: r.tokens, step: step);
-        return responseFrom(r, resp);
+        r = Reply(text: parsed.rest, calls: parsed.calls, finish: r.finish, tokensIn: r.tokensIn, tokensOut: r.tokensOut, tokens: r.tokens, step: step, tokensCached: r.tokensCached);
+        changed = true;
       }
     }
-    return resp;
+    // CB-3: every name is one the run has before Genkit looks it up (an unknown name failed the whole run, and the
+    // retry sent the same request again and again).
+    if (known.isNotEmpty && r.calls.isNotEmpty) {
+      final mapped = [for (final c in r.calls) ToolNames.resolve(c, known)];
+      for (var i = 0; i < mapped.length; i++) {
+        if (!identical(mapped[i], r.calls[i])) changed = true;
+      }
+      r.calls = mapped;
+      if (mapped.every((c) => c.name == ToolNames.unknown)) {
+        state.unknownTurns++;
+        if (state.unknownTurns >= ToolNames.maxUnknownTurns) {
+          state.haltReason = ToolNames.stopText;
+          return haltResponse(ToolNames.stopText);
+        }
+      } else {
+        state.unknownTurns = 0;
+      }
+    }
+    return changed ? responseFrom(r, resp) : resp;
   }
 }
 
@@ -473,6 +585,11 @@ class CommitMiddleware extends GenerateMiddleware {
     if (resp.custom?['halt'] != null || resp.message == null) return resp;
     final r = replyOf(resp, step: state.step - 1);
     _last = r;
+    // CB-2: a call cut by Stop is not this turn's reply; committing it replaced the streamed words with nothing.
+    if (resp.finishReason == FinishReason.aborted) {
+      await hooks.onStopped(r);
+      return resp;
+    }
     await hooks.commit(r);
     await log.modelStep(r);
     // Independent reads of this turn start now, together; each call still reports in order.
@@ -481,6 +598,7 @@ class CommitMiddleware extends GenerateMiddleware {
         if (batch.length < 2) continue;
         for (final i in batch) {
           final c = r.calls[i];
+          if (c.name == ToolNames.unknown) continue;
           final args = Wire.argsOf(Wire.callToPart(c));
           state.early[c.id] = hooks.runTool(c, args);
         }
@@ -495,7 +613,10 @@ class CommitMiddleware extends GenerateMiddleware {
     final call = Wire.partToCall(request);
     final args = Wire.argsOf(request);
     String out;
-    if (Wire.isBroken(request) && (_last == null || _last!.calls.any((c) => c.id == call.id))) {
+    if (call.name == ToolNames.unknown) {
+      // CB-3: a tool that does not exist; the model reads that and goes on (no approval, nothing runs).
+      out = ToolNames.unknownText(args['tool']);
+    } else if (Wire.isBroken(request) && (_last == null || _last!.calls.any((c) => c.id == call.id))) {
       out = hooks.brokenText(_last ?? Reply(text: '', calls: const []));
     } else {
       final resumed = request.metadata?['resumed'];
@@ -577,20 +698,23 @@ class AgentCore {
     if (!_stopped.isCompleted) _stopped.complete();
   }
 
+  /// One model call that Stop ends at once. A stopped call gives back the words already shown (CB-2), not ''.
   Future<LlmResult> _send(Turn t) {
-    if (_stopped.isCompleted) return Future.value(LlmResult('', const [], 'cancelled'));
-    return Future.any([transport(t), _stopped.future.then((_) => LlmResult('', const [], 'cancelled'))]);
+    LlmResult stoppedResult() => LlmResult(hooks.partialText(), const [], 'cancelled');
+    if (_stopped.isCompleted) return Future.value(stoppedResult());
+    return Future.any([transport(t), _stopped.future.then((_) => stoppedResult())]);
   }
 
   Future<RunResult> run() async {
     final box = TurnBox(_send);
     final model = submacModel(name: modelName);
     final gTools = genkitTools(tools, (c, a, p) => hooks.runTool(c, a));
+    final known = {for (final t in gTools) t.name};
     final mw = <GenerateMiddleware>[
       CommitMiddleware(hooks, state, log, stopped: _stopped.future),
       GuardMiddleware(state, before: before, after: after),
       FinishGateMiddleware(hooks, state, gates),
-      TurnMiddleware(hooks, state, box),
+      TurnMiddleware(hooks, state, box, known: known),
     ];
     var messages = seed;
     List<ToolRequestPart>? restart;
@@ -623,6 +747,7 @@ class AgentCore {
         );
       } catch (e) {
         // A setup fault (never a model or tool failure, those resolve to a response).
+        if (ToolNames.isMissingTool(causeOf(e))) return RunResult(RunEnd.failed, error: LlmException(ToolNames.stopText), reply: last);
         return RunResult(RunEnd.failed, error: e, reply: last);
       }
       restart = null;
@@ -670,6 +795,10 @@ class AgentCore {
         case FinishReason.failed:
           if (hooks.cancelled) return RunResult(RunEnd.cancelled, reply: last);
           final cause = causeOf(res.cause ?? res.error?.message);
+          // CB-3 backstop: a missing tool is never a dropped line; sending the same request again cannot fix it.
+          if (ToolNames.isMissingTool(cause) || res.error?.status == 'NOT_FOUND') {
+            return RunResult(RunEnd.failed, error: LlmException(ToolNames.stopText), reply: last);
+          }
           if (state.step != stepAtFail) {
             failures = 0;
             stepAtFail = state.step;

@@ -135,14 +135,40 @@ extension AppStateChat on AppState {
     conversations.removeWhere((e) => e.id == id);
     if (currentId == id) newChat();
     _notify();
-    await repo.deleteConversation(id);
+    // A bot keeps its chat id, so its next wake may write there again; any other deleted chat stays deleted (CB-18).
+    await repo.deleteConversation(id, keepWritable: Bots.I.isBotConv(id));
   }
 
+  /// CB-18: every run is stopped and waited for first (side replies and bot wakes too), so none of them writes a
+  /// row afterwards and brings a deleted chat back as a ghost that syncs to the backup again.
   Future<void> deleteAllConversations() async {
+    final ids = {for (final c in conversations) c.id, ..._lists.keys, for (final r in runs) r.convId};
     newChat();
     conversations = [];
+    final live = runs.toList();
+    for (final r in live) {
+      stopRun(r);
+    }
+    for (final id in ids) {
+      _dropApprovalsFor(id);
+    }
+    for (final a in asks.toList()) {
+      answerAsk(a, null);
+    }
     _notify();
-    await repo.deleteAllConversations();
+    try {
+      await Future.wait([for (final r in live) r.whenFinished]).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // A step that never returns: the repo guard below still ignores its late writes.
+    }
+    _imagesOnce.clear();
+    _regenerating.clear();
+    _skillNotes.clear();
+    _resumeNotes.clear();
+    _lists.clear();
+    Composer.drafts.clear();
+    Bots.I.forgetDrafts();
+    await repo.deleteAllConversations(keepWritable: botConvIds);
   }
 
   /// Deletes the account on the server and everything SubMac kept on this phone. Returns an error, or null when done.
@@ -308,6 +334,8 @@ extension AppStateChat on AppState {
     if (text.trim().isEmpty && attachments.isEmpty) return;
     // An API key pasted in chat is moved to the phone's encrypted storage before the message is saved or synced.
     text = AiKeys.redact(text).text;
+    // CB-30: a paste too long for one model call never goes out as it is (it was uploaded four times and then lost).
+    if (PasteGuard.tooBig(text)) return _sendTooLong(text, attachments);
     // PLAN 1.4: claim this chat's run before anything is awaited. A message sent while the first one is still saving
     // or uploading its photo joins the same task instead of starting a second agent (double answers, double charges).
     final claimed = _sendGate.openOn(currentId);
@@ -466,49 +494,112 @@ extension AppStateChat on AppState {
 
   Future<void> regenerate() async {
     // Any run here, the quick side reply too: its late reply would land under the new one (ISSUES T-17).
-    if (busy || anyRunHere || currentId == null) return;
+    // CB-22: also a "Try again" still removing the old reply (a second tap in the same frame).
+    final convId = currentId;
+    if (busy || anyRunHere || convId == null || _regenerating.contains(convId)) return;
     final lastUser = messages.lastIndexWhere((m) => m.role == 'user');
     if (lastUser < 0) return;
+    // Claimed before the first await; released once the run has registered itself (synchronously in _runAgent).
+    _regenerating.add(convId);
     final removed = messages.sublist(lastUser + 1);
     messages.removeRange(lastUser + 1, messages.length);
     final awaitId = messages[lastUser].id;
-    _imagesOnce.unsend(currentId!, awaitId);
+    _imagesOnce.unsend(convId, awaitId);
     awaitingReply = awaitId;
     _notify();
     try {
       await repo.deleteMessages(removed.map((e) => e.id).toList());
     } catch (_) {}
+    Future<void> run;
     try {
-      await _runAgent(currentId!);
+      run = _runAgent(convId);
+    } finally {
+      _regenerating.remove(convId);
+    }
+    try {
+      await run;
     } finally {
       _clearAwaiting(awaitId);
     }
   }
 
-  Future<void> editAndResend(ChatMessage msg, String newText) async {
+  /// CB-13: an edit can start here now: no run in this chat (the quick side reply too), no "Try again" or edit still
+  /// removing the old turn, and no message still saving. The screen asks this before it opens the edit box.
+  bool get canEditHere {
+    final convId = currentId;
+    return convId != null && !anyRunHere && !_regenerating.contains(convId) && _sendGate.openOn(convId) == null;
+  }
+
+  /// Replaces [msg] (and everything after it) with [newText] and answers it again. Returns false when nothing was sent,
+  /// so the screen can say why instead of the tap doing nothing (CB-13).
+  Future<bool> editAndResend(ChatMessage msg, String newText) async {
     newText = AiKeys.redact(newText).text;
-    if (busy || anyRunHere || currentId == null) return;
+    // CB-13/CB-22: checked and claimed before the first await, like regenerate(): two quick Send taps on the edit box
+    // (or an edit racing "Try again") used to pass this check twice and send the message twice.
+    if (!canEditHere || newText.trim().isEmpty) return false;
+    final convId = currentId!;
     final idx = messages.indexOf(msg);
-    if (idx < 0) return;
+    if (idx < 0) return false;
+    _regenerating.add(convId);
+    // A message typed while this edit saves waits on the claim and then joins this edit's task (as in send()).
+    final claim = _sendGate.claim(convId);
     final removed = messages.sublist(idx);
     messages.removeRange(idx, messages.length);
-    _notify();
-    try {
-      await repo.deleteMessages(removed.map((e) => e.id).toList());
-    } catch (_) {}
-    final convId = currentId!;
-    final m = ChatMessage(id: _uuid.v4(), role: 'user', content: newText.trim(), attachments: msg.attachments);
+    // CB-13: a reply keeps its quote. The edit box shows only the user's own words (ReplyCodec.bodyOf), so the
+    // original link goes back on top of the new words.
+    final ref = ReplyCodec.decode(msg.content).ref;
+    final content = ref != null ? ReplyCodec.encode(ref, newText) : newText.trim();
+    final m = ChatMessage(id: _uuid.v4(), role: 'user', content: content, attachments: msg.attachments);
+    // Added before anything is awaited, so it stays above a message sent while this edit saves.
     messages.add(m);
     awaitingReply = m.id;
     _notify();
+    Future<void> run;
     try {
-      await repo.insertMessage(convId, m);
-    } catch (_) {}
+      try {
+        await repo.deleteMessages(removed.map((e) => e.id).toList());
+      } catch (_) {}
+      try {
+        await repo.insertMessage(convId, m);
+      } catch (_) {}
+      // The task registers itself synchronously in _runAgent, before a message that waited on the claim goes on.
+      claim.open(convId);
+      run = _runAgent(convId);
+    } finally {
+      claim.open(convId);
+      _regenerating.remove(convId);
+    }
     try {
-      await _runAgent(convId);
+      await run;
     } finally {
       _clearAwaiting(m.id);
     }
+    return true;
+  }
+
+  /// CB-30: the user picks how a too-long paste goes: as a file (its first words stay the message), or as a file to be
+  /// summarised a part at a time. Either way the model reads it from the workspace in parts. Nothing goes out unasked.
+  Future<void> _sendTooLong(String text, List<Attachment> attachments) async {
+    final name = PasteGuard.fileName();
+    final file = Attachment(name: name, mime: 'text/plain', bytes: utf8.encode(text));
+    final attach = PasteGuard.attachOption(), parts = PasteGuard.partsOption();
+    final got = await askUser(UserAsk(
+      kind: 'text',
+      convId: currentId ?? '',
+      title: PasteGuard.title(),
+      prompt: PasteGuard.prompt(PasteGuard.kbOf(text)),
+      options: [attach, parts],
+    ));
+    final answer = (got?['answer'] ?? '').trim();
+    if (answer == attach) return send(PasteGuard.head(text), [...attachments, file]);
+    if (answer == parts) return send(PasteGuard.partsAsk(), [...attachments, file]);
+    // Their own words instead of a button: those words go with the file.
+    if (answer.isNotEmpty && !PasteGuard.tooBig(answer)) return send(answer, [...attachments, file]);
+    // Dismissed: nothing is sent, and the text is not lost.
+    await _copyToWorkspace(file);
+    banner = PasteGuard.notSent(name);
+    bannerArgs = const {};
+    _notify();
   }
 
   Future<void> _copyToWorkspace(Attachment a) async {

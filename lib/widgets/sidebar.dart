@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +10,7 @@ import '../screens/connectors_screen.dart';
 import '../screens/files_screen.dart';
 import '../screens/projects_screen.dart';
 import '../screens/settings_screen.dart';
+import '../services/chat_search.dart';
 import '../services/projects.dart';
 import 'motion.dart';
 import '../theme.dart';
@@ -21,6 +24,7 @@ import '../services/offices.dart';
 import '../services/inbox.dart';
 import '../screens/inbox_screen.dart';
 import 'chat/entrance.dart';
+import '../services/reply_text.dart' show cleanGlyphs;
 
 class Sidebar extends StatefulWidget {
   const Sidebar({super.key});
@@ -31,6 +35,32 @@ class Sidebar extends StatefulWidget {
 
 class _SidebarState extends State<Sidebar> {
   String _query = '';
+  // CB-32: chats whose saved words match the query (id -> the matching line). Filled after a short pause in typing.
+  Map<String, String> _bodyHits = const {};
+  Timer? _searchTimer;
+  int _searchGen = 0;
+
+  void _onQuery(String v) {
+    setState(() => _query = v);
+    _searchTimer?.cancel();
+    final gen = ++_searchGen;
+    if (v.trim().length < ChatSearch.minChars) {
+      if (_bodyHits.isNotEmpty) setState(() => _bodyHits = const {});
+      return;
+    }
+    _searchTimer = Timer(ChatSearch.debounce, () async {
+      if (!mounted) return;
+      final state = context.read<AppState>();
+      final store = state.repo.store;
+      final botChats = state.botConvIds;
+      final ids = (state.conversations.where((c) => !c.archived && !c.packedAway && !botChats.contains(c.id)).toList()
+            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
+          .map((c) => c.id);
+      final hits = await ChatSearch(store.rowsForSearch).search(ids, v);
+      if (!mounted || gen != _searchGen) return;
+      setState(() => _bodyHits = hits);
+    });
+  }
   // Search only takes focus when tapped: opening the menu never brings up the keyboard.
   final FocusNode _searchFocus = FocusNode(canRequestFocus: false);
 
@@ -48,6 +78,7 @@ class _SidebarState extends State<Sidebar> {
   void dispose() {
     Projects.I.removeListener(_onProjects);
     _searchFocus.dispose();
+    _searchTimer?.cancel();
     super.dispose();
   }
 
@@ -99,7 +130,7 @@ class _SidebarState extends State<Sidebar> {
     // Each bot's chat lives under Bots, not in the chat list.
     final botChats = state.botConvIds;
     final visible = state.conversations
-        .where((c) => !c.archived && !botChats.contains(c.id) && (q.isEmpty ? !inProject.containsKey(c.id) : c.title.toLowerCase().contains(q)))
+        .where((c) => !c.archived && !botChats.contains(c.id) && (q.isEmpty ? !inProject.containsKey(c.id) : c.title.toLowerCase().contains(q) || _bodyHits.containsKey(c.id)))
         .toList();
     final groups = _group(visible);
     final email = state.repo.email ?? '';
@@ -124,7 +155,7 @@ class _SidebarState extends State<Sidebar> {
                   _searchFocus.unfocus();
                   _searchFocus.canRequestFocus = false;
                 },
-                onChanged: (v) => setState(() => _query = v),
+                onChanged: _onQuery,
                 decoration: InputDecoration(hintText: tr('Search'), isDense: true),
               ),
             ),
@@ -228,7 +259,12 @@ class _SidebarState extends State<Sidebar> {
                               padding: const EdgeInsetsDirectional.fromSTEB(12, 16, 12, 6),
                               child: Text(tr(entry.key), style: AppText.sectionStyle.copyWith(color: p.faint)),
                             ),
-                            for (final c in entry.value) _ChatTile(conversation: c),
+                            for (final c in entry.value)
+                              _ChatTile(
+                                conversation: c,
+                                // The matching line shows under the title when only the words matched.
+                                match: q.isEmpty || c.title.toLowerCase().contains(q) ? null : _bodyHits[c.id],
+                              ),
                           ],
                           if (visible.isEmpty && !(q.isNotEmpty && DrawerBots.anyHit(q)))
                             Padding(
@@ -340,7 +376,8 @@ class _NavTile extends StatelessWidget {
 
 class _ChatTile extends StatelessWidget {
   final Conversation conversation;
-  const _ChatTile({required this.conversation});
+  final String? match;
+  const _ChatTile({required this.conversation, this.match});
 
   @override
   Widget build(BuildContext context) {
@@ -367,14 +404,29 @@ class _ChatTile extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(conversation.title,
+                          Text(cleanGlyphs(conversation.title),
                               maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
                           const SizedBox(height: 2),
                           Text('Backed up. Tap to open', style: AppText.captionStyle.copyWith(color: p.muted)),
                         ],
                       )
-                    : Text(conversation.title,
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
+                    : match != null
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(cleanGlyphs(conversation.title),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
+                              const SizedBox(height: 2),
+                              Text(match!,
+                                  key: ValueKey('menu-search-hit-${conversation.id}'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppText.captionStyle.copyWith(color: p.muted)),
+                            ],
+                          )
+                        : Text(cleanGlyphs(conversation.title),
+                            maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
               ),
             ],
           ),
@@ -397,7 +449,7 @@ Future<void> showChatActions(BuildContext context, Conversation c) async {
         children: [
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 8),
-            child: Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+            child: Text(cleanGlyphs(c.title), maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: AppText.leadStyle.copyWith(fontWeight: FontWeight.w600)),
           ),
           ListTile(

@@ -1,7 +1,7 @@
 // Contract B glue: usage_gate answers -> what ai-chat spends, sources for the bot lane, "not deployed yet" detection.
 // Run: deno test supabase/functions/ai-chat/billing_gate_test.ts
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { billSource, entFromGate, missingFn } from "./billing_gate.ts";
+import { billSource, BOT_SOURCES, chatLane, entFromGate, missingFn } from "./billing_gate.ts";
 
 Deno.test("gate: billing off for this user -> null (the old allowance applies)", () => {
   assertEquals(entFromGate({ allow: true, enabled: false, plan: "free", reply_cap: 8192 }), null);
@@ -76,4 +76,25 @@ Deno.test("resets-at header: next EAT midnight with +03:00, billing off or a gat
   assertEquals(resetsAtHeader("2026-10-22T21:00:00+00:00", now), "2026-10-24T00:00:00+03:00", "a past reset is never shown");
   assertEquals(resetsAtHeader("2026-10-23T21:00:00+00:00", now), "2026-10-24T00:00:00+03:00", "usage_gate value kept, shown in EAT");
   assertEquals(Date.parse(resetsAtHeader(undefined, now)), Date.parse("2026-10-23T21:00:00Z"));
+});
+
+Deno.test("CB-45: 'bot-chat' (owner typing in a bot's chat) bills to the chat bucket like 'agent', never the bot lane", () => {
+  // billing.is_bot() in the DB is lower(source) in ('bot','bot-cloud','bot_cloud','background','office'); BOT_SOURCES mirrors it.
+  const isBot = (src: string) => BOT_SOURCES.has(src.toLowerCase());
+  assertEquals(isBot("bot-chat"), false);
+  assertEquals(isBot("bot"), true);
+  // user lane: kept as its own value (analytics), not a bot source
+  assertEquals(billSource("bot-chat", false), "bot-chat");
+  assertEquals(isBot(billSource("bot-chat", false)), false);
+  // even when a client marks the request as background, it stays in the chat lane ('agent' would become 'background')
+  assertEquals(billSource("bot-chat", true), "bot-chat");
+  assertEquals(isBot(billSource("bot-chat", true)), false);
+  assertEquals(billSource("BOT-CHAT", true), "bot-chat");
+  assert(chatLane("bot-chat") && chatLane("Bot-Chat"));
+  assert(!chatLane("agent") && !chatLane("bot") && !chatLane(undefined));
+  // nothing else moved
+  assertEquals(billSource("bot", false), "bot");
+  assertEquals(billSource("bot", true), "bot");
+  assertEquals(billSource("agent", true), "background");
+  assertEquals(billSource("side", true), "background");
 });

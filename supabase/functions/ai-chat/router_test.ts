@@ -321,3 +321,92 @@ test("gemini routes get the dummy thought signature on history tool calls; other
   const noTools = [{ role: "user", content: "hi" }];
   assert(withThoughtSignatures(noTools, gem) === noTools);
 });
+
+// ---- S-1 / CB-15 (ai-chat v42): request errors are not route failures; timed swap-back to the preferred route
+import { homeProbe, modelMissing } from "./router.ts";
+
+test("CB-15: 400 and 422 move the request on but are never reported; the pointer stays", async () => {
+  for (const code of [400, 422]) {
+    localCooldown.clear();
+    const A = route("A", 1), B = route("B", 1);
+    const { p, probe } = run([A, B], snap("A"), { A: status(code), B: ok("B answers") });
+    const text = await readAll(await p);
+    assertMatch(text, /B answers/);
+    assertEquals(probe.reports.length, 0, `${code} is a request error, not a route failure`);
+  }
+});
+
+test("CB-15: 404 counts only when the model is missing", async () => {
+  localCooldown.clear();
+  const A = route("A", 1), B = route("B", 1);
+  const missing: Behaviour = () => Promise.resolve(new Response(`{"error":{"message":"model 'gpt-x' not found"}}`, { status: 404 }));
+  const r1 = run([A, B], snap("A"), { A: missing, B: ok() });
+  await readAll(await r1.p);
+  assertEquals(r1.probe.reports, [["A", "hard", "B"]]);
+  localCooldown.clear();
+  const r2 = run([A, B], snap("A"), { A: status(404), B: ok() });
+  await readAll(await r2.p);
+  assertEquals(r2.probe.reports.length, 0, "a plain 404 is not a route failure");
+  assert(modelMissing("The model `x` does not exist"));
+  assert(modelMissing('{"error":{"code":"model_not_found"}}'));
+  assert(!modelMissing('{"error":"x404"}'));
+});
+
+test("CB-15 swap-back: rest expired + 15 min on the fallback -> the preferred route is probed first; success moves the pointer home", async () => {
+  localCooldown.clear();
+  const H = route("H", 2), F = route("F", 2);
+  const old = new Date(Date.now() - 16 * 60_000).toISOString();
+  const homes: [string, string, boolean, string | null][] = [];
+  // JS copy of the ai_router_home compare-and-set.
+  let pointer = "F";
+  const s = (): RouterSnap => ({ current_route_id: pointer, since: old, rest: {} });
+  const fetched: string[] = [];
+  const deps: Deps = {
+    fetch: mockFetch({ H: ok("home"), F: ok("fallback") }, fetched), now: () => Date.now(),
+    report: () => {}, markKey: () => {}, attemptFailed: () => {},
+    home: (h, from, okv, kind) => { homes.push([h, from, okv, kind]); if (okv && from === pointer) pointer = h; },
+  };
+  const res = await runChat({ routes: [H, F], snap: s(), chat: "u:c", stream: true, alias: "submac", homeId: "H", homeAfterMs: 15 * 60_000,
+    payloadFor: (r) => ({ model: r.model }), ensureKeys: () => Promise.resolve(), t0: Date.now(), budget: FAST, headers: {}, deps, onDone: () => {} });
+  const text = await readAll(res);
+  assertMatch(text, /home/);
+  assertEquals(fetched.length, 1);
+  assert(fetched[0].startsWith("H:"), "preferred route probed first");
+  assertEquals(homes, [["H", "F", true, null]]);
+  assertEquals(pointer, "H", "pointer moved home");
+  // Next request: H is current, no probe and no further home call.
+  const fetched2: string[] = []; const homes2: unknown[] = [];
+  const res2 = await runChat({ routes: [H, F], snap: s(), chat: "u:c", stream: true, alias: "submac", homeId: "H", homeAfterMs: 15 * 60_000,
+    payloadFor: (r) => ({ model: r.model }), ensureKeys: () => Promise.resolve(), t0: Date.now(), budget: FAST, headers: {},
+    deps: { ...deps, fetch: mockFetch({ H: ok("home"), F: ok("fallback") }, fetched2), home: (...a) => homes2.push(a) }, onDone: () => {} });
+  await readAll(res2);
+  assertEquals(homes2.length, 0);
+  assert(fetched2[0].startsWith("H:"));
+});
+
+test("CB-15 swap-back: no probe while the preferred route rests or before 15 min; a failed probe rests it and the request still answers", async () => {
+  localCooldown.clear();
+  const H = route("H", 2), F = route("F", 2);
+  const old = new Date(Date.now() - 16 * 60_000).toISOString();
+  const recent = new Date(Date.now() - 5 * 60_000).toISOString();
+  const later = new Date(Date.now() + 60_000).toISOString();
+  assertEquals(homeProbe([H, F], { current_route_id: "F", since: recent, rest: {} }, "H", 15 * 60_000), null, "too soon");
+  assertEquals(homeProbe([H, F], { current_route_id: "F", since: old, rest: { H: later } }, "H", 15 * 60_000), null, "still resting");
+  assertEquals(homeProbe([H, F], { current_route_id: "H", since: old, rest: {} }, "H", 15 * 60_000), null, "already home");
+  assertEquals(homeProbe([F], { current_route_id: "F", since: old, rest: {} }, "H", 15 * 60_000), null, "home can't serve this request");
+  assertEquals(homeProbe([H, F], { current_route_id: "F", since: old, rest: {} }, "H", 15 * 60_000)?.route_id, "H");
+  // The probe fails hard: one key only, the request moves on to the current route, no report against F, H rests.
+  const fetched: string[] = []; const homes: unknown[] = []; const reports: unknown[] = [];
+  const deps: Deps = {
+    fetch: mockFetch({ H: status(503), F: ok("fallback") }, fetched), now: () => Date.now(),
+    report: (...a) => reports.push(a), markKey: () => {}, attemptFailed: () => {}, home: (...a) => homes.push(a),
+  };
+  const res = await runChat({ routes: [H, F], snap: { current_route_id: "F", since: old, rest: {} }, chat: "u:c", stream: true, alias: "submac",
+    homeId: "H", homeAfterMs: 15 * 60_000, payloadFor: (r) => ({ model: r.model }), ensureKeys: () => Promise.resolve(), t0: Date.now(),
+    budget: FAST, headers: {}, deps, onDone: () => {} });
+  assertMatch(await readAll(res), /fallback/);
+  assertEquals(fetched.filter((f) => f.startsWith("H:")).length, 1, "the probe uses one key");
+  assertEquals(homes, [["H", "F", false, "hard"]]);
+  assertEquals(reports.length, 0, "a failed probe never counts against the pointer's route");
+  assertEquals(homeProbe([H, F], { current_route_id: "F", since: old, rest: {} }, "H", 15 * 60_000), null, "local cooldown stops re-probing in this isolate");
+});

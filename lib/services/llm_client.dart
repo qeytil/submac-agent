@@ -7,8 +7,10 @@ import 'package:http/http.dart' as http;
 
 import '../models.dart';
 import 'cloud.dart';
+import 'context_window.dart';
 import 'house_rules.dart';
 import 'stream_policy.dart';
+import 'usage_accounting.dart';
 
 class LlmException implements Exception {
   final String message;
@@ -23,7 +25,8 @@ class LlmException implements Exception {
   /// Today's allowance is used up (or the account is paused): waiting a minute won't help.
   /// Includes the Contract A codes limit_daily / limit_total / no_plan / blocked.
   bool get isFinal =>
-      const {'daily_limit', 'background_paused', 'blocked', 'paused', 'auth', 'too_large', 'payments_pending'}.contains(code) ||
+      // too_long (CB-30): the same request is just as long the second time, so it is never re-sent as it is.
+      const {'daily_limit', 'background_paused', 'blocked', 'paused', 'auth', 'too_large', 'too_long', 'payments_pending'}.contains(code) ||
       StreamPolicy.finalCodes.contains(code);
   /// The message is too long for the model: compact the chat instead of retrying the same thing.
   bool get isTooLong => code == 'too_long' || code == 'too_large';
@@ -43,7 +46,9 @@ class LlmResult {
   final int tokens;
   /// The prompt and output parts of [tokens] (0 when unknown).
   final int tokensIn, tokensOut;
-  LlmResult(this.content, this.toolCalls, this.finishReason, [this.tokens = 0, this.tokensIn = 0, this.tokensOut = 0]);
+  /// CB-20: the part of [tokensIn] the provider read from its prompt cache (billed at the cached weight).
+  final int tokensCached;
+  LlmResult(this.content, this.toolCalls, this.finishReason, [this.tokens = 0, this.tokensIn = 0, this.tokensOut = 0, this.tokensCached = 0]);
   /// The model ran out of room for its answer (it was cut off mid-way).
   bool get cutOff => finishReason == 'length' || finishReason == 'max_tokens';
 }
@@ -89,6 +94,9 @@ class LlmClient {
     _cancelled = true;
     _abortNow();
   }
+
+  /// What a stream that closed without its end mark says (CB-24). Status 0: retryable, so the runner re-sends the step.
+  static const droppedText = 'The connection dropped. Please try again.';
 
   /// Longest silence allowed inside a stream before it counts as dropped. The server pings every 10 s (`: ping`),
   /// so 30 s of nothing is a dead line (PLAN 1.3).
@@ -151,6 +159,10 @@ class LlmClient {
     final calls = <int, ToolCall>{};
     String? finish;
     int? usedIn, usedOut;
+    var usedCached = 0;
+    // CB-24: the server always ends a reply with a finish_reason and `data: [DONE]`. A stream that just stops (a proxy or
+    // gateway cut, a radio switch) is a dropped line, never the whole answer.
+    var ended = false;
     try {
       final http.StreamedResponse resp;
       try {
@@ -158,7 +170,8 @@ class LlmClient {
       } on TimeoutException {
         throw LlmException(StreamPolicy.textFor('busy'), status: 503, code: 'busy');
       }
-      Cloud.readHeaders(resp.headers);
+      // CB-23: a reply to pictures or tools may name a bigger window than plain text has.
+      Cloud.readHeaders(resp.headers, filtered: (tools != null && tools.isNotEmpty) || ContextWindow.hasImages(messages));
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         final text = await resp.stream.bytesToString();
         final e = _cloudError(resp.statusCode, text);
@@ -190,7 +203,10 @@ class LlmClient {
         final data = line.substring(5).trim();
         if (data.isEmpty) continue;
         // Read on to the end instead of breaking, so the connection goes back to the pool for the next step.
-        if (data == '[DONE]') continue;
+        if (data == '[DONE]') {
+          ended = true;
+          continue;
+        }
         Map<String, dynamic> j;
         try {
           j = jsonDecode(data) as Map<String, dynamic>;
@@ -202,6 +218,8 @@ class LlmClient {
         if (u is Map) {
           usedIn = (u['prompt_tokens'] as num?)?.toInt() ?? usedIn;
           usedOut = (u['completion_tokens'] as num?)?.toInt() ?? usedOut;
+          final hit = UsageUnits.cachedOf(u);
+          if (hit > 0) usedCached = hit;
         }
         final choices = j['choices'] as List?;
         if (choices == null || choices.isEmpty) continue;
@@ -246,7 +264,13 @@ class LlmClient {
           }
         }
         final fr = choice['finish_reason'];
-        if (fr is String) finish = fr;
+        if (fr is String) {
+          finish = fr;
+          ended = true;
+        }
+      }
+      if (!ended && !_cancelled) {
+        throw LlmException(droppedText, code: 'dropped');
       }
     } on LlmException {
       rethrow;
@@ -264,7 +288,7 @@ class LlmClient {
     final toolText = calls.values.fold<int>(0, (a, c) => a + c.arguments.length + c.name.length);
     final tin = usedIn ?? (req.body.replaceAll(RegExp(r'data:[^"]{200,}'), '').length ~/ 4 + 0);
     final tout = usedOut ?? ((buf.length + toolText) ~/ 4);
-    return LlmResult(buf.toString(), [for (final k in keys) calls[k]!], finish, tin + tout, tin, tout);
+    return LlmResult(buf.toString(), [for (final k in keys) calls[k]!], finish, tin + tout, tin, tout, usedIn == null ? 0 : usedCached);
   }
 
   Future<String> complete({
@@ -289,7 +313,7 @@ class LlmClient {
     } on SocketException {
       throw LlmException('You\'re offline. Check your connection and try again.');
     }
-    Cloud.readHeaders(resp.headers);
+    Cloud.readHeaders(resp.headers, filtered: ContextWindow.hasImages(messages));
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       final e = _cloudError(resp.statusCode, resp.body);
       throw LlmException(e.message, status: e.status, code: e.code, retryAfter: parseRetryAfter(resp.headers['retry-after']));

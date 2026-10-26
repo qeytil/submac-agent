@@ -7,7 +7,8 @@ import 'package:image/image.dart' as img;
 /// slow to upload from Mogadishu and no clearer to the model than 2048 px. Camera shots are already 2048 px.
 class PhotoPrep {
   static const maxSide = 2048;
-  static const quality = 85;
+  /// JPEG quality of a shrunk photo (CB-26: 2048 px, JPEG 80).
+  static const quality = 80;
 
   /// Small enough already (no side over [maxSide] and under this size): sent as it is.
   static const keepBytes = 1500 * 1024;
@@ -16,7 +17,7 @@ class PhotoPrep {
   static bool canShrink(String mime) => const {'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/bmp'}.contains(mime);
 
   /// A JPEG no larger than [max] on its longest side, or null when the picture is fine as it is (or unreadable).
-  static Uint8List? shrink(Uint8List bytes, {int max = maxSide}) {
+  static Uint8List? shrink(Uint8List bytes, {int max = maxSide, int quality = PhotoPrep.quality}) {
     try {
       final im = img.decodeImage(bytes);
       if (im == null) return null;

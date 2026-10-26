@@ -285,9 +285,8 @@ class _PublishSheetState extends State<_PublishSheet> {
     }
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 24),
-      child: AnimatedSize(
-        duration: SubMotion.of(context, SubMotion.base),
-        curve: SubMotion.settle,
+      child: SubSize(
+        duration: SubMotion.base,
         alignment: AlignmentDirectional.topStart,
         child: body,
       ),

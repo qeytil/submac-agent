@@ -27,7 +27,7 @@ import '../widgets/message_view.dart';
 import '../widgets/chat/reply_quote.dart';
 import '../widgets/page_cards.dart' show PageBuildPlan;
 import '../widgets/sidebar.dart';
-import '../widgets/bot_list.dart' show ChiefFace;
+import '../widgets/bot_list.dart' show ChiefFace, openBotChat;
 import '../services/bot_status.dart';
 import '../services/cloud.dart';
 import '../widgets/sub_icon.dart';
@@ -105,6 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
       Navigator.push(context, MaterialPageRoute(builder: (_) => InboxScreen(openId: r.startsWith('inbox/') ? r.substring(6) : null)));
     } else if (r.startsWith('office/') && Offices.I.byId(r.substring(7)) != null) {
       Navigator.push(context, MaterialPageRoute(builder: (_) => OfficeScreen(officeId: r.substring(7))));
+    } else if (r.startsWith('botchat/')) {
+      // CB-16: a bot's notification opens the Bots workspace on that bot (what you see is where you type).
+      final b = Bots.I.byId(r.substring(8));
+      if (b != null) unawaited(openBotChat(context, b));
     }
   }
 
@@ -245,7 +249,8 @@ class _HomeScreenState extends State<HomeScreen> {
             AskBar(),
             TaskBar(),
             // Everyday skills (Document, Scan to PDF, Translate...) moved into the composer's "+" menu.
-            Composer(),
+            // CB-29: text and picked files stay with the chat they were meant for.
+            Composer(perChatDrafts: true),
           ]),
         ),
         Positioned(
@@ -1091,9 +1096,8 @@ class _ChatListState extends State<ChatList> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (userFirst) MessageAnchor(key: ValueKey(turn.first.id), id: turn.first.id, child: UserMessageView(message: turn.first)),
-            AnimatedSize(
-              duration: SubMotion.of(context, LuxMotion.base),
-              curve: LuxMotion.ease,
+            SubSize(
+              duration: LuxMotion.base,
               alignment: AlignmentDirectional.topStart,
               child: AnimatedSwitcher(
                 duration: SubMotion.of(context, LuxMotion.base),

@@ -60,6 +60,16 @@ extension AppStateSystem on AppState {
       final bot = Bots.I.byId(id);
       return bot != null && bot.convId.isNotEmpty && runs.any((r) => r.convId == bot.convId && !r.side);
     };
+    Offices.I.jobsRunning = (officeId) => _officeBusyIn.values.contains(officeId);
+    Offices.I.stopRunning = (officeId) {
+      for (final id in [for (final e in _officeBusyIn.entries) if (e.value == officeId) e.key]) {
+        final bot = Bots.I.byId(id);
+        if (bot == null || bot.convId.isEmpty) continue;
+        for (final r in runs.where((r) => r.convId == bot.convId && !r.side).toList()) {
+          stopRun(r);
+        }
+      }
+    };
     Offices.I.notify = (o, bot, text) async {
       if (bot.quietNow()) return;
       await _officeNotify(o, bot, text);
@@ -72,7 +82,15 @@ extension AppStateSystem on AppState {
       ..toolsFor = _memberTools
       ..runTool = _memberTool
       ..approvalFor = _memberApproval
-      ..answer = _memberAnswer;
+      ..answer = _memberAnswer
+      // CB-62: a team holds the phone awake while it works; letting go never cuts other work still running.
+      ..keepAlive = (on, {String text = ''}) async {
+        if (on) {
+          await SystemBridge.I.keepAlive(true, text: text);
+        } else if (!runs.any((r) => !r.side) && _officeBusy.isEmpty) {
+          await SystemBridge.I.keepAlive(false);
+        }
+      };
     Bots.I.resolveModel = resolveModelHint;
     Bots.I.isAppConnected = botAppConnected;
     b.onPhoneStop = () {
@@ -136,9 +154,13 @@ extension AppStateSystem on AppState {
       await WhatsAppTools.init();
       await BotTraces.I.init();
       await SkillLibrary.I.init();
+      // CB-46: wakes that came while SubMac could not run them yet.
+      unawaited(_runHeldWakes());
     } catch (_) {}
     try {
       await Offices.I.init();
+      // CB-64: a team job that was running when SubMac closed says so once ("go" restarts it).
+      await TeamRun.I.restore();
       _officePump();
     } catch (_) {}
     await sideInits;
@@ -153,9 +175,20 @@ extension AppStateSystem on AppState {
       unawaited(answerBotCall(payload.substring(8)));
       return;
     }
-    if (payload.startsWith('botchat/')) {
-      final b = Bots.I.byId(payload.substring(8));
-      if (b != null) unawaited(openBot(b));
+    // CB-16: a bot's chat opens in the Bots workspace, on that bot. One already open follows the open chat in place.
+    final chatBot = payload.startsWith('botchat/')
+        ? Bots.I.byId(payload.substring(8))
+        : payload.startsWith('conv/')
+            ? Bots.I.byConv(payload.substring(5))
+            : null;
+    if (chatBot != null || payload.startsWith('botchat/')) {
+      if (chatBot == null) return;
+      if (BotStatus.I.workspaces > 0 || (!chatBot.active && chatBot.convId.isEmpty)) {
+        unawaited(openBot(chatBot));
+      } else {
+        openRequest.value = null;
+        openRequest.value = 'botchat/${chatBot.id}';
+      }
       return;
     }
     if (payload.startsWith('botring/')) {

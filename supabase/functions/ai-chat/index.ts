@@ -19,7 +19,7 @@ import {
   budgetFrom, cooldownFor, type Done, type Effort, effortBody, effortOf, type ErrCode, FRIENDLY, keysInOrder, localCooldown,
   clampOut, providerOutCap, retryAfterSecs, type Route, type RouterSnap, runChat, snapFrom, withThoughtSignatures,
 } from "./router.ts";
-import { billSource, BOT_SOURCES, EAT_MS, eatDay, entFromGate, missingFn, nextEatMidnight, resetsAtHeader } from "./billing_gate.ts";
+import { billSource, BOT_SOURCES, chatLane, EAT_MS, eatDay, entFromGate, missingFn, nextEatMidnight, resetsAtHeader } from "./billing_gate.ts";
 import { makeVerifier } from "./jwt_verify.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -1124,8 +1124,11 @@ function makePlan(cfg: Config, body: any, state: string, bx?: BillPlan, effort: 
   const need = promptNeed + Math.min(max_tokens, 4096);
   const roomW = (r: Route) => Math.max(1024, Math.min(max_tokens, windowOf(r) - promptNeed - 256));
   const roomOf = bx ? (r: Route) => Math.min(roomW(r), replyCap(bx.balance, tierOf(r.model, bx.mrows).multiplier, promptEstimate, s, num(bx.ent.reply_cap, 0))) : roomW;
-  const healthyWindows = routes.filter((r) => r.healthy).map(windowOf);
-  const smallestWindow = String(Math.min(...(healthyWindows.length ? healthyWindows : routes.map(windowOf)), 1_000_000));
+  // CB-23: the window the app must keep a conversation under is the smallest of ALL the alias's healthy text routes,
+  // not just the routes that can serve this request (a photo turn would otherwise report 1M and the next text turn
+  // could land on a 128k route).
+  const healthyWindows = alias.routes.filter((r) => r.healthy).map(windowOf);
+  const smallestWindow = String(Math.min(...(healthyWindows.length ? healthyWindows : alias.routes.map(windowOf)), 1_000_000));
   const fitting = routes.filter((r) => need <= windowOf(r));
   if (routes.length && !fitting.length) {
     return { ...empty, error: errJson(413, "too_long", "too_long", TOO_LONG_MSG, false, { "x-submac-window": smallestWindow }) };
@@ -1175,6 +1178,22 @@ function routerReport(routeId: string, kind: "hard" | "fb_timeout", next: string
       console.log(JSON.stringify({ evt: "router_swap", from: routeId, to: data.current_route_id ?? null, kind, rest_seconds: data.rest_seconds ?? null }));
     }
   }, () => {}));
+}
+
+/** Swap-back probe result (CB-15): ok -> ai_router_home moves the pointer from -> home (compare-and-set in SQL);
+ *  a hard failure / first-byte timeout -> SQL rests the preferred route one ladder step. One write per probe. */
+function routerHome(homeId: string, from: string, ok: boolean, kind: "hard" | "fb_timeout" | null) {
+  waitLater(rpc("ai_router_home", { p_home: homeId, p_from: from, p_ok: ok, p_kind: kind }).then(({ data, error }) => {
+    if (error) { console.error(JSON.stringify({ evt: "router_home_failed", error: error.message.slice(0, 200) })); return; }
+    if (data?.swapped) {
+      localCooldown.delete("route:" + homeId);
+      console.log(JSON.stringify({ evt: "router_swap", from, to: homeId, kind: "home" }));
+    } else if (data?.rested) localCooldown.set("route:" + homeId, Date.now() + Number(data.rest_seconds ?? 60) * 1000);
+  }, () => {}));
+}
+/** The alias's preferred route: its first healthy route by priority (ai_config_lite orders routes by priority). */
+function homeOf(alias: Alias | null | undefined): string | null {
+  return alias?.routes.find((r) => r.healthy)?.route_id ?? null;
 }
 
 async function handle(req: Request, tm: Record<string, number>): Promise<Response> {
@@ -1239,7 +1258,8 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
   const body: any = parsed === BAD || !parsed || typeof parsed !== "object" ? {} : parsed;
   const source = internal ? "bot-cloud" : (req.headers.get("x-submac-source") ?? "agent").slice(0, 20);
   // Background lane (Plan 2.2): the cloud runner, or app work nobody is watching (bot wakes, office work).
-  const background = !!internal || (req.headers.get("x-submac-lane") ?? "").toLowerCase() === "background";
+  // CB-45: an owner-typed bot chat ('bot-chat') is always the user's lane, never the bot/background share.
+  const background = !!internal || ((req.headers.get("x-submac-lane") ?? "").toLowerCase() === "background" && !chatLane(source));
   const lane = background ? "background" : "user";
   // Sticky chats: scoped to the user so two users' ids can never collide.
   const chatHdr = (req.headers.get("x-submac-chat") ?? "").slice(0, 64);
@@ -1332,11 +1352,12 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
   };
   return await runChat({
     routes: plan.routes, snap: g.router, chat, stream, alias: CHAT_ALIAS,
+    homeId: homeOf(plan.alias), homeAfterMs: Math.max(60, num(s.router_home_after_s, 900)) * 1000,
     payloadFor: (r) => payloadFor(plan, r, s),
     ensureKeys: (r) => ensureKeys(cfg, [r]),
     shrink: shrinkFor(plan, s), clean, signal: req.signal, t0: tReq, budget: budgetFrom(s, !!internal), headers: baseHeaders,
     deps: {
-      fetch: (i, init) => fetch(i, init), now: () => Date.now(), report: routerReport, markKey,
+      fetch: (i, init) => fetch(i, init), now: () => Date.now(), report: routerReport, home: routerHome, markKey,
       attemptFailed: (r, k, status, err) => record({ user_id: uid, source, lane, alias: CHAT_ALIAS, provider: r.provider, model: r.model, key_id: k.id, status, error: err.slice(0, 300), total_ms: Date.now() - tReq }),
       log: (e) => console.log(JSON.stringify(e)),
     },

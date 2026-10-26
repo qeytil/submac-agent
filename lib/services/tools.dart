@@ -643,6 +643,8 @@ class ActionRequest {
   /// The chat this ask comes from when it isn't the one on screen (its title), so a card from a background task or a
   /// browser task in another chat says where it is from ('' = this chat).
   String where = '';
+  /// Nobody answered in time (CB-42): the task moved on, and a sheet still waiting its turn is never shown.
+  bool timedOut = false;
   ActionRequest({
     required this.title,
     required this.body,

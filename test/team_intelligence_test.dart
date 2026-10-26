@@ -158,7 +158,8 @@ void main() {
       floor = '{"speaker":"Hodan","team_task":true}';
       TeamRun.I.send(o, 'Team, find the three cheapest suppliers and compare them');
       await TeamRun.I.work;
-      expect(calls, ['floor', 'plan', 'part:Nova', 'part:Amal', 'combine']);
+      // CB-36: two listed deliverables make it a team job without the "who speaks" call.
+      expect(calls, ['plan', 'part:Nova', 'part:Amal', 'combine']);
       expect(o.posts.last.kind, 'answer');
     });
 
@@ -209,12 +210,14 @@ void main() {
   });
 
   group('no automation, no chatter', () {
-    test('while the team works, the owner\'s words reach the work without a canned "Noted" post', () async {
+    test('while the team works, the owner\'s words reach the work with one system line, never a bot\'s canned reply', () async {
+      // CB-37 (fix plan 2026-10-25): the message used to vanish without a word; now one system line says it reached the work.
       final o = team();
       TeamRun.I.running.add(o.id);
       TeamRun.I.send(o, 'also check Berbera');
-      expect(o.posts.single.from, 'you');
-      expect(BotManner.phrases.any((p) => p.startsWith('Noted')), isFalse);
+      expect(o.posts.first.from, 'you');
+      expect(o.posts.where((p) => p.from != 'you').map((p) => '${p.from}|${p.kind}'), ['system|system']);
+      expect(o.posts.last.text, BotManner.noted());
       TeamRun.I.running.clear();
     });
 

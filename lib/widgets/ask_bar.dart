@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../app_state.dart';
 import '../screens/connectors_screen.dart';
+import '../services/bots.dart';
 import '../services/connector_catalog.dart';
 import '../services/mcp_oauth.dart';
 import '../theme.dart';
@@ -19,6 +20,65 @@ class AskBar extends StatefulWidget {
 
   @override
   State<AskBar> createState() => _AskBarState();
+
+  /// Does [a] show with its answers in the chat [currentId]? Login, code and connect asks are global; a task's
+  /// question shows only in the chat it came from.
+  static bool showsHere(UserAsk a, String? currentId) {
+    if (a.kind == 'login' || a.kind == 'login_confirm' || a.kind == 'connect') return true;
+    if (a.convId.isEmpty) return true;
+    return a.convId == currentId;
+  }
+
+  /// The name the chip uses for another chat ("Chat X"): the bot's name, the chat's title, or "another chat".
+  static String chatTitle(AppState state, String convId) {
+    final bot = Bots.I.byConv(convId);
+    if (bot != null) return bot.name;
+    final c = state.conversations.where((c) => c.id == convId).firstOrNull;
+    final t = c?.title.trim() ?? '';
+    return t.isEmpty ? tr('another chat') : t;
+  }
+}
+
+/// CB-41: "A task in *Chat X* is waiting for you" — never the answer buttons; a tap opens that chat.
+class _ElsewhereChip extends StatelessWidget {
+  const _ElsewhereChip({required this.ask, required this.title});
+  final UserAsk ask;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    // The chat's name sits wherever the language puts it, in italics.
+    final parts = tr('A task in {chat} is waiting for you', {'chat': '\u0000'}).split('\u0000');
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, 0, Space.x4, Space.x2),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Material(
+          key: const ValueKey('ask-elsewhere'),
+          color: p.sheet,
+          shape: const StadiumBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => context.read<AppState>().openConversation(ask.convId),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x2, Space.x4, Space.x2),
+              child: Text.rich(
+                TextSpan(children: [
+                  TextSpan(text: parts.first),
+                  TextSpan(text: title, style: const TextStyle(fontStyle: FontStyle.italic, fontWeight: FontWeight.w600)),
+                  if (parts.length > 1) TextSpan(text: parts.sublist(1).join()),
+                ]),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.captionStyle.copyWith(color: p.muted),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _AskBarState extends State<AskBar> {
@@ -30,8 +90,15 @@ class _AskBarState extends State<AskBar> {
     final state = context.watch<AppState>();
     final p = Palette.of(context);
     // A browser task's sign-in or code question shows on its chat card when that card is on screen.
-    final asks = state.asks.where((a) => !BrowserLiveCardAsks.inline(a)).toList();
-    if (asks.isEmpty) return const SizedBox.shrink();
+    // CB-41: a task's question shows (with its answers) only in its own chat. Sign-in and connect asks, and asks that
+    // belong to no chat, stay everywhere. Another chat's question is a quiet chip that opens that chat.
+    final all = state.asks.where((a) => !BrowserLiveCardAsks.inline(a)).toList();
+    final asks = all.where((a) => AskBar.showsHere(a, state.currentId)).toList();
+    if (asks.isEmpty) {
+      final other = all.where((a) => !AskBar.showsHere(a, state.currentId)).firstOrNull;
+      if (other == null) return const SizedBox.shrink();
+      return _ElsewhereChip(ask: other, title: AskBar.chatTitle(state, other.convId));
+    }
     final a = asks.first;
     final quick = a.kind == 'text' && !a.secret ? a.options.where((o) => o.trim().isNotEmpty).take(5).toList() : const <String>[];
     if ((a.kind == 'login' || a.kind == 'login_confirm' || a.kind == 'connect') && !_autoOpened.contains(a) && (ModalRoute.of(context)?.isCurrent ?? true)) {

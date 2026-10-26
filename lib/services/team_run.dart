@@ -1,6 +1,9 @@
 import 'dart:convert';
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../agent/core.dart';
 import '../models.dart';
@@ -10,7 +13,7 @@ import 'bots.dart';
 import 'no_reply.dart';
 import 'offices.dart';
 import 'quick_lane.dart';
-import 'somali.dart';
+import 'system_bridge.dart';
 import 'tool_output_clean.dart';
 
 /// A team is a group chat, the Grok way (docs.x.ai/grok-bot/chat-and-collaboration; owner 2026-10-24, team intelligence):
@@ -26,8 +29,8 @@ import 'tool_output_clean.dart';
 ///  4. A team job: the lead restates the goal and posts who does what, then the team starts at once (it asks first only
 ///     when it truly needs something). The lead hands each part to a member by name; each member reports in their own
 ///     voice and can build on a teammate's part; the lead closes with one combined answer whose parts open on tap.
-///  5. While a job runs, what the owner writes reaches the lead and the members still to report (no canned "Noted"
-///     reply); "stop" stops it.
+///  5. While a job runs, what the owner writes reaches the lead and the members still to report, with one short system
+///     line saying so (CB-37); "stop" stops it, and also every member reply the team started (CB-34).
 ///  6. "@silent" in the owner's message: it is posted and nobody answers.
 class TeamRun extends ChangeNotifier {
   TeamRun._();
@@ -66,8 +69,9 @@ class TeamRun extends ChangeNotifier {
       };
 
   /// One model answer for [b] on the agent core (no tools, one step).
-  Future<String> _once(Bot b, String system, String user, {int maxTokens = 1500}) async {
-    final r = await _agent(b, system, user, tools: const [], maxTokens: maxTokens, maxSteps: 1);
+  Future<String> _once(Bot b, String system, String user, {int maxTokens = 1500, String? office}) async {
+    final r = await _agent(b, system, user, tools: const [], maxTokens: maxTokens, maxSteps: 1, office: office,
+        stopped: office == null ? null : () => _stopped.contains(office));
     return r.text;
   }
 
@@ -80,11 +84,16 @@ class TeamRun extends ChangeNotifier {
       int maxTokens = 1500,
       int maxSteps = memberSteps,
       bool Function()? stopped,
-      String? office}) async {
+      String? office,
+      bool summarizeOnHalt = false}) async {
     final hooks = _TeamHooks(this, b, system, user, [...tools, ...extra], {for (final e in extra) Wire.toolName(e)}, onExtra, stopped ?? () => false);
     final core = AgentCore(hooks: hooks, transport: _wire(b, maxTokens), tools: [...tools, ...extra], maxSteps: maxSteps, modelName: 'submac-team');
     // Registered while it runs, so the owner's "stop" cancels the model call or tool in flight (not only the next step).
-    if (office != null) (_cores[office] ??= {}).add(core);
+    if (office != null) {
+      (_cores[office] ??= {}).add(core);
+      ((_coreBots[office] ??= {})[b.id] ??= 0);
+      _coreBots[office]![b.id] = _coreBots[office]![b.id]! + 1;
+    }
     final RunResult res;
     try {
       res = await core.run();
@@ -92,9 +101,22 @@ class TeamRun extends ChangeNotifier {
       if (office != null) {
         _cores[office]?.remove(core);
         if (_cores[office]?.isEmpty ?? false) _cores.remove(office);
+        final n = (_coreBots[office]?[b.id] ?? 1) - 1;
+        if (n <= 0) {
+          _coreBots[office]?.remove(b.id);
+          if (_coreBots[office]?.isEmpty ?? false) _coreBots.remove(office);
+        } else {
+          _coreBots[office]![b.id] = n;
+        }
       }
     }
     if (res.end == RunEnd.failed && hooks.lastText.isEmpty) throw res.error ?? 'failed';
+    // CB-65: a member that ran out of steps keeps its work: one last call with no tools sums up what it found.
+    if (res.end == RunEnd.halted && summarizeOnHalt && !(stopped?.call() ?? false)) {
+      final r = await _wire(b, maxTokens)(hooks.summaryTurn(core.state.step));
+      final t = r.content.trim();
+      if (t.isNotEmpty) return (text: t, steps: core.state.step + 1);
+    }
     return (text: (res.reply?.text ?? hooks.lastText).trim(), steps: core.state.step);
   }
 
@@ -104,7 +126,10 @@ class TeamRun extends ChangeNotifier {
 
   /// Teams running right now (office ids).
   final Set<String> running = {};
-  bool busy(Office o) => running.contains(o.id);
+
+  /// CB-34: a team is busy while its own run works OR any member reply it started (an office job queued or running
+  /// through [Offices.askBot]) is still going, so "stop" always reaches it instead of waking someone new.
+  bool busy(Office o) => running.contains(o.id) || Offices.I.jobsFor(o.id);
 
   /// Plans waiting on the owner's answer to the lead's questions (or "Go"), by office id.
   final Map<String, TeamPlan> pending = {};
@@ -117,11 +142,120 @@ class TeamRun extends ChangeNotifier {
   /// The agent cores working for each team right now (lead and members), by office id.
   final Map<String, Set<AgentCore>> _cores = {};
 
-  /// Stops team [officeId]'s work now: marks it stopped and cancels every model call and tool in flight.
+  /// The bots with a core working for each team right now (bot id -> cores), so a stop can drop their asks.
+  final Map<String, Map<String, int>> _coreBots = {};
+
+  /// Stops team [officeId]'s work now: marks it stopped and cancels every model call and tool in flight. An ask a
+  /// member is waiting on is dropped too, so its stopped run does not wait hours for an answer that does nothing.
   void stopWork(String officeId) {
-    _stopped.add(officeId);
+    if (running.contains(officeId) || (_cores[officeId]?.isNotEmpty ?? false)) _stopped.add(officeId);
     for (final c in [...?_cores[officeId]]) {
       c.stop();
+    }
+    for (final id in [...?_coreBots[officeId]?.keys]) {
+      final conv = Bots.I.byId(id)?.convId ?? '';
+      if (conv.isNotEmpty) unawaited(Offices.I.expireFor(conv));
+    }
+  }
+
+  /// CB-34: everything team [o] has going stops: its own run, every member reply job queued or running for it, and
+  /// a plan waiting on the owner.
+  void halt(Office o) {
+    stopWork(o.id);
+    Offices.I.stopJobs(o.id);
+  }
+
+  /// CB-60: team [officeId] is gone: its waiting plan, what the owner said and its journal entry go too.
+  void forget(String officeId) {
+    pending.remove(officeId);
+    _inbox.remove(officeId);
+    _unnote(officeId);
+    notifyListeners();
+  }
+
+  /// CB-62: holds the phone awake while a team works (set by AppState, which knows about the other work that holds it;
+  /// unset: the bridge directly).
+  Future<void> Function(bool on, {String text})? keepAlive;
+  int _awake = 0;
+  Future<void> _hold(Office o) async {
+    _awake++;
+    try {
+      await (keepAlive ?? SystemBridge.I.keepAlive)(true, text: '${o.name} is at work');
+    } catch (_) {}
+  }
+
+  Future<void> _release() async {
+    _awake = (_awake - 1).clamp(0, 1 << 20).toInt();
+    if (_awake > 0) return;
+    try {
+      await (keepAlive ?? (bool on, {String text = ''}) => SystemBridge.I.keepAlive(on))(false, text: '');
+    } catch (_) {}
+  }
+
+  /// CB-61: a notification for a team post the owner should see while away (the app is in the background or another
+  /// screen is open). The notifier itself (AppState) skips the team on screen and respects the bot's quiet hours.
+  void _tell(Office o, Bot b, String text) {
+    final n = Offices.I.notify;
+    if (n == null || text.trim().isEmpty) return;
+    final line = text.trim().split('\n').firstWhere((l) => l.trim().isNotEmpty, orElse: () => text.trim());
+    unawaited(n(o, b, line).catchError((_) {}));
+  }
+
+  // ---------------------------------------------------------------- CB-64: a journal of running team jobs
+
+  static const _journalKey = 'team_runs_v1';
+  final Map<String, Map<String, dynamic>> _journal = {};
+
+  void _note(Office o, TeamPlan plan, {bool planned = true}) {
+    _journal[o.id] = {
+      'job': plan.job,
+      'lang': plan.lang,
+      'planned': planned,
+      'parts': [for (final p in plan.parts) {'bot': p.bot.id, 'ask': p.ask}],
+      'at': DateTime.now().toIso8601String(),
+    };
+    unawaited(_saveJournal());
+  }
+
+  void _unnote(String officeId) {
+    if (_journal.remove(officeId) != null) unawaited(_saveJournal());
+  }
+
+  Future<void> _saveJournal() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_journalKey, jsonEncode(_journal));
+    } catch (_) {}
+  }
+
+  /// On start (after [Offices.init]): a team job that was running when SubMac closed is not resumed by itself
+  /// (background runs never auto-resume); the team says so once, and "go" starts it again.
+  Future<void> restore() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final raw = p.getString(_journalKey);
+      _journal.clear();
+      if (raw == null || raw.isEmpty) return;
+      final m = jsonDecode(raw);
+      if (m is! Map) return;
+      for (final e in m.entries) {
+        final o = Offices.I.byId('${e.key}');
+        final j = e.value;
+        if (o == null || j is! Map || running.contains(o.id)) continue;
+        final parts = <({Bot bot, String ask})>[
+          for (final x in (j['parts'] as List? ?? const []))
+            if (x is Map && Bots.I.byId('${x['bot']}') != null && o.members.contains('${x['bot']}'))
+              (bot: Bots.I.byId('${x['bot']}')!, ask: '${x['ask'] ?? ''}'),
+        ];
+        final lang = '${j['lang'] ?? 'en'}';
+        pending[o.id] = TeamPlan(job: '${j['job'] ?? ''}', parts: parts, lang: lang, replan: j['planned'] != true || parts.isEmpty);
+        Offices.I.post(o, 'system', BotManner.interrupted(lang: lang), kind: 'system');
+      }
+      await p.remove(_journalKey);
+      Offices.I.saveSoon();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('team journal: $e');
     }
   }
 
@@ -163,22 +297,31 @@ class TeamRun extends ChangeNotifier {
     if (t.isEmpty) return true;
     final lead = Bots.I.byId(o.chiefId);
     final members = [for (final id in o.members) if (id != o.chiefId) Bots.I.byId(id)].whereType<Bot>().take(maxParts).toList();
-    final so = Somali.detect(t);
+    final lang = BotManner.langOf(t);
     // "@silent": the owner only wants it on record. Nobody answers.
     if (NoReply.ownerWantsQuiet(t)) {
       Offices.I.ownerPost(o, t, replyTo: replyTo);
       return true;
     }
     final to = addressed(o, t, replyTo: replyTo);
-    // Working: the message reaches the work (the lead and the members still to report). "Stop" stops it.
-    if (busy(o)) {
+    // "Stop" stops everything the team has going: its run and every member reply it started (CB-34). It never goes to
+    // the "who speaks" decision, which used to wake a member instead.
+    if (isStop(t) && pending[o.id] == null) {
+      final was = busy(o);
+      final lang = RegExp(r'^(jooji|iska daa|ha bilaabin)', caseSensitive: false).hasMatch(t) ? 'so' : BotManner.langOf(t);
       _owner(o, t, replyTo);
-      if (isStop(t)) {
-        stopWork(o.id);
-        Offices.I.post(o, 'system', BotManner.stopped(somali: so), kind: 'system');
-      } else {
-        (_inbox[o.id] ??= []).add(t);
-      }
+      halt(o);
+      Offices.I.post(o, 'system', BotManner.stopped(lang: lang), kind: 'system');
+      if (!was) debugPrint('team stop: nothing was running in ${o.id}');
+      notifyListeners();
+      return true;
+    }
+    // Working: the message reaches the work (the lead and the members still to report), and the owner sees that it
+    // did (CB-37: it used to vanish into the inbox without a word).
+    if (running.contains(o.id)) {
+      _owner(o, t, replyTo);
+      (_inbox[o.id] ??= []).add(t);
+      Offices.I.post(o, 'system', BotManner.noted(lang: lang), kind: 'system');
       notifyListeners();
       return true;
     }
@@ -187,15 +330,17 @@ class TeamRun extends ChangeNotifier {
       _owner(o, t, replyTo);
       if (isGo(t)) {
         pending.remove(o.id);
-        work = _run(o, lead, plan);
+        // A job interrupted before the lead had a plan (CB-64) starts again from the plan.
+        work = plan.replan ? _propose(o, lead, members, plan.job, lang: plan.lang) : _run(o, lead, plan);
       } else if (isStop(t)) {
         pending.remove(o.id);
         _inbox.remove(o.id);
-        Offices.I.post(o, lead.id, BotManner.planCancelled(somali: plan.somali));
+        Offices.I.stopJobs(o.id);
+        Offices.I.post(o, lead.id, BotManner.planCancelled(lang: plan.lang));
         notifyListeners();
       } else {
         // An answer to the lead's question, or a change: the lead updates the plan.
-        work = _propose(o, lead, members, '${plan.job}\n\nThe owner added: $t', somali: plan.somali || so);
+        work = _propose(o, lead, members, '${plan.job}\n\nThe owner added: $t', lang: plan.lang == 'en' ? lang : plan.lang);
       }
       return true;
     }
@@ -207,7 +352,7 @@ class TeamRun extends ChangeNotifier {
         for (final id in others) {
           Offices.I.askBot(o, id, t, replyTo: replyTo);
         }
-        work = _decide(o, lead, members, t, replyTo: replyTo, leadAddressed: true, somali: so);
+        work = _decide(o, lead, members, t, replyTo: replyTo, leadAddressed: true, lang: lang);
       } else {
         Offices.I.ownerPost(o, t, to: [for (final b in to) b.id], replyTo: replyTo);
       }
@@ -219,7 +364,7 @@ class TeamRun extends ChangeNotifier {
       return true;
     }
     _owner(o, t, replyTo);
-    work = _decide(o, lead, members, t, replyTo: replyTo, somali: so);
+    work = _decide(o, lead, members, t, replyTo: replyTo, lang: lang);
     return true;
   }
 
@@ -281,10 +426,17 @@ class TeamRun extends ChangeNotifier {
   }
 
   /// The decision step: who answers (or nobody), or a team job for the lead.
-  Future<void> _decide(Office o, Bot? lead, List<Bot> members, String t, {String replyTo = '', bool leadAddressed = false, bool somali = false}) async {
+  Future<void> _decide(Office o, Bot? lead, List<Bot> members, String t, {String replyTo = '', bool leadAddressed = false, String lang = 'en'}) async {
     final all = [if (lead != null) lead, ...members];
+    // CB-36: two or more listed deliverables for a team of two or more is a team job, whatever the language (the
+    // floor call sometimes took an Arabic three-part job for a single reply).
+    if (lead != null && members.isNotEmpty && all.length >= 2 && looksLikeTeamTask(t)) {
+      await _propose(o, lead, members, t, lang: lang);
+      return;
+    }
     Bot? speaker;
     var teamTask = false;
+    var none = false;
     try {
       final asker = lead ?? members.first;
       final raw = await _once(asker, floorSystem(o, lead, members, leadAddressed: leadAddressed), t, maxTokens: 120);
@@ -293,6 +445,7 @@ class TeamRun extends ChangeNotifier {
       if (j is Map) {
         teamTask = j['team_task'] == true || '${j['team_task']}'.toLowerCase() == 'true';
         final n = '${j['speaker'] ?? ''}'.trim().toLowerCase();
+        none = n == 'none' || n == 'nobody';
         speaker = all.where((b) => b.name.toLowerCase() == n).firstOrNull;
       }
     } catch (e) {
@@ -301,15 +454,45 @@ class TeamRun extends ChangeNotifier {
         Offices.I.askBot(o, lead.id, t, replyTo: replyTo);
         return;
       }
-      Offices.I.post(o, 'system', 'Nobody picked this up. Mention a teammate with @ to ask them directly.', kind: 'system');
+      Offices.I.post(o, 'system', BotManner.nobody(lang: lang), kind: 'system');
       return;
     }
     if (leadAddressed) speaker = lead;
     if (teamTask && lead != null && members.isNotEmpty) {
-      await _propose(o, lead, members, t, somali: somali);
+      await _propose(o, lead, members, t, lang: lang);
       return;
     }
-    if (speaker != null) Offices.I.askBot(o, speaker.id, t, replyTo: replyTo);
+    if (speaker != null) {
+      Offices.I.askBot(o, speaker.id, t, replyTo: replyTo);
+      return;
+    }
+    // CB-37: no speaker the team knows (a name that is no member, or no answer at all) used to drop the message without a
+    // word. A deliberate "none" stays silent: a note or an FYI needs no answer (owner, 2026-10-24: silence is normal).
+    if (!none) Offices.I.post(o, 'system', BotManner.nobody(lang: lang), kind: 'system');
+  }
+
+  static final _bullet = RegExp(r'^\s*(?:[-*•▪◦]|\(?(?:\d{1,2}|[a-h]|[\u0660-\u0669]{1,2})[.)\-:])\s+\S', multiLine: true, caseSensitive: false);
+  static final _inlineNum = RegExp(r'(?:^|[\s,;:،؛])\(?(?:\d{1,2}|[\u0660-\u0669]{1,2})\)\s*\S');
+  static final _deliverable = RegExp(
+      r'^(?:please\s+|also\s+|then\s+|and\s+)?(?:compare|find|make|write|draft|create|research|list|prepare|build|summari[sz]e|plan|design|check|'
+      r'send|collect|calculate|translate|review|look up|put together|samee|sameeya|qor|raadi|isbarbar dhig|diyaari|soo saar|hubi|soo ururi|xisaabi|'
+      r'tarjun)\b',
+      caseSensitive: false);
+  // Arabic letters are no \w to RegExp, so no \b here (a verb may also carry a suffix: اكتبها).
+  static final _deliverableAr = RegExp(r'^(?:ثم\s+)?(?:قارن|اكتب|ابحث|أعد|اعد|جهز|جهّز|اصنع|لخص|صمم|حضر|حضّر|ارسل|أرسل|اجمع|احسب|ترجم|راجع|ضع|انشئ|أنشئ)');
+
+  /// CB-36: whether [t] lists two or more deliverables: bullet or numbered lines, inline "1) … 2) …", or two or more
+  /// clauses that each open on a deliverable verb ("compare three laptops, make a table and draft an email";
+  /// Somali "iyo", Arabic "و" join them too).
+  @visibleForTesting
+  static bool looksLikeTeamTask(String t) {
+    if (_bullet.allMatches(t).length >= 2) return true;
+    if (_inlineNum.allMatches(t).length >= 2) return true;
+    final clauses = t
+        .split(RegExp(r'[,;،؛\n]|\band then\b|\bthen\b|\band\b|\biyo\b|\bkadibna\b|\s+و(?=\S)|\s+ثم\s+', caseSensitive: false))
+        .map((c) => c.trim().replaceFirst(RegExp(r'^(?:can you|could you|please|team|kooxda|fadlan|الرجاء|من فضلك|يا فريق)[\s,،]+', caseSensitive: false), ''))
+        .where((c) => c.isNotEmpty);
+    return clauses.where((c) => _deliverable.hasMatch(c) || _deliverableAr.hasMatch(c)).length >= 2;
   }
 
   /// The owner's Start / Go tap (same as writing "Go").
@@ -329,10 +512,12 @@ class TeamRun extends ChangeNotifier {
   static String _roster(List<Bot> members) => [for (final b in members) '- ${b.name}: ${b.role}${b.mission.isEmpty ? '' : '. ${b.mission}'}'].join('\n');
 
   /// Step 2: the lead posts the plan, then starts the team right away unless it has to ask the owner something.
-  Future<void> _propose(Office o, Bot lead, List<Bot> members, String job, {bool somali = false}) async {
+  Future<void> _propose(Office o, Bot lead, List<Bot> members, String job, {String lang = 'en'}) async {
     TeamPlan? startNow;
     running.add(o.id);
     notifyListeners();
+    _note(o, TeamPlan(job: job, parts: const [], lang: lang), planned: false);
+    await _hold(o);
     try {
       final sys = '${promptOf(lead)}\n\n${BotManner.lead}\n\n# Plan for the owner\nYou lead the team "${o.name}"'
           '${o.goal.isEmpty ? '' : ' (team goal: ${o.goal})'}.\nMembers:\n${_roster(members)}\n\n'
@@ -345,7 +530,7 @@ class TeamRun extends ChangeNotifier {
       final questions = <String>[];
       final parts = <({Bot bot, String ask})>[];
       // A failed model call ends here (the outer catch says so); only an unreadable reply falls back to "everyone".
-      final raw = await _once(lead, sys, job, maxTokens: 900);
+      final raw = await _once(lead, sys, job, maxTokens: 900, office: o.id);
       try {
         final m = RegExp(r'\{[\s\S]*\}').firstMatch(raw);
         final j = m == null ? null : jsonDecode(m.group(0)!);
@@ -366,24 +551,42 @@ class TeamRun extends ChangeNotifier {
       } catch (_) {}
       if (parts.isEmpty) parts.addAll([for (final b in members) (bot: b, ask: job)]);
       // "Stop" while the lead was still thinking: no plan is left waiting.
-      if (_stopped.remove(o.id)) return;
-      final plan = TeamPlan(job: job, parts: parts, somali: somali);
+      if (_stopped.contains(o.id)) return;
+      final plan = TeamPlan(job: job, parts: parts, lang: lang);
       if (questions.isEmpty) {
         // Grok-style: nothing to ask, so the team gets going right away.
-        Offices.I.post(o, lead.id, planText(plan, reply: reply, starting: true));
+        final text = planText(plan, reply: reply, starting: true);
+        Offices.I.post(o, lead.id, text);
+        _tell(o, lead, text);
         startNow = plan;
       } else {
         pending[o.id] = plan;
         Offices.I.post(o, lead.id, planText(plan, reply: reply, questions: questions));
+        _tell(o, lead, questions.first);
       }
     } catch (_) {
-      Offices.I.post(o, 'system', BotManner.couldNotFinish(somali: somali), kind: 'system');
+      // CB-19: a stop makes the lead's call fail; that is no failure to report.
+      if (!_stopped.contains(o.id)) {
+        Offices.I.post(o, 'system', BotManner.couldNotFinish(lang: lang), kind: 'system');
+        _tell(o, lead, BotManner.couldNotFinish(lang: lang));
+      }
     } finally {
       running.remove(o.id);
+      _stopped.remove(o.id);
+      if (startNow == null) _unnote(o.id);
       Offices.I.saveSoon();
       notifyListeners();
+      // Starting right away: the run holds the phone awake before this lets go, so it never drops in between.
+      if (startNow == null) await _release();
     }
-    if (startNow != null) await _run(o, lead, startNow);
+    final go = startNow;
+    if (go != null) {
+      try {
+        await _run(o, lead, go);
+      } finally {
+        await _release();
+      }
+    }
   }
 
   /// The lead's message with the plan: the goal, any questions, who does what, and the question to start.
@@ -397,13 +600,13 @@ class TeamRun extends ChangeNotifier {
       }
     }
     if (sb.isNotEmpty) sb.writeln();
-    sb.writeln(p.somali ? 'Qorshaha:' : 'The plan:');
+    sb.writeln(BotManner.planHeader(lang: p.lang));
     for (final x in p.parts) {
       sb.writeln('- ${x.bot.name}: ${_short(x.ask, 140)}');
     }
     sb
       ..writeln()
-      ..write(starting ? BotManner.startingNow(somali: p.somali) : BotManner.askGo(somali: p.somali));
+      ..write(starting ? BotManner.startingNow(lang: p.lang) : BotManner.askGo(lang: p.lang));
     return sb.toString().trim();
   }
 
@@ -413,14 +616,18 @@ class TeamRun extends ChangeNotifier {
   Future<void> _run(Office o, Bot lead, TeamPlan plan) async {
     running.add(o.id);
     notifyListeners();
+    _note(o, plan);
+    await _hold(o);
     final done = <({Bot bot, String text})>[];
     final handed = <Bot>{};
     Future<String> doPart(Bot b, String ask) async {
       if (_stopped.contains(o.id)) return 'Stopped by the owner.';
       if (handed.contains(b)) return '${b.name} already did their part: ${_short(done.firstWhere((d) => d.bot == b, orElse: () => (bot: b, text: '')).text, 600)}';
       handed.add(b);
-      Offices.I.post(o, lead.id, BotManner.handOff(b.name, ask, somali: plan.somali));
+      Offices.I.post(o, lead.id, BotManner.handOff(b.name, ask, lang: plan.lang));
       final r = await _part(o, lead, b, ask, plan, done);
+      // CB-19: a part cut short by the owner's stop posts nothing (it used to say "I could not finish my part").
+      if (_stopped.contains(o.id)) return 'Stopped by the owner.';
       done.add((bot: b, text: r.result));
       final post = Offices.I.post(o, b.id, r.note);
       post.parts.add((from: b.id, text: r.result));
@@ -461,19 +668,26 @@ class TeamRun extends ChangeNotifier {
       }
       if (_stopped.contains(o.id) || done.isEmpty) return;
       final answer = (!leftover && leadAnswer.isNotEmpty) ? leadAnswer : await _combine(lead, plan, done, o);
+      if (_stopped.contains(o.id)) return;
       final post = Offices.I.post(o, lead.id, answer, kind: 'answer');
+      _tell(o, lead, answer);
       for (final d in done) {
         post.parts.add((from: d.bot.id, text: d.text));
       }
       lead.log('work', 'Led ${o.name}: ${_short(plan.job, 80)}');
     } catch (e) {
-      Offices.I.post(o, 'system', BotManner.couldNotFinish(somali: plan.somali), kind: 'system');
+      if (!_stopped.contains(o.id)) {
+        Offices.I.post(o, 'system', BotManner.couldNotFinish(lang: plan.lang), kind: 'system');
+        _tell(o, lead, BotManner.couldNotFinish(lang: plan.lang));
+      }
     } finally {
       running.remove(o.id);
       _stopped.remove(o.id);
       _inbox.remove(o.id);
+      _unnote(o.id);
       Offices.I.saveSoon();
       notifyListeners();
+      await _release();
     }
   }
 
@@ -514,20 +728,23 @@ class TeamRun extends ChangeNotifier {
           'pieces: first one or two short sentences to ${lead.name} for the team chat (what you did and anything they should know; name a '
           'teammate if you build on their work), then a line with only ---, then your full result: concrete, no greeting, no questions back.';
       final tools = toolsFor?.call(b) ?? const <Map<String, dynamic>>[];
-      final raw = (await _agent(b, sys, part, tools: tools, maxTokens: 1500, stopped: () => _stopped.contains(o.id), office: o.id)).text.trim();
+      final raw = (await _agent(b, sys, part,
+              tools: tools, maxTokens: 1500, stopped: () => _stopped.contains(o.id), office: o.id, summarizeOnHalt: true))
+          .text
+          .trim();
       b.log('work', 'Team part for ${o.name}: ${_short(part, 60)}');
-      return splitReport(raw, somali: plan.somali);
+      return splitReport(raw, lang: plan.lang);
     } catch (e) {
-      final f = BotManner.partFailed(somali: plan.somali);
+      final f = BotManner.partFailed(lang: plan.lang);
       return (note: f, result: f);
     }
   }
 
   /// "note --- result" from a member. Without the line, the first sentence or two is the note.
-  static ({String note, String result}) splitReport(String raw, {bool somali = false}) {
+  static ({String note, String result}) splitReport(String raw, {String lang = 'en'}) {
     final t = raw.trim();
     if (t.isEmpty) {
-      final f = BotManner.partFailed(somali: somali);
+      final f = BotManner.partFailed(lang: lang);
       return (note: f, result: f);
     }
     final m = RegExp(r'\n\s*-{3,}\s*\n').firstMatch(t);
@@ -546,7 +763,7 @@ class TeamRun extends ChangeNotifier {
         'owner\'s task.${_ownerSaid(o)}\nWrite ONE clear answer for the owner: the result first, then what matters, then the next step if '
         'there is one. Merge the parts; credit a teammate by name only where it helps. Plain, calm words in the owner\'s language.';
     final user = 'The task: ${plan.job}\n\n${[for (final p in parts) '## ${p.bot.name} (${p.bot.role})\n${p.text}'].join('\n\n')}';
-    final r = (await _once(lead, sys, user, maxTokens: 2000)).trim();
+    final r = (await _once(lead, sys, user, maxTokens: 2000, office: o.id)).trim();
     return r.isEmpty ? parts.map((p) => p.text).join('\n\n') : r;
   }
 
@@ -563,16 +780,26 @@ class TeamRun extends ChangeNotifier {
     _inbox.clear();
     _stopped.clear();
     _cores.clear();
+    _coreBots.clear();
+    _journal.clear();
+    _awake = 0;
     work = null;
   }
 }
 
 /// A plan the lead proposed: the task and who does which part.
 class TeamPlan {
-  TeamPlan({required this.job, required this.parts, this.somali = false});
+  TeamPlan({required this.job, required this.parts, String lang = 'en', bool somali = false, this.replan = false})
+      : lang = somali ? 'so' : lang;
   final String job;
   final List<({Bot bot, String ask})> parts;
-  final bool somali;
+
+  /// The owner's language for the fixed phrases: en | so | ar (CB-63).
+  final String lang;
+  bool get somali => lang == 'so';
+
+  /// Restored after SubMac closed before the lead had a plan (CB-64): "go" plans again.
+  final bool replan;
 }
 
 
@@ -592,6 +819,33 @@ class _TeamHooks extends CoreHooks {
 
   @override
   bool get cancelled => stopped();
+
+  /// CB-65: the last call of a member that hit its step cap: what it did so far, as plain text, and no tools.
+  Turn summaryTurn(int step) {
+    final sb = StringBuffer();
+    for (final m in _history) {
+      final c = m['content'];
+      if (m['role'] == 'tool') {
+        sb.writeln('Tool result: ${c ?? ''}');
+      } else if (m['role'] == 'assistant') {
+        if (c is String && c.trim().isNotEmpty) sb.writeln('You wrote: $c');
+        for (final t in (m['tool_calls'] as List? ?? const [])) {
+          final f = t is Map ? t['function'] : null;
+          if (f is Map) sb.writeln('You called ${f['name']} ${f['arguments'] ?? ''}');
+        }
+      }
+    }
+    var work = sb.toString().trim();
+    if (work.length > 12000) work = '…${work.substring(work.length - 12000)}';
+    return Turn(step: step, payload: [
+      {'role': 'system', 'content': system},
+      {
+        'role': 'user',
+        'content': '$user\n\n# Your work so far\n${work.isEmpty ? '(nothing yet)' : work}\n\nYou have used all your steps, so no more tools. '
+            'Sum up what you found now, in the same two-piece format: the note, a line with only ---, then your full result.'
+      },
+    ]);
+  }
 
   @override
   Future<Turn> buildTurn(int step, String? notes) async => Turn(step: step, payload: [

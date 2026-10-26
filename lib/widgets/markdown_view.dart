@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_state.dart';
+import '../services/reply_text.dart' show cleanGlyphs;
 import '../theme.dart';
 import 'chat_logic.dart';
 import 'math_text.dart';
@@ -22,7 +23,8 @@ class MarkdownView extends StatelessWidget {
     final p = Palette.of(context);
     final base = TextStyle(fontSize: Lux.read, height: Lux.readHeight, color: p.text);
     return MarkdownBody(
-      data: fixInlineCards(data),
+      // U+2010/2011/202F have no glyph in the app's fonts and drew as "_" (CB-43).
+      data: cleanGlyphs(fixInlineCards(data)),
       // Selection lives in the message's long-press sheet ("Select text"), so a tap or a hold on a reply
       // opens its quiet actions instead of starting a text selection.
       selectable: false,

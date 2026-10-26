@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models.dart';
 import 'browser/loop_guard.dart';
+import 'browser/shots.dart';
 import 'browser_agent.dart';
 import 'llm_client.dart';
 import 'tool_output_clean.dart';
@@ -644,6 +645,7 @@ ${j.details.isEmpty ? '' : 'Details: ${j.details}\n'}''';
     var shotAge = 0;
     for (var k = j.steps.length - 1; k >= 0 && shot == null; k--) {
       final id = j.steps[k].shotCall;
+      if (id != null && ShotGate.same(id)) break; // CB-40: the screen did not change: no picture again
       if (id != null) shot = BrowserAgent.I.shotsByCall[id];
       if (shot == null && BrowserAgent.names.contains(j.steps[k].call.name)) shotAge++;
     }
@@ -910,7 +912,7 @@ class _BrowserHooks extends CoreHooks {
     j.inbox.removeRange(0, j.heard.clamp(0, j.inbox.length).toInt());
     j.heard = 0;
     if (r.toolCalls.length <= 3) return r;
-    return LlmResult(r.content, r.toolCalls.take(3).toList(), r.finishReason, r.tokens, r.tokensIn, r.tokensOut);
+    return LlmResult(r.content, r.toolCalls.take(3).toList(), r.finishReason, r.tokens, r.tokensIn, r.tokensOut, r.tokensCached);
   }
 
   @override

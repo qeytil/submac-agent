@@ -7,7 +7,10 @@ class CalmError {
   /// What the main button does: retry, settings, newchat, none.
   final String action;
   final String raw;
-  const CalmError(this.title, this.body, this.action, this.raw);
+
+  /// Which problem this is (limit, busy, auth, offline...), so the card can say it in the app's language (CB-27).
+  final String kind;
+  const CalmError(this.title, this.body, this.action, this.raw, {this.kind = 'generic'});
 }
 
 class Calm {
@@ -27,45 +30,45 @@ class Calm {
     final e = raw.toLowerCase();
     bool has(String p) => RegExp(p, caseSensitive: false).hasMatch(e);
     if (has(r"done a lot today|refreshes tomorrow|resting until tomorrow|allowance|today's replies|replies in your plan|get a plan")) {
-      return CalmError('That\'s it for today', raw, 'none', raw);
+      return CalmError('That\'s it for today', raw, 'none', raw, kind: 'limit');
     }
     // PLAN 1.3: nothing came back within 45 s. The message is kept; tapping tries again.
     if (has(r'tap to try again')) {
-      return CalmError('SubMac is busy', 'Tap to try again.', 'retry', raw);
+      return CalmError('SubMac is busy', 'Tap to try again.', 'retry', raw, kind: 'busy_tap');
     }
     if (has(r'sign in again|\b401\b|unauthori[sz]ed|jwt')) {
-      return CalmError('Please sign in again', 'Your session ended. Log out and back in from Settings, then try again.', 'settings', raw);
+      return CalmError('Please sign in again', 'Your session ended. Log out and back in from Settings, then try again.', 'settings', raw, kind: 'auth');
     }
     if (has(r'account needs attention|\bblocked\b')) {
-      return CalmError('Your account needs attention', 'Please contact SubMac support at submac.site.', 'none', raw);
+      return CalmError('Your account needs attention', 'Please contact SubMac support at submac.site.', 'none', raw, kind: 'blocked');
     }
     if (has(r'short break')) {
-      return CalmError('SubMac is taking a short break', 'Please try again in a few minutes.', 'retry', raw);
+      return CalmError('SubMac is taking a short break', 'Please try again in a few minutes.', 'retry', raw, kind: 'paused');
     }
     if (isContextTooLong(raw)) {
       return CalmError('This chat got too long',
-          'Start a new chat; I\'ll keep what matters in memory.', 'newchat', raw);
+          'Start a new chat; I\'ll keep what matters in memory.', 'newchat', raw, kind: 'too_long');
     }
     if (has(r"you're offline|socketexception|failed host lookup|network error|connection (closed|reset|refused)|no address|handshake")) {
       return CalmError('No connection',
-          'I couldn\'t reach the internet. Check your data or Wi-Fi, then try again.', 'retry', raw);
+          'I couldn\'t reach the internet. Check your data or Wi-Fi, then try again.', 'retry', raw, kind: 'offline');
     }
     if (has(r'timeout|timed out|took too long')) {
-      return CalmError('That took too long', 'Try again in a moment.', 'retry', raw);
+      return CalmError('That took too long', 'Try again in a moment.', 'retry', raw, kind: 'timeout');
     }
     if (has(r'\b429\b|\b5\d\d\b|busy|rate limit|too many requests|overloaded|couldn.t reach its models|couldn.t get an answer just now|lost the connection')) {
-      return CalmError('SubMac is busy', 'Lots of people are using it right now. Try again in a moment.', 'retry', raw);
+      return CalmError('SubMac is busy', 'Lots of people are using it right now. Try again in a moment.', 'retry', raw, kind: 'busy');
     }
     if (has(r'safety|content policy|content_filter|refus')) {
-      return CalmError('I couldn\'t answer that', 'Try rewording it.', 'retry', raw);
+      return CalmError('I couldn\'t answer that', 'Try rewording it.', 'retry', raw, kind: 'refused');
     }
     if (has(r'empty response')) {
-      return CalmError('No answer came back', 'Try again.', 'retry', raw);
+      return CalmError('No answer came back', 'Try again.', 'retry', raw, kind: 'empty');
     }
     if (has(r'could not save')) {
-      return CalmError('Not saved yet', 'Your message is here, but it didn\'t sync. It will try again.', 'none', raw);
+      return CalmError('Not saved yet', 'Your message is here, but it didn\'t sync. It will try again.', 'none', raw, kind: 'not_saved');
     }
-    return CalmError('That didn\'t go through', 'Something went wrong on the way. Try again.', 'retry', raw);
+    return CalmError('That didn\'t go through', 'Something went wrong on the way. Try again.', 'retry', raw, kind: 'generic');
   }
 
   /// Plan 5.5: one short, warm line for a snackbar or a status row, never a raw error.

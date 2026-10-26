@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -16,6 +17,7 @@ import '../services/browser_jobs.dart';
 import 'browser_card.dart';
 import '../models.dart';
 import '../screens/live_screen.dart';
+import '../services/attach_limits.dart';
 import '../services/doc_tools.dart';
 import '../theme.dart';
 import 'chat_extras.dart';
@@ -26,6 +28,7 @@ import 'meeting_sheet.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 import '../screens/skills_screen.dart';
+import '../screens/billing/billing_notice_sheet.dart';
 import 'chat/activity.dart';
 import 'chat/edge_fade.dart';
 
@@ -41,6 +44,10 @@ class Composer extends StatefulWidget {
 
   /// Drafts by chat id ('' for a new chat), kept for the app run.
   static final Map<String, String> drafts = {};
+
+  /// Files and photos picked but not sent yet, by chat id like [drafts] (CB-29: a photo picked in one chat never
+  /// goes out in another).
+  static final Map<String, List<Attachment>> attachmentDrafts = {};
 
   @override
   State<Composer> createState() => _ComposerState();
@@ -91,6 +98,11 @@ class _ComposerState extends State<Composer> {
     _draftFor = now;
     final t = Composer.drafts[now] ?? '';
     _ctrl.value = TextEditingValue(text: t, selection: TextSelection.collapsed(offset: t.length));
+    setState(() {
+      _attachments
+        ..clear()
+        ..addAll(Composer.attachmentDrafts[now] ?? const []);
+    });
   }
 
   void _keepDraft() {
@@ -98,6 +110,11 @@ class _ComposerState extends State<Composer> {
       Composer.drafts.remove(_draftFor);
     } else {
       Composer.drafts[_draftFor] = _ctrl.text;
+    }
+    if (_attachments.isEmpty) {
+      Composer.attachmentDrafts.remove(_draftFor);
+    } else {
+      Composer.attachmentDrafts[_draftFor] = List.of(_attachments);
     }
   }
 
@@ -110,6 +127,7 @@ class _ComposerState extends State<Composer> {
       _draftFor = _state.currentId ?? '';
       final t = Composer.drafts[_draftFor] ?? '';
       _ctrl.value = TextEditingValue(text: t, selection: TextSelection.collapsed(offset: t.length));
+      _attachments.addAll(Composer.attachmentDrafts[_draftFor] ?? const []);
       _state.addListener(_swapDraft);
     }
     _state.shareInbox.addListener(_takeShare);
@@ -140,15 +158,25 @@ class _ComposerState extends State<Composer> {
     final text = [(m['subject'] ?? '').toString(), (m['text'] ?? '').toString()].where((e) => e.trim().isNotEmpty).join('\n');
     final files = [for (final f in (m['files'] as List? ?? const [])) f.toString()];
     final added = <Attachment>[];
+    // CB-26: sizes first, so a huge shared file is refused before it is read into memory.
+    final found = <File>[], sizes = <int>[];
     for (final path in files) {
       try {
         final f = File(path);
         if (!await f.exists()) continue;
-        final name = path.split('/').last;
-        added.add(Attachment(name: name, mime: Attachment.mimeFor(name), bytes: await f.readAsBytes()));
+        sizes.add(await f.length());
+        found.add(f);
+      } catch (_) {}
+    }
+    final fit = AttachLimits.check(sizes, already: _attachedBytes);
+    for (final i in fit.ok) {
+      try {
+        final name = found[i].path.split('/').last;
+        added.add(Attachment(name: name, mime: Attachment.mimeFor(name), bytes: await found[i].readAsBytes()));
       } catch (_) {}
     }
     if (!mounted) return;
+    _limitNotice(fit);
     setState(() {
       _attachments.addAll(added);
       if (text.isNotEmpty) {
@@ -173,6 +201,11 @@ class _ComposerState extends State<Composer> {
   Future<void> _camera() async {
     final x = await _shoot();
     if (x == null) return;
+    final fit = AttachLimits.check([await x.length()], already: _attachedBytes);
+    if (fit.ok.isEmpty) {
+      _limitNotice(fit);
+      return;
+    }
     final bytes = await x.readAsBytes();
     if (!mounted) return;
     final name = 'photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -273,18 +306,52 @@ class _ComposerState extends State<Composer> {
   }
 
   Future<void> _pick({bool images = false}) async {
+    // CB-26: files are streamed, not read whole by the picker, and only the ones within the limits are read.
     final res = await FilePicker.pickFiles(
       allowMultiple: true,
-      withData: true,
+      withData: false,
+      withReadStream: true,
       type: images ? FileType.image : FileType.any,
     );
     if (res == null || !mounted) return;
-    setState(() {
-      for (final f in res.files) {
-        if (f.bytes == null) continue;
-        _attachments.add(Attachment(name: f.name, mime: Attachment.mimeFor(f.name), bytes: f.bytes));
+    final fit = AttachLimits.check([for (final f in res.files) f.size], already: _attachedBytes);
+    final added = <Attachment>[];
+    for (final i in fit.ok) {
+      final f = res.files[i];
+      final bytes = await _readPicked(f);
+      if (bytes == null) continue;
+      added.add(Attachment(name: f.name, mime: Attachment.mimeFor(f.name), bytes: bytes));
+    }
+    if (!mounted) return;
+    _limitNotice(fit);
+    setState(() => _attachments.addAll(added));
+  }
+
+  /// What the message already carries, in bytes (CB-26).
+  int get _attachedBytes => _attachments.fold(0, (s, a) => s + (a.bytes?.length ?? 0));
+
+  /// Tells the user a file was left out for its size (CB-26).
+  void _limitNotice(AttachCheck fit) {
+    final n = AttachLimits.notice(fit);
+    if (n == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(n)));
+  }
+
+  /// A picked file's bytes, read from its stream (never more than [AttachLimits.perFile]).
+  static Future<Uint8List?> _readPicked(PlatformFile f) async {
+    try {
+      if (f.bytes != null) return f.bytes;
+      final stream = f.readStream ?? (f.path != null ? File(f.path!).openRead() : null);
+      if (stream == null) return null;
+      final b = BytesBuilder(copy: false);
+      await for (final chunk in stream) {
+        b.add(chunk);
+        if (b.length > AttachLimits.perFile) return null;
       }
-    });
+      return b.takeBytes();
+    } catch (_) {
+      return null;
+    }
   }
 
   void _plusMenu() {
@@ -390,6 +457,10 @@ class _ComposerState extends State<Composer> {
     }
     _ctrl.clear();
     setState(() => _attachments.clear());
+    if (widget.perChatDrafts) {
+      Composer.drafts.remove(_draftFor);
+      Composer.attachmentDrafts.remove(_draftFor);
+    }
     state.send(text, atts);
   }
 
@@ -397,6 +468,8 @@ class _ComposerState extends State<Composer> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final state = context.watch<AppState>();
+    // A chat that changed while another screen covered this one (a sheet, the Bots workspace): swap once it is in front.
+    if (widget.perChatDrafts && (state.currentId ?? '') != _draftFor && (ModalRoute.of(context)?.isCurrent ?? true)) _swapDraft();
     final skill = state.pickedSkill;
     final canSend = _ctrl.text.trim().isNotEmpty || _attachments.isNotEmpty || skill != null;
     // One quiet field: "+" on the start side, the words, and one round button on the end side that is
@@ -435,6 +508,7 @@ class _ComposerState extends State<Composer> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const BillingNoticeBanner(), // CB-40: a refusal sits above the composer, never over it
               AnimatedSize(
                 duration: LuxMotion.base,
                 curve: LuxMotion.ease,
@@ -843,9 +917,8 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
             // The browser agent's live checklist: what is done, what is next.
             SubFold(
               open: _open && canOpen,
-              child: AnimatedSize(
-                duration: SubMotion.of(context, SubMotion.quick),
-                curve: SubMotion.settle,
+              child: SubSize(
+                duration: SubMotion.quick,
                 alignment: AlignmentDirectional.topStart,
                 child: Padding(
                       padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),

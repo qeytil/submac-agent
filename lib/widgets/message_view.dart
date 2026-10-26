@@ -13,8 +13,9 @@ import '../models.dart';
 import '../services/billing/billing_service.dart';
 import '../screens/billing/billing_notice_sheet.dart';
 import '../services/bots.dart';
-import '../services/calm.dart';
+import '../services/error_copy.dart';
 import '../services/house_rules.dart';
+import '../services/reply_text.dart';
 import '../services/rewards.dart';
 import '../services/media_store.dart';
 import '../services/tools.dart';
@@ -60,6 +61,9 @@ void startReply(BuildContext context, ChatMessage m) {
 /// Your own message: a soft filled bubble on the end side (answers have none). A short message is set in the serif
 /// (it reads like the question at the top of a page); a long one in the reading sans.
 /// Tap for a quiet Copy · Edit row, long-press for the sheet.
+/// Shown when Edit and resend is tapped while a run is going in this chat (CB-13).
+const editBusyNote = 'SubMac is still answering. Stop it first, then edit your message.';
+
 class UserMessageView extends StatelessWidget {
   final ChatMessage message;
   const UserMessageView({super.key, required this.message});
@@ -174,8 +178,12 @@ class UserMessageView extends StatelessWidget {
   }
 
   Future<void> _edit(BuildContext context) async {
-    final ctrl = TextEditingController(text: ReplyCodec.bodyOf(message.content));
     final state = context.read<AppState>();
+    final messenger = ScaffoldMessenger.of(context);
+    // CB-13: while SubMac is still answering, an edit cannot go out. Say so instead of a tap that does nothing.
+    void busyNote() => messenger.showSnackBar(SnackBar(content: Text(tr(editBusyNote))));
+    if (!state.canEditHere) return busyNote();
+    final ctrl = TextEditingController(text: ReplyCodec.bodyOf(message.content));
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -190,7 +198,9 @@ class UserMessageView extends StatelessWidget {
     // Disposed after the dialog's closing animation, which still reads it.
     Future.delayed(const Duration(seconds: 1), ctrl.dispose);
     if (result != null && result.trim().isNotEmpty) {
-      await state.editAndResend(message, result);
+      // A run may have started while the box was open (a reminder, a bot wake): nothing went out, and it says so.
+      final sent = await state.editAndResend(message, result);
+      if (!sent && !state.canEditHere) busyNote();
     }
   }
 }
@@ -450,7 +460,7 @@ class AssistantMessageView extends StatelessWidget {
                 if (finished && isLast && message.error == null)
                   Builder(builder: (context) {
                     // Only busy / waiting asks matter here (it watched the whole state and rebuilt on every streamed word).
-                    final hold = context.select<AppState, bool>((s) => s.busy || s.asks.isNotEmpty);
+                    final hold = context.select<AppState, bool>((s) => s.busy || s.asks.any((a) => a.convId.isEmpty || a.convId == s.currentId)); // CB-41: this chat's asks only
                     if (hold) return const SizedBox.shrink();
                     final state = context.read<AppState>();
                     return FollowUpChips(options: suggestFollowUps(text), onPick: (t) => state.send(t, const []));
@@ -605,53 +615,12 @@ class TeamMessageCard extends StatelessWidget {
   }
 }
 
-/// The reply as a person would copy it: prose only, no card JSON or markup.
-String _plain(String t) {
-  var s = t.replaceAll(RegExp(r'<think(ing)?>[\s\S]*?(</think(ing)?>|$)', caseSensitive: false), '');
-  s = s.replaceAllMapped(RegExp(r'```(\w*)\n([\s\S]*?)```'), (m) {
-    final lang = m.group(1) ?? '';
-    const prose = {'summary', 'draft', 'template'};
-    if (prose.contains(lang)) return m.group(2)!.trim();
-    if (lang == 'table') return _tableText(m.group(2)!);
-    if (lang.isEmpty || !const {'links', 'table', 'grid', 'images', 'photos', 'order', 'order_summary', 'plan', 'choices', 'receipt', 'confirm', 'page', 'file', 'video', 'graph', 'list', 'sections', 'math', 'diagram', 'roadmap', 'timeline', 'flow', 'chart'}.contains(lang)) {
-      return m.group(0)!;
-    }
-    return '';
-  });
-  s = s.replaceAll(RegExp(r'^\s*---\s*$', multiLine: true), '').replaceAll('**', '');
-  return s.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
-}
+/// The reply as a person would copy it: prose and each card's words, no card JSON or markup (CB-8, see reply_text.dart).
+String _plain(String t) => replyPlain(t);
 
-/// A table card copied as plain rows, so Copy and Share never lose the numbers.
-String _tableText(String json) {
-  try {
-    final d = jsonDecode(json);
-    if (d is! Map) return '';
-    final out = <String>[];
-    if (d['title'] != null) out.add('${d['title']}');
-    final cols = d['columns'];
-    if (cols is List) out.add(cols.join(' | '));
-    final rows = d['rows'];
-    if (rows is List) {
-      for (final r in rows) {
-        out.add(r is List ? r.join(' | ') : '$r');
-      }
-    }
-    if (d['ornament'] != null) out.add('${d['ornament']}');
-    return out.join('\n');
-  } catch (_) {
-    return '';
-  }
-}
-
-/// Right-to-left for Arabic-script text (Arabic, Persian, Urdu), left-to-right for everything else (Somali, English...).
-TextDirection textDirOf(String t) {
-  for (final r in t.runes) {
-    if ((r >= 0x0590 && r <= 0x08FF) || (r >= 0xFB1D && r <= 0xFDFF) || (r >= 0xFE70 && r <= 0xFEFF)) return TextDirection.rtl;
-    if ((r >= 0x41 && r <= 0x5A) || (r >= 0x61 && r <= 0x7A) || (r >= 0xC0 && r <= 0x24F)) return TextDirection.ltr;
-  }
-  return TextDirection.ltr;
-}
+/// Right-to-left for text that is mostly Arabic script (Arabic, Persian, Urdu), left-to-right for everything else
+/// (Somali, English...). The majority of strong letters decides, not the first one (CB-9).
+TextDirection textDirOf(String t) => majorityDir(t);
 
 /// A progress line is shown only when it reads like a person talking: no element numbers, code, ids or tool names.
 bool plainNarration(String t) {
@@ -762,13 +731,74 @@ class _WorkSummaryState extends State<WorkSummary> {
   }
 }
 
-/// Free, on-device read aloud using Android's built-in voices. One message reads at a time.
+/// The phone's voice, behind a seam so tests can use a fake one.
+abstract class Speaker {
+  Future<void> stop();
+
+  /// Speaks [text] and completes when it has been read out (or stopped).
+  Future<void> speak(String text);
+
+  /// Switches to [lang] ('so', 'ar', 'en'); false when the phone has no voice for it (the current voice stays).
+  Future<bool> setLanguage(String lang);
+}
+
+class _TtsSpeaker implements Speaker {
+  final FlutterTts _tts = FlutterTts();
+  bool _ready = false;
+  static const _locales = {'so': ['so-SO', 'so'], 'ar': ['ar-SA', 'ar', 'ar-EG'], 'en': ['en-US', 'en-GB', 'en']};
+
+  Future<void> _init() async {
+    if (_ready) return;
+    _ready = true;
+    try {
+      await _tts.awaitSpeakCompletion(true);
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> stop() async {
+    try {
+      await _tts.stop();
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> speak(String text) async {
+    await _init();
+    try {
+      await _tts.speak(text);
+    } catch (_) {}
+  }
+
+  @override
+  Future<bool> setLanguage(String lang) async {
+    await _init();
+    for (final l in _locales[lang] ?? [lang]) {
+      try {
+        final ok = await _tts.isLanguageAvailable(l);
+        if (ok == true || ok == 1) {
+          await _tts.setLanguage(l);
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+}
+
+/// Free, on-device read aloud using Android's built-in voices. One message reads at a time. The whole message is read,
+/// in pieces of up to 3,900 characters one after another, each in its own language when the phone has that voice (CB-28:
+/// no language was set and everything after 3,900 characters was cut).
 class ReadAloud {
   ReadAloud._();
-  static final FlutterTts _tts = FlutterTts();
+
+  @visibleForTesting
+  static Speaker speaker = _TtsSpeaker();
 
   /// The message being read right now.
   static final reading = ValueNotifier<String?>(null);
+
+  static int _gen = 0;
 
   static bool isReading(String id) => reading.value == id;
 
@@ -778,18 +808,28 @@ class ReadAloud {
       .replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m[1] ?? '');
 
   static Future<void> toggle(String id, String text) async {
+    final gen = ++_gen;
     if (reading.value == id) {
-      await _tts.stop();
       reading.value = null;
+      await speaker.stop();
       return;
     }
-    await _tts.stop();
+    await speaker.stop();
     reading.value = id;
-    _tts.setCompletionHandler(() => reading.value = null);
-    _tts.setCancelHandler(() => reading.value = null);
-    var t = _plain(text);
-    if (t.length > 3900) t = t.substring(0, 3900);
-    await _tts.speak(t);
+    String? lang;
+    try {
+      for (final (piece, l) in speechChunks(_plain(text))) {
+        if (gen != _gen) return; // stopped, or another message started
+        if (l != lang) {
+          lang = l;
+          await speaker.setLanguage(l);
+        }
+        if (gen != _gen) return;
+        await speaker.speak(piece);
+      }
+    } finally {
+      if (gen == _gen && reading.value == id) reading.value = null;
+    }
   }
 }
 
@@ -1033,9 +1073,11 @@ class _CalmErrorCardState extends State<_CalmErrorCard> {
     final p = Palette.of(context);
     final state = context.read<AppState>();
     // Billing refusal (limit, paid model, payment confirming...): its own card with the reason, reset time and options.
-    final notice = Billing.I.noticeFor(widget.raw);
+    final notice = Billing.I.noticeFor(ErrorCopy.detail(widget.raw));
     if (notice != null) return BillingNoticeCard(notice: notice, isLast: widget.isLast, onRetry: () => state.regenerate());
-    final e = Calm.explain(widget.raw);
+    // The app's own words in the app's language, chosen by the error's code (CB-27); the raw text only under Details.
+    final e = ErrorCopy.explain(widget.raw);
+    String b(String en) => ErrorCopy.button(en);
     Widget button(String label, VoidCallback onTap, {bool strong = false}) => TextButton(
           style: TextButton.styleFrom(
             foregroundColor: strong ? p.accent : p.muted,
@@ -1051,11 +1093,11 @@ class _CalmErrorCardState extends State<_CalmErrorCard> {
         );
     final actions = <Widget>[
       if (widget.isLast && (e.action == 'retry' || e.action == 'settings'))
-        button('Try again', () => state.regenerate(), strong: e.action == 'retry'),
+        button(b('Try again'), () => state.regenerate(), strong: e.action == 'retry'),
       if (e.action == 'settings')
-        button('Open Settings', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())), strong: true),
-      if (e.action == 'newchat') button('New chat', () => state.newChat(), strong: true),
-      button(_details ? 'Hide details' : 'Details', () => setState(() => _details = !_details)),
+        button(b('Open Settings'), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())), strong: true),
+      if (e.action == 'newchat') button(b('New chat'), () => state.newChat(), strong: true),
+      button(b(_details ? 'Hide details' : 'Details'), () => setState(() => _details = !_details)),
     ];
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -1076,7 +1118,7 @@ class _CalmErrorCardState extends State<_CalmErrorCard> {
             open: _details,
             child: Padding(
               padding: const EdgeInsetsDirectional.only(top: 6, end: 6),
-              child: SelectableText(HouseRules.scrub(widget.raw), style: Brand.mono(size: 11.5, color: p.muted)),
+              child: SelectableText(HouseRules.scrub(e.raw), style: Brand.mono(size: 11.5, color: p.muted)),
             ),
           ),
           // The buttons' own inner padding lines their words up under the text.

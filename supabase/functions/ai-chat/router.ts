@@ -6,6 +6,11 @@
 // evidence (3 hard failures or 2 first-byte timeouts within 60 s, counted and swapped by ai_router_report with a
 // compare-and-set in SQL), and a swapped-out route rests 1 -> 2 -> 4 -> 8 -> 15 min. A 429 on every key of a route is
 // overflow (capacity), not breakage: that one request goes to the next route and the pointer stays.
+// A 400/422 is a request problem (schema, size), not a route failure: the request moves on but nothing is reported;
+// a 404 counts only when the model itself is missing. Swap-back (v42, CB-15): once the preferred route (the alias's
+// first healthy route) is not resting and the pointer has been elsewhere for >= router_home_after_s (15 min), the next
+// request probes the preferred route first (one key); success moves the pointer home with a compare-and-set
+// (ai_router_home), a hard failure / first-byte timeout rests it one step up the ladder.
 //
 // Timing (all from the request start, t0): 6 s for response headers and 10 s for the first real output per attempt,
 // no new attempt after 18 s, hard stop at 25 s (in-flight attempt aborted). Streaming requests get 200 + ": ping" at
@@ -153,6 +158,23 @@ export function orderRoutes(routes: Route[], snap: RouterSnap, now = Date.now())
   return { list, current: effective, pointer: effective?.route_id ?? null };
 }
 
+/** Swap-back (CB-15): the preferred route to probe first on this request, or null. Only when the shared pointer is
+ *  set to another route, the preferred route can serve this request (it is in the capability-filtered list), is not
+ *  resting (DB rest expired, no local cooldown), and the pointer has been where it is for at least `afterMs`. */
+export function homeProbe(routes: Route[], snap: RouterSnap, homeId: string | null | undefined, afterMs: number, now = Date.now()): Route | null {
+  if (!homeId || !snap.current_route_id || snap.current_route_id === homeId) return null;
+  const home = routes.find((r) => r.route_id === homeId);
+  if (!home || restedAt(snap, homeId, now)) return null;
+  const since = snap.since ? Date.parse(snap.since) : NaN;
+  if (!Number.isFinite(since) || now - since < afterMs) return null;
+  return home;
+}
+
+/** 404 counts as a route failure only when the model is missing (not for a wrong path or a missing resource). */
+export function modelMissing(text: string): boolean {
+  return /model[^\n]{0,80}(not[ _-]?found|does ?n[o']t exist|not exist|unknown|no such|not available|unsupported|is not (found|supported))|(unknown|invalid|no such|unsupported)[ _-]model|no endpoints? found|model_not_found/i.test(text ?? "");
+}
+
 // ---------------------------------------------------------------- effort hint
 export type Effort = "low" | "normal" | "high";
 export function effortOf(h: string | null | undefined): Effort | null {
@@ -196,11 +218,15 @@ export function effortBody(r: Route, e: Effort | null): Record<string, unknown> 
 
 // ---------------------------------------------------------------- the attempt engine
 export type Outcome = "hard" | "fb_timeout";
+/** "request": 400/422 (or a 404 that is not a missing model) - a problem with this request, never reported. */
+type RouteOutcome = Outcome | "overflow" | "request";
 export type Deps = {
   fetch: typeof fetch;
   now: () => number;
   /** Count a failure of the route the pointer means; SQL swaps the pointer (CAS) when the threshold is met. */
   report: (routeId: string, kind: Outcome, nextRouteId: string | null) => void;
+  /** Swap-back probe result for the preferred route: ok = answered (CAS pointer from -> home), else rest it. */
+  home?: (homeId: string, fromRouteId: string, ok: boolean, kind: Outcome | null) => void;
   markKey: (id: string, ok: boolean, error: string | null, cooldown: number) => void;
   /** A failed attempt (for ai_usage stats). Never raw text to the user. */
   attemptFailed: (r: Route, k: Key, status: number, error: string) => void;
@@ -212,6 +238,8 @@ export type Done = {
 };
 export type ChatRun = {
   routes: Route[]; snap: RouterSnap; chat: string; stream: boolean; alias: string;
+  /** The alias's preferred route (first healthy by priority) and how long the pointer must sit elsewhere first. */
+  homeId?: string | null; homeAfterMs?: number;
   payloadFor: (r: Route) => Record<string, unknown>;
   ensureKeys: (r: Route) => Promise<void>;
   /** The route allows fewer output tokens than asked: learn its cap; true = retry this key once, smaller. */
@@ -255,6 +283,10 @@ export async function runChat(o: ChatRun): Promise<Response> {
   const abortAll = (why: string) => { if (!master.signal.aborted) { masterWhy = why; master.abort(why); } };
   if (o.signal) { if (o.signal.aborted) abortAll("client"); else o.signal.addEventListener("abort", () => abortAll("client"), { once: true }); }
   const order = orderRoutes(o.routes, o.snap, deps.now());
+  // Swap-back probe: the preferred route goes first (one key); `current` stays the pointer's route for reports.
+  const probe = homeProbe(o.routes, o.snap, o.homeId, o.homeAfterMs ?? 15 * 60_000, deps.now());
+  if (probe) order.list = [probe, ...order.list.filter((r) => r !== probe)];
+  const probeFrom = o.snap.current_route_id;
   const enc = new TextEncoder();
   let attempts = 0;
 
@@ -321,12 +353,13 @@ export async function runChat(o: ChatRun): Promise<Response> {
       const r = order.list[ri];
       if (master.signal.aborted || deps.now() - o.t0 > budget.lastAttemptMs || attempts >= budget.maxAttempts) break;
       await o.ensureKeys(r);
-      let ks = keysInOrder(r, o.chat, false, deps.now()).slice(0, 3);
+      const probing = !!probe && r === probe && ri === 0;
+      let ks = keysInOrder(r, o.chat, false, deps.now()).slice(0, probing ? 1 : 3);
       // Nothing usable anywhere (every key resting): one resting key of the first route is better than "busy".
       if (!ks.length && !triedAny && ri === order.list.length - 1) ks = keysInOrder(r, o.chat, true, deps.now()).slice(0, 1);
       if (!ks.length) continue; // all keys resting = overflow: next route, pointer stays
       let n429 = 0, nHard = 0, tried = 0, auth = 0;
-      let outcome: Outcome | "overflow" | null = null;
+      let outcome: RouteOutcome | null = null;
       const shrunk = new Set<string>();
       for (let ki = 0; ki < ks.length; ki++) {
         const k = ks[ki];
@@ -336,6 +369,10 @@ export async function runChat(o: ChatRun): Promise<Response> {
         if (a.kind === "ok") {
           // Key state is written only when it changes: a key that was resting (or failing) is cleared here.
           if (k.cooldown_until || localCooldown.has(k.id)) deps.markKey(k.id, true, null, 0);
+          if (probing && probeFrom) {
+            deps.log?.({ evt: "router_home_probe", route: r.route_id, from: probeFrom, ok: true });
+            deps.home?.(r.route_id, probeFrom, true, null);
+          }
           return { a, r, k };
         }
         if (a.why === "aborted" || a.why === "hard_stop") return null;
@@ -347,14 +384,30 @@ export async function runChat(o: ChatRun): Promise<Response> {
           deps.markKey(k.id, false, err, cooldownFor(a.status));
           if (a.status === 429) { n429++; continue; }
           if (a.status === 401 || a.status === 402 || a.status === 403) { auth++; continue; }
-          if (a.status === 400 || a.status === 404 || a.status === 422) { outcome = "hard"; break; } // model problem, not key problem
+          // 400/422: this request's problem (schema, size), not the route's: move on, report nothing (CB-15).
+          if (a.status === 400 || a.status === 422) { outcome = "request"; break; }
+          // 404: a route failure only when the model is missing; otherwise treat it like a request error.
+          if (a.status === 404) { outcome = modelMissing(a.text) ? "hard" : "request"; break; }
         } else deps.markKey(k.id, false, err, 20);
         nHard++;
         if (nHard >= 2) { outcome = "hard"; break; }
       }
       if (!outcome) outcome = tried > 0 && n429 + auth === tried && n429 > 0 ? "overflow" : tried > 0 ? "hard" : null;
       if (!outcome) break; // out of time before trying this route
-      if (outcome !== "overflow") {
+      if (probing) {
+        // A failed probe does not use up a route of this request and never counts against the pointer's route.
+        deps.log?.({ evt: "router_home_probe", route: r.route_id, from: probeFrom, ok: false, outcome });
+        if (probeFrom && (outcome === "hard" || outcome === "fb_timeout")) {
+          localCooldown.set("route:" + r.route_id, deps.now() + 60_000);
+          deps.home?.(r.route_id, probeFrom, false, outcome);
+        }
+        continue;
+      }
+      if (outcome === "request") {
+        routesSpent++;
+        deps.log?.({ evt: "router_request_error", route: r.route_id });
+        if (routesSpent >= budget.maxRoutes) break;
+      } else if (outcome !== "overflow") {
         routesSpent++;
         if (order.current && r.route_id === order.current.route_id) {
           const next = order.list.slice(ri + 1).find((x) => !restedAt(o.snap, x.route_id, deps.now()));
@@ -367,7 +420,7 @@ export async function runChat(o: ChatRun): Promise<Response> {
   };
 
   const hardStop = setTimeout(() => abortAll("hard_stop"), Math.max(0, o.t0 + (o.stream ? budget.hardStopMs : budget.nonStreamMs) - deps.now()));
-  const fallbackOf = (r: Route) => !!order.current && r.route_id !== order.current.route_id;
+  const fallbackOf = (r: Route) => !!order.current && r.route_id !== order.current.route_id && r !== probe;
 
   // ---------------- non-streamed
   if (!o.stream) {

@@ -262,17 +262,64 @@ class PageRisk {
       r'\b(post|publish|send|submit|apply|pay|buy|order|checkout|check out|place order|place your order|book|reserve|confirm|delete|remove|tweet|share|transfer|donate|subscribe|purchase|upload)\b',
       caseSensitive: false);
 
+  /// Words that make a press about money or sending whatever box it sits in ("Continue to payment", "Pay", "Subscribe").
+  static final _moneyWords = RegExp(
+      r'\b(pay|payment|paying|buy|order|purchase|checkout|check out|card|billing|subscribe|subscription|donate|transfer|send|post|publish|'
+      r'delete|remove|book|reserve|place|trial|upgrade|bid|wallet|sifalo|evc|zaad|edahab)\b',
+      caseSensitive: false);
+
+  /// A cookie / consent / privacy overlay's own button ("Accept all cookies", "I agree", "Continue" on the cookie box).
+  static final _consentLabel = RegExp(
+      r'\b(cookies?|consent|gdpr|privacy (choices|settings|preferences)|accept( all)?|agree|i agree|got it|allow all|reject( all)?|'
+      r'decline|necessary only|only necessary|essential only|manage (choices|preferences|options)|save (choices|preferences|settings))\b',
+      caseSensitive: false);
+  static final _plainFlow = RegExp(r'^\s*(continue|ok|okay|close|dismiss|confirm( my)? choices?|confirm|save|done|next)\s*[.!]?\s*$', caseSensitive: false);
+
+  /// Is this press a cookie / consent banner's own button? [inBanner] is true when the element is the page script's
+  /// detected consent button (or sits in a consent dialog). Never true for a label about money or sending.
+  static bool isConsentPress(String label, {bool inBanner = false}) {
+    final l = label.trim();
+    if (l.isEmpty || _moneyWords.hasMatch(l)) return false;
+    if (_consentLabel.hasMatch(l) && (inBanner || RegExp(r'cookie|consent|gdpr|privacy|agree|accept', caseSensitive: false).hasMatch(l))) return true;
+    return inBanner && (_plainFlow.hasMatch(l) || _consentLabel.hasMatch(l));
+  }
+
+  /// The task only looks things up (find, price, compare, check, research): nothing to buy, book, send or sign up for.
+  static bool readOnlyGoal(String goal) {
+    final g = goal.trim();
+    if (g.isEmpty) return false;
+    final act = RegExp(
+        r'\b(buy|order|purchase|pay|book|reserve|checkout|check out|add (it |them )?to (the )?cart|subscribe|sign ?up|register|apply|'
+        r'send|post|publish|submit|upload|delete|cancel|transfer|donate|log ?in|sign ?in|fill|iibso|dalbo|bixi|dir)\b',
+        caseSensitive: false);
+    if (act.hasMatch(g)) return false;
+    return RegExp(
+            r'\b(find|look ?up|search|check|compare|comparison|price|prices|cost|how much|what|which|when|where|who|research|read|'
+            r'summari[sz]e|list|show|tell me|is there|are there|look for|see if|raadi|raadso|eeg|immisa)\b',
+            caseSensitive: false)
+        .hasMatch(g);
+  }
+
   static bool isMoneyPage(String url, String title, String text, bool cardFields) =>
       cardFields || _moneyUrl.hasMatch(url) || _moneyText.hasMatch('$title ${text.length > 3000 ? text.substring(0, 3000) : text}');
 
   /// Does pressing an element with this [label] need the user's OK? Risky words always do; on a money page any
   /// button that moves the flow on ("Continue", "Next") does too, and so does an unlabeled icon button there.
-  static bool pressNeedsOk(String label, {required bool moneyPage, String kind = ''}) {
+  ///
+  /// CB-44: a cookie / consent banner's own button ([consent], see [isConsentPress]) never asks: it moves no money and
+  /// sends nothing. In a read-only task ([readOnly]) a plain flow button ("Continue", "Next") on a money page does not
+  /// ask either, unless the page has card fields or the label itself is about money ("Continue to payment"). Risky
+  /// words ([_risky]) always ask, whatever the task.
+  static bool pressNeedsOk(String label, {required bool moneyPage, String kind = '', bool consent = false, bool readOnly = false,
+      bool cardFields = false}) {
     final l = label.trim();
+    if (consent && isConsentPress(l, inBanner: true)) return false;
     if (_risky.hasMatch(l)) return true;
     if (!moneyPage) return false;
     if (l.isEmpty) return !kind.startsWith('field') && !kind.startsWith('link');
-    return _submitLabel.hasMatch(l);
+    if (!_submitLabel.hasMatch(l)) return false;
+    if (readOnly && !cardFields && !_moneyWords.hasMatch(l)) return false;
+    return true;
   }
 
   /// Pressing Enter / submit in a field on a money page submits the payment form.

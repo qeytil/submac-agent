@@ -14,6 +14,7 @@ import 'events.dart';
 import 'billing/billing_models.dart';
 import 'billing/billing_service.dart';
 import 'house_rules.dart';
+import 'usage_accounting.dart';
 
 /// Where today's allowance stands, in plain terms for the UI.
 class CloudUsage {
@@ -241,11 +242,11 @@ class Cloud {
     Events.I.log('edge_region', props: {'from': region, 'v': region == AppConfig.edgeRegion ? 'pinned' : 'other'});
   }
 
-  /// The server reports today's allowance on every reply.
-  static void readHeaders(Map<String, String> h) {
+  /// The server reports today's allowance on every reply. [filtered]: the request carried pictures or tools (CB-23).
+  static void readHeaders(Map<String, String> h, {bool filtered = false}) {
     _noteRegion(h);
     // How much SubMac can read at once (the smallest healthy route's window, PLAN 1.6): compaction follows it.
-    ContextWindow.note(h['x-submac-window']);
+    ContextWindow.note(h['x-submac-window'], filtered: filtered);
     // Billing (when on): weighted tokens left. Absent with billing off, so nothing changes then.
     Billing.I.noteHeaders(h);
     final bg = double.tryParse(h['x-submac-bg'] ?? '');
@@ -326,6 +327,7 @@ class Cloud {
       _readCalls(j['calls']);
       // Billing block only when the server's billing flag is on; otherwise the wallet stays hidden.
       Billing.I.noteStatus(j['billing']);
+      UsageUnits.noteStatus(j); // CB-20: the billing weights, when the server sends them (defaults otherwise)
       final b = j['background'];
       if (b is Map) {
         background.value = BackgroundShare(

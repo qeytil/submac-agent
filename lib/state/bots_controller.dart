@@ -216,7 +216,16 @@ extension AppStateBots on AppState {
 
   /// Wakes a bot to work on its own. It decides at the end whether to stay silent, keep a note, message or call.
   Future<void> _botWake(Bot b, String reason, String instruction, String kind) async {
-    if (activeProvider == null) return;
+    // CB-46: an alarm can start SubMac before it is ready (no account restored yet). The wake waits a little, and is
+    // otherwise kept and run once SubMac is ready, never dropped without a word.
+    final key = Bots.I.wakeKey(b) ?? '${b.id}|$reason|$instruction';
+    if (!await _awaitWakeReady()) {
+      if (kind != 'chat' && await Bots.I.holdWake(b, key, reason, instruction, kind)) {
+        b.log('note', 'Woken for $reason before SubMac was ready. I will do it as soon as SubMac is ready.');
+        await Bots.I.save();
+      }
+      return;
+    }
     // A check-in that was put off (busy, offline) is still a check-in: it gets the cheap "anything to do?" question
     // first, not a full wake told to "Do this now: Heartbeat check" (BUGHUNT 2026-10-23 #4).
     // A retried one keeps its "(retry)" mark for the outcome, so it is retried once only.
@@ -295,6 +304,43 @@ extension AppStateBots on AppState {
     if (err != null) {
       if (_botWakeConvs[b.convId] == kind) _botWakeConvs.remove(b.convId); // only our own mark
       if (!runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
+    }
+  }
+
+  /// CB-46: a bot wake can run: a model provider and a signed-in account.
+  bool get _wakeReady {
+    if (activeProvider == null) return false;
+    try {
+      return repo.userId != null;
+    } catch (_) {
+      return false; // the account is not set up yet (a cold start)
+    }
+  }
+
+  /// Waits up to [Bots.readyWait] for [_wakeReady].
+  Future<bool> _awaitWakeReady() async {
+    if (_wakeReady) return true;
+    final wait = Bots.readyWait;
+    final step = wait < const Duration(milliseconds: 250) ? wait : const Duration(milliseconds: 250);
+    final until = DateTime.now().add(wait);
+    while (DateTime.now().isBefore(until)) {
+      await Future<void>.delayed(step);
+      if (_wakeReady) return true;
+    }
+    return _wakeReady;
+  }
+
+  /// CB-46: runs the wakes that came before SubMac was ready, once each (at the start, and after signing in).
+  Future<void> _runHeldWakes() async {
+    if (!_wakeReady) return;
+    for (final w in await Bots.I.takeHeldWakes()) {
+      final b = Bots.I.byId(w.bot);
+      if (b == null || !b.active) continue;
+      try {
+        await _botWake(b, w.reason, w.instruction, w.kind);
+      } catch (e) {
+        debugPrint('held wake: $e');
+      }
     }
   }
 
@@ -392,18 +438,10 @@ extension AppStateBots on AppState {
       return;
     }
     final out = BotOutcome.parse(reply);
-    // Where this wake began: everything after it belongs to this wake.
-    final start = list.lastIndexWhere((m) => m.role == 'user' && m.content.startsWith(botWakeMark));
-    if (out.kind == 'silent' || (out.text.isEmpty && out.kind != 'call')) {
+    // CB-17: a silence tag stuck to real words is not silence: the words stay (as a quiet note, no notification).
+    if (out.text.isEmpty && out.kind != 'call') {
       b.log('work', 'Checked in: nothing worth your time.');
-      if (start >= 0) {
-        final gone = list.sublist(start);
-        list.removeRange(start, list.length);
-        _notify();
-        try {
-          await repo.deleteMessages([for (final m in gone) m.id]);
-        } catch (_) {}
-      }
+      await _dropWakeTurn(b.convId);
       await Bots.I.save();
       return;
     }
@@ -598,7 +636,8 @@ extension AppStateBots on AppState {
       source: 'office',
       onDelta: (_) {},
     );
-    if (r.tokens > 0) b.addTokens(r.tokens);
+    final units = UsageUnits.ofResult(r); // CB-20: billing units, as the server counts them
+    if (units > 0) b.addTokens(units);
     unawaited(Bots.I.save());
     return r;
   }
@@ -778,6 +817,8 @@ extension AppStateBots on AppState {
   /// One bot does one piece of office work in its own chat, with all its tools, and posts the result to the office.
   Future<void> _officeRun(Office o, Bot b, OfficeJob j) async {
     _officeBusy.add(b.id);
+    _officeBusyIn[b.id] = o.id;
+    final startedAt = DateTime.now();
     _notify();
     var reserved = j.kind != 'reply';
     void unreserve() {
@@ -837,7 +878,8 @@ extension AppStateBots on AppState {
       // Small talk in the office gets an instant answer in character.
       if (j.kind == 'reply' && QuickLane.laneFor(j.instruction) == QuickLane.quick) {
         final text = await _officeQuick(o, b, j.instruction);
-        if (text.isNotEmpty) Offices.I.post(o, b.id, text);
+        if (Offices.I.stoppedSince(o.id, startedAt)) return; // CB-34: the owner stopped the team meanwhile
+        Offices.I.post(o, b.id, text.isNotEmpty ? text : BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)), kind: text.isNotEmpty ? 'chat' : 'system');
         return;
       }
       final convId = b.convId;
@@ -917,6 +959,12 @@ extension AppStateBots on AppState {
       final mustAnswer = j.kind == 'reply' || j.kind == 'task';
       if (out.text.trim().isEmpty || (out.kind == 'silent' && !mustAnswer)) {
         if (j.kind == 'chief' || j.kind == 'digest' || j.kind == 'mention') await _dropWakeTurn(convId);
+        // CB-37: a direct request that ended with nothing to show says so (it used to leave the owner waiting).
+        if (j.kind == 'reply' && finished && !Offices.I.stoppedSince(o.id, startedAt)) {
+          Offices.I.post(o, 'system', BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)), kind: 'system');
+        }
+      } else if (Offices.I.stoppedSince(o.id, startedAt)) {
+        // CB-34: stopped by the owner; nothing more goes into the team chat.
       } else {
         final visible = BotOutcome.visible(reply);
         final list = _lists[convId];
@@ -962,6 +1010,7 @@ extension AppStateBots on AppState {
       unreserve();
       _officeCtx.remove(b.convId);
       _officeBusy.remove(b.id);
+      _officeBusyIn.remove(b.id);
       Offices.I.saveSoon();
       _notify();
       Future<void>.delayed(const Duration(milliseconds: 300), _officePump);
@@ -984,18 +1033,31 @@ extension AppStateBots on AppState {
   }
 
   /// Removes the latest wake and everything after it from a bot's chat (a check-in with nothing to say).
+  /// Removes a wake that ended with nothing to show (silent, offline, out of allowance). CB-17: only the rows the
+  /// wake wrote itself go (its mark and its own replies and tool results); what the owner typed during the wake, and
+  /// the quick replies to it, stay.
   Future<void> _dropWakeTurn(String convId) async {
+    final wrote = _wakeRows.remove(convId);
     final list = _lists[convId];
     if (list == null) return;
-    final start = list.lastIndexWhere((m) => m.role == 'user' && m.content.startsWith(botWakeMark));
-    if (start < 0) return;
-    final gone = list.sublist(start);
-    list.removeRange(start, list.length);
+    final gone = WakeTurn.rowsToDrop(list, wrote);
+    if (gone.isEmpty) return;
+    final ids = {for (final m in gone) m.id};
+    list.removeWhere((m) => ids.contains(m.id));
     _notify();
     try {
-      await repo.deleteMessages([for (final m in gone) m.id]);
+      await repo.deleteMessages(ids.toList());
     } catch (_) {}
   }
+
+  @visibleForTesting
+  Future<void> botOutcomeForTest(Bot b, String reply, String kind) => _botOutcome(b, reply, kind);
+  @visibleForTesting
+  Future<void> botWakeForTest(Bot b, String reason, String instruction, String kind) => _botWake(b, reason, instruction, kind);
+  @visibleForTesting
+  Future<void> runHeldWakesForTest() => _runHeldWakes();
+  @visibleForTesting
+  Map<String, Set<String>> get wakeRowsForTest => _wakeRows;
 
   /// A one-line instant reply in the office chat, in the bot's own character.
   Future<String> _officeQuick(Office o, Bot b, String text) async {
@@ -1079,17 +1141,22 @@ extension AppStateBots on AppState {
       }
     }
     final task = runs.where((r) => r.convId == convId && !r.side).firstOrNull;
-    if (task != null) {
-      task.inbox.add(text.trim());
-      return;
-    }
     final list = _lists[convId]!;
     final m = ChatMessage(id: _uuid.v4(), role: 'user', content: text.trim());
+    // CB-1: the reply is in the chat (and saved) also when a task is running; the task hears it at its next step, a
+    // final answer already streaming is followed by an answer to it, and a step still waiting restarts to hear it.
     list.add(m);
     try {
       await repo.insertMessage(convId, m);
     } catch (_) {}
     Bots.I.userReplied(convId);
+    if (task != null && !task.cancelled && runs.contains(task)) {
+      task.inbox.add(text.trim());
+      task.status = 'Reading your message';
+      if (task.inModel) task.client?.cancelForSteer();
+      _notify();
+      return;
+    }
     _notifyConvs.add(convId);
     await SystemBridge.I.keepAlive(true, text: 'Replying');
     _notify();

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models.dart' show ChatMessage;
 import 'bot_package.dart';
 import 'bot_powers.dart';
 import 'events.dart';
@@ -64,7 +65,51 @@ class BotRoutine {
     return null;
   }
 
+  /// The latest time this routine was due at or before [at], or null when no day in the last week matches.
+  DateTime? prev(DateTime at) {
+    final p = time.split(':');
+    final h = int.tryParse(p.first) ?? 9, m = p.length > 1 ? int.tryParse(p[1]) ?? 0 : 0;
+    for (var i = 0; i < 9; i++) {
+      final d = DateTime(at.year, at.month, at.day - i, h, m);
+      if (!d.isAfter(at) && _onDay(d)) return d;
+    }
+    return null;
+  }
+
+  /// How long after its time a missed run is still worth doing (CB-21). Later than this it waits for the next one.
+  static const catchUpWindow = Duration(hours: 3);
+
+  /// CB-21: a run missed while SubMac was stopped (phone off, app killed, alarm lost). When the latest slot passed
+  /// less than [catchUpWindow] ago, this routine was already set to this time before that slot ([since]), and it has
+  /// not run for that slot ([lastSlot]), it runs in about a minute. Otherwise null: [next] as usual. A routine made or
+  /// moved after its time today never runs at once.
+  DateTime? catchUp(DateTime now, {DateTime? lastSlot, DateTime? since}) {
+    final s = prev(now);
+    if (s == null || now.difference(s) >= catchUpWindow) return null;
+    if (since == null || !since.isBefore(s)) return null;
+    if (lastSlot != null && !lastSlot.isBefore(s)) return null;
+    return now.add(const Duration(minutes: 1));
+  }
+
+  /// What a run record is valid for: a new time or days starts the routine's history again.
+  String get schedule => '$time|$days';
+
   String describe() => '$time $days: ${kind == 'call' ? '(call) ' : kind == 'message' ? '(message) ' : ''}$instruction';
+}
+
+/// A wake that came before SubMac could run it (CB-46): kept until SubMac is ready, then run once.
+class HeldWake {
+  HeldWake(this.bot, this.key, this.reason, this.instruction, this.kind, this.at);
+  final String bot;
+  /// The alarm's once-per-slot key (CB-35), so the same wake is never held twice.
+  final String key;
+  final String reason;
+  final String instruction;
+  final String kind;
+  final DateTime at;
+  Map<String, dynamic> toJson() => {'bot': bot, 'key': key, 'why': reason, 'do': instruction, 'kind': kind, 'at': at.toUtc().toIso8601String()};
+  static HeldWake fromJson(Map<String, dynamic> j) => HeldWake('${j['bot']}', '${j['key']}', '${j['why'] ?? ''}', '${j['do'] ?? ''}',
+      '${j['kind'] ?? 'work'}', DateTime.tryParse('${j['at']}')?.toLocal() ?? DateTime.now());
 }
 
 class BotFollowup {
@@ -475,6 +520,25 @@ class Bot {
 }
 
 /// The interruption a wake ended with.
+/// The rows of a bot wake that ended with nothing to show (CB-17).
+class WakeTurn {
+  WakeTurn._();
+
+  /// The rows to remove: the wake's own mark and the rows the wake run wrote ([wrote], tracked by the runner).
+  /// Rows the owner typed during the wake, and the quick side replies to them, always stay. When the wake's rows are
+  /// unknown (null), everything after the mark goes only if nobody else wrote there; otherwise just the mark goes.
+  static List<ChatMessage> rowsToDrop(List<ChatMessage> list, Set<String>? wrote) {
+    final start = list.lastIndexWhere((m) => m.role == 'user' && m.content.startsWith(botWakeMark));
+    if (start < 0) return const [];
+    final after = list.sublist(start + 1);
+    if (wrote == null) {
+      final ownerSpoke = after.any((m) => m.role == 'user' && !m.content.startsWith(botWakeMark));
+      return ownerSpoke ? [list[start]] : list.sublist(start);
+    }
+    return [list[start], ...after.where((m) => wrote.contains(m.id))];
+  }
+}
+
 class BotOutcome {
   BotOutcome(this.kind, this.text);
   /// silent | note | message | call
@@ -593,6 +657,9 @@ class Bots extends ChangeNotifier {
   /// Drafts the Chief showed in a chat, waiting for the owner's yes (convId → spec).
   final Map<String, Map<String, dynamic>> _drafts = {};
 
+  /// Every chat was deleted: drafts shown there can no longer be approved.
+  void forgetDrafts() => _drafts.clear();
+
   /// Wakes a bot (set by AppState): [reason] says why, [instruction] what to do, [kind] work | message | call.
   Future<void> Function(Bot bot, String reason, String instruction, String kind)? onWake;
 
@@ -656,6 +723,7 @@ class Bots extends ChangeNotifier {
   Future<void> init() async {
     _p = await SharedPreferences.getInstance();
     await BotTemplates.loadPacks();
+    _loadRuns();
     bots.clear();
     try {
       for (final e in jsonDecode(_p!.getString('bots_v1') ?? '[]') as List) {
@@ -806,6 +874,112 @@ class Bots extends ChangeNotifier {
 
   static String alarmId(Bot b, String what) => 'bot|${b.id}|$what';
 
+  // ---------------------------------------------------------------- routine runs (CB-35, CB-21) and held wakes (CB-46)
+
+  /// Tests: the clock routines are armed and fired by.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
+
+  /// How long a wake waits for SubMac to be ready (a cold start by an alarm) before it is held for later (CB-46).
+  static Duration readyWait = const Duration(seconds: 10);
+
+  static const _runsKey = 'bot_routine_runs_v1';
+  static const _heldKey = 'bot_held_wakes_v1';
+
+  /// Per routine ('<bot>|<routine>'): the slot it last ran for ('slot', local 'YYYY-MM-DDTHH:MM'), when it ran ('at'),
+  /// and since when it has had its current time and days ('since', 'sch'). Kept on the phone only.
+  final Map<String, Map<String, dynamic>> _runs = {};
+
+  /// When each routine alarm was last set for (null = cancelled), as [arm] set it.
+  final Map<String, DateTime?> _routineAlarms = {};
+
+  @visibleForTesting
+  DateTime? routineAlarmAt(String alarm) => _routineAlarms[alarm];
+
+  /// The once-per-slot key of the wake each bot is being woken for right now (read by the wake as it starts).
+  final Map<String, String> _wakeKeys = {};
+
+  static String _minute(DateTime d) => d.toIso8601String().substring(0, 16);
+
+  /// CB-35: the key of one run of a routine, 'routineId|scheduled-minute'.
+  static String slotKey(BotRoutine r, DateTime slot) => '${r.id}|${_minute(slot)}';
+
+  void _loadRuns() {
+    _runs.clear();
+    try {
+      final m = jsonDecode(_p?.getString(_runsKey) ?? '{}') as Map;
+      m.forEach((k, v) => _runs['$k'] = Map<String, dynamic>.from(v as Map));
+    } catch (_) {}
+  }
+
+  Future<void> _saveRuns() async => _p?.setString(_runsKey, jsonEncode(_runs));
+
+  /// When this routine last ran on this phone (null: never, or not since this was kept).
+  DateTime? lastRunAt(Bot b, BotRoutine r) => DateTime.tryParse('${_runs['${b.id}|${r.id}']?['at']}')?.toLocal();
+
+  DateTime? _lastSlot(Bot b, BotRoutine r) => DateTime.tryParse('${_runs['${b.id}|${r.id}']?['slot']}');
+
+  /// Since when [r] has had its current time and days; starts now the first time it is seen or after it changed.
+  DateTime? _since(Bot b, BotRoutine r, DateTime now) {
+    final k = '${b.id}|${r.id}';
+    final rec = _runs[k];
+    if (rec != null && rec['sch'] == r.schedule) return DateTime.tryParse('${rec['since']}')?.toLocal();
+    _runs[k] = {'since': now.toUtc().toIso8601String(), 'sch': r.schedule};
+    return now;
+  }
+
+  /// CB-35: claims this routine's current slot before anything awaits. False when that slot already ran or is running
+  /// (the same alarm delivered twice, at once or later): the second delivery does nothing at all.
+  bool _claimSlot(Bot b, BotRoutine r, DateTime now) {
+    // A little early is still this slot (an exact alarm can land a moment before its minute).
+    final slot = r.prev(now.add(const Duration(minutes: 2)));
+    if (slot == null) return false;
+    final k = '${b.id}|${r.id}';
+    final rec = _runs[k];
+    if (rec != null && rec['slot'] == _minute(slot)) return false;
+    _runs[k] = {...?rec, 'slot': _minute(slot), 'at': now.toUtc().toIso8601String()};
+    if (rec == null || rec['sch'] != r.schedule) {
+      _runs[k]!['sch'] = r.schedule;
+      _runs[k]!['since'] = now.toUtc().toIso8601String();
+    }
+    _wakeKeys[b.id] = '${b.id}|${slotKey(r, slot)}';
+    return true;
+  }
+
+  /// The once-per-slot key of the wake [b] is starting now, if an alarm started it.
+  String? wakeKey(Bot b) => _wakeKeys[b.id];
+
+  /// CB-46: keeps a wake SubMac could not run yet. False when the same wake is already held.
+  Future<bool> holdWake(Bot b, String key, String reason, String instruction, String kind) async {
+    final held = _held();
+    if (held.any((w) => w.key == key)) return false;
+    held.add(HeldWake(b.id, key, reason, instruction, kind, clock()));
+    while (held.length > 20) {
+      held.removeAt(0);
+    }
+    await _p?.setString(_heldKey, jsonEncode([for (final w in held) w.toJson()]));
+    return true;
+  }
+
+  List<HeldWake> _held() {
+    try {
+      return [for (final e in jsonDecode(_p?.getString(_heldKey) ?? '[]') as List) HeldWake.fromJson(Map<String, dynamic>.from(e as Map))];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// The held wakes, taken (each runs once). Empty until the bots are loaded.
+  Future<List<HeldWake>> takeHeldWakes() async {
+    if (_p == null) return const [];
+    final held = _held();
+    if (held.isNotEmpty) await _p!.remove(_heldKey);
+    return held;
+  }
+
+  @visibleForTesting
+  List<HeldWake> get heldForTest => _held();
+
   Future<void> armAll() async {
     for (final b in bots) {
       await arm(b);
@@ -815,14 +989,26 @@ class Bots extends ChangeNotifier {
   /// Sets the next alarm for each routine, follow-up and the heartbeat.
   Future<void> arm(Bot b) async {
     final now = DateTime.now();
+    final rNow = clock();
+    var runsChanged = false;
     for (final r in b.routines) {
-      final n = r.next(now);
-      if (b.active && n != null && !_cloud(b, r.id)) {
+      final owned = b.active && !_cloud(b, r.id);
+      DateTime? n;
+      if (owned) {
+        // CB-21: a run missed while SubMac was stopped is caught up in a minute (within a few hours of its time).
+        final had = _runs['${b.id}|${r.id}']?['sch'] == r.schedule;
+        final since = _since(b, r, rNow);
+        if (!had) runsChanged = true;
+        n = r.catchUp(rNow, lastSlot: _lastSlot(b, r), since: since) ?? r.next(rNow);
+      }
+      _routineAlarms[alarmId(b, r.id)] = n;
+      if (n != null) {
         await SystemBridge.I.scheduleAlarm(alarmId(b, r.id), n);
       } else {
         await SystemBridge.I.cancelAlarm(alarmId(b, r.id));
       }
     }
+    if (runsChanged) await _saveRuns();
     for (final f in List.of(b.followups)) {
       if (!b.active || _cloud(b, f.id)) {
         await SystemBridge.I.cancelAlarm(alarmId(b, f.id));
@@ -1022,15 +1208,38 @@ class Bots extends ChangeNotifier {
     }
     final r = b.routines.where((e) => e.id == what).firstOrNull;
     if (r != null) {
+      // CB-35: once per slot. Claimed before the first await, so two deliveries at once wake the bot once, and a late
+      // redelivery (Android can repeat an exact alarm) neither runs the routine again nor queues a follow-up.
+      final now = clock();
+      if (!_claimSlot(b, r, now)) {
+        await arm(b);
+        return false;
+      }
+      final key = _wakeKeys[b.id]!;
+      final slot = r.prev(now.add(const Duration(minutes: 2)))!;
+      await _saveRuns();
       await arm(b);
-      await onWake?.call(b, 'routine (${r.time} ${r.days})', r.instruction, r.kind);
+      final late = now.difference(slot) > const Duration(minutes: 5);
+      _wakeKeys[b.id] = key;
+      try {
+        await onWake?.call(b, late ? 'routine (${r.time} ${r.days}, caught up: SubMac was stopped at ${r.time})' : 'routine (${r.time} ${r.days})',
+            r.instruction, r.kind);
+      } finally {
+        if (_wakeKeys[b.id] == key) _wakeKeys.remove(b.id);
+      }
       return true;
     }
     final f = b.followups.where((e) => e.id == what).firstOrNull;
     if (f != null) {
       b.followups.remove(f);
       await save();
-      await onWake?.call(b, 'follow-up you set', f.instruction, f.kind);
+      final key = '${b.id}|${f.id}';
+      _wakeKeys[b.id] = key;
+      try {
+        await onWake?.call(b, 'follow-up you set', f.instruction, f.kind);
+      } finally {
+        if (_wakeKeys[b.id] == key) _wakeKeys.remove(b.id);
+      }
       return true;
     }
     return false;

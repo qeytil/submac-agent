@@ -13,6 +13,7 @@ import 'motion.dart';
 import 'sub_icon.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
+import '../services/reply_text.dart' show majorityDir;
 
 /// Markdown that renders block by block. Finished blocks keep their widgets, so a long reply that is
 /// still streaming only re-lays out its last paragraph; a very long last block (a big code sample)
@@ -66,7 +67,13 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
       }
       // Streaming text fades in as it arrives (no letter-by-letter typing): each block keeps one FadeAppend, which
       // lays the grown text over the old and fades only the new words in. A block that starts mid-stream fades in too.
-      final w = FadeAppend(key: ValueKey('md-$i'), text: c, fadeFirst: widget.live && i >= _texts.length, child: MarkdownView(c));
+      // Each paragraph takes its own direction (CB-9): an Arabic paragraph in a Somali reply reads right to left, and the
+      // reverse, instead of the whole reply following its first letter.
+      final w = FadeAppend(
+          key: ValueKey('md-$i'),
+          text: c,
+          fadeFirst: widget.live && i >= _texts.length,
+          child: Directionality(textDirection: majorityDir(c), child: MarkdownView(c)));
       if (i < _texts.length) {
         _texts[i] = c;
         _widgets[i] = w;

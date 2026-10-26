@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'agent/core.dart';
 import 'agent/reply_schema.dart';
+import 'services/error_copy.dart';
 import 'services/choices.dart';
 import 'agent/run_journal.dart';
 import 'package:flutter/services.dart';
@@ -30,6 +31,7 @@ import 'services/setup_tools.dart';
 import 'services/projects.dart';
 import 'services/cloud.dart';
 import 'services/llm_client.dart';
+import 'services/usage_accounting.dart';
 import 'services/local_store.dart';
 import 'services/repo.dart';
 import 'services/device_access.dart';
@@ -42,6 +44,7 @@ import 'services/mcp_client.dart';
 import 'services/memory_store.dart';
 import 'services/phone_tools.dart';
 import 'services/rate_limiter.dart';
+import 'services/paste_guard.dart';
 import 'services/web_tools.dart';
 import 'services/browser_agent.dart';
 import 'services/browser_jobs.dart';
@@ -75,22 +78,29 @@ import 'services/doc_maker.dart';
 import 'services/life_tools.dart';
 import 'services/quick_lane.dart';
 import 'services/offices.dart';
+import 'services/bot_status.dart';
+import 'services/bot_manner.dart';
 import 'services/team_run.dart';
 import 'widgets/chat/reply_quote.dart' show ReplyRef, ReplyCodec;
+import 'widgets/composer.dart' show Composer;
 import 'services/roles.dart';
 import 'services/full_access.dart';
 import 'services/trust.dart';
 import 'services/context_window.dart';
 import 'services/image_once.dart';
 import 'services/photo_prep.dart';
+import 'services/vision_follow_up.dart';
 import 'services/send_gate.dart';
 import 'services/session_rules.dart';
 import 'services/stream_policy.dart';
+import 'services/search_budget.dart';
+import 'services/answer_inline.dart';
 import 'services/sites.dart';
 import 'services/tool_scope.dart';
 import 'services/agent_loop.dart';
 import 'services/constraints.dart';
 import 'services/house_rules.dart';
+import 'services/outbound_guard.dart';
 import 'widgets/chat_logic.dart' show dropRepeatPageCards;
 
 part 'state/agent_prompt.dart';
@@ -283,6 +293,10 @@ class AppState extends ChangeNotifier {
   /// Bot chats with a wake running now (and the kind of wake).
   final Map<String, String> _botWakeConvs = {};
 
+  /// CB-17: the rows the running (or just finished) wake in each bot chat wrote itself. A silent wake removes only
+  /// these, never what the owner typed meanwhile or the quick replies to it.
+  final Map<String, Set<String>> _wakeRows = {};
+
   /// Where the phone's Back goes from a bot's chat: the chat that was open before the first bot chat
   /// (null = a new chat). Set only while a bot chat is open (see backFromBotChat).
   String? _backFromBot;
@@ -321,6 +335,8 @@ class AppState extends ChangeNotifier {
   final Map<String, String> _officeCtx = {};
   /// Bots running an office job now.
   final Set<String> _officeBusy = {};
+  /// The office each of those bots works for (CB-34: a team's "stop" reaches its members' reply jobs).
+  final Map<String, String> _officeBusyIn = {};
   /// Office sessions the pump started that have not counted themselves in runsToday yet, by office: the daily limit
   /// counts them too, so two jobs started in one pass never go one past it.
   final Map<String, int> _officeStarting = {};
@@ -468,8 +484,19 @@ class AppState extends ChangeNotifier {
   /// One run per chat, claimed at the top of send() before any await (PLAN 1.4).
   final SendGate _sendGate = SendGate();
 
+  /// CB-22: chats whose "Try again" is removing the old reply and has not started its run yet. Claimed synchronously,
+  /// so a second tap in the same frame does nothing.
+  final Set<String> _regenerating = {};
+
+  /// Test seam: when set, _runAgent registers the run (guards included) and then runs this instead of the model loop.
+  @visibleForTesting
+  static Future<void> Function(AppState app, AgentRun run)? debugRunAgent;
+
   /// Each picture goes to the model once; later steps get a one-line note (PLAN 1.4).
   final ImageOnce _imagesOnce = ImageOnce();
+
+  /// CB-23: the picture keys the request being built carries again (a follow-up about the latest photo).
+  Set<String> _visionAgain = const {};
 
   /// How long each finished task worked, by the id of its final reply ("Worked for 1m 12s"). This session only.
   final Map<String, Duration> workedFor = {};
@@ -946,6 +973,9 @@ class AppState extends ChangeNotifier {
   String livePromptForTest() => _liveBasePrompt(null);
   @visibleForTesting
   List<Map<String, dynamic>> payloadForTest(List<ChatMessage> list, {String? convId}) => _payload(list, convId: convId);
+  /// The step built last for [convId] got its answer (what the runner does after a model call).
+  @visibleForTesting
+  void imagesSentForTest(String convId) => _imagesOnce.commit(convId);
   @visibleForTesting
   Map<String, List<ChatMessage>> get listsForTest => _lists;
   @visibleForTesting
@@ -1033,6 +1063,7 @@ class AppState extends ChangeNotifier {
     'browser_task': 'Opening the browser',
     'schedule_task': 'Setting it up',
     'email_send': 'Writing the email',
+    'email_draft': 'Writing the email',
     'whatsapp': 'Opening WhatsApp',
     'read_pdf': 'Reading the PDF',
     'get_weather': 'Checking the weather',
@@ -1140,6 +1171,10 @@ class AgentRun {
   Constraints must = Constraints.none;
   /// Drops in a row continued with "continue" (reset when a step finishes): at most 2 per step (PLAN 1.3).
   int dropsInRow = 0;
+  /// CB-38: searches that came back empty or Wikipedia-only, and read-only browser tasks, in this task.
+  final SearchBudget search = SearchBudget();
+  /// CB-39: fix rounds spent asking for a file-only reply to be written in the chat.
+  int inlineFixes = 0;
   /// The first step's payload has been built: a message sent now reaches the task through its inbox.
   bool payloadBuilt = false;
 
@@ -1196,6 +1231,13 @@ class AgentRun {
     client?.cancel();
     onStop?.call();
   }
+
+  /// CB-17: ids of the chat rows this run added itself (its replies, tool results and says).
+  final Set<String> wrote = {};
+
+  /// Completes when the run has fully ended (its last write is done), so delete-all can wait for it (CB-18).
+  final Completer<void> finished = Completer<void>();
+  Future<void> get whenFinished => finished.future;
 }
 
 /// Something a running task needs from the user.
@@ -1252,8 +1294,8 @@ class ToolGate {
   final Office? office;
   final bool whatsapp;
 
-  /// What the model reads when the user said no.
-  final String refusal;
+  /// What the model reads when the user said no (or, set by presentApproval, when nobody answered in time).
+  String refusal;
   final ActionRequest? req;
 
   /// The interrupt data the agent core carries for this ask (also written to the run journal).

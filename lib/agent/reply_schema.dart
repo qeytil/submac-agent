@@ -177,11 +177,29 @@ class ReplySchema {
     }
   }
 
+  /// Two or more markdown table rows in a row with no separator line under any of them: a table's body without its
+  /// header (CB-10). Checked only where [_mdTable] found no real table.
+  static bool _bareRows(String text) {
+    var run = 0;
+    for (final l in text.split('\n')) {
+      if (_sep.hasMatch(l)) return false;
+      if (_row.hasMatch(l) && '|'.allMatches(l).length >= 3) {
+        if (++run >= 2) return true;
+      } else {
+        run = 0;
+      }
+    }
+    return false;
+  }
+
   /// The problems in a reply, in plain words the model can act on. Empty = valid.
   static List<String> problems(String reply) {
     final out = <String>[];
     if (_mdTable.hasMatch(_outsideFences(reply))) {
       out.add('It has a markdown table (| a | b |). Use a ```table card with JSON {"title","columns":[...],"rows":[[...]]} instead.');
+    } else if (_bareRows(_outsideFences(reply))) {
+      // CB-10: the rest of a table cut off by the length limit (rows without their header) shows as raw "| a | b |".
+      out.add('It has table rows without a header (| a | b | lines). Put the whole table in one ```table card with JSON {"title","columns":[...],"rows":[[...]]}.');
     }
     for (final b in parse(reply)) {
       if (b.type == 'text') continue;
@@ -285,7 +303,7 @@ class ReplySchema {
       final l = lines[i];
       if (RegExp(r'^\s{0,3}(```|~~~)').hasMatch(l)) inside = !inside;
       if (!inside && _row.hasMatch(l) && i + 1 < lines.length && _sep.hasMatch(lines[i + 1])) {
-        List<String> cells(String row) => _row.firstMatch(row)!.group(1)!.split('|').map((c) => c.trim().replaceAll(RegExp(r'\*\*'), '')).toList();
+        List<String> cells(String row) => tableCells(_row.firstMatch(row)!.group(1)!).map((c) => c.replaceAll(RegExp(r'\*\*'), '')).toList();
         final cols = cells(l);
         final rows = <List<String>>[];
         var k = i + 2;
@@ -294,7 +312,11 @@ class ReplySchema {
           while (c.length < cols.length) {
             c.add('');
           }
-          rows.add(c.take(cols.length).toList());
+          // More cells than columns: the extra ones join the last cell, so no words are lost (CB-11b).
+          if (c.length > cols.length && cols.isNotEmpty) {
+            c.replaceRange(cols.length - 1, c.length, [c.sublist(cols.length - 1).join(' | ')]);
+          }
+          rows.add(c);
           k++;
         }
         out
@@ -307,6 +329,31 @@ class ReplySchema {
       out.add(l);
     }
     return out.join('\n');
+  }
+
+  /// The cells of one markdown table row (without its outer pipes). A pipe splits only when it is not escaped (\|) and
+  /// not inside `inline code` (CB-11b: `a \| b` cut the row and the last cell was dropped). Escaped pipes become |.
+  static List<String> tableCells(String inner) {
+    final out = <String>[];
+    final cur = StringBuffer();
+    var code = false;
+    for (var i = 0; i < inner.length; i++) {
+      final ch = inner[i];
+      if (ch == '\\' && i + 1 < inner.length && inner[i + 1] == '|') {
+        cur.write('|');
+        i++;
+        continue;
+      }
+      if (ch == '`') code = !code;
+      if (ch == '|' && !code) {
+        out.add(cur.toString().trim());
+        cur.clear();
+        continue;
+      }
+      cur.write(ch);
+    }
+    out.add(cur.toString().trim());
+    return out;
   }
 
   /// The note that sends an invalid reply back.

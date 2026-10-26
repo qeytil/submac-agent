@@ -151,6 +151,9 @@ extension AppStateTools on AppState {
     // Read-only apps (plan 4): a change is refused outright, even with Full access on.
     final roMsg = _readOnlyBlock(name, args);
     if (roMsg != null) return ToolGate.blocked(roMsg);
+    // CB-42: a send never drives the mail app, and taps or typing in another app wait for the draft's OK in the chat.
+    final outMsg = _outboundBlock(name, args, convId);
+    if (outMsg != null) return ToolGate.blocked(outMsg);
     final worker = Bots.I.byConv(convId);
     final office = _officeCtx[convId] == null ? null : Offices.I.byId(_officeCtx[convId]!);
     // WhatsApp: every message, file and call to someone needs the user's OK, even with Full access on or a Trusted bot,
@@ -207,17 +210,34 @@ extension AppStateTools on AppState {
       return ok;
     }
     if (confirmCallback == null) return false;
+    // CB-42 / CB-44: an approval nobody answers no longer holds the task forever. A read-only task (look up, compare,
+    // price) waits a minute and then answers from what it found; any other task ends with what is still waiting.
+    final readOnly = _readOnlyTask(name, convId);
+    final limit = OutboundGuard.waitFor(readOnly: readOnly);
+    final asked = DateTime.now();
     if (!g.whatsapp && BrowserAgent.names.contains(name) && convId != null && appVisible && currentId == convId && BrowserJobs.I.cardVisible(convId)) {
       // The browser card is on screen: the approval appears on it, as an inline form (same rules, same answer).
-      final r = await BrowserJobs.I.askInline(convId, title: req.title, detail: req.detail, money: kind == 'money');
+      final r = await BrowserJobs.I.askInline(convId, title: req.title, detail: req.detail, money: kind == 'money', limit: limit);
       ok = r.ok;
       req.allowAlways = r.always;
+      if (!ok && DateTime.now().difference(asked) >= limit) req.timedOut = true;
     } else {
       // Outside SubMac while this chat drives the screen: ask in the floating bubble. Otherwise the question needs
-      // the screen: bring SubMac up if it's in the background (floating Live).
-      final viaBubble = await TaskBubble.I.confirm(req, convId);
-      ok = viaBubble ?? await _confirmInApp(req, convId);
+      // the screen: bring SubMac up if it's in the background (floating Live), with a notification that opens it.
+      Future<bool> show() async => await TaskBubble.I.confirm(req, convId) ?? await _confirmInApp(req, convId);
+      ok = await show().timeout(limit, onTimeout: () {
+        req.timedOut = true;
+        TaskBubble.I.dropConfirm(req);
+        confirmQueue.closeFor(req);
+        return false;
+      });
     }
+    if (req.timedOut) {
+      g.refusal = OutboundGuard.noAnswer(readOnly: readOnly);
+      return false;
+    }
+    // A send the user approved in the chat (they saw its words): taps and typing for this request may go on.
+    if (ok && kind == 'send' && convId != null) OutboundGuard.approve(convId, _goalOf(convId));
     if (worker != null) unawaited(Bots.I.recordAnswer(worker, approved: ok, edited: req.edit?.edited == true || req.wantsChange));
     // "Allow always" turns on Full access; money never does (WhatsApp's Allow always is honoured the same way).
     if (ok && req.allowAlways && kind != 'money' && kind != FullAccess.alwaysAskKind) unawaited(FullAccess.I.set(true));
@@ -267,7 +287,9 @@ extension AppStateTools on AppState {
   Future<bool> _confirmInApp(ActionRequest req, String? convId) {
     final cb = confirmCallback;
     if (cb == null) return Future<bool>.value(false);
-    return confirmQueue.run(convId, () async {
+    return confirmQueue.run(convId, token: req, () async {
+      // Nobody answered while it waited its turn: the task has already moved on.
+      if (req.timedOut) return false;
       if (convId != null && convId != currentId) {
         final c = conversations.where((c) => c.id == convId).firstOrNull;
         req.where = Bots.I.byConv(convId)?.name ?? c?.title ?? '';
@@ -275,10 +297,74 @@ extension AppStateTools on AppState {
       } else {
         req.where = '';
       }
-      if (!appVisible) await SystemBridge.I.bringToFront();
+      // CB-42: SubMac is in the background (another app is in front, e.g. one a task opened): a high-priority
+      // notification says an OK is waiting and opens SubMac on the sheet, so the ask is never hidden.
+      int? note;
+      if (!appVisible) {
+        note = 9600 + ((convId ?? 'none').hashCode % 90).abs();
+        await OutboundGuard.notify(id: note, title: 'SubMac needs your OK', body: 'Needs your OK: ${req.title}', payload: convId == null ? '' : 'conv/$convId');
+        await SystemBridge.I.bringToFront();
+      }
       HapticFeedback.lightImpact(); // SubHaptics.attention (part file)
-      return cb(req);
+      try {
+        return await cb(req);
+      } finally {
+        if (note != null) unawaited(OutboundGuard.cancelNotice(note));
+      }
     });
+  }
+
+  /// The request this chat's task is working on: the user's newest message there.
+  String _goalOf(String convId) {
+    final list = _lists[convId];
+    if (list == null) return '';
+    for (final m in list.reversed) {
+      if (m.role == 'user') return m.content;
+    }
+    return '';
+  }
+
+  /// The task behind this approval only looks things up (its browser task's goal, or the chat's request).
+  bool _readOnlyTask(String name, String? convId) {
+    if (BrowserAgent.names.contains(name)) {
+      final id = BrowserAgent.jobNow;
+      final job = id == null ? null : BrowserJobs.I.jobs.where((j) => j.id == id).firstOrNull;
+      if (job != null) return PageRisk.readOnlyGoal(job.goal);
+    }
+    return convId != null && PageRisk.readOnlyGoal(_goalOf(convId));
+  }
+
+  /// CB-42: why this call may not run for a send request, or null. A send never opens the mail app to type and press
+  /// Send in it; and until the user approved the draft in this chat, taps and typing in another app wait.
+  String? _outboundBlock(String name, Map<String, dynamic> args, String? convId) {
+    if (convId == null || convId.isEmpty) return null;
+    if (name != 'open_app' && name != 'phone_tap' && name != 'phone_type') return null;
+    final goal = _goalOf(convId);
+    if (!OutboundGuard.isSendGoal(goal)) return null;
+    if (name == 'open_app') {
+      if (!OutboundGuard.isMailApp('${args['name'] ?? ''}')) return null;
+      return OutboundGuard.mailAppNote(connected: ConnectorCatalog.connectedEmails().isNotEmpty);
+    }
+    if (OutboundGuard.isApproved(convId, goal)) return null;
+    return OutboundGuard.draftFirstNote;
+  }
+
+  /// CB-42: an email with no mail account connected is a draft card in the chat. Its Send button opens the phone's mail
+  /// app with everything filled in (a mailto: compose intent); the user presses send there.
+  Future<String> _emailDraftTool(Map<String, dynamic> a, String? convId) async {
+    final body = '${a['body'] ?? ''}'.trim();
+    if (body.isEmpty) return 'Error: no body. Write the whole email in "body".';
+    final card = OutboundGuard.draftCard(to: '${a['to'] ?? ''}', cc: '${a['cc'] ?? ''}', subject: '${a['subject'] ?? ''}', body: body);
+    final cid = convId ?? currentId ?? '';
+    if (_lists[cid] == null) {
+      return 'Show this draft to the user in your reply, exactly as a ```draft block, and say its Send button opens their '
+          'mail app filled in:\n```draft\n$card\n```';
+    }
+    OutboundGuard.shown(cid, _goalOf(cid), card);
+    await _sayIn(cid, '```draft\n$card\n```');
+    return 'The draft is on the user\'s screen as a card in this chat. Its Send button opens their mail app with '
+        'everything filled in, and they press send there themselves. Do not open the mail app or any other app, and do '
+        'not tap or type anything to send it. Do not repeat the draft: reply in one short line that it is ready above.';
   }
 
   Future<String> _runToolAfterChecks(String name, Map<String, dynamic> args, {String? callId, String? convId}) async {
@@ -305,6 +391,7 @@ extension AppStateTools on AppState {
     if (name == 'generate_image') return _generateImage(args);
     if (name == 'generate_video') return _generateVideo(args);
     if (name == 'ask_user') return _askUserTool(args, convId);
+    if (name == OutboundGuard.draftTool) return _emailDraftTool(args, convId);
     if (name == 'sites') return _sitesTool(args);
     if (name == 'projects') return _projectsTool(args, convId);
     if (name == 'connect_app') return requestConnect('${args['app'] ?? ''}', why: '${args['why'] ?? ''}', convId: convId);
@@ -563,6 +650,10 @@ extension AppStateTools on AppState {
       site: BrowserAgent.jobNow != null ? 'browser' : '',
     ));
     if (r == null) return 'The user skipped this question. Carry on without it or ask what they prefer.';
+    // CB-42: "Send it" to the draft shown in this question approves the send, so the other app may be used now.
+    final cid = convId ?? currentId ?? '';
+    final goal = cid.isEmpty ? '' : _goalOf(cid);
+    if (OutboundGuard.isSendGoal(goal) && OutboundGuard.saysYes(r['answer'] ?? '')) OutboundGuard.approve(cid, goal);
     return 'User answered: ${r['answer'] ?? ''}';
   }
 
@@ -622,7 +713,7 @@ extension AppStateTools on AppState {
       // Browser presses: the decision uses the task's own latest view (labels, and whether it is a payment page).
       final job = BrowserAgent.jobNow;
       final page = BrowserAgent.I.snapFor(job);
-      final g = BrowserGate.check(name, args, BrowserAgent.I.labelsFor(job), page);
+      final g = BrowserGate.check(name, args, BrowserAgent.I.labelsFor(job), page, readOnly: _readOnlyTask(name, null));
       if (g == null) return null;
       return ActionRequest(
         title: g.title,

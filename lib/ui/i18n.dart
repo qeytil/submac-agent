@@ -244,6 +244,13 @@ class Strings {
       'Files and code': 'Faylasha iyo koodhka',
       'Connected apps and email': 'Barnaamijyada ku xiran iyo iimaylka',
       'Search, read pages, weather, maps, Wikipedia': 'Raadi, akhri bogag, cimilada, khariidado, Wikipedia',
+      // Telegram (CB-25)
+      'Send {code} to @{bot} to link your chat.': 'U dir {code} @{bot} si aad sheekadaada ugu xirto.',
+      'The token was rejected. Paste a new one.': 'Furaha (token) waa la diiday. Mid cusub ku dheji.',
+      'Reconnecting to Telegram…': 'Telegram ayaan dib ugu xirmayaa…',
+      'Linked with {name}.': 'Waxaa lagu xiray {name}.',
+      'Telegram did not accept that token. Copy it again from @BotFather.': 'Telegram ma aqbalin furahaas. Mar kale ka koobi garee @BotFather.',
+      "Telegram isn't answering. Check the bot token and your internet, then try again.": 'Telegram ma jawaabayo. Hubi furaha botka iyo internetkaaga, kadibna isku day mar kale.',
       'Open sites, sign in, fill forms, shop': 'Fur bogag, gal, buuxi foomam, wax iibso',
       'Read texts and notifications, tap the screen, call or text': 'Akhri fariimaha iyo ogeysiisyada, taabo shaashadda, wac ama fariin dir',
       'Read and write files, make documents, pictures and sounds': 'Akhri oo qor faylal, samee dukumentiyo, sawirro iyo codad',
@@ -387,6 +394,7 @@ class Strings {
       // Bug hunt (v1.13.102): keys used but missing, and banners with {holes}. Need a native read.
       'Copy': 'Koobiyee',
       'Copied': 'Waa la koobiyeeyay',
+      'SubMac is still answering. Stop it first, then edit your message.': 'SubMac weli wuu jawaabayaa. Marka hore jooji, kadibna wax ka beddel fariintaada.',
       'Reply': 'Ka jawaab',
       'Select text': 'Dooro qoraalka',
       'Skills': 'Xirfadaha',
@@ -395,6 +403,7 @@ class Strings {
           'Waa la hakiyay ka dib {n} tallaabo, inta ugu badan ee hal hawl. Dir "continue" si ay u sii socoto.',
       'Task finished in "{chat}".': 'Hawshu waxay ku dhammaatay "{chat}".',
       'another chat': 'sheeko kale',
+      'A task in {chat} is waiting for you': 'Hawl ku jirta {chat} ayaa ku sugaysa',
       "Voice calls aren't available right now. Message {name} instead.": 'Wicitaannada codka hadda lama heli karo. U qor {name} fariin.',
       'The team task used its step budget for this round, so it paused. Send "continue" to keep going.':
           'Hawsha kooxda waxay dhammaysay tallaabooyinkii wareeggan, sidaas darteed way hakatay. Dir "continue" si ay u sii socoto.',
@@ -555,6 +564,13 @@ class Strings {
       'Files and code': 'الملفات والبرمجة',
       'Connected apps and email': 'التطبيقات المتصلة والبريد',
       'Search, read pages, weather, maps, Wikipedia': 'البحث وقراءة الصفحات والطقس والخرائط وويكيبيديا',
+      // Telegram (CB-25)
+      'Send {code} to @{bot} to link your chat.': 'أرسل {code} إلى @{bot} لربط محادثتك.',
+      'The token was rejected. Paste a new one.': 'تم رفض الرمز. الصق رمزًا جديدًا.',
+      'Reconnecting to Telegram…': 'جارٍ إعادة الاتصال بتيليجرام…',
+      'Linked with {name}.': 'تم الربط مع {name}.',
+      'Telegram did not accept that token. Copy it again from @BotFather.': 'لم يقبل تيليجرام هذا الرمز. انسخه مرة أخرى من @BotFather.',
+      "Telegram isn't answering. Check the bot token and your internet, then try again.": 'تيليجرام لا يستجيب. تحقق من رمز البوت واتصالك بالإنترنت، ثم حاول مرة أخرى.',
       'Open sites, sign in, fill forms, shop': 'فتح المواقع وتسجيل الدخول وملء النماذج والتسوق',
       'Read texts and notifications, tap the screen, call or text': 'قراءة الرسائل والإشعارات ولمس الشاشة والاتصال أو المراسلة',
       'Read and write files, make documents, pictures and sounds': 'قراءة الملفات وكتابتها وإنشاء المستندات والصور والأصوات',
@@ -698,6 +714,7 @@ class Strings {
       // Bug hunt (v1.13.102): keys used but missing, and banners with {holes}. Need a native read.
       'Copy': 'نسخ',
       'Copied': 'تم النسخ',
+      'SubMac is still answering. Stop it first, then edit your message.': 'لا يزال SubMac يجيب. أوقفه أولاً، ثم عدّل رسالتك.',
       'Reply': 'رد',
       'Select text': 'تحديد النص',
       'Skills': 'المهارات',
@@ -706,6 +723,7 @@ class Strings {
           'توقفت بعد {n} خطوة، وهو الحد الأقصى لمهمة واحدة. أرسل "continue" للمتابعة.',
       'Task finished in "{chat}".': 'انتهت المهمة في "{chat}".',
       'another chat': 'محادثة أخرى',
+      'A task in {chat} is waiting for you': 'مهمة في {chat} بانتظارك',
       "Voice calls aren't available right now. Message {name} instead.": 'المكالمات الصوتية غير متاحة الآن. راسل {name} بدلاً من ذلك.',
       'The team task used its step budget for this round, so it paused. Send "continue" to keep going.':
           'استخدمت مهمة الفريق كل خطوات هذه الجولة فتوقفت. أرسل "continue" للمتابعة.',
