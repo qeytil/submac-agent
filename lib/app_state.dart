@@ -92,6 +92,8 @@ import 'services/vision_follow_up.dart';
 import 'services/send_gate.dart';
 import 'services/session_rules.dart';
 import 'services/stream_policy.dart';
+import 'services/search_budget.dart';
+import 'services/answer_inline.dart';
 import 'services/sites.dart';
 import 'services/tool_scope.dart';
 import 'services/agent_loop.dart';
@@ -1166,6 +1168,10 @@ class AgentRun {
   Constraints must = Constraints.none;
   /// Drops in a row continued with "continue" (reset when a step finishes): at most 2 per step (PLAN 1.3).
   int dropsInRow = 0;
+  /// CB-38: searches that came back empty or Wikipedia-only, and read-only browser tasks, in this task.
+  final SearchBudget search = SearchBudget();
+  /// CB-39: fix rounds spent asking for a file-only reply to be written in the chat.
+  int inlineFixes = 0;
   /// The first step's payload has been built: a message sent now reaches the task through its inbox.
   bool payloadBuilt = false;
 

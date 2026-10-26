@@ -185,6 +185,8 @@ extension AppStateAgentPrompt on AppState {
         ..writeln('# Files and documents')
         ..writeln('- make_document makes real files: CVs, letters, invoices, reports, proposals (pdf or docx; docx when they will edit), sheets (xlsx), '
             'slides. Write complete, polished content, then show the ```file card. images_to_pdf scans photos into one PDF.')
+        ..writeln('- Make a file only when the user asks for one. Otherwise answer in the chat, however long (an essay, a story, a letter '
+            'to read): the text itself, never a file card in place of the answer.')
         ..writeln('- read_pdf, read_text_in_image read files. Attachments are in the workspace "uploads/" folder; attached PDFs are already text below the message.')
         ..writeln('- run_shell is Android toybox sh (no root, no python) in your private workspace. delete_file moves to SubMac Trash; never rm user files. '
             'Check your work (list the folder) before saying done.')

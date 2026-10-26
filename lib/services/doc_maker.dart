@@ -18,9 +18,9 @@ class DocMaker {
       'type': 'function',
       'function': {
         'name': 'make_document',
-        'description': 'Create a real, nicely formatted file the user can open and send: a PDF, Word document, Excel '
-            'spreadsheet, CSV, or a slide deck (landscape PDF). Use for CVs, cover letters, invoices, receipts, price lists, '
-            'certificates, reports, proposals, letters, attendance sheets, budgets and presentations. '
+        'description': 'Create a real, nicely formatted file: a PDF, Word document, Excel spreadsheet, CSV, or a slide deck '
+            '(landscape PDF). Only when the user asks for a file or document (a CV, invoice, sheet, slides, "as a PDF"...). '
+            'Otherwise write the answer in the chat, however long: never a file instead of an answer. '
             'Show the result with a ```file card holding the returned path.',
         'parameters': {
           'type': 'object',
