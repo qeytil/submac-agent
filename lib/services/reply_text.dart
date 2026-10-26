@@ -176,6 +176,20 @@ bool _ltrRune(int r) => (r >= 0x41 && r <= 0x5A) || (r >= 0x61 && r <= 0x7A) || 
 /// left-to-right and an Arabic reply that opens with a brand name ("iPhone 16 …") stays right-to-left (CB-9). A tie goes
 /// to the first strong letter.
 TextDirection majorityDir(String t) {
+  // Launch hardening M-1: code, links and paths are not the reply's language. An Arabic answer with a code block or a
+  // long link counted every Latin letter in them and turned the whole bubble left-to-right.
+  if (t.contains('`') || t.contains('http') || t.contains('www.')) {
+    final prose = t
+        .replaceAll(RegExp(r'```[\s\S]*?(```|$)'), ' ')
+        .replaceAll(RegExp(r'`[^`\n]*`'), ' ')
+        .replaceAll(RegExp(r'\]\([^)\s]*\)'), ']')
+        .replaceAll(RegExp(r'https?://\S+|www\.\S+'), ' ');
+    if (prose.runes.any((r) => _rtlRune(r) || _ltrRune(r))) return _majority(prose);
+  }
+  return _majority(t);
+}
+
+TextDirection _majority(String t) {
   var rtl = 0, ltr = 0;
   TextDirection? first;
   for (final r in t.runes) {

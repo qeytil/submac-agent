@@ -627,12 +627,22 @@ class Announce {
       "(i(['’]| a)m |now |first,? )?($_ing)\\b)",
       caseSensitive: false);
 
+  /// Launch hardening M-2: the same announcements in Somali ("Hadda waxaan raadinayaa…", "Waan samayn doonaa…",
+  /// "Aan eego…") and Arabic ("سأبحث…", "دعني أتحقق…", "جارٍ إنشاء…"). Before, only English ones were caught, so a
+  /// Somali or Arabic task could end on a promise with nothing done.
+  static final _leadSo = RegExp(
+      // "(Hadda) waxaan … raadinayaa / xisaabinayaa" (I am …ing), "Waxaan … samayn doonaa" (I will …), "Aan eego" (let me).
+      r'^(hadda\s+|marka hore\s+)?(waxaan|waan)\s+(\S+\s+){0,3}?(\S{2,}ayaa|\S{2,}\s+doonaa)(\s+\S+){0,5}$|'
+      r'^(bal\s+)?aan\s+(raadiyo|sameeyo|eego|hubiyo|diyaariyo|qoro|furo|xisaabiyo)\b',
+      caseSensitive: false);
+  static final _leadAr = RegExp(r'^(الآن\s+|أولاً\s+|حسنًا،?\s+)?(سأ|سوف أ|دعني|دعيني|جارٍ|جاري|أقوم الآن|سأقوم)');
+
   /// True for a short one-line status that promises an action, with no question, choices or result card in it.
   static bool only(String reply) {
     final t = reply.trim();
-    if (t.isEmpty || t.length > 160 || t.contains('\n') || t.contains('?') || t.contains('```')) return false;
+    if (t.isEmpty || t.length > 160 || t.contains('\n') || t.contains('?') || t.contains('؟') || t.contains('```')) return false;
     if (!RegExp(r'([.…:!]|\.\.\.)$').hasMatch(t)) return false;
-    return _lead.hasMatch(t);
+    return _lead.hasMatch(t) || _leadSo.hasMatch(t) || _leadAr.hasMatch(t);
   }
 }
 

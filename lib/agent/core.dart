@@ -190,12 +190,66 @@ class ToolNames {
     if (known.contains(c.name)) return c;
     final n = clean(c.name);
     if (n.isNotEmpty && n != unknown && known.contains(n)) return ToolCall(id: c.id, name: n, arguments: c.arguments, extra: c.extra);
-    return ToolCall(id: c.id, name: unknown, arguments: jsonEncode({'tool': n.isEmpty ? c.name : n}), extra: c.extra);
+    final asked = n.isEmpty ? c.name : n;
+    final close = near(asked, known);
+    return ToolCall(
+        id: c.id, name: unknown, arguments: jsonEncode({'tool': asked, if (close.isNotEmpty) 'near': close}), extra: c.extra);
   }
 
-  /// What the model reads back for a call to a tool that does not exist.
-  static String unknownText(Object? name) =>
-      'Error: there is no tool named "${'$name'.trim().isEmpty ? '?' : name}". Use one of the tools you were given.';
+  /// Launch hardening H-3: up to three real tool names that look like [asked] (shared words such as "search" or
+  /// "email", or a near spelling), best first. The model then retries with a tool that exists instead of guessing on.
+  static List<String> near(String asked, Set<String> known) {
+    List<String> words(String s) => s
+        .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]}_${m[2]}')
+        .toLowerCase()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((w) => w.length > 2 && !_noise.contains(w))
+        .toList();
+    final mine = words(asked).toSet();
+    final a = asked.toLowerCase();
+    final scored = <(String, int)>[];
+    for (final k in known) {
+      if (k == unknown) continue;
+      var score = 0;
+      for (final w in words(k)) {
+        if (mine.contains(w)) {
+          score += 3;
+        } else if (mine.any((m) => m.length > 3 && w.length > 3 && (m.startsWith(w) || w.startsWith(m)))) {
+          score += 2;
+        }
+      }
+      if (score == 0 && a.length > 3 && _distance(a, k) <= 2) score = 2;
+      if (score > 0) scored.add((k, score));
+    }
+    scored.sort((x, y) => y.$2 != x.$2 ? y.$2.compareTo(x.$2) : x.$1.length.compareTo(y.$1.length));
+    return [for (final e in scored.take(3)) e.$1];
+  }
+
+  static const _noise = {'the', 'tool', 'api', 'get', 'run', 'use', 'new', 'functions', 'default'};
+
+  static int _distance(String a, String b) {
+    if ((a.length - b.length).abs() > 2) return 3;
+    var prev = List<int>.generate(b.length + 1, (i) => i);
+    for (var i = 1; i <= a.length; i++) {
+      final cur = List<int>.filled(b.length + 1, 0)..[0] = i;
+      for (var j = 1; j <= b.length; j++) {
+        final cost = a.codeUnitAt(i - 1) == b.codeUnitAt(j - 1) ? 0 : 1;
+        cur[j] = [prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost].reduce((x, y) => x < y ? x : y);
+      }
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+
+  /// What the model reads back for a call to a tool that does not exist. [near]: real tools that look like it.
+  static String unknownText(Object? name, [Object? near]) {
+    final n = '$name'.trim().isEmpty ? '?' : name;
+    final close = near is List ? [for (final e in near) '$e'].where((e) => e.isNotEmpty).toList() : const <String>[];
+    if (close.isEmpty) return 'Error: there is no tool named "$n". Use one of the tools you were given.';
+    return 'Error: there is no tool named "$n". Closest real tools: ${close.join(', ')}. Use one of them if it fits; otherwise do '
+        'the task another way with the tools you have, or tell the user in one line what you cannot do here and do the closest '
+        'real thing.';
+  }
 
   /// Why a run that kept calling tools that do not exist was stopped (shown to the user).
   static const stopText = 'Stopped: the AI kept asking for a tool SubMac doesn\'t have. Send your message again or put it another way.';
@@ -203,6 +257,13 @@ class ToolNames {
   /// The short reply the chat keeps when that stop ended a run that wrote nothing (CB-42): never an empty answer.
   static const stopReply = 'I couldn\'t finish this: I kept reaching for a tool SubMac doesn\'t have. Please send it again or put it '
       'another way.';
+
+  /// [stopReply] in the user's language (launch hardening H-4): 'so', 'ar', anything else English.
+  static String stopReplyFor(String? lang) => switch (lang) {
+        'so' => 'Hawshan ma dhammayn karin: waxaan isku dayay qalab aanu SubMac lahayn. Fadlan mar kale soo dir, ama si kale u qor.',
+        'ar' => 'لم أتمكن من إنهاء هذا: حاولت استخدام أداة غير موجودة في SubMac. يرجى إرسال طلبك مرة أخرى أو كتابته بطريقة أخرى.',
+        _ => stopReply,
+      };
 
   /// Genkit's own "Tool … not found": a backstop in case a name ever slips past [resolve]. Never a dropped line.
   static bool isMissingTool(Object? e) => e is GenkitException && e.status == StatusCode.notFound;
@@ -338,7 +399,11 @@ final Map<String, dynamic> _unknownDef = {
     'parameters': {
       'type': 'object',
       'properties': {
-        'tool': {'type': 'string'}
+        'tool': {'type': 'string'},
+        'near': {
+          'type': 'array',
+          'items': {'type': 'string'}
+        }
       }
     },
   },
@@ -509,19 +574,27 @@ class FinishGateMiddleware extends GenerateMiddleware {
   final RunState state;
   final List<FinishGate> gates;
 
+  /// Launch hardening H-5: the most times one turn's final reply may be sent back, whatever the gates say. Each gate
+  /// limits itself, but together they could cost a long string of model calls on one answer; after this many the reply
+  /// stands as it is.
+  static const maxSendBacks = 10;
+
   @override
   Future<ModelResponse> model(ModelRequest request, ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
       Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) next) async {
+    var sentBack = 0;
     while (true) {
       final resp = await next(request, ctx);
       final r = replyOf(resp, step: state.step - 1);
       if (r.hasCalls || hooks.cancelled || resp.custom?['halt'] != null || resp.finishReason == FinishReason.aborted) return resp;
+      if (sentBack >= maxSendBacks) return resp;
       ({String note, bool hold})? sendBack;
       for (final g in gates) {
         sendBack = await g(r);
         if (sendBack != null) break;
       }
       if (sendBack == null) return resp;
+      sentBack++;
       await hooks.discard(r, hold: sendBack.hold);
       state.note(sendBack.note);
     }
@@ -615,7 +688,7 @@ class CommitMiddleware extends GenerateMiddleware {
     String out;
     if (call.name == ToolNames.unknown) {
       // CB-3: a tool that does not exist; the model reads that and goes on (no approval, nothing runs).
-      out = ToolNames.unknownText(args['tool']);
+      out = ToolNames.unknownText(args['tool'], args['near']);
     } else if (Wire.isBroken(request) && (_last == null || _last!.calls.any((c) => c.id == call.id))) {
       out = hooks.brokenText(_last ?? Reply(text: '', calls: const []));
     } else {
