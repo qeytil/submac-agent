@@ -24,9 +24,10 @@ const _svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60">'
     '<rect width="100" height="60" fill="#f4f0e7"/><circle cx="50" cy="30" r="20" fill="#c2361b"/></svg>';
 
 // final (not const): const string repetition inside interpolation trips the const evaluator (const_eval_type_num).
-// Eight sentences: long enough to fold, and open it still fits the 800x600 test surface, so the fold
-// control is tappable without scrolling (in-test drags do not move this scroll view reliably).
-final _long = '# Meeting summary\n\n${'We agreed on the budget and the dates for the trip. ' * 8}';
+// Three sentences: the body is longer than the folded preview (it really folds), and the open card is
+// short enough that its fold control stays clear of the reader overlay's hidden bottom zone on the
+// 800x600 test surface, so both taps land on the chip.
+final _long = '# Meeting summary\n\n${'We agreed on the budget and the dates for the trip. ' * 3}';
 
 void main() {
   test('```visual takes SVG and nothing else', () {
