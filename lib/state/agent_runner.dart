@@ -1369,7 +1369,9 @@ class _MainHooks extends CoreHooks {
         final (k, a) = run.running.values.last;
         run.show(RunPhase.tool, k, a);
       } else if (run.openCalls.isEmpty) {
-        run.show(RunPhase.waiting, RunStatus.waiting);
+        // Owner (2026-10-31): a tool just returned and the next request is about to go out — the agent is thinking,
+        // not waiting on the user, so say "Thinking" rather than another "Waiting for a response".
+        run.show(RunPhase.thinking, RunStatus.thinking);
       }
     }
     run.guard.record(tc.name, tc.arguments, output);

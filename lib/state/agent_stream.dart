@@ -106,8 +106,14 @@ extension AppStateAgentStream on AppState {
     // reply sent back, a retry after a drop) until the first sign of life.
     final (callKey, callArgs) = run.nextCall;
     run.nextCall = (RunStatus.waiting, const {});
-    run.show(RunPhase.waiting, callKey, callArgs);
-    void base() => run.show(RunPhase.waiting, callKey, callArgs);
+    // Owner (2026-10-31): the line must not keep saying "Waiting for a response" on every step. The first call of a
+    // fresh message is genuinely waiting on the model; a follow-up call mid-task is the agent thinking, not waiting on
+    // the user — say "Thinking" then. Specific hints the runner set (reading, revising, continuing…) are kept as-is.
+    final firstKey = callKey == RunStatus.waiting && (run.toolCalls > 0 || run.trail.isNotEmpty)
+        ? RunStatus.thinking
+        : callKey;
+    run.show(RunPhase.waiting, firstKey, callArgs);
+    void base() => run.show(RunPhase.waiting, firstKey, callArgs);
     final useTools = AppState._capTools(tools);
     final watch = FirstWordWatch(() => run.client?.cancel());
     var redo = redoFrom;

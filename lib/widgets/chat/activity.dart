@@ -10,16 +10,18 @@ enum ActivityKind { thinking, working, roaming }
 /// The agent's activity indicator (owner rule, 2026-10-31): one honest word for what the agent is
 /// doing right now, set inside a quiet pill — the same "word with a whisper of tone" language as the
 /// app's chips. No dots, icons or glyphs before it. The word settles in when it changes ([InkText])
-/// and breathes gently while SubMac works ([Breath], opacity only). With reduced motion it simply
-/// sits there, fully lit.
+/// and then stays still: the owner asked for no pulsing, so nothing breathes any more.
 class StatusWord extends StatelessWidget {
   const StatusWord(this.text, {super.key, this.kind = ActivityKind.thinking, this.style, this.color});
   final String text;
+
+  /// Kept for the callers that pass it; it no longer changes how the word is drawn (nothing pulses).
   final ActivityKind kind;
   final TextStyle? style;
   final Color? color;
 
   /// How low the breath goes for each kind: thinking breathes deepest, working a little less.
+  /// Unused now that the line is still; kept so the pacing stays documented if a breath ever returns.
   static double lowFor(ActivityKind k) => switch (k) {
         ActivityKind.thinking => 0.40,
         ActivityKind.working => 0.55,
@@ -38,17 +40,14 @@ class StatusWord extends StatelessWidget {
       liveRegion: true,
       label: shown,
       excludeSemantics: true,
-      child: Breath(
-        low: lowFor(kind),
-        child: Container(
-          padding: const EdgeInsetsDirectional.fromSTEB(12, 5, 12, 5),
-          decoration: ShapeDecoration(
-            // The chip rule: a word with a whisper of tone, never an outline.
-            color: p.text.withValues(alpha: 0.05),
-            shape: const StadiumBorder(),
-          ),
-          child: InkText(shown, style: st),
+      child: Container(
+        padding: const EdgeInsetsDirectional.fromSTEB(12, 5, 12, 5),
+        decoration: ShapeDecoration(
+          // The chip rule: a word with a whisper of tone, never an outline.
+          color: p.text.withValues(alpha: 0.05),
+          shape: const StadiumBorder(),
         ),
+        child: InkText(shown, style: st),
       ),
     );
   }

@@ -153,7 +153,7 @@ void main() {
       await _until(() => s.runs.isEmpty);
     });
 
-    test('after a tool returns, the next request waits on the model, not on the finished tool', () async {
+    test('after a tool returns, the next request says "Thinking", not the finished tool nor a repeated "Waiting for a response"', () async {
       final cloud = _Cloud([
         _toolCall('calculate', '{"expression":"2+2"}'),
         _Call.text('It is 4.', first: const Duration(milliseconds: 700)),
@@ -163,7 +163,7 @@ void main() {
       await _until(() => cloud.calls >= 2);
       await Future<void>.delayed(const Duration(milliseconds: 200));
       expect(s.runs, isNotEmpty);
-      expect(s.runs.first.status, 'Waiting for a response');
+      expect(s.runs.first.status, 'Thinking');
       await _until(() => s.runs.isEmpty);
     });
 
