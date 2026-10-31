@@ -100,7 +100,18 @@ The page's own structured data, free for the taking, and every matching item pul
 - A new ```data``` output card: extracted tables/JSON rendered as a SubMac table card (fits the
   existing output-card stack; long output folds like SummaryCard).
 
-### P3 — Site skills (memory: the 50th visit is free) 🔑
+### P3 — Site skills (memory: the 50th visit is free) 🔑 — SHIPPED 2026-10-31
+A flow that worked once replays with **zero model calls per step**; the first mismatch hands the job back to the agent.
+- **Recorded while working**: every successful click / type / select / scroll / key of a job is recorded as a step with a *signature* — kind + visible label + href (never coordinates; a password is never recorded). `compressSteps` drops what cannot be replayed (empty typed values, unlabeled controls, `tap_at`), collapses repeated scrolls, caps at 40.
+- **Saved**: `browser_play` action "save" writes the playbook to `<documents>/browser_skills/<id>.json` (`SiteSkills`) and mirrors it into "Your own skills" through `SkillLibrary.save` (id `web-<id>`, readable step list) so the user sees and can remove what the agent learned.
+- **Replayed**: action "run" resolves each step by signature against the live snapshot (exact label → partial label → href → kind-only), executes through the same hit-tested engine, refreshes the view between steps, and counts the run (runs / wins).
+- **Self-heal handoff**: the moment a step no longer matches (or its action fails), the replay stops with the step, the reason and the fresh page in front of the agent — it does that step itself and the rest of the goal; saving again records the new path. A redesign costs one model call, not a broken automation.
+- **Approvals stay in the path**: a replay halts before a click on a payment page ("the user is asked before money moves") — the final purchase is done by the agent's own gated step, never by the replay.
+- **Variables**: `values` replaces typed values by field label (`{"Search": "flights to Hargeisa"}`) or by step number (`"2"`).
+- Code: `lib/services/browser/playbook.dart` (PlayStep/Playbook, resolveStep, compressSteps, withValues), `lib/services/browser/site_skills.dart` (storage), `browser_agent.dart` (`_record`/`_sig`/`_refresh`/`_play`, the `browser_play` tool), sub-agent prompt. Tests: `test/browser_playbook_test.dart`.
+- Boundary (honest): v1 has no cross-visit step *repair* — a mismatch stops and hands over (the agent then saves the new path); values are substituted, not inferred; playbooks are per phone (the Supabase sync is the next step).
+
+### P3 — Site skills (memory: the 50th visit is free) 🔑 (original plan)
 The highest-leverage feature, and SubMac already owns the perfect container (`skill_save` + skill library):
 - After a browser task succeeds, the job's step history is compressed into a **playbook**:
   `{site pattern, steps: [{act, target signature, optional var}], variables the user supplied}`.

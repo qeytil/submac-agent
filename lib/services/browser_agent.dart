@@ -14,6 +14,9 @@ import 'browser/page_model.dart';
 import 'browser/page_script.dart';
 import 'browser/net_calls.dart' show NetCall, dataLine, formatFetch, formatNetBody, formatNetList;
 import 'browser/extract.dart' show formatExtract, formatSchemaIndex, formatSchemaOpen;
+import 'browser/playbook.dart' show Playbook, compressSteps, playbookId, resolveStep, withValues;
+import 'browser/site_skills.dart' show SiteSkills;
+import 'skill_library.dart' show SkillLibrary;
 import 'browser/shots.dart';
 import 'system_bridge.dart';
 import 'tools.dart' show AgentTools;
@@ -435,6 +438,41 @@ class BrowserAgent extends ChangeNotifier {
   /// Screenshots by tool call, so a task always gets its own picture even when others act in between.
   final Map<String, Uint8List> shotsByCall = {};
   final Map<String, PageSnapshot> _snapByJob = {};
+
+  /// What each job has done, as replayable step signatures (the raw material of a site skill).
+  final Map<String, List<Map<String, dynamic>>> _rec = {};
+  static const _recCap = 80;
+
+  /// Records one action of the running job: kind + label + href, never coordinates.
+  void _record(Map<String, dynamic> step) {
+    if ('${step['k'] ?? ''}'.contains('password')) return; // a password is never part of a skill
+    final l = _rec.putIfAbsent(jobNow ?? '', () => <Map<String, dynamic>>[]);
+    l.add(step);
+    if (l.length > _recCap) l.removeAt(0);
+  }
+
+  /// The steps this job has done so far (what browser_play "save" compresses).
+  @visibleForTesting
+  List<Map<String, dynamic>> get recorded => List.of(_rec[jobNow ?? ''] ?? const <Map<String, dynamic>>[]);
+
+  /// The signature of element [id] as the page had it when the step ran.
+  Map<String, dynamic> _sig(int id) {
+    final e = snapFor(jobNow).byId(id);
+    if (e == null) return const {};
+    return {'k': e.kind, if (e.label.isNotEmpty) 't': e.label, if (e.href.isNotEmpty) 'h': e.href};
+  }
+
+  /// A fresh numbered view without a screenshot: replay needs the elements, not pixels.
+  Future<PageSnapshot> _refresh(InAppWebViewController c, BrowserTab t) async {
+    final raw = await _js(c, 'return JSON.stringify(S.snapshot({max: 140, text: 400}));', limit: const Duration(seconds: 10));
+    try {
+      final s = PageSnapshot.parse(raw);
+      t.snap = s;
+      return s;
+    } catch (_) {
+      return t.snap ?? PageSnapshot.empty;
+    }
+  }
   final Map<String, Completer<void>> _ends = {};
 
   /// Element labels from the latest view of the given task (or the shared one).
@@ -549,6 +587,7 @@ class BrowserAgent extends ChangeNotifier {
     }
     _jobTab.remove(job);
     _snapByJob.remove(job);
+    _rec.remove(job);
     for (final t in tabs) {
       if (t.owner == job) t.owner = null;
     }
@@ -581,6 +620,7 @@ class BrowserAgent extends ChangeNotifier {
     'browser_fetch',
     'browser_schema',
     'browser_extract',
+    'browser_play',
     'browser_copy',
     'browser_login',
     'browser_js',
@@ -717,8 +757,20 @@ class BrowserAgent extends ChangeNotifier {
           'limit': {'type': 'integer', 'description': 'Cap the rows (default 200).'},
         },
         ['rows', 'fields']),
-    _fn('browser_copy', 'Copy the text of a numbered element (or text you give) to paste later; also on the phone clipboard.', {
-      'id': {'type': 'integer'},
+    _fn('browser_play',
+        'Site skills: a flow you did on this site before replays with no thinking per step. "list" shows the skills saved '
+            'for this site; "run" replays one (values override typed fields; it pauses on payment pages for the user\'s OK); '
+            '"save" saves the steps you just did (name + what it does); "forget" deletes one. Save after a multi-step flow '
+            'worked — the next visit becomes one step.',
+        {
+          'action': {'type': 'string', 'enum': ['list', 'run', 'save', 'forget']},
+          'id': {'type': 'string', 'description': 'The skill id (from a list), for run and forget.'},
+          'name': {'type': 'string', 'description': 'For save: what the flow does, e.g. "Book a hotel room".'},
+          'goal': {'type': 'string', 'description': 'For save: when to use it, one line.'},
+          'values': {'type': 'object', 'description': 'For run: replace typed values by field label, e.g. {"Search": "flights to Hargeisa"}.'},
+        },
+        ['action']),
+    _fn('browser_copy', 'Copy the text of a numbered element (or text you give) to paste later; also on the phone clipboard.', {      'id': {'type': 'integer'},
       'text': {'type': 'string'},
     }, []),
     _fn('browser_login',
@@ -793,6 +845,7 @@ class BrowserAgent extends ChangeNotifier {
         case 'browser_fetch':
         case 'browser_schema':
         case 'browser_extract':
+        case 'browser_play':
         case 'browser_find':
           return tr('Reading {site}', {'site': site()});
       case 'browser_scroll':
@@ -956,6 +1009,11 @@ class BrowserAgent extends ChangeNotifier {
           return await _schema(c, a);
         case 'browser_extract':
           return await _extract(c, a);
+        case 'browser_play':
+          final p = await _play(c, t, a);
+          if (a['action'] != 'run') return p;
+          note = p;
+          break;
         case 'browser_js':
           final code = (a['code'] ?? '').toString();
           if (code.toLowerCase().contains('password')) return 'Error: reading passwords is not allowed.';
@@ -1083,6 +1141,116 @@ class BrowserAgent extends ChangeNotifier {
     return formatExtract(raw);
   }
 
+  // ---- site skills (browser_play): list, save what worked, replay with no model calls ----
+  /// A saved flow replays step by step against the live page. It never thinks, never spends a model call,
+  /// and never decides for the user: on the first step that no longer matches, or when a payment page is
+  /// reached, it stops and hands the job back to the agent with the page in front of it (self-heal).
+  Future<String> _play(InAppWebViewController c, BrowserTab t, Map<String, dynamic> a) async {
+    final action = '${a['action'] ?? 'list'}';
+    final host = snapFor(jobNow).host;
+    if (action == 'list') {
+      final list = await SiteSkills.I.forHost(host);
+      if (list.isEmpty) {
+        return 'No site skills saved for $host yet. When a multi-step flow works, save it: browser_play action "save" '
+            'with a name and what it does.';
+      }
+      return 'Site skills for $host (run one with browser_play action "run", id):\n'
+          '${[for (final p in list) '- ${p.line}${p.goal.isEmpty ? '' : ' — ${p.goal}'}'].join('\n')}';
+    }
+    if (action == 'forget') {
+      final id = '${a['id'] ?? ''}'.trim();
+      if (id.isEmpty) return 'Error: give the id of the skill to forget (browser_play action "list" shows them).';
+      await SiteSkills.I.forget(id);
+      return 'Forgot "$id".';
+    }
+    if (action == 'save') {
+      final name = '${a['name'] ?? ''}'.trim();
+      if (name.isEmpty) return 'Error: give the skill a name (what the flow does), e.g. "Book a hotel room".';
+      final steps = compressSteps(recorded);
+      if (steps.isEmpty) {
+        return 'Nothing to save: this job has no click/type/select steps recorded yet. Do the flow first, then save it.';
+      }
+      final p = Playbook(id: playbookId(name), name: name, site: host, goal: '${a['goal'] ?? ''}'.trim(), steps: steps);
+      final err = await SiteSkills.I.save(p);
+      if (err != null) return 'Error: $err';
+      // Also in "Your own skills", readable: the user sees what the agent learned and can remove it there.
+      try {
+        await SkillLibrary.I.save(SkillLibrary.agent,
+            id: 'web-${p.id}',
+            name: 'On $host: $name',
+            desc: p.goal.isEmpty ? 'A saved browser flow for $host.' : p.goal,
+            body: p.readable,
+            tags: ['browser', host]);
+      } catch (_) {}
+      return 'Saved "${p.name}" as a site skill for $host (${steps.length} steps). Next time: browser_play action "run", id "${p.id}".';
+    }
+    // run
+    final id = '${a['id'] ?? ''}'.trim();
+    Playbook? p;
+    if (id.isNotEmpty) p = await SiteSkills.I.byId(id);
+    if (p == null) {
+      final list = await SiteSkills.I.forHost(host);
+      if (list.length == 1) p = list.first;
+    }
+    if (p == null) {
+      return 'Error: no site skill ${id.isEmpty ? '(none given)' : '"$id"'} for $host. List them with browser_play action "list".';
+    }
+    final values = <String, String>{};
+    if (a['values'] is Map) {
+      for (final e in (a['values'] as Map).entries) {
+        values['${e.key}'] = '${e.value}';
+      }
+    }
+    final steps = withValues(p.steps, values);
+    var done = 0;
+    for (var i = 0; i < steps.length; i++) {
+      final s = steps[i];
+      if (_ended2(jobNow)) return 'Stopped: this browser task has ended.';
+      final snap = await _refresh(c, t);
+      if (snap.moneyPage && s.act == 'click') {
+        await SiteSkills.I.bump(p, win: false);
+        return 'Paused before step ${i + 1} of ${steps.length} (${s.line}): this is a payment page, and the user is asked '
+            'before money moves. Finish this step yourself, then the rest.';
+      }
+      if (s.act == 'scroll') {
+        await _js(c, 'return JSON.stringify(S.scroll(${jsonEncode(s.value.isEmpty ? 'down' : s.value)}, "page", null));');
+        await _settle(c, t, max: 700);
+        done++;
+        continue;
+      }
+      if (s.act == 'key') {
+        await _key(c, t, s.value);
+        done++;
+        continue;
+      }
+      if (s.act == 'wait') {
+        await Future<void>.delayed(Duration(milliseconds: int.tryParse(s.value) ?? 800));
+        continue;
+      }
+      final el = resolveStep(s, snap.elements);
+      if (el == null) {
+        await SiteSkills.I.bump(p, win: false);
+        return 'Replay stopped at step ${i + 1} of ${steps.length} (${s.line}): that control is not on this page now. '
+            'Take over from here — do this step yourself and the rest of the goal; saving the skill again records the new path.';
+      }
+      final ({bool ok, String text}) r;
+      if (s.act == 'type') {
+        r = await _type(c, t, el.id, s.value, submit: s.submit);
+      } else if (s.act == 'select') {
+        r = await _select(c, t, el.id, s.value);
+      } else {
+        r = await _click(c, t, el.id);
+      }
+      if (!r.ok) {
+        await SiteSkills.I.bump(p, win: false);
+        return 'Replay stopped at step ${i + 1} of ${steps.length} (${s.line}): ${r.text}. Take over from here.';
+      }
+      done++;
+    }
+    await SiteSkills.I.bump(p, win: true);
+    return 'Replayed "${p.name}": $done steps with no model calls. Check the result below before you finish.';
+  }
+
   // ---- actions ----  /// The result of one action: ok or not, and a line for the model.
   static ({bool ok, String text}) _r(bool ok, String text) => (ok: ok, text: text);
 
@@ -1114,10 +1282,12 @@ class BrowserAgent extends ChangeNotifier {
           final m = await _jsMap(c, 'return JSON.stringify(S.scroll(${jsonEncode('${x.args['direction'] ?? 'down'}')}, '
               '${jsonEncode('${x.args['amount'] ?? 'page'}')}, ${x.args['id'] == null ? 'null' : _int(x.args['id'])}));');
           await _settle(c, t, max: 600);
+          if (m['ok'] == true) _record({'do': 'scroll', 'v': '${x.args['direction'] ?? 'down'}'});
           r = _r(m['ok'] == true, m['ok'] == true ? 'Scrolled ${x.args['direction'] ?? 'down'}.' : '${m['err'] ?? 'Could not scroll'}.');
           break;
         case 'key':
           await _key(c, t, '${x.args['key']}');
+          _record({'do': 'key', 'v': '${x.args['key']}'});
           r = _r(true, 'Pressed ${x.args['key']}.');
           break;
         case 'wait':
@@ -1148,6 +1318,11 @@ class BrowserAgent extends ChangeNotifier {
   }
 
   /// Click: page script first (hit-tested, the exact element), verify the effect, real touch only if nothing happened.
+  ({bool ok, String text}) _clicked(int id, String text) {
+    _record({'do': 'click', ..._sig(id)});
+    return _r(true, text);
+  }
+
   Future<({bool ok, String text})> _click(InAppWebViewController c, BrowserTab t, int id, {bool long = false}) async {
     final before = await _state(c);
     if (long) {
@@ -1155,14 +1330,14 @@ class BrowserAgent extends ChangeNotifier {
       if (p['ok'] != true) return _r(false, '${p['err'] ?? 'element $id is not there'}');
       if (await _touch(c, t, 'long', _d(p['fx']), _d(p['fy']), id: id) == 'target') {
         await _settle(c, t, nav: true);
-        return _r(true, 'Long-pressed [$id].');
+        return _clicked(id, 'Long-pressed [$id].');
       }
     }
     final r = await _jsMap(c, 'return JSON.stringify(S.click($id));');
     if (r['ok'] != true) return _r(false, '${r['err'] ?? 'could not tap $id'}');
     await _settle(c, t, nav: true, max: 1500);
     final after = await _state(c);
-    if (StepEffect.compare(before, after).any || t.loading || after['net'] != before['net']) return _r(true, 'Tapped [$id].');
+    if (StepEffect.compare(before, after).any || t.loading || after['net'] != before['net']) return _clicked(id, 'Tapped [$id].');
     // Nothing happened: some sites only listen to real fingers. Tap the same verified point for real.
     if (realHands) {
       final p = await _jsMap(c, 'return JSON.stringify(S.point($id));');
@@ -1170,12 +1345,12 @@ class BrowserAgent extends ChangeNotifier {
         final hit = await _touch(c, t, 'tap', _d(p['fx']), _d(p['fy']), id: id);
         if (hit == 'target') {
           await _settle(c, t, nav: true, max: 1500);
-          return _r(true, 'Tapped [$id] (with a real touch).');
+          return _clicked(id, 'Tapped [$id] (with a real touch).');
         }
         if (hit == 'other') return _r(false, 'the tap on [$id] reached something else on top of it; close what covers it, or scroll');
       }
     }
-    return _r(true, 'Tapped [$id], but nothing visible changed.');
+    return _clicked(id, 'Tapped [$id], but nothing visible changed.');
   }
 
   Future<({bool ok, String text})> _tapAt(InAppWebViewController c, BrowserTab t, double fx, double fy, {bool long = false}) async {
@@ -1205,6 +1380,7 @@ class BrowserAgent extends ChangeNotifier {
     if (r['ok'] != true) return _r(false, '${r['err'] ?? 'the field did not take the text'}');
     if (submit) await _key(c, t, 'Enter');
     await _settle(c, t, nav: submit, max: submit ? 2500 : 500);
+    _record({'do': 'type', ..._sig(id), 'v': text, if (submit) 's': true});
     return _r(true, 'Typed into [$id]${submit ? ' and pressed Enter' : ''}.');
   }
 
@@ -1217,6 +1393,7 @@ class BrowserAgent extends ChangeNotifier {
     }
     if (r['ok'] != true) return _r(false, '${r['err'] ?? 'could not choose "$option"'}');
     await _settle(c, t, max: 600);
+    _record({'do': 'select', ..._sig(id), 'v': '${r['value'] ?? option}'});
     return _r(true, 'Chose "${r['value'] ?? option}" in [$id].');
   }
 
