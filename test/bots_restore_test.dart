@@ -237,6 +237,39 @@ void main() {
     expect(Bots.I.chiefId, chief, reason: 'the Chief is still the Chief');
   });
 
+  test('a second account on the same phone is delivered the built-in Chief with the app', () async {
+    // The first account seeds the Chief and sets the device-wide seeded flag.
+    await _nova();
+    await BotSync.I.start();
+    expect(Bots.I.chief, isNotNull, reason: 'the first account has a Chief');
+    // Sign out; the account's bots are put away and the device flag stays set.
+    await BotSync.I.leave();
+    expect(Bots.I.bots, isEmpty, reason: 'signed out: nothing of the account stays visible');
+    // A different account signs in on the same phone (no fresh install, so the device flag is still set and
+    // Bots.init will not seed a Chief). It must still be delivered the Chief with the app.
+    account.uid = 'acct-B';
+    await BotSync.I.start();
+    expect(Bots.I.chief, isNotNull, reason: 'a new account is delivered the built-in Chief');
+    expect(Bots.I.chief!.id, 'chief');
+    expect(account.mine('cloud_bots').any((r) => (r['setup'] as Map?)?['chief'] == true), isTrue,
+        reason: 'the delivered Chief is synced to the new account');
+  });
+
+  test('a Chief the owner removed in this account is not brought back on sign-in', () async {
+    await _nova();
+    await BotSync.I.start();
+    expect(Bots.I.chief, isNotNull);
+    // The owner removes the Chief; BotSync records it per account.
+    await Bots.I.remove(Bots.I.chief!);
+    expect(Bots.I.chief, isNull);
+    await Bots.I.save();
+    // Sign out and back in to the same account: the removed Chief must not be resurrected here.
+    await BotSync.I.leave();
+    account.uid = 'acct-A';
+    await BotSync.I.start();
+    expect(Bots.I.chief, isNull, reason: 'the removed Chief is not resurrected for this account');
+  });
+
   test('a new phone (nothing kept on it) gets the bots back from the account', () async {
     await _nova();
     await BotSync.I.start();

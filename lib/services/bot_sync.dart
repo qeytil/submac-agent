@@ -252,6 +252,16 @@ class BotSync {
     await _saveState();
     Bots.I.onChanged = changed;
     Bots.I.cloudOwns = cloudOwns;
+    // Owner (2026-10-31): every account is delivered the built-in Chief with the app. The first account gets it from
+    // Bots.init(); a new account (or one whose seed was device-only) gets it here — unless the owner removed the Chief
+    // in THIS account. The gate is per-account (this phone's stash for the account), not the device-wide seeded flag.
+    Bots.I.onChiefRemoved = () {
+      _st['chiefRemoved'] = true;
+      unawaited(_saveState());
+    };
+    if (Bots.I.chief == null && _st['chiefRemoved'] != true) {
+      await Bots.I.ensureChief();
+    }
     await syncNow();
   }
 

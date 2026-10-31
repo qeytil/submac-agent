@@ -687,6 +687,21 @@ class Bots extends ChangeNotifier {
     _p?.setBool('bot_chief_seeded_v1', true);
   }
 
+  /// Delivers the built-in Chief to the current account when it has none, so every account is given the Chief with
+  /// the app (owner, 2026-10-31). The first account gets its Chief from [_seedChief] at startup; a new account (or one
+  /// whose seed was device-only) gets it here. A Chief the owner removed in THIS account is not brought back: BotSync
+  /// sets [onChiefRemoved] and gates this on a per-account flag, not the device-wide [_seedChief] flag.
+  ///
+  /// Does not call [save] itself: the [BotSync.start] that calls it runs [syncNow] right after, which persists and
+  /// pushes the new Chief (the same pattern as [_seedChief] at startup).
+  Future<void> ensureChief() async {
+    if (chief != null) return;
+    final c = BotTemplates.chief;
+    if (byId(c.id) == null) bots.insert(0, c);
+    chiefId = c.id;
+    await _p?.setString('bot_chief_v1', c.id);
+  }
+
   /// Drafts the Chief showed in a chat, waiting for the owner's yes (convId → spec).
   final Map<String, Map<String, dynamic>> _drafts = {};
 
@@ -745,6 +760,10 @@ class Bots extends ChangeNotifier {
 
   /// Called after every save (set by BotSync: sends the change to the account a few seconds later).
   void Function()? onChanged;
+
+  /// Called when the owner removes the Chief in this account (set by BotSync): the account's Chief must not be
+  /// brought back by [ensureChief].
+  void Function()? onChiefRemoved;
 
   /// Does the cloud run this job (set by BotSync)? Then the phone sets no alarm for it.
   bool Function(Bot b, String job)? cloudOwns;
@@ -1332,6 +1351,7 @@ class Bots extends ChangeNotifier {
     if (isChief(b)) {
       chiefId = '';
       await _p?.remove('bot_chief_v1');
+      onChiefRemoved?.call();
     }
     await disarm(b);
     await SkillLibrary.I.forget(b.id);
