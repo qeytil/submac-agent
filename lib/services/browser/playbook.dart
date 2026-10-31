@@ -65,8 +65,8 @@ class PlayStep {
     final lab = label.isEmpty ? '' : ' "$label"';
     final v = value.isEmpty ? '' : ' "${value.length > 40 ? '${value.substring(0, 40)}…' : value}"';
     return switch (act) {
-      'type' => 'type into $what$lab: $v${submit ? ' then Enter' : ''}',
-      'select' => 'choose $v in $what$lab',
+      'type' => 'type into $what$lab:$v${submit ? ' then Enter' : ''}',
+      'select' => 'choose$v in $what$lab',
       'scroll' => 'scroll $value',
       'key' => 'press $value',
       'wait' => 'wait ${value.isEmpty ? 'a moment' : value}',

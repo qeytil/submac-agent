@@ -156,9 +156,9 @@ void main() {
 
     test('a replay is counted: runs, and wins only when the agent never took over', () async {
       await SiteSkills.I.save(book('flow', 'shop.test'));
-      final p = (await SiteSkills.I.byId('flow'))!;
-      await SiteSkills.I.bump(p, win: true);
-      await SiteSkills.I.bump(p, win: false);
+      // Each replay starts by loading the skill, as browser_play does — never a stale in-memory copy.
+      await SiteSkills.I.bump((await SiteSkills.I.byId('flow'))!, win: true);
+      await SiteSkills.I.bump((await SiteSkills.I.byId('flow'))!, win: false);
       final after = (await SiteSkills.I.byId('flow'))!;
       expect(after.runs, 2);
       expect(after.wins, 1);
