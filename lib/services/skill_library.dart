@@ -396,11 +396,11 @@ class SkillLibrary extends ChangeNotifier {
   static const names = {'skill_search', 'skill_use', 'skill_install', 'skill_remove', 'skill_save'};
 
   static final List<Map<String, dynamic>> definitions = [
-    _fn('skill_search', 'Search the shared skill library for a proven playbook. Returns ids and one-line descriptions.', {
+    _fn('skill_search', 'Search the shared skill library for a proven playbook; returns ids.', {
       'query': {'type': 'string', 'description': 'What the task is about, e.g. "post a reel on instagram"'},
-      'category': {'type': 'string', 'description': 'Optional: mobile, browser, business, marketing, seo, trading, writing, life, somalia'},
+      'category': {'type': 'string', 'description': 'Optional category like mobile or trading'},
     }, ['query']),
-    _fn('skill_use', 'Read the full instructions of a library skill by id, then follow them for the task.', {
+    _fn('skill_use', 'Read a skill\'s full instructions by id, then follow them for the task.', {
       'id': {'type': 'string'},
     }, ['id']),
     _fn('skill_install', 'Install a library skill so it is always listed for you.', {
@@ -409,12 +409,12 @@ class SkillLibrary extends ChangeNotifier {
     _fn('skill_remove', 'Uninstall one of your skills.', {
       'id': {'type': 'string'},
     }, ['id']),
-    _fn('skill_save', 'Save a method you built and tested as your own reusable skill, so the next such task starts from skill_use, '
-        'with the whole method written out. Saved on this phone.', {
-      'id': {'type': 'string', 'description': 'Letters-numbers-dashes, e.g. "cv-to-pdf"'},
+    _fn('skill_save', 'Save a method you built and tested as your own reusable skill; skill_use reads it back later. '
+        'Saved on this phone.', {
+      'id': {'type': 'string', 'description': 'e.g. "cv-to-pdf"'},
       'name': {'type': 'string', 'description': 'e.g. "CV to PDF converter"'},
-      'desc': {'type': 'string', 'description': 'One line: what it does and when to use it'},
-      'body': {'type': 'string', 'description': 'The whole method: steps, the script, how to run it, what to watch for'},
+      'desc': {'type': 'string', 'description': 'What it does and when to use it'},
+      'body': {'type': 'string', 'description': 'The whole method: steps, the script, how to run it'},
     }, ['id', 'name', 'desc', 'body']),
   ];
 

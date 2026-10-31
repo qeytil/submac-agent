@@ -1814,25 +1814,25 @@ class Bots extends ChangeNotifier {
       'action': {'type': 'string', 'enum': ['add', 'remove', 'list']},
       'lesson': {'type': 'string', 'description': 'e.g. "Check the site\'s search page before saying a product is out of stock."'},
     }, ['action']),
-    _fn('bot_make', 'Chief only. Make a bot for the owner. Call "draft" first: it returns the draft to show and ask a yes for. '
-        'Only after yes, call "create" (no other fields). Call "draft" again to change it.', {
+    _fn('bot_make', 'Chief only. Make a bot for the owner. Call "draft" first to show it and ask a yes; after yes, call '
+        '"create" (no other fields). Call "draft" again to change it.', {
       'action': {'type': 'string', 'enum': ['draft', 'create']},
-      'name': {'type': 'string', 'description': 'A short human first name.'},
-      'role': {'type': 'string', 'description': 'Job title, e.g. "Sales lead".'},
-      'instructions': {'type': 'string', 'description': 'How it works: 3-6 short sentences in the owner\'s language.'},
+      'name': {'type': 'string', 'description': 'A human first name.'},
+      'role': {'type': 'string', 'description': 'Their job title.'},
+      'instructions': {'type': 'string', 'description': '3-6 short sentences in the owner\'s language.'},
       'mission': {'type': 'string', 'description': 'Its job for the owner.'},
       'skills': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Up to 5 short skill names.'},
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action']),
-    _fn('team_make', 'Chief only. Make a team: a lead bot and members working together in one chat. Call "draft" first: it returns '
-        'the draft to show and ask a yes for. Only after yes, call "create" (no other fields). Call "draft" again to change it. '
-        'Each member is an existing bot\'s name or a description of a new bot to hire.', {
+    _fn('team_make', 'Chief only. Make a team: a lead bot and members in one chat. Call "draft" first: it returns the draft '
+        'to show and ask a yes for. Only after yes, call "create" (no other fields). Call "draft" again to change it. '
+        'A member is an existing bot\'s name or a new bot\'s description.', {
       'action': {'type': 'string', 'enum': ['draft', 'create']},
       'name': {'type': 'string', 'description': 'e.g. "Shop launch".'},
       'goal': {'type': 'string', 'description': 'What this team is for.'},
       'members': {'type': 'array', 'items': {'type': 'string'}, 'description': '2-8: an existing bot\'s name, or a description of a new bot to hire.'},
-      'chief': {'type': 'string', 'description': 'Which member leads. Default: the first member.'},
-      'rules': {'type': 'string', 'description': 'Optional working rules, one line.'},
+      'chief': {'type': 'string', 'description': 'Which member leads.'},
+      'rules': {'type': 'string', 'description': 'Working rules, one line.'},
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action', 'name', 'members']),
     _fn('knowledge_search', 'Search your own knowledge (notes and files you were given). Returns the best passages with their ids.', {

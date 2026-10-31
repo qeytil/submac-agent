@@ -44,6 +44,10 @@ void main() {
   });
 
   testWidgets('a long summary is folded by default; Show more opens it right there, not the reader', (t) async {
+    // The open body is taller than the default 800x600 test surface: grow the surface so the
+    // fold control is really on screen and the tap lands.
+    await t.binding.setSurfaceSize(const Size(800, 3400));
+    addTearDown(() => t.binding.setSurfaceSize(null));
     await t.pumpWidget(_host(buildOutputCard('summary', _long)!));
     await t.pump(const Duration(milliseconds: 100));
     expect(find.text('Show more'), findsOneWidget);
@@ -52,9 +56,6 @@ void main() {
     await t.pump(const Duration(milliseconds: 100));
     expect(find.text('Show less'), findsOneWidget);
     expect(find.byType(HarkOverlay), findsNothing, reason: 'the fold opens in place; the reader stays behind the card tap');
-    // The open body is taller than the screen: bring the fold control into view before tapping it.
-    await t.ensureVisible(find.text('Show less'));
-    await t.pump(const Duration(milliseconds: 100));
     await t.tap(find.text('Show less'));
     await t.pump(const Duration(milliseconds: 100));
     expect(find.text('Show more'), findsOneWidget);
