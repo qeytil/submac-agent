@@ -1,0 +1,84 @@
+name: APK (build on demand)
+
+# Owner request: build an installable APK when asked, and only when asked. The branch check
+# (analyze-test.yml) stays analyze + tests with no build, so a push never waits for Gradle.
+# Run it from Actions → "APK (build on demand)" → Run workflow, or:
+#   gh workflow run apk.yml --ref <branch>
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'release or debug'
+        type: choice
+        options: [release, debug]
+        default: release
+
+concurrency:
+  group: apk-${{ github.ref }}-${{ inputs.variant }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+
+      # android/ and ios/ are gitignored; the tracked native code lives in android_native/ and is
+      # stamped in by tools/patch_android.py (same as analyze-test.yml).
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.submac --project-name agent --platforms android,ios .
+          rm -f test/widget_test.dart
+
+      - name: Make it SubMac (manifest, native code, resources, gradle, signing)
+        run: python3 tools/patch_android.py
+
+      - run: flutter pub get
+
+      - name: Build ${{ inputs.variant }} APK
+        run: flutter build apk --${{ inputs.variant }}
+
+      - name: Name it with the version
+        id: name
+        run: |
+          VER=$(awk '/^version:/{print $2}' pubspec.yaml | tr '+' '-')
+          OUT="submac-${VER}-${{ inputs.variant }}.apk"
+          cp "build/app/outputs/flutter-apk/app-${{ inputs.variant }}.apk" "$OUT"
+          echo "file=$OUT" >> "$GITHUB_OUTPUT"
+          echo "sha=$(sha256sum "$OUT" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          ls -l "$OUT"
+
+      # Fails the run if the APK is malformed: testOnly, no v2 signature, wrong key, 4 KB-aligned
+      # native libs on a 16 KB-page device, missing ABIs.
+      - name: Verify the APK
+        run: bash tools/verify_apk.sh "${{ steps.name.outputs.file }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: submac-${{ inputs.variant }}-apk
+          path: ${{ steps.name.outputs.file }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Summary
+        run: |
+          {
+            echo "### SubMac ${{ inputs.variant }} APK"
+            echo ""
+            echo "- file: \`${{ steps.name.outputs.file }}\`"
+            echo "- sha256: \`${{ steps.name.outputs.sha }}\`"
+            echo "- commit: \`${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
