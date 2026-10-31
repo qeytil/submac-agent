@@ -397,7 +397,7 @@ class _VoicePage extends StatelessWidget {
         ),
       if (w.setup == WakeSetup.paused || w.setup == WakeSetup.error)
         ListTile(
-          title: const Text('Resume the voice pack'),
+          title: Text(tr('Resume the voice pack')),
           trailing: Icon(Icons.refresh_rounded, color: p.muted),
           onTap: () => w.download(),
         ),

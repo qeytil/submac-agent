@@ -390,36 +390,42 @@ class _ConfirmInlineState extends State<ConfirmInline> {
             ),
           ),
           const SizedBox(width: 8),
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-                foregroundColor: p.text,
-                minimumSize: const Size(0, 38),
-                backgroundColor: p.text.withValues(alpha: 0.06),
-                side: BorderSide.none,
-                shape: const StadiumBorder(),
-                textStyle: TextStyle(fontSize: AppText.meta)),
-            onPressed: () {
-              if (_editing) {
-                setState(() => _editing = false);
-              } else if (r.edit != null) {
-                setState(() {
-                  _edit ??= TextEditingController(text: r.edit!.value);
-                  _editing = true;
-                });
-              } else {
-                // Nothing to change in place: SubMac asks what to change.
-                r.wantsChange = true;
-                _answer(false);
-              }
-            },
-            child: Text(tr(_editing ? 'Cancel' : 'Edit'), maxLines: 1, overflow: TextOverflow.ellipsis),
+          // Flexible, not fixed: long Somali/Arabic labels shrink with an ellipsis instead of
+          // pushing the row over its edge (the primary keeps the room; this stays one thin row).
+          Flexible(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                  foregroundColor: p.text,
+                  minimumSize: const Size(0, 38),
+                  backgroundColor: p.text.withValues(alpha: 0.06),
+                  side: BorderSide.none,
+                  shape: const StadiumBorder(),
+                  textStyle: TextStyle(fontSize: AppText.meta)),
+              onPressed: () {
+                if (_editing) {
+                  setState(() => _editing = false);
+                } else if (r.edit != null) {
+                  setState(() {
+                    _edit ??= TextEditingController(text: r.edit!.value);
+                    _editing = true;
+                  });
+                } else {
+                  // Nothing to change in place: SubMac asks what to change.
+                  r.wantsChange = true;
+                  _answer(false);
+                }
+              },
+              child: Text(tr(_editing ? 'Cancel' : 'Edit'), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
           ),
           const SizedBox(width: 4),
-          TextButton(
-            key: const ValueKey('confirm-not-now'),
-            style: TextButton.styleFrom(foregroundColor: p.muted, minimumSize: const Size(0, 38)),
-            onPressed: () => _answer(false),
-            child: Text(tr('Not now'), maxLines: 1),
+          Flexible(
+            child: TextButton(
+              key: const ValueKey('confirm-not-now'),
+              style: TextButton.styleFrom(foregroundColor: p.muted, minimumSize: const Size(0, 38)),
+              onPressed: () => _answer(false),
+              child: Text(tr('Not now'), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
           ),
         ]),
         // Grok's "Always allow": approve and turn on Full access; money never offers it.

@@ -71,7 +71,7 @@
   },
   {
     "text": "Give me 3 ideas for a coffee shop name, no emoji",
-    "lane": "light",
+    "lane": "full",
     "fastStart": false,
     "groups": [
       "browser",
@@ -168,7 +168,7 @@
   },
   {
     "text": "What is the capital of Kenya? And also what is its population?",
-    "lane": "light",
+    "lane": "full",
     "fastStart": false,
     "groups": [],
     "must": "Must (from the user's words; check each before you reply): answer all 2 parts",
@@ -190,7 +190,7 @@
   },
   {
     "text": "kaliya magaca ii sheeg",
-    "lane": "light",
+    "lane": "full",
     "fastStart": false,
     "groups": [],
     "must": "Must (from the user's words; check each before you reply): only: kaliya magaca ii sheeg",

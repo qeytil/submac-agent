@@ -313,7 +313,7 @@
     "lib/screens/files_screen.dart": {
       ".accent": 1
     },
-    "lib/screens/home_screen.dart": {
+    "lib/widgets/approval_card.dart": {
       ".accent": 1
     },
     "lib/screens/library_screen.dart": {

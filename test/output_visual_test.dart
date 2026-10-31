@@ -52,6 +52,9 @@ void main() {
     await t.pump(const Duration(milliseconds: 100));
     expect(find.text('Show less'), findsOneWidget);
     expect(find.byType(HarkOverlay), findsNothing, reason: 'the fold opens in place; the reader stays behind the card tap');
+    // The open body is taller than the screen: bring the fold control into view before tapping it.
+    await t.ensureVisible(find.text('Show less'));
+    await t.pump(const Duration(milliseconds: 100));
     await t.tap(find.text('Show less'));
     await t.pump(const Duration(milliseconds: 100));
     expect(find.text('Show more'), findsOneWidget);

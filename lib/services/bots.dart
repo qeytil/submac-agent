@@ -1814,27 +1814,25 @@ class Bots extends ChangeNotifier {
       'action': {'type': 'string', 'enum': ['add', 'remove', 'list']},
       'lesson': {'type': 'string', 'description': 'e.g. "Check the site\'s search page before saying a product is out of stock."'},
     }, ['action']),
-    _fn('bot_make', 'Chief only. Make a new bot for the owner. First call with action "draft": it returns the draft to show the '
-        'owner. Show it in a few quiet lines and ask for a yes. Only after they say yes, call action "create" (no other fields). '
-        'To change the draft, call "draft" again.', {
+    _fn('bot_make', 'Chief only. Make a bot for the owner. Call "draft" first: it returns the draft to show and ask a yes for. '
+        'Only after yes, call "create" (no other fields). Call "draft" again to change it.', {
       'action': {'type': 'string', 'enum': ['draft', 'create']},
       'name': {'type': 'string', 'description': 'A short human first name.'},
       'role': {'type': 'string', 'description': 'Job title, e.g. "Sales lead".'},
-      'instructions': {'type': 'string', 'description': 'How the bot works: 3-6 short sentences in the owner\'s language.'},
-      'mission': {'type': 'string', 'description': 'One sentence: its job for the owner.'},
-      'skills': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Up to 5 short skill names, e.g. "follow-up emails".'},
+      'instructions': {'type': 'string', 'description': 'How it works: 3-6 short sentences in the owner\'s language.'},
+      'mission': {'type': 'string', 'description': 'Its job for the owner.'},
+      'skills': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Up to 5 short skill names.'},
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action']),
-    _fn('team_make', 'Chief only. Make a team: a lead bot and its members working together in one chat. First call with action "draft": it returns '
-        'the draft to show the owner. Show it in a few quiet lines and ask for a yes. Only after they say yes, call action "create" (no other '
-        'fields). To change the draft, call "draft" again. Each member is an existing bot\'s name, or a plain description of a new bot to hire '
-        '(it gets made). "chief" picks which member leads the team.', {
+    _fn('team_make', 'Chief only. Make a team: a lead bot and members working together in one chat. Call "draft" first: it returns '
+        'the draft to show and ask a yes for. Only after yes, call "create" (no other fields). Call "draft" again to change it. '
+        'Each member is an existing bot\'s name or a description of a new bot to hire.', {
       'action': {'type': 'string', 'enum': ['draft', 'create']},
-      'name': {'type': 'string', 'description': 'The team\'s name, e.g. "Shop launch".'},
-      'goal': {'type': 'string', 'description': 'One sentence: what this team is for.'},
-      'members': {'type': 'array', 'items': {'type': 'string'}, 'description': '2-8 members: an existing bot\'s name, or a description like "a designer who makes instagram posters".'},
-      'chief': {'type': 'string', 'description': 'Which member leads (their name or the same description). Default: the first member.'},
-      'rules': {'type': 'string', 'description': 'Optional working rules for the team, one line.'},
+      'name': {'type': 'string', 'description': 'e.g. "Shop launch".'},
+      'goal': {'type': 'string', 'description': 'What this team is for.'},
+      'members': {'type': 'array', 'items': {'type': 'string'}, 'description': '2-8: an existing bot\'s name, or a description of a new bot to hire.'},
+      'chief': {'type': 'string', 'description': 'Which member leads. Default: the first member.'},
+      'rules': {'type': 'string', 'description': 'Optional working rules, one line.'},
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action', 'name', 'members']),
     _fn('knowledge_search', 'Search your own knowledge (notes and files you were given). Returns the best passages with their ids.', {

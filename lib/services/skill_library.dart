@@ -239,7 +239,9 @@ class SkillLibrary extends ChangeNotifier {
   /// in the same folder and JSON format as downloaded skills, so skill_use, the installed list and the
   /// search read it back with no server and no new code path.
   Future<String?> save(String target, {required String id, required String name, required String desc, required String body, List<String> tags = const []}) async {
-    final clean = id.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9_-]'), '-');
+    // The messy id is cleaned hard: every stray mark becomes a dash, runs collapse, edges trim
+    // ("CV to PDF!" -> "cv-to-pdf"), so the saved skill reads back under the id it advertises.
+    final clean = id.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9_-]'), '-').replaceAll(RegExp(r'-{2,}'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
     if (clean.length < 3 || clean.length > 40) return 'The skill id needs 3 to 40 letters, numbers or dashes (like "cv-to-pdf").';
     if (body.trim().length < 20) return 'The skill is too short to reuse. Write the whole method: the steps, the script itself, how to run it.';
     final existing = byId(clean);
@@ -394,27 +396,25 @@ class SkillLibrary extends ChangeNotifier {
   static const names = {'skill_search', 'skill_use', 'skill_install', 'skill_remove', 'skill_save'};
 
   static final List<Map<String, dynamic>> definitions = [
-    _fn('skill_search', 'Search the shared skill library for a proven playbook (by app, platform, field or task). Returns ids and one-line descriptions.', {
-      'query': {'type': 'string', 'description': 'What the task is about, e.g. "post a reel on instagram", "keyword research", "crypto red flags"'},
-      'category': {'type': 'string', 'description': 'Optional: mobile, browser, platforms, business, entrepreneur, marketing, seo, creator, developer, trading, productivity, study, writing, life, somalia'},
+    _fn('skill_search', 'Search the shared skill library for a proven playbook. Returns ids and one-line descriptions.', {
+      'query': {'type': 'string', 'description': 'What the task is about, e.g. "post a reel on instagram"'},
+      'category': {'type': 'string', 'description': 'Optional: mobile, browser, business, marketing, seo, trading, writing, life, somalia'},
     }, ['query']),
     _fn('skill_use', 'Read the full instructions of a library skill by id, then follow them for the task.', {
       'id': {'type': 'string'},
     }, ['id']),
-    _fn('skill_install', 'Install a library skill so it is always listed for you (for skills you will use again).', {
+    _fn('skill_install', 'Install a library skill so it is always listed for you.', {
       'id': {'type': 'string'},
     }, ['id']),
     _fn('skill_remove', 'Uninstall one of your skills.', {
       'id': {'type': 'string'},
     }, ['id']),
-    _fn('skill_save', 'Save a method you built and tested as your own reusable skill — a working script, a recipe, a checklist — so the next task like it '
-        'starts from skill_use instead of from zero. Call it after something worked, with the whole method written out. Saved on this phone only; '
-        'listed for you from now on.', {
-      'id': {'type': 'string', 'description': 'Short id, letters-numbers-dashes, e.g. "cv-to-pdf"'},
-      'name': {'type': 'string', 'description': 'A clear name, e.g. "CV to PDF converter"'},
+    _fn('skill_save', 'Save a method you built and tested as your own reusable skill, so the next such task starts from skill_use, '
+        'with the whole method written out. Saved on this phone.', {
+      'id': {'type': 'string', 'description': 'Letters-numbers-dashes, e.g. "cv-to-pdf"'},
+      'name': {'type': 'string', 'description': 'e.g. "CV to PDF converter"'},
       'desc': {'type': 'string', 'description': 'One line: what it does and when to use it'},
-      'body': {'type': 'string', 'description': 'The whole method: the steps, the script itself, how to run it, what to watch out for'},
-      'tags': {'type': 'array', 'items': {'type': 'string'}, 'description': 'A few search words'},
+      'body': {'type': 'string', 'description': 'The whole method: steps, the script, how to run it, what to watch for'},
     }, ['id', 'name', 'desc', 'body']),
   ];
 
