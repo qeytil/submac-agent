@@ -725,9 +725,13 @@ class _Rail extends StatelessWidget {
               DateTime botAt(Bot b) => botLast(b).at ?? DateTime(2000);
               DateTime teamAt(Office o) => teamLast(o).at ?? DateTime(2000);
               int pinFirst(String a, String b) => (pins.has(a) ? 0 : 1) - (pins.has(b) ? 0 : 1);
+              // Every bot the owner has, started or not. A bot the Chief just made is not active and has no chat yet
+              // (Bots.create leaves both empty), so filtering on "started" made it invisible here AND in the drawer
+              // search: created, told "it is in Bots", and impossible to find. Unstarted heads show dimmed and open
+              // the profile (where Start lives) when tapped.
               final bots = [
                 for (final b in Bots.I.bots)
-                  if (!Bots.I.isChief(b) && (b.active || b.convId.isNotEmpty)) b,
+                  if (!Bots.I.isChief(b)) b,
               ]..sort((a, b) {
                   final pin = pinFirst(BotStatus.botKey(a.id), BotStatus.botKey(b.id));
                   return pin != 0 ? pin : botAt(b).compareTo(botAt(a));

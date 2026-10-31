@@ -2036,7 +2036,11 @@ class Bots extends ChangeNotifier {
       }
       b.log('work', 'Made a new bot: ${nb.name} (${nb.role}).');
       await save();
-      return 'Created ${nb.name}, ${nb.role}. It is in the sidebar under Bots; the owner taps it to start.';
+      // Say the true path. It used to claim "in the sidebar under Bots", but the menu shows one Bots row and the bot
+      // itself lives in that screen's rail, dimmed as not started — so the owner went looking in the menu and found
+      // nothing. The rail and the drawer's search now list unstarted bots, so this line can be followed.
+      return 'Created ${nb.name}, ${nb.role}. It is in Bots: the Bots row in the menu, then its face in the side rail '
+          '(dimmed, "Not started"). Tapping it opens its profile, where Start begins it. Tell the owner that path.';
     }
     return 'Error: action must be draft or create.';
   }

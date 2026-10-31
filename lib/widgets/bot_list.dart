@@ -268,9 +268,12 @@ class DrawerBots extends StatelessWidget {
 
   static bool _hit(String q, List<String> words) => q.isEmpty || words.any((w) => w.toLowerCase().contains(q));
 
+  // Every bot, started or not: a bot the Chief just made is not active and has no chat yet, so filtering on "started"
+  // hid it from search too and the owner could not even find it by name. BotRow says "Not started" for those, and
+  // tapping one opens its profile, which is where Start lives.
   static List<Bot> _bots(String q) => [
         for (final b in Bots.I.bots)
-          if (!Bots.I.isChief(b) && (b.active || b.convId.isNotEmpty) && _hit(q, [b.name, b.role])) b,
+          if (!Bots.I.isChief(b) && _hit(q, [b.name, b.role])) b,
       ];
 
   static List<Office> _teams(String q) => showTeams() ? [for (final o in Offices.I.offices) if (_hit(q, [o.name])) o] : const [];

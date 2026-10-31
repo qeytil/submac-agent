@@ -156,6 +156,18 @@ void main() {
   });
 
   group('rail', () {
+    // A bot the Chief makes in chat is created with no chat and not active (Bots.create). The rail used to list only
+    // started bots, so the new bot was in no list at all: the Chief said "it is in Bots" and the owner found nothing.
+    testWidgets('lists a bot that has not started yet', (t) async {
+      _size(t, _phone);
+      Bots.I.bots.add(Bot(id: 'u9', name: 'Sales bot', role: 'Sales', persona: ''));
+      await t.pumpWidget(_app(state()));
+      await t.pumpAndSettle();
+      await _openRail(t);
+      expect(find.byKey(const ValueKey('rail-b:u9')), findsOneWidget,
+          reason: 'an unstarted bot must be reachable, not invisible');
+    });
+
     testWidgets('is folded by default, opens narrow without covering the chat, and folds again', (t) async {
       _size(t, _phone);
       await t.pumpWidget(_app(state()));

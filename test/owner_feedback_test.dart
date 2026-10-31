@@ -73,6 +73,16 @@ void main() {
       expect(find.text('Amal'), findsOneWidget);
       expect(find.text('Nova'), findsNothing);
     });
+
+    // A bot the Chief just made has no chat and is not active; the search used to drop it, so the owner could not even
+    // find the bot by name after being told it was "in the sidebar under Bots".
+    testWidgets('search finds a bot that has not started yet, and says so', (t) async {
+      Bots.I.bots.add(Bot(id: 'u9', name: 'Sales bot', role: 'Sales', persona: ''));
+      await t.pumpWidget(_host(const DrawerBots(query: 'sales'), AppState()));
+      await t.pumpAndSettle();
+      expect(find.text('Sales bot'), findsOneWidget);
+      expect(find.text('Not started'), findsOneWidget);
+    });
   });
 
   group('Back from a bot chat', () {
