@@ -232,7 +232,7 @@ class SkillSync {
         .select('skill_id, name, site, goal, steps, runs, wins, at, deleted')
         .order('updated_at')
         .limit(_page);
-    return [for (final r in data) if (r is Map) Map<String, dynamic>.from(r)];
+    return [for (final r in data) Map<String, dynamic>.from(r)];
   }
 
   /// Writes what the account holds that is newer than this phone's copy, and drops what it removed.

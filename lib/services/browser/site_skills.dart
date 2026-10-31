@@ -182,13 +182,13 @@ class SiteSkills {
           d.deleteSync(recursive: true);
           back.renameSync('$root/browser_skills');
           _dir = null;
-          d = await _ensure();
-          if (d == null) return false;
         } catch (_) {}
       }
     }
+    final folder = await _ensure();
+    if (folder == null) return false;
     try {
-      File('${d.path}/.owner').writeAsStringSync(uid);
+      File('${folder.path}/.owner').writeAsStringSync(uid);
     } catch (_) {
       return false;
     }
