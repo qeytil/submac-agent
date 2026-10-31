@@ -56,9 +56,9 @@ void main() {
     expect(formatExtract('nope'), contains('Error'));
   });
 
-  test('the page script ships the schema ear: v9 with schema/schemaOpen/extract and a summary in the snapshot', () {
+  test('the page script ships the schema ear: v10 with schema/schemaOpen/extract/extractHtml and a summary in the snapshot', () {
     final src = PageScript.source;
-    expect(src, contains('var VERSION = 9;'));
+    expect(src, contains('var VERSION = 10;'));
     expect(src, contains('S.schema'), reason: 'the index API browser_schema calls');
     expect(src, contains('S.schemaOpen'), reason: 'the one-block API');
     expect(src, contains('S.extract'), reason: 'the walker browser_extract calls');

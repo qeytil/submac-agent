@@ -81,7 +81,19 @@ extension AppStateTools on AppState {
             'checkin' => 'The browser task has been working ${job.elapsed()}: ${job.now}. Say "continue" to keep it going.',
             _ => '',
           };
-          if (msg.isNotEmpty) unawaited(_sayIn(job.convId, msg));
+          if (msg.isNotEmpty) {
+            unawaited(_sayIn(job.convId, msg));
+            // A background job (started by a scheduled task) reaches the user the way a finished task does, even
+            // when the run that started it has already ended.
+            if (job.unattended) {
+              unawaited(SystemBridge.I.notify(
+                  id: job.convId.hashCode & 0x7ffffff,
+                  title: 'Scheduled: browser task',
+                  body: msg.length > 300 ? '${msg.substring(0, 300)}…' : msg,
+                  kind: 'scheduled',
+                  payload: 'conv/${job.convId}'));
+            }
+          }
         }
       }
       if (BrowserJobs.I.running.isEmpty && !runs.any((r) => r.browsing)) BrowserAgent.I.taskEnded();

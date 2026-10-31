@@ -72,7 +72,9 @@ void main() {
 
     test('a job that ends lets the fleet count and the wake lock go', () async {
       final awake = <bool>[];
-      BrowserJobs.keepAwake = (on) async => awake.add(on);
+      BrowserJobs.keepAwake = (on) async {
+        awake.add(on);
+      };
       BrowserJobs.I.llm = (j, p, t) async => LlmResult('', [_call('finish', {'success': true, 'result': 'done'}, 'f1')], 'tool_calls');
       final out = await BrowserJobs.I.execute('browser_task', {'goal': 'x', 'wait': false}, 'chatF', unattended: true);
       expect(out, contains('Started browser task'));
@@ -235,12 +237,15 @@ void main() {
   });
 
   group('the tool surface', () {
+    Map<String, dynamic> fnOf(List<Map<String, dynamic>> defs, String name) =>
+        defs.map((d) => d['function'] as Map<String, dynamic>).firstWhere((f) => f['name'] == name);
+
     test('browser_extract_many is offered, with rows, fields and links', () {
       expect(BrowserAgent.names, contains('browser_extract_many'));
-      final def = BrowserAgent.definitions.firstWhere((d) => d['name'] == 'browser_extract_many');
-      final params = (def['parameters'] as Map)['properties'] as Map;
+      final fn = fnOf(BrowserAgent.definitions, 'browser_extract_many');
+      final params = (fn['parameters'] as Map)['properties'] as Map;
       expect(params.keys, containsAll(['links', 'from', 'rows', 'fields', 'limit', 'max_pages']));
-      expect('${def['description']}', contains('source column'));
+      expect('${fn['description']}', contains('source column'));
     });
 
     test('the browser agent is taught to use it', () {
@@ -250,8 +255,8 @@ void main() {
     });
 
     test('the parallel hint in the tool description matches the cap', () {
-      final def = BrowserJobs.definitions.firstWhere((d) => d['name'] == 'browser_task');
-      expect('${def['description']}', contains('6 jobs in parallel'));
+      final fn = fnOf(BrowserJobs.definitions, 'browser_task');
+      expect('${fn['description']}', contains('6 jobs in parallel'));
     });
   });
 }
