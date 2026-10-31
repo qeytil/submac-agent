@@ -20,14 +20,14 @@ void main() {
       BrowserJobs.I.canSee = () => true;
       BrowserJobs.I.say = null;
       BrowserJobs.I.onEnded = null;
-      BrowserJobs.I.keepAwake = null;
+      BrowserJobs.keepAwake = null;
       BrowserJobs.I.setFleetForTest(0);
     });
     tearDown(() {
       BrowserJobs.I.jobs.clear();
       BrowserJobs.I.llm = null;
       BrowserJobs.I.runTool = null;
-      BrowserJobs.I.keepAwake = null;
+      BrowserJobs.keepAwake = null;
       BrowserJobs.I.setFleetForTest(0);
     });
 
@@ -72,7 +72,7 @@ void main() {
 
     test('a job that ends lets the fleet count and the wake lock go', () async {
       final awake = <bool>[];
-      BrowserJobs.I.keepAwake = (on) async => awake.add(on);
+      BrowserJobs.keepAwake = (on) async => awake.add(on);
       BrowserJobs.I.llm = (j, p, t) async => LlmResult('', [_call('finish', {'success': true, 'result': 'done'}, 'f1')], 'tool_calls');
       final out = await BrowserJobs.I.execute('browser_task', {'goal': 'x', 'wait': false}, 'chatF', unattended: true);
       expect(out, contains('Started browser task'));

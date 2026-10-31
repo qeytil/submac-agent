@@ -13,7 +13,7 @@ import 'browser/loop_guard.dart';
 import 'browser/page_model.dart';
 import 'browser/page_script.dart';
 import 'browser/net_calls.dart' show NetCall, dataLine, formatFetch, formatNetBody, formatNetList;
-import 'browser/extract.dart' show formatExtract, formatSchemaIndex, formatSchemaOpen;
+import 'browser/extract.dart' show ExtractPage, formatExtract, formatManyExtract, formatSchemaIndex, formatSchemaOpen, parseExtractPage;
 import 'browser/playbook.dart' show Playbook, compressSteps, playbookId, resolveStep, withValues;
 import 'browser/read_page.dart' show htmlTitle, htmlToText;
 import 'browser/site_skills.dart' show SiteSkills;
@@ -477,7 +477,7 @@ class BrowserAgent extends ChangeNotifier {
       t.snap = s;
       return s;
     } catch (_) {
-      return t.snap ?? PageSnapshot.empty;
+      return t.snap;
     }
   }
   final Map<String, Completer<void>> _ends = {};
@@ -1230,7 +1230,7 @@ class BrowserAgent extends ChangeNotifier {
     for (final l in links) {
       if (l.isEmpty) continue;
       final u = Uri.tryParse(l);
-      final abs = u == null ? null : (u.hasScheme ? u : (base == null ? null : base.resolveUri(u)));
+      final abs = u == null ? null : (u.hasScheme ? u : base?.resolveUri(u));
       if (abs == null || (abs.scheme != 'http' && abs.scheme != 'https')) continue;
       if (seen.add(abs.toString())) urls.add(abs.toString());
       if (urls.length >= maxPages) break;

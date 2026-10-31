@@ -194,7 +194,7 @@ class PageSnapshot {
     if (elements.isEmpty) {
       sb.writeln('No clickable elements found.');
     } else if (diff && samePage) {
-      final old = {for (final e in before!.elements) e.id: e};
+      final old = {for (final e in before.elements) e.id: e};
       final shown = <PageElement>[
         for (final e in elements)
           if (old[e.id] == null ||
@@ -227,7 +227,7 @@ class PageSnapshot {
       }
     }
     if (text.isNotEmpty) {
-      if (diff && samePage && before!.text == text) {
+      if (diff && samePage && before.text == text) {
         sb.writeln('\nText: unchanged since your last step.');
       } else {
         sb.writeln('\nText in view:\n$text');
