@@ -38,7 +38,9 @@ import kotlin.math.sin
 /**
  * Floating Live, drawn over other apps.
  *  popup  - the Siri-like card at the bottom: the red dot blooms, breathes with the voice, captions.
- *  orb    - a small dot you can drag anywhere and tap to open again.
+ *  orb    - the small mic, docked in the notch: a dot in the status-bar strip at the very top of the
+ *           screen, out of the way of everything. Drag it along the top (it snaps back into the strip),
+ *           tap it to open the card again.
  *  sheet  - the card plus a box to type to SubMac.
  */
 @SuppressLint("StaticFieldLeak", "ClickableViewAccessibility", "SetTextI18n")
@@ -66,8 +68,53 @@ object Overlay {
     private var input: EditText? = null
     private var muteBtn: TextView? = null
     private var lastStatus = ""
-    private var orbX = -1
-    private var orbY = -1
+    // Where the notch dot was left (an x offset from the centre). MIN_VALUE = never placed yet.
+    private var orbX = Int.MIN_VALUE
+    private var orbY = Int.MIN_VALUE
+
+    /** The touch target of the docked mic. The dot drawn inside it is about a quarter of this. */
+    private fun orbSize(): Int = dp(56f)
+
+    /** The strip the status bar (and most notches) live in, so the dot can sit inside it. */
+    private fun statusStrip(): Int {
+        val c = ctx ?: return 0
+        val id = c.resources.getIdentifier("status_bar_height", "dimen", "android")
+        val h = if (id > 0) {
+            try { c.resources.getDimensionPixelSize(id) } catch (_: Exception) { 0 }
+        } else 0
+        return if (h > 0) h else dp(28f)
+    }
+
+    /**
+     * The y that puts the dot's centre in the middle of the notch strip. It is negative when the strip is
+     * shorter than the touch target, which is fine: the window is transparent and LAYOUT_NO_LIMITS lets the
+     * empty top part sit off-screen.
+     */
+    private fun stripY(size: Int): Int = (statusStrip() - size) / 2
+
+    /**
+     * How far from the centre the dot has to sit so it never covers a camera hole. 0 when the top edge is
+     * clear, and on any device where the cutout cannot be read (the dot then simply centres).
+     */
+    private fun notchShift(size: Int): Int {
+        val w = wm ?: return 0
+        val hole = try {
+            if (Build.VERSION.SDK_INT >= 30) w.currentWindowMetrics.windowInsets.displayCutout else null
+        } catch (_: Exception) {
+            null
+        }?.boundingRects?.firstOrNull { it.top <= 0 && it.width() > 0 } ?: return 0
+        val centre = ctx!!.resources.displayMetrics.widthPixels / 2
+        if (hole.right <= centre || hole.left >= centre) return 0 // the hole is not in the middle
+        val gap = dp(8f)
+        val room = (ctx!!.resources.displayMetrics.widthPixels - size) / 2 - dp(6f)
+        val right = hole.right + gap + size / 2 - centre
+        val left = hole.left - gap - size / 2 - centre
+        return when {
+            right <= room -> right
+            left >= -room -> left
+            else -> 0
+        }
+    }
 
     private fun dp(v: Float): Int = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, ctx!!.resources.displayMetrics).toInt()
 
@@ -150,11 +197,13 @@ object Overlay {
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
         val p = if (mode == "orb") {
-            WindowManager.LayoutParams(dp(84f), dp(84f), type, flags, PixelFormat.TRANSLUCENT).apply {
-                gravity = Gravity.TOP or Gravity.START
-                val dm = c.resources.displayMetrics
-                x = if (orbX >= 0) orbX else dm.widthPixels - dp(92f)
-                y = if (orbY >= 0) orbY else (dm.heightPixels * 0.62f).toInt()
+            // The small mic lives in the notch: the status-bar strip at the very top, so it never sits over
+            // what the person is reading. 56dp is the touch target; the dot inside is about 14dp.
+            val size = orbSize()
+            WindowManager.LayoutParams(size, size, type, flags, PixelFormat.TRANSLUCENT).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                x = if (orbX != Int.MIN_VALUE) orbX else notchShift(size)
+                y = if (orbY != Int.MIN_VALUE) orbY else stripY(size)
             }
         } else {
             WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT, type, flags, PixelFormat.TRANSLUCENT).apply {
@@ -191,7 +240,8 @@ object Overlay {
 
     private fun buildOrb(r: FrameLayout) {
         val c = ctx!!
-        val o = OrbView(c, small = true)
+        // A small dot (~16dp across) so it fits inside the notch strip instead of sitting on the app.
+        val o = OrbView(c, 0.14f)
         orb = o
         r.addView(o, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var moved = false
@@ -210,7 +260,7 @@ object Overlay {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!moved) { show(c, "popup"); send("mode", "popup") } else snapToEdge(r, p)
+                    if (!moved) { show(c, "popup"); send("mode", "popup") } else snapToNotch(r, p)
                     true
                 }
                 else -> false
@@ -218,15 +268,24 @@ object Overlay {
         }
     }
 
-    private fun snapToEdge(r: View, p: WindowManager.LayoutParams) {
-        val w = ctx!!.resources.displayMetrics.widthPixels
-        val target = if (p.x + dp(42f) < w / 2) dp(8f) else w - dp(92f)
-        val a = ValueAnimator.ofInt(p.x, target)
+    /**
+     * Back into the notch: the dot snaps to the nearest top anchor (left of the strip, the middle, or the
+     * right of it) and always back to the strip's height, so a drag can never leave it sitting over the app.
+     */
+    private fun snapToNotch(r: View, p: WindowManager.LayoutParams) {
+        val dm = ctx!!.resources.displayMetrics
+        val size = if (p.width > 0) p.width else orbSize()
+        val room = (dm.widthPixels - size) / 2 - dp(6f)
+        val restY = stripY(size)
+        val targetX = listOf(-room, 0, room).minByOrNull { kotlin.math.abs(it - p.x) } ?: 0
+        val a = ValueAnimator.ofInt(p.x, targetX)
         a.duration = 220
         a.interpolator = DecelerateInterpolator()
         a.addUpdateListener {
             p.x = it.animatedValue as Int
+            p.y = restY
             orbX = p.x
+            orbY = p.y
             try { wm?.updateViewLayout(r, p) } catch (_: Exception) {}
         }
         a.start()
@@ -261,7 +320,7 @@ object Overlay {
         }
         card.elevation = dp(10f).toFloat()
 
-        val o = OrbView(c, small = false)
+        val o = OrbView(c)
         orb = o
         card.addView(o, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(132f)))
 
@@ -342,7 +401,7 @@ object Overlay {
     }
 
     /** The brand's red dot: blooms in with two ripples, breathes when idle, swells with the voice. */
-    class OrbView(c: Context, private val small: Boolean) : View(c) {
+    class OrbView(c: Context, private val scale: Float = 0.2f) : View(c) {
         @Volatile var level = 0f
         @Volatile var thinking = false
         @Volatile var muted = false
@@ -369,7 +428,7 @@ object Overlay {
             val now = System.currentTimeMillis()
             val cx = width / 2f
             val cy = height / 2f
-            val base = min(width, height) * (if (small) 0.26f else 0.2f)
+            val base = min(width, height) * scale
             val t = ((now - bloomAt) / 650f).coerceIn(0f, 1f)
             shown = overshoot.getInterpolation(t)
             smooth += (level - smooth) * 0.25f
