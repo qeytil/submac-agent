@@ -124,7 +124,15 @@ The highest-leverage feature, and SubMac already owns the perfect container (`sk
   A site redesign costs one model call, not a broken automation.
 - Money/approval steps replay **with approval, always** (BrowserGate stays in the replay path).
 
-### P4 — Speed: act at network-quiet, diff the view, triage with HTTP
+### P4 — Speed: act at network-quiet, diff the view, triage with HTTP — SHIPPED 2026-10-31
+Three cuts that convert directly into more steps per budget.
+- **Patch views**: after a step on the same page, the observe payload lists only the elements that are new or changed and says `Elements: N of M — only what is new or changed`; when the words did not move it says `Text: unchanged since your last step.` instead of repeating 2600 chars. A navigation still sends the full view, and `browser_read full:true` lists every element again on demand. (The "Effect:" line was already there and stays.)
+- **Network-quiet waits**: `browser_wait quiet:true` waits until the page stops talking (no request in flight, DOM calm, max 10 s) instead of guessing seconds; navigation settle already used the same signal (`S.quiet`).
+- **HTTP-first triage**: `browser_open read:true` answers a read-only task from a same-session fetch — the WebView's own cookies, no CORS, no render — returning `Served from fetch, no render — <title>` with the readability text (scripts/styles/markup stripped, entities decoded, 6 KB cap). JSON answers are pretty-printed. If the page is a script shell (under 200 chars of text) or the fetch fails, it renders as usual and says so.
+- Code: `lib/services/browser/read_page.dart` (`htmlToText`/`htmlTitle`), `page_model.dart` (`describe(diff:)`), `browser_agent.dart` (`_fetchRead`, `browser_open.read`, `browser_wait.quiet`, `browser_read.full`, observe `diff: true`), sub-agent prompt. Tests: `test/browser_speed_test.dart`.
+- Boundary (honest): the readability pass is a tag strip with block breaks, not a full article extractor; the fetch uses the cookie jar but not the page's JS-set storage (localStorage tokens are invisible to it) — those pages fall back to rendering.
+
+### P4 — Speed: act at network-quiet, diff the view, triage with HTTP (original plan)
 - **Network-quiet waits**: page script tracks in-flight fetch/XHR + MutationObserver; `browser_wait`
   gains `quiet:true` ("wait until the page stops talking, ≤10 s") and navigation returns the instant
   the network is quiet — the agent acts *before* a human would have noticed the spinner.

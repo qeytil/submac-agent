@@ -15,6 +15,7 @@ import 'browser/page_script.dart';
 import 'browser/net_calls.dart' show NetCall, dataLine, formatFetch, formatNetBody, formatNetList;
 import 'browser/extract.dart' show formatExtract, formatSchemaIndex, formatSchemaOpen;
 import 'browser/playbook.dart' show Playbook, compressSteps, playbookId, resolveStep, withValues;
+import 'browser/read_page.dart' show htmlTitle, htmlToText;
 import 'browser/site_skills.dart' show SiteSkills;
 import 'skill_library.dart' show SkillLibrary;
 import 'browser/shots.dart';
@@ -655,10 +656,13 @@ class BrowserAgent extends ChangeNotifier {
         ['actions']),
     _fn('browser_open',
         'Open a web page (or search words). Returns the numbered elements, the visible text and a screenshot with the same '
-            'numbers. new_tab keeps the current page open in its own tab.',
+            'numbers. new_tab keeps the current page open in its own tab. read:true is for reading only — it fetches the '
+            'page with this session and answers from its text without rendering (one fast step; falls back to rendering '
+            'when the page needs scripts).',
         {
           'url': {'type': 'string'},
           'new_tab': {'type': 'boolean'},
+          'read': {'type': 'boolean', 'description': 'Reading only, no clicking: answer from a fetch of the page text, no render.'},
         },
         ['url']),
     _fn('browser_tabs', 'Tabs: list, open a new one, switch, or close.', {
@@ -719,15 +723,20 @@ class BrowserAgent extends ChangeNotifier {
       'key': {'type': 'string'},
       'about': _about,
     }, ['key']),
-    _fn('browser_wait', 'Wait for text to appear (or go with gone:true), or a few seconds. Max 20 s.', {
+    _fn('browser_wait', 'Wait for text to appear (or go with gone:true), or a few seconds. quiet:true waits until the page '
+        'stops talking (no requests in flight, no changes), max 10 s. Max 20 s.', {
       'seconds': {'type': 'number'},
       'text': {'type': 'string'},
       'gone': {'type': 'boolean'},
+      'quiet': {'type': 'boolean', 'description': 'Wait until the page goes quiet instead of a fixed time.'},
     }, []),
     _fn('browser_find', 'Find text on the page and scroll to it.', {
       'text': {'type': 'string'},
     }, ['text']),
-    _fn('browser_read', 'Read all the text on the current page (long articles, results, terms).', {}, []),
+    _fn('browser_read', 'Read all the text on the current page (long articles, results, terms). full:true lists every '
+        'numbered element again after a patch showed only what changed.', {
+      'full': {'type': 'boolean', 'description': 'List every element again (the last view showed only changes).'},
+    }, []),
     _fn('browser_net', 'List the data calls this page made (the site\'s own APIs) — often the exact answer, no scraping. '
         'With an id, read that call\'s JSON body instead.', {
       'id': {'type': 'integer', 'description': 'Read this call\'s body (from a browser_net list).'},
@@ -914,6 +923,11 @@ class BrowserAgent extends ChangeNotifier {
         case 'browser_open':
           final u = toUrl((a['url'] ?? '').toString());
           if (u.isEmpty) return 'Error: no url';
+          if (a['read'] == true) {
+            final r = await _fetchRead(u);
+            if (r != null) return r;
+            note = '(That page is drawn by script, so it was rendered instead of fetched.)';
+          }
           await _load(t, u);
           break;
         case 'browser_click':
@@ -991,6 +1005,16 @@ class BrowserAgent extends ChangeNotifier {
           await _settle(c, t, max: 500);
           break;
         case 'browser_read':
+          if (a['full'] == true) {
+            final raw = await _js(c, 'return JSON.stringify(S.snapshot({max: 140, text: 2600}));', limit: const Duration(seconds: 10));
+            try {
+              final s = PageSnapshot.parse(raw);
+              t.snap = s;
+              return s.describe();
+            } catch (_) {
+              return 'Could not read this page. Try browser_reload.';
+            }
+          }
           final txt = await _js(c, 'return S.readAll(16000);', limit: jsLimit);
           return 'Page: $title — $url\n\n$txt';
         case 'browser_copy':
@@ -1251,6 +1275,43 @@ class BrowserAgent extends ChangeNotifier {
     return 'Replayed "${p.name}": $done steps with no model calls. Check the result below before you finish.';
   }
 
+  // ---- speed (P4): HTTP-first triage ----
+  /// A read-only open answers from a same-session fetch (the WebView's cookies, no CORS, no render):
+  /// "Served from fetch, no render". Null means the page needs scripts — render it instead.
+  Future<String?> _fetchRead(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return null;
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    try {
+      final cookies = await CookieManager.instance().getCookies(url: WebUri(url)).timeout(const Duration(seconds: 3));
+      final req = await client.getUrl(uri).timeout(const Duration(seconds: 8));
+      if (cookies.isNotEmpty) req.headers.set('cookie', cookies.map((c) => '${c.name}=${c.value}').join('; '));
+      req.headers.set('user-agent', 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36');
+      req.headers.set('accept', 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8');
+      final res = await req.close().timeout(const Duration(seconds: 15));
+      if (res.statusCode >= 400) return null; // let the browser show the error page
+      final ct = (res.headers.contentType?.mimeType ?? '').toLowerCase();
+      final body = await const Utf8Decoder(allowMalformed: true).bind(res).join().timeout(const Duration(seconds: 10));
+      if (ct.contains('json')) {
+        var out = body;
+        try {
+          out = const JsonEncoder.withIndent('  ').convert(jsonDecode(body));
+        } catch (_) {}
+        return 'Served from fetch, no render — ${uri.host} (JSON, ${res.statusCode})\n$url\n\n'
+            '${out.length > 8000 ? '${out.substring(0, 8000)}…' : out}';
+      }
+      if (!ct.contains('html') && !ct.contains('text')) return null;
+      final text = htmlToText(body);
+      if (text.length < 200) return null; // a script shell: the browser has to draw it
+      final title = htmlTitle(body);
+      return 'Served from fetch, no render — ${title.isEmpty ? uri.host : title}\n$url\n\n$text';
+    } catch (_) {
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   // ---- actions ----  /// The result of one action: ok or not, and a line for the model.
   static ({bool ok, String text}) _r(bool ok, String text) => (ok: ok, text: text);
 
@@ -1409,6 +1470,12 @@ class BrowserAgent extends ChangeNotifier {
   }
 
   Future<String> _wait(InAppWebViewController c, BrowserTab t, Map<String, dynamic> a) async {
+    if (a['quiet'] == true) {
+      final r = await _js(c, 'return await S.quiet(10000, 400);', limit: const Duration(seconds: 12));
+      return r == 'calm'
+          ? 'The page went quiet (no requests in flight, no changes). Act now.'
+          : 'Waited 10 s; the page is still busy. Act on what is there, or wait once more.';
+    }
     final want = (a['text'] ?? '').toString();
     final secs = _numD(a['seconds'], want.isEmpty ? 2 : 10).clamp(0.5, 20.0).toDouble();
     final ms = (secs * 1000).round();
@@ -1640,7 +1707,7 @@ class BrowserAgent extends ChangeNotifier {
     // The data ear: one quiet hint that the site's own APIs are there to be read (P1, browser-godmode).
     if (snap.calls > 0) sb.writeln('Data: ${dataLine(snap.calls)}');
     if (snap.schema.isNotEmpty) sb.writeln('Schema: ${snap.schema} — browser_schema opens one; browser_extract walks the page.');
-    sb.writeln(snap.describe(before: prev.url.isEmpty ? null : prev));
+    sb.writeln(snap.describe(before: prev.url.isEmpty ? null : prev, diff: true));
     if (t.offered.isNotEmpty) sb.writeln('Files offered on this tab: ${t.offered.length} (browser_download saves the newest).');
     if (t.desktop) sb.writeln('(Desktop site mode.)');
     if (snap.moneyPage) sb.writeln('(Payment page: buttons that move on here ask the user first.)');
