@@ -27,7 +27,7 @@ class SiteSkills {
     return _dir;
   }
 
-  File? _file(String id, Directory d) => File('${d.path}/${id.replaceAll(RegExp(r'[^a-z0-9_-]'), '_')}.json');
+  File _file(String id, Directory d) => File('${d.path}/${id.replaceAll(RegExp(r'[^a-z0-9_-]'), '_')}.json');
 
   /// Every saved playbook, newest first.
   Future<List<Playbook>> all() async {
@@ -86,7 +86,6 @@ class SiteSkills {
     if (p.site.isEmpty) return 'Save it while the site is open (the host names the skill).';
     final id = playbookId(p.id.isEmpty ? p.name : p.id);
     final f = _file(id, d);
-    if (f == null) return 'Could not reach this phone\'s storage.';
     final clean = Playbook(
       id: id,
       name: p.name.trim().isEmpty ? id : p.name.trim(),
