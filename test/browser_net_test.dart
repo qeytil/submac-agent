@@ -44,9 +44,9 @@ void main() {
     expect(dataLine(12), contains('browser_fetch'));
   });
 
-  test('the page script ships the ear: v8 with netList/netBody/netClear and a calls count in the snapshot', () {
+  test('the page script ships the ear: v9 with netList/netBody/netClear and a calls count in the snapshot', () {
     final src = PageScript.source;
-    expect(src, contains('var VERSION = 8;'));
+    expect(src, contains('var VERSION = 9;'));
     expect(src, contains('S.netList'), reason: 'the list API the browser_net tool calls');
     expect(src, contains('S.netBody'), reason: 'the one-body API');
     expect(src, contains('S.netClear'), reason: 'the forget API');

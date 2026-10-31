@@ -81,7 +81,15 @@ The WebView's page script hears **every data call the page makes** (fetch/XHR ho
 - Code: page script ear + `S.netList/S.netBody/S.netClear` (`tools/browser_page.js` v8), `lib/services/browser/net_calls.dart` (NetCall + formatters), `browser_agent.dart` (`_net`/`_fetchApi`, observe Data line), sub-agent prompt teaches the data layer. Tests: `tools/browser_page_test.js` §8 (jsdom), `test/browser_net_test.dart`.
 - Boundary (honest): the ear hears main-frame fetch/XHR — cross-origin iframes and service-worker-only traffic stay invisible (the page script cannot inject there). `browser_fetch` is also same-origin-plus-CORS: for another origin, the error tells the agent to read the page instead.
 
-### P2 — Data-layer reading + schema extraction
+### P2 — Data-layer reading + schema extraction — SHIPPED 2026-10-31
+The page's own structured data, free for the taking, and every matching item pulled in ONE call.
+- The page script (v9) collects the free wins once per document: JSON-LD blocks (`@type` + size, ≤12), app state scripts (`__NEXT_DATA__`, `__INITIAL_STATE__`, `__APOLLO_STATE__`, `__NUXT__`, `__PRELOADED_STATE__`, ≤4), OpenGraph/Twitter meta count. The snapshot carries a one-line summary; the observe payload gains `Schema: JSON-LD Product, state 84.3KB, og:8 — browser_schema opens one; browser_extract walks the page.`
+- `browser_schema` — lists the blocks; with an index, reads one in full (JSON pretty-printed, 20 KB cap).
+- `browser_extract` — the walker: `rows` = a CSS selector matching each item, `fields` = what to take from each row (a selector for text, or `{"sel":"a","attr":"href"}`); returns JSON for ALL matching rows in one call (≤200 rows, values ≤300 chars) — no read-page → reason → retype loop.
+- The ```data``` output card: extracted rows (a JSON array of objects, a table-shaped map, or plain CSV) render as the SubMac table card, folded like every long output.
+- Code: page script schema ear + `S.schema/S.schemaOpen/S.extract` (`tools/browser_page.js` v9), `lib/services/browser/extract.dart` (formatters), `page_model.dart` (`schema` field), `browser_agent.dart` (`_schema`/`_extract`, observe Schema line), `output_cards.dart` (`dataCardFrom`, kicker), sub-agent prompt. Tests: `tools/browser_page_test.js` §9 (jsdom), `test/browser_extract_test.dart`, `test/output_visual_test.dart` (data card).
+
+### P2 — Data-layer reading + schema extraction (original plan)
 - `browser_extract`: the model supplies a JSON schema; a page-script walker + (when needed) model-written
   JS returns structured data for **all matching items on the page** in ONE call — vs. today's
   read-page → reason → retype loop.

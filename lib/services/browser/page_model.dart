@@ -86,6 +86,7 @@ class PageSnapshot {
     this.zoom = 1,
     this.ready = 'complete',
     this.calls = 0,
+    this.schema = '',
   });
 
   final String url;
@@ -113,6 +114,10 @@ class PageSnapshot {
 
   /// Data calls the page's own code made while open (the ear's ring) — browser_net reads them.
   final int calls;
+
+  /// One-line summary of the page's own structured data ("JSON-LD Product, state 84.3KB, og:8").
+  /// Empty when the page carries none — browser_schema opens the blocks.
+  final String schema;
 
   static final empty = PageSnapshot(url: '', title: '', elements: const []);
 
@@ -163,6 +168,7 @@ class PageSnapshot {
       zoom: (j['zoom'] as num?)?.toDouble() ?? 1,
       ready: '${j['ready'] ?? 'complete'}',
       calls: (j['calls'] as num?)?.toInt() ?? 0,
+      schema: '${j['sch'] ?? ''}',
     );
   }
 

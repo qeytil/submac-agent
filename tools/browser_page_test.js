@@ -142,6 +142,45 @@ function page(html, pre) {
   ok(JSON.parse(S.netBody(99999)).err === 'gone', 'netBody says gone for unknown ids');
   S.netClear();
   ok(S.calls.length === 0, 'netClear forgets everything');
+// 9. The schema ear + the extract walker: JSON-LD, app state, OG count, and one-call row extraction.
+{
+  const w = page(`
+    <script type="application/ld+json">{"@type":"Product","name":"Red shoes","price":"19.99"}</script>
+    <script>window.__NEXT_DATA__={"page":"/search","props":{"items":[1,2,3]}};</script>
+    <meta property="og:title" content="Shop">
+    <div class="card" data-r="10,10,380,120">
+      <h3 class="name" data-r="10,20,200,30">Red shoes</h3>
+      <span class="price" data-r="10,60,100,30">$19.99</span>
+      <a href="/p/red" data-r="10,90,100,30">View</a>
+    </div>
+    <div class="card" data-r="10,150,380,120">
+      <h3 class="name" data-r="10,160,200,30">Blue hat</h3>
+      <span class="price" data-r="10,200,100,30">$9.99</span>
+      <a href="/p/blue" data-r="10,230,100,30">View</a>
+    </div>`);
+  const S = w.__sm2;
+  const idx = JSON.parse(S.schema());
+  ok(idx.n === 2, 'schema index holds the ld block and the state block (got ' + idx.n + ')');
+  ok(idx.items[0].kind === 'ld' && idx.items[0].name === 'Product', 'JSON-LD item carries its @type');
+  ok(idx.items[1].kind === 'state' && idx.items[1].name === '__NEXT_DATA__', 'state block is named');
+  ok(idx.og === 1, 'og metas counted');
+  ok(!('text' in idx.items[0]), 'the index stays small: no text in it');
+  const open = JSON.parse(S.schemaOpen(0));
+  ok(open.text.includes('"Red shoes"') && open.text.includes('19.99'), 'schemaOpen returns the full ld text');
+  ok(JSON.parse(S.schemaOpen(99)).err === 'gone', 'schemaOpen says gone for unknown indexes');
+  ok(S.snapshot().sch.includes('JSON-LD Product') && S.snapshot().sch.includes('og:1'), 'snapshot summary line: ' + S.snapshot().sch);
+  const ex = JSON.parse(S.extract({ rows: '.card', fields: { name: '.name', price: '.price', link: { sel: 'a', attr: 'href' } } }));
+  ok(ex.n === 2 && ex.rows.length === 2, 'extract walks every row');
+  ok(ex.rows[0].name === 'Red shoes' && ex.rows[0].price === '$19.99' && ex.rows[0].link === '/p/red', 'fields resolved: ' + JSON.stringify(ex.rows[0]));
+  ok(ex.rows[1].name === 'Blue hat', 'second row resolved too');
+  const miss = JSON.parse(S.extract({ rows: '.card', fields: { name: '.name', sku: '.sku' } }));
+  ok(miss.rows[0].sku === null, 'a missing field is null, not an error');
+  ok(JSON.parse(S.extract({ rows: '.card', fields: { name: '.name' }, limit: 1 })).rows.length === 1, 'limit caps the rows');
+  ok(JSON.parse(S.extract({})).err, 'a spec with no rows answers with an error');
+  let noThrow = true;
+  try { JSON.parse(S.extract({ rows: 'a[bad' })); } catch (e) { noThrow = false; }
+  ok(noThrow, 'a bad selector answers (err on strict engines), never throws');
+}
 })().then(() => {
   console.log(fails ? fails + ' FAILED' : 'ALL OK');
   process.exit(fails ? 1 : 0);

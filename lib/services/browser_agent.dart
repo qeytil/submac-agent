@@ -13,6 +13,7 @@ import 'browser/loop_guard.dart';
 import 'browser/page_model.dart';
 import 'browser/page_script.dart';
 import 'browser/net_calls.dart' show NetCall, dataLine, formatFetch, formatNetBody, formatNetList;
+import 'browser/extract.dart' show formatExtract, formatSchemaIndex, formatSchemaOpen;
 import 'browser/shots.dart';
 import 'system_bridge.dart';
 import 'tools.dart' show AgentTools;
@@ -576,6 +577,10 @@ class BrowserAgent extends ChangeNotifier {
     'browser_wait',
     'browser_find',
     'browser_read',
+    'browser_net',
+    'browser_fetch',
+    'browser_schema',
+    'browser_extract',
     'browser_copy',
     'browser_login',
     'browser_js',
@@ -694,6 +699,24 @@ class BrowserAgent extends ChangeNotifier {
       'url': {'type': 'string', 'description': 'Absolute, or relative to the current page (e.g. "/api/items?page=2").'},
       'headers': {'type': 'object', 'description': 'Extra headers, e.g. {"accept": "application/json"}.'},
     }, ['url']),
+    _fn('browser_schema',
+        'The site\'s own structured data, free: JSON-LD blocks (Product, Article, Event...), the app state the page '
+            'carries (__NEXT_DATA__ and friends), OpenGraph metas. No arguments: list what is there. With an index: '
+            'read that block in full (usually the exact answer, no scraping).',
+        {
+          'index': {'type': 'integer', 'description': 'Read this block in full (from a browser_schema list).'},
+        },
+        []),
+    _fn('browser_extract',
+        'Pull EVERY matching item on the page in ONE step: rows is a CSS selector matching each item (a product card, '
+            'a search result, a table row); fields say what to take from each row — a CSS selector for the text, or '
+            '{"sel": "a", "attr": "href"} for a link. Returns JSON. Show the answer to the user as a ```data card.',
+        {
+          'rows': {'type': 'string', 'description': 'CSS selector matching each item, e.g. ".product-card" or "table tr".'},
+          'fields': {'type': 'object', 'description': 'What to take from each row, e.g. {"name": ".title", "price": ".price", "link": {"sel": "a", "attr": "href"}}.'},
+          'limit': {'type': 'integer', 'description': 'Cap the rows (default 200).'},
+        },
+        ['rows', 'fields']),
     _fn('browser_copy', 'Copy the text of a numbered element (or text you give) to paste later; also on the phone clipboard.', {
       'id': {'type': 'integer'},
       'text': {'type': 'string'},
@@ -768,6 +791,8 @@ class BrowserAgent extends ChangeNotifier {
         case 'browser_read':
         case 'browser_net':
         case 'browser_fetch':
+        case 'browser_schema':
+        case 'browser_extract':
         case 'browser_find':
           return tr('Reading {site}', {'site': site()});
       case 'browser_scroll':
@@ -927,6 +952,10 @@ class BrowserAgent extends ChangeNotifier {
           return await _net(c, a);
         case 'browser_fetch':
           return await _fetchApi(c, a);
+        case 'browser_schema':
+          return await _schema(c, a);
+        case 'browser_extract':
+          return await _extract(c, a);
         case 'browser_js':
           final code = (a['code'] ?? '').toString();
           if (code.toLowerCase().contains('password')) return 'Error: reading passwords is not allowed.';
@@ -1034,6 +1063,24 @@ class BrowserAgent extends ChangeNotifier {
     } catch (_) {}
     if (j == null) return 'Error: unreadable answer.';
     return formatFetch(method: m, url: u, status: (j['status'] as num?)?.toInt() ?? 0, ct: '${j['ct'] ?? ''}', body: '${j['text'] ?? ''}');
+  }
+
+  /// The page's own structured data (JSON-LD, app state): list it, or read one block in full.
+  Future<String> _schema(InAppWebViewController c, Map<String, dynamic> a) async {
+    final idx = _intV(a['index']);
+    if (idx > 0) {
+      final raw = await _js(c, 'return S.schemaOpen($idx);', limit: const Duration(seconds: 5));
+      return formatSchemaOpen(raw);
+    }
+    final raw = await _js(c, 'return S.schema();', limit: const Duration(seconds: 5));
+    return formatSchemaIndex(raw);
+  }
+
+  /// The one-call walker: every element matching `rows` becomes one record of the given fields.
+  Future<String> _extract(InAppWebViewController c, Map<String, dynamic> a) async {
+    final spec = {'rows': '${a['rows'] ?? ''}', 'fields': a['fields'] is Map ? a['fields'] : <String, dynamic>{}, 'limit': _intV(a['limit'])};
+    final raw = await _js(c, 'return S.extract(${jsonEncode(spec)});', limit: const Duration(seconds: 8));
+    return formatExtract(raw);
   }
 
   // ---- actions ----  /// The result of one action: ok or not, and a line for the model.
@@ -1415,6 +1462,7 @@ class BrowserAgent extends ChangeNotifier {
     }
     // The data ear: one quiet hint that the site's own APIs are there to be read (P1, browser-godmode).
     if (snap.calls > 0) sb.writeln('Data: ${dataLine(snap.calls)}');
+    if (snap.schema.isNotEmpty) sb.writeln('Schema: ${snap.schema} — browser_schema opens one; browser_extract walks the page.');
     sb.writeln(snap.describe(before: prev.url.isEmpty ? null : prev));
     if (t.offered.isNotEmpty) sb.writeln('Files offered on this tab: ${t.offered.length} (browser_download saves the newest).');
     if (t.desktop) sb.writeln('(Desktop site mode.)');

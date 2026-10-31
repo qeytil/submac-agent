@@ -6,7 +6,7 @@ class PageScript {
   PageScript._();
 
   /// Bumped whenever the script changes; a page holding an older copy gets the new one.
-  static const version = 8;
+  static const version = 9;
 
   static const source = r'''
 // SubMac browser page script v2 (browser-use v2). Injected at document start and on demand.
@@ -15,7 +15,7 @@ class PageScript {
 // coordinates the agent sees are fractions of the VISUAL viewport (what the screenshot shows), so
 // pinch zoom, device pixel ratio and scroll never shift a tap.
 (function () {
-  var VERSION = 8;
+  var VERSION = 9;
   if (window.__sm2 && window.__sm2.v === VERSION) return;
   var S = (window.__sm2 = { v: VERSION });
 
@@ -440,6 +440,7 @@ class PageScript {
       vw: Math.round(v.w), vh: Math.round(v.h), zoom: round3(v.s), dpr: window.devicePixelRatio || 1,
       fav: fav, banner: banner, frames: sc.blocked.slice(0, 6), ready: document.readyState,
       calls: S.calls.length,
+      sch: schLine(),
       fp: S.fp(), focus: S.focusName(),
     };
   };
@@ -464,6 +465,111 @@ class PageScript {
     return JSON.stringify({ err: 'gone' });
   };
   S.netClear = function () { S.calls.length = 0; return 'ok'; };
+
+  // ---------------------------------------------------------------- schema: the site's own structured data
+  // The free wins a page hands over without scraping: JSON-LD blocks, the app state it carries
+  // (__NEXT_DATA__ and friends), OpenGraph metas. Collected once as an index (kind + size only);
+  // S.schemaOpen(i) returns one item in full, capped. Everything bounded: 12 LD + 4 state items.
+  function humanB(n) { return n >= 1024 ? (Math.round(n / 102.4) / 10) + 'KB' : n + 'B'; }
+  S.sch = null;
+  function schCollect() {
+    if (S.sch) return S.sch;
+    var items = [], og = 0;
+    try {
+      var lds = document.querySelectorAll('script[type="application/ld+json"]');
+      for (var k = 0; k < lds.length && items.length < 12; k++) {
+        var t = (lds[k].textContent || '').trim();
+        if (!t) continue;
+        var ty = 'JSON-LD';
+        try {
+          var v = JSON.parse(t);
+          ty = v['@type'] || (v['@graph'] && v['@graph'][0] && v['@graph'][0]['@type']) || 'JSON-LD';
+          if (typeof ty !== 'string') ty = ty.join ? ty.join('+') : 'JSON-LD';
+        } catch (e) { ty = 'JSON-LD?'; }
+        items.push({ i: items.length, kind: 'ld', name: txt(ty).slice(0, 40), kb: humanB(t.length), text: cut(t) });
+      }
+      var sc = document.querySelectorAll('script:not([src])'), seen = {};
+      for (var s = 0; s < sc.length && s < 80 && items.length < 16; s++) {
+        var m = (sc[s].textContent || '').slice(0, 300).match(/(NEXT_DATA|INITIAL_STATE|APOLLO_STATE|NUXT|PRELOADED_STATE)__/);
+        if (!m) continue;
+        var nm = '__' + m[1] + '__';
+        if (seen[nm]) continue;
+        seen[nm] = 1;
+        var st = sc[s].textContent || '';
+        if (!st) continue;
+        items.push({ i: items.length, kind: 'state', name: nm, kb: humanB(st.length), text: cut(st) });
+      }
+      og = document.querySelectorAll('meta[property^="og:"],meta[name^="twitter:"]').length;
+    } catch (e) {}
+    S.sch = { items: items, og: og };
+    return S.sch;
+  }
+  S.schema = function () {
+    var c = schCollect();
+    return JSON.stringify({ n: c.items.length, og: c.og,
+      items: c.items.map(function (it) { return { i: it.i, kind: it.kind, name: it.name, kb: it.kb }; }) });
+  };
+  S.schemaOpen = function (i) {
+    var c = schCollect();
+    for (var k = 0; k < c.items.length; k++) {
+      if (c.items[k].i === i) return JSON.stringify({ i: c.items[k].i, kind: c.items[k].kind, name: c.items[k].name, kb: c.items[k].kb, text: c.items[k].text });
+    }
+    return JSON.stringify({ err: 'gone' });
+  };
+  // The walker: every element matching `rows` becomes one record of the given fields, in ONE call —
+  // instead of the read-page -> reason -> retype loop. fields: {name: 'css'} takes the row-relative
+  // text; {name: {sel: 'a', attr: 'href'}} takes an attribute. Values capped at 300 chars.
+  S.extract = function (spec) {
+    try {
+      spec = spec || {};
+      var sel = String(spec.rows || '');
+      if (!sel) return JSON.stringify({ err: 'rows: a CSS selector that matches each item' });
+      var rows;
+      try { rows = document.querySelectorAll(sel); } catch (e) { return JSON.stringify({ err: 'bad rows selector: ' + e }); }
+      if (!rows.length) return JSON.stringify({ n: 0, rows: [] });
+      var fields = spec.fields || {}, out = [];
+      var cap = Math.min(rows.length, Math.max(1, Math.min(200, spec.limit | 0 || 200)));
+      for (var r = 0; r < cap; r++) {
+        var el = rows[r], o = {};
+        for (var key in fields) {
+          var f = fields[key], fsel = null, attr = null;
+          if (typeof f === 'string') fsel = f;
+          else if (f && typeof f === 'object') { fsel = f.sel ? String(f.sel) : null; attr = f.attr ? String(f.attr) : null; }
+          var t = fsel ? el.querySelector(fsel) : el;
+          if (!t) { o[key] = null; continue; }
+          var v;
+          if (attr && attr !== 'text') {
+            v = (attr === 'href' || attr === 'src') ? (t.getAttribute(attr) || t[attr] || '') : (t.getAttribute(attr) || '');
+          } else {
+            v = t.textContent || t.value || t.getAttribute('content') || '';
+          }
+          v = txt(v);
+          o[key] = v.length > 300 ? v.slice(0, 300) + '…' : v;
+        }
+        out.push(o);
+      }
+      return JSON.stringify({ n: rows.length, rows: out });
+    } catch (e) { return JSON.stringify({ err: '' + e }); }
+  };
+  // The one-line summary the observe payload gains: "JSON-LD Product ×2, state 84.3KB, og:8".
+  function schLine() {
+    try {
+      var c = schCollect(), parts = {}, order = [];
+      for (var i = 0; i < c.items.length; i++) {
+        var it = c.items[i];
+        var key = it.kind === 'ld' ? 'JSON-LD ' + it.name : 'state ' + it.kb;
+        if (parts[key] == null) { parts[key] = 0; order.push(key); }
+        parts[key]++;
+      }
+      var s = [];
+      for (var j = 0; j < order.length && j < 4; j++) s.push(order[j] + (parts[order[j]] > 1 ? ' ×' + parts[order[j]] : ''));
+      if (order.length > 4) s.push('+' + (order.length - 4) + ' more');
+      if (c.og > 0) s.push('og:' + c.og);
+      var out = s.join(', ');
+      return out.length > 140 ? out.slice(0, 140) + '…' : out;
+    } catch (e) { return ''; }
+  }
+  S.schLine = schLine;
 
   // A cheap fingerprint of what the page is showing (url + structure + visible words).
   S.fp = function () {

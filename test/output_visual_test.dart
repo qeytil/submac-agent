@@ -3,6 +3,7 @@
 import 'package:agent/app_state.dart';
 import 'package:agent/theme.dart';
 import 'package:agent/widgets/output_cards.dart';
+import 'package:agent/widgets/chat/blocks.dart' show BlockKind, blockKindOf;
 import 'package:agent/widgets/visual_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -44,6 +45,33 @@ void main() {
     await t.pumpWidget(_host(buildOutputCard('visual', _svg)!));
     await t.pump(const Duration(milliseconds: 100));
     expect(find.byType(VisualCard), findsOneWidget);
+  });
+
+  test('```data renders extracted rows as a table card', () {
+    expect(cardLanguages, contains('data'));
+    expect(blockKindOf('data'), BlockKind.table, reason: 'it sits with the tables, not with code');
+    // What browser_extract returns: a JSON array of objects (columns from the first row's keys).
+    const rows = '[{"name":"Red shoes","price":"19.99","link":"/p/red"},{"name":"Blue hat","price":"9.99","link":"/p/blue"}]';
+    expect(buildOutputCard('data', rows), isA<TableCard>());
+    // A table-shaped map and plain CSV land on the same card.
+    expect(buildOutputCard('data', '{"columns":["a","b"],"rows":[["1","2"],["3","4"]]}'), isA<TableCard>());
+    expect(buildOutputCard('data', 'name,price\nRed shoes,19.99\nBlue hat,9.99'), isA<TableCard>());
+    // Null cells render as empty cells, never the word "null".
+    final withNull = buildOutputCard('data', '[{"name":"A","note":null}]') as TableCard;
+    expect(withNull.columns, ['name', 'note']);
+    // Not data: prose, one line, or empty falls back to a code block.
+    expect(buildOutputCard('data', 'just words'), isNull);
+    expect(buildOutputCard('data', 'name,price'), isNull, reason: 'a header alone is not a table');
+    expect(buildOutputCard('data', ''), isNull);
+  });
+
+  testWidgets('a ```data card shows the rows', (t) async {
+    const rows = '[{"name":"Red shoes","price":"19.99"},{"name":"Blue hat","price":"9.99"}]';
+    await t.pumpWidget(_host(buildOutputCard('data', rows)!));
+    await t.pump(const Duration(milliseconds: 100));
+    expect(find.byType(TableCard), findsOneWidget);
+    expect(find.text('Red shoes'), findsOneWidget);
+    expect(find.text('Blue hat'), findsOneWidget);
   });
 
   testWidgets('a long summary is folded by default; Show more opens it right there, not the reader', (t) async {
