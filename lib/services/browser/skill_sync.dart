@@ -204,15 +204,20 @@ class SkillSync {
     _busy = true;
     var ok = true;
     try {
+      debugPrint('skill sync: DIAG client=${debugClient != null} uid=$_uid auth=${_authUid}');
       final rows = await _pull();
+      debugPrint('skill sync: DIAG pulled ${rows.length}');
       await _apply(rows);
+      debugPrint('skill sync: DIAG applied');
       await _push(rows);
+      debugPrint('skill sync: DIAG pushed');
       lastSync = DateTime.now();
       lastError.value = '';
-    } catch (e) {
+    } catch (e, st) {
       ok = false;
       lastError.value = '$e';
       debugPrint('skill sync: $e');
+      debugPrint('skill sync trace: ${st.toString().split('\n').take(14).join(' | ')}');
     } finally {
       await _saveState();
       _busy = false;
