@@ -14,6 +14,8 @@ import 'browser/page_model.dart';
 import 'browser/page_script.dart';
 import 'browser/net_calls.dart' show NetCall, dataLine, formatFetch, formatNetBody, formatNetList;
 import 'browser/extract.dart' show ExtractPage, formatExtract, formatManyExtract, formatSchemaIndex, formatSchemaOpen, parseExtractPage;
+import 'browser/human_input.dart' show HumanInput;
+import 'browser/heal.dart' show HealedTarget, parseHeal;
 import 'browser/playbook.dart' show Playbook, compressSteps, playbookId, resolveStep, withValues;
 import 'browser/read_page.dart' show htmlTitle, htmlToText;
 import 'browser/site_skills.dart' show SiteSkills;
@@ -1321,10 +1323,23 @@ class BrowserAgent extends ChangeNotifier {
     }
     final steps = withValues(p.steps, values);
     var done = 0;
+    var signedIn = false;
     for (var i = 0; i < steps.length; i++) {
       final s = steps[i];
       if (_ended2(jobNow)) return 'Stopped: this browser task has ended.';
-      final snap = await _refresh(c, t);
+      var snap = await _refresh(c, t);
+      // A replay that lands on a sign-in page offers the saved login ONCE, as one tap, so a saved flow never
+      // stalls on auth (P6). Nothing is used silently: the user still confirms it.
+      if (snap.password && !signedIn) {
+        signedIn = true;
+        final lr = await _login(c, p.site);
+        if (!lr.startsWith('ok')) {
+          await SiteSkills.I.bump(p, win: false);
+          return 'Replay paused at step ${i + 1} of ${steps.length} (${s.line}): this page asks for a sign-in. $lr';
+        }
+        await _settle(c, t, nav: true);
+        snap = await _refresh(c, t);
+      }
       if (snap.moneyPage && s.act == 'click') {
         await SiteSkills.I.bump(p, win: false);
         return 'Paused before step ${i + 1} of ${steps.length} (${s.line}): this is a payment page, and the user is asked '
@@ -1499,7 +1514,21 @@ class BrowserAgent extends ChangeNotifier {
       }
     }
     final r = await _jsMap(c, 'return JSON.stringify(S.click($id));');
-    if (r['ok'] != true) return _r(false, '${r['err'] ?? 'could not tap $id'}');
+    if (r['ok'] != true) {
+      // Self-heal (P6): the number is gone because the page redrew that control. Find it again by what it
+      // looked like and tap it once, instead of spending a model turn on re-perceiving the page.
+      final he = await _heal(c, id);
+      if (he != null) {
+        final r2 = await _jsMap(c, 'return JSON.stringify(S.click(${he.id}));');
+        if (r2['ok'] == true) {
+          await _settle(c, t, nav: true, max: 1500);
+          return _clicked(he.id,
+              'Tapped [${he.id}] instead: [$id] had been redrawn by the page and was found again by its ${he.how}'
+              '${he.label.isEmpty ? '' : ' ("${he.label}")'}.');
+        }
+      }
+      return _r(false, '${r['err'] ?? 'could not tap $id'}');
+    }
     await _settle(c, t, nav: true, max: 1500);
     final after = await _state(c);
     if (StepEffect.compare(before, after).any || t.loading || after['net'] != before['net']) return _clicked(id, 'Tapped [$id].');
@@ -1515,8 +1544,20 @@ class BrowserAgent extends ChangeNotifier {
         if (hit == 'other') return _r(false, 'the tap on [$id] reached something else on top of it; close what covers it, or scroll');
       }
     }
+    // The tap landed and nothing changed: if the control has been redrawn since, say where it went so the next
+    // step is a number, not another look at the page.
+    final he = await _heal(c, id);
+    if (he != null) {
+      return _clicked(id, 'Tapped [$id], but nothing visible changed. [$id] is gone now and the same control is [${he.id}] — '
+          'tap that next.');
+    }
     return _clicked(id, 'Tapped [$id], but nothing visible changed.');
   }
+
+  /// The same control, found again by its signature after the page redrew it (P6). Null when it is still there
+  /// under the same number, or when nothing on the page matches what it looked like.
+  Future<HealedTarget?> _heal(InAppWebViewController c, int id) async =>
+      parseHeal(await _jsMap(c, 'return JSON.stringify(S.heal($id));'), id);
 
   Future<({bool ok, String text})> _tapAt(InAppWebViewController c, BrowserTab t, double fx, double fy, {bool long = false}) async {
     fx = fx.clamp(0.0, 1.0).toDouble();
@@ -1535,7 +1576,19 @@ class BrowserAgent extends ChangeNotifier {
   /// Type: set the value through the page (fast, works with React), check it; real keyboard only if it did not take.
   Future<({bool ok, String text})> _type(InAppWebViewController c, BrowserTab t, int id, String text, {bool submit = false, bool append = false}) async {
     var r = await _jsMap(c, 'return JSON.stringify(S.type($id, ${jsonEncode(text)}, $append));');
-    if (r['ok'] != true && r['err'] != null && '${r['err']}'.contains('gone')) return _r(false, '${r['err']}');
+    var healedNote = '';
+    if (r['ok'] != true && '${r['err']}'.contains('gone')) {
+      // Self-heal (P6): the field was redrawn under a new number — find it by its label and type there.
+      final he = await _heal(c, id);
+      if (he != null) {
+        final r2 = await _jsMap(c, 'return JSON.stringify(S.type(${he.id}, ${jsonEncode(text)}, $append));');
+        if (r2['ok'] == true) {
+          healedNote = ' ([$id] had been redrawn; it is [${he.id}] now)';
+          id = he.id;
+          r = r2;
+        }
+      }
+    }
     if (r['ok'] != true && realHands) {
       final prep = await _js(c, 'return S.prep($id, $append);');
       if (prep == 'ok' && await _keys(c, t, text: text)) {
@@ -1546,7 +1599,7 @@ class BrowserAgent extends ChangeNotifier {
     if (submit) await _key(c, t, 'Enter');
     await _settle(c, t, nav: submit, max: submit ? 2500 : 500);
     _record({'do': 'type', ..._sig(id), 'v': text, if (submit) 's': true});
-    return _r(true, 'Typed into [$id]${submit ? ' and pressed Enter' : ''}.');
+    return _r(true, 'Typed into [$id]${submit ? ' and pressed Enter' : ''}.$healedNote');
   }
 
   Future<({bool ok, String text})> _select(InAppWebViewController c, BrowserTab t, int id, String option) async {
@@ -1609,8 +1662,13 @@ class BrowserAgent extends ChangeNotifier {
       fx2 = _d(p['fx2']);
       fy2 = _d(p['fy2']);
     }
+    // A real finger travels a curve with a wobble (and, on a long drag, a small overshoot), as one gesture;
+    // how long it takes follows the distance and is never the same twice.
     var ok = false;
-    if (realHands) ok = await _touch(c, t, 'swipe', fx, fy, fx2: fx2, fy2: fy2, ms: 380) != 'none';
+    if (realHands) {
+      final ms = HumanInput.swipeMs(HumanInput.distance(fx, fy, fx2, fy2));
+      ok = await _touch(c, t, 'swipe', fx, fy, fx2: fx2, fy2: fy2, ms: ms, pts: HumanInput.stroke(fx, fy, fx2, fy2)) != 'none';
+    }
     if (!ok) await _js(c, 'return JSON.stringify(await S.swipe($fx, $fy, $fx2, $fy2));', limit: const Duration(seconds: 5));
     await _settle(c, t, max: 800);
     return 'Swiped.';
@@ -1634,12 +1692,21 @@ class BrowserAgent extends ChangeNotifier {
 
   /// A real touch at a fraction of the visible page. Returns 'target' when the element [id] (if given) got the trusted
   /// event, 'other' when something else got it, 'none' when no real touch reached the page.
+  ///
+  /// A tap rests a little longer or shorter each time, and a swipe/drag travels the path in [pts] — curved, with a
+  /// wobble and, on a long drag, a small overshoot — as ONE gesture (P6: hands that look like a person's).
   Future<String> _touch(InAppWebViewController c, BrowserTab t, String kind, double fx, double fy,
-      {double? fx2, double? fy2, int ms = 320, int? id}) async {
+      {double? fx2, double? fy2, int ms = 320, int? id, List<({double x, double y})>? pts}) async {
     if (!realHands || t.url.isEmpty) return 'none';
     await _js(c, 'return S.armHits();');
     final m = await _mark(c, t);
-    final r = await SystemBridge.I.webTouch(t.url, kind, fx, fy, x2: fx2, y2: fy2, ms: ms, mark: m);
+    final String r;
+    if (pts != null && pts.length > 1) {
+      r = await SystemBridge.I.webStroke(t.url, pts, ms: ms, mark: m);
+    } else {
+      final hold = kind == 'long' ? HumanInput.longPressMs() : HumanInput.tapHoldMs();
+      r = await SystemBridge.I.webTouch(t.url, kind, fx, fy, x2: fx2, y2: fy2, ms: ms, hold: hold, mark: m);
+    }
     await _unmark(c, m);
     if (r != 'ok') return 'none';
     await Future<void>.delayed(const Duration(milliseconds: 60));
@@ -1649,12 +1716,32 @@ class BrowserAgent extends ChangeNotifier {
     return hit == 'target' || hit == 'other' ? hit : 'none';
   }
 
+  /// Real keys into the focused field. Text is typed in bursts with pauses — the way a keyboard app delivers
+  /// keys — because one instant paste is not what a person's hands do.
   Future<bool> _keys(InAppWebViewController c, BrowserTab t, {String? text, String? key}) async {
     if (!realHands || t.url.isEmpty) return false;
     final m = await _mark(c, t);
-    final r = text != null ? await SystemBridge.I.webType(t.url, text, mark: m) : await SystemBridge.I.webKey(t.url, key ?? 'enter', mark: m);
-    await _unmark(c, m);
-    return r == 'ok';
+    var ok = true;
+    try {
+      if (text != null && text.isNotEmpty) {
+        for (final p in HumanInput.typing(text)) {
+          if (_ended2(jobNow)) {
+            ok = false;
+            break;
+          }
+          if (p.delayMs > 0) await Future<void>.delayed(Duration(milliseconds: p.delayMs));
+          if (await SystemBridge.I.webType(t.url, p.chunk, mark: m) != 'ok') {
+            ok = false;
+            break;
+          }
+        }
+      } else {
+        ok = await SystemBridge.I.webKey(t.url, key ?? 'enter', mark: m) == 'ok';
+      }
+    } finally {
+      await _unmark(c, m);
+    }
+    return ok;
   }
 
   // ---- waiting, state, observing ----

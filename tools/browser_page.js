@@ -4,7 +4,7 @@
 // coordinates the agent sees are fractions of the VISUAL viewport (what the screenshot shows), so
 // pinch zoom, device pixel ratio and scroll never shift a tap.
 (function () {
-  var VERSION = 10;
+  var VERSION = 11;
   if (window.__sm2 && window.__sm2.v === VERSION) return;
   var S = (window.__sm2 = { v: VERSION });
 
@@ -266,6 +266,10 @@
   S.ids = S.ids || new WeakMap();
   S.byId = S.byId || {};
   S.next = S.next || 1;
+  // What each number looked like (kind family, label, href). A control that is redrawn under a new number can
+  // then be found again by what it looked like — that is what S.heal does.
+  S.sig = S.sig || {};
+  function kfam(k) { return String(k || '').split(/[ (]/)[0]; }
   function idOf(el) {
     var i = S.ids.get(el);
     if (!i) { i = S.next++; S.ids.set(el, i); }
@@ -273,6 +277,39 @@
     return i;
   }
   S.get = function (i) { var el = S.byId[i]; return el && el.isConnected ? el : null; };
+  // The number is gone (the page redrew the control, a list refreshed, a step re-rendered): find the same
+  // control again by what it looked like and return its NEW number, so the agent taps it instead of spending a
+  // model turn on re-perceiving the page. Never guesses past a kind change: a button never becomes a field.
+  S.heal = function (i) {
+    try {
+      var old = S.sig[i];
+      var live = S.get(i);
+      if (live && shown(live)) return { ok: true, id: i, how: 'same' };
+      if (!old) return { err: 'nothing is remembered about [' + i + ']' };
+      var want = txt(old.t || '');
+      var nodes;
+      try { nodes = Array.prototype.slice.call(document.querySelectorAll(Q)); } catch (e) { return { err: 'cannot look again: ' + e }; }
+      var best = null, bestHow = '', near = null;
+      for (var k = 0; k < nodes.length && k < 4000; k++) {
+        var el = nodes[k];
+        if (el === live) continue;
+        if (!shown(el)) continue;
+        var r = el.getBoundingClientRect();
+        if (r.width < 3 || r.height < 3) continue;
+        if (kfam(kind(el)) !== old.k) continue;
+        var nm = txt(name(el));
+        var hr = el.tagName === 'A' && el.href && el.href.indexOf('javascript:') !== 0 ? el.href : '';
+        if (want && nm === want) { best = el; bestHow = 'label'; break; }
+        if (!best && old.h && hr && hr === old.h) { best = el; bestHow = 'link'; }
+        if (!best && want.length >= 3 && nm && (nm.indexOf(want) >= 0 || want.indexOf(nm) >= 0)) { best = el; bestHow = 'text'; }
+        if (!best && want.length >= 3 && !nm) near = el; // a bare control of the same kind: the last resort
+      }
+      if (!best) { best = near; bestHow = near ? 'kind' : ''; }
+      if (!best) return { err: 'the control is not on the page any more' };
+      var nid = idOf(best);
+      return { ok: true, id: nid, how: bestHow, t: name(best).slice(0, 60) };
+    } catch (e) { return { err: '' + e }; }
+  };
 
   // Every document we can read: the page, open shadow roots, same-origin frames (with their offset).
   function scopes() {
@@ -382,8 +419,11 @@
         var href = '';
         if (el.tagName === 'A' && el.href && el.href.indexOf('javascript:') !== 0) href = el.href.length > 160 ? el.href.slice(0, 160) : el.href;
         var c = hp ? frac(hp.x, hp.y) : frac(left + r.width / 2, top + r.height / 2);
+        var kd = kind(el), nm = name(el);
+        // What this number looked like, so it can be found again after the page redraws it (S.heal).
+        S.sig[id] = { k: kfam(kd), t: nm, h: href };
         list.push({
-          el: el, i: id, k: kind(el), t: name(el), h: href,
+          el: el, i: id, k: kd, t: nm, h: href,
           c: [round3(c.fx), round3(c.fy)],
           b: box(left, top, r.width, r.height),
           o: inView ? 0 : 1,

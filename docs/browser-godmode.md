@@ -168,7 +168,17 @@ A scheduled task used to be able to *ask* for a browser task, but the browser jo
 - Planner/worker split stays as-is (the chat agent delegates to browser jobs) — do not add a second
   planning layer.
 
-### P6 — Polish the superpowers already unique to SubMac
+### P6 — Polish the superpowers already unique to SubMac — SHIPPED 2026-10-31
+- **Human-real hands** (`lib/services/browser/human_input.dart`, pure and seeded so tests pin it):
+  - **Typing rhythm**: the real-keyboard path no longer pastes in one commit — text goes in as bursts of 1–3 keys with a pause between them, a longer pause after a space or comma, longer still after a full stop, and one in twelve a mid-sentence "think". Above 60 characters the bursts get bigger and the pauses short (a 200-character address is not typed key by key), and a chunk never cuts a character in half (emoji stay whole).
+  - **Gesture curves**: a swipe is now one real gesture through a path — the line bows to one side (2–6% of the distance), every point carries micro-jitter (~1.4 px) that fades to nothing at both ends, and a **long drag overshoots the target by 2–4% and comes back**, the human correction a script never makes. The start and end points stay exact, so the finger still lands where the hit test said. New native call `webStroke` (`android_native/Bridge.kt` → `WebHands.stroke`, one down/move…/up gesture).
+  - **Timing that varies**: tap holds 42–79 ms, long presses 620–780 ms (under the context-menu threshold), swipe duration follows the distance and is never the same twice.
+  - Boundary (honest): the point a tap lands on is still chosen by the page script (it is verified to hit the element and not an overlay) — only the rhythm and the path vary. Slider drags stay script-driven: a second real drag would move the value twice.
+- **Self-healing targets**: every number a snapshot lists now remembers what it looked like (kind family, label, href). When a number is gone because the page redrew that control (a React re-render, a list that refreshed), `S.heal` finds the same control again by its label, then its href, then its text — never across a kind change, so a button never heals into a field — and the click **taps the new number and says so**: "Tapped [15] instead: [12] had been redrawn by the page and was found again by its label ("Add to cart")". The same heal covers a field that was redrawn before typing. When the tap landed but nothing changed and the control has since been replaced, the answer names the new number so the next step is a number, not another look at the page.
+- **Login inside replays**: a replay that lands on a page with a password field offers the saved login **once, as one tap** (`browser_login` → the user's confirm), then carries on with the remaining steps; if the user declines, the replay stops and hands the page back with the reason instead of stalling on auth.
+- Code: `human_input.dart`, `heal.dart` (`HealedTarget`, `parseHeal`), page script v11 (`S.sig`, `S.heal`), `browser_agent.dart` (`_touch` path/hold, `_keys` bursts, `_heal` in `_click`/`_type`, `_play` login), `system_bridge.dart` (`webStroke`, `hold`), `android_native/Bridge.kt`. Tests: `test/browser_human_test.dart`, `tools/browser_page_test.js` §11.
+
+### P6 — Polish the superpowers already unique to SubMac (original plan)
 - **Human-real input**: randomized human-ish inter-key delays and gesture curves for WebHands
   (micro-jitter, occasional overshoot-and-correct on long drags). The phone is the best stealth
   browser on the market; make its hands indistinguishable.
@@ -206,3 +216,6 @@ An internal eval set, like `prompt_eval` but for the browser — 20 recorded tas
 
 Each phase lands with its eval slice green before the next starts. Order: P1 → P2 → P3 → P4 → P5 (+P5b
 background) → P6 (P1+P2 are one release; P3 is the release after; P4–P6 follow as capacity allows).
+
+The whole roadmap P1–P6 is now shipped on `feat/browser-godmode-p1` (PR #35). What is left is not a phase
+but the eval run itself (browser_eval on real sites) and the cross-device sync of site skills.

@@ -194,10 +194,41 @@ class SystemBridge {
   Future<String?> takeLaunchPayload() => _call<String>('takeLaunchPayload');
   /// Real touch / keyboard input into the browser tab showing [url]. Returns "ok", or "no-view" when the
   /// tab's native view could not be found (the caller falls back to page script).
-  Future<String> webTouch(String url, String kind, double x, double y, {double? x2, double? y2, int ms = 320, String mark = ''}) async {
+  /// [hold]: how long the finger rests on the screen (a tap is not always the same length).
+  Future<String> webTouch(String url, String kind, double x, double y,
+      {double? x2, double? y2, int ms = 320, int hold = 55, String mark = ''}) async {
     try {
-      final r = await _call('webTouch', {'url': url, 'mark': mark, 'kind': kind, 'x': x, 'y': y, 'x2': x2 ?? x, 'y2': y2 ?? y, 'ms': ms})
-          .timeout(const Duration(seconds: 6));
+      final r = await _call('webTouch', {
+        'url': url,
+        'mark': mark,
+        'kind': kind,
+        'x': x,
+        'y': y,
+        'x2': x2 ?? x,
+        'y2': y2 ?? y,
+        'ms': ms,
+        'hold': hold,
+      }).timeout(const Duration(seconds: 6));
+      return '${r ?? 'no-view'}';
+    } catch (_) {
+      return 'no-view';
+    }
+  }
+
+  /// One real finger stroke through many points: a curved drag with a human wobble (P6). [pts] are fractions
+  /// of the visible page; the native side sends down, move, move…, up as ONE gesture.
+  Future<String> webStroke(String url, List<({double x, double y})> pts, {int ms = 320, int hold = 30, String mark = ''}) async {
+    if (pts.isEmpty) return 'no-view';
+    try {
+      final r = await _call('webStroke', {
+        'url': url,
+        'mark': mark,
+        'ms': ms,
+        'hold': hold,
+        'pts': [
+          for (final p in pts) [p.x, p.y],
+        ],
+      }).timeout(const Duration(seconds: 10));
       return '${r ?? 'no-view'}';
     } catch (_) {
       return 'no-view';

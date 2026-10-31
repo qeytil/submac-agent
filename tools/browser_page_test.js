@@ -196,6 +196,41 @@ function page(html, pre) {
   ok(JSON.parse(S.extractHtml('', { rows: '.card' })).n === 0, 'empty html is no rows, not an error');
   ok(JSON.parse(S.extractHtml(html, {})).err, 'a spec with no rows still answers with an error');
 }
+// 11. Self-healing numbers: a control the page redrew is found again by what it looked like.
+{
+  const w = page(`
+    <button id="a" data-r="10,10,120,40">Add to cart</button>
+    <a href="/help" data-r="10,60,120,40">Help</a>
+    <input id="q" data-r="10,110,300,40" placeholder="Search">`);
+  const S = w.__sm2;
+  const snap = S.snapshot();
+  const add = snap.els.find((e) => e.t === 'Add to cart');
+  ok(S.heal(add.i).how === 'same', 'a control that is still there is its own answer');
+  // The framework redraws the list: a brand-new button with the same words, a new number.
+  const fresh = w.document.createElement('button');
+  fresh.setAttribute('data-r', '10,10,120,40');
+  fresh.textContent = 'Add to cart';
+  w.document.getElementById('a').replaceWith(fresh);
+  const h = S.heal(add.i);
+  ok(h.ok && h.id !== add.i && h.how === 'label', 'the redrawn button is found by its label: ' + JSON.stringify(h));
+  let hit = 0;
+  fresh.addEventListener('click', () => hit++);
+  ok(S.click(h.id).ok && hit === 1, 'the healed number really taps the new button');
+  // A link that only kept its href.
+  const help = snap.els.find((e) => e.t === 'Help');
+  const freshLink = w.document.createElement('a');
+  freshLink.href = '/help';
+  freshLink.setAttribute('data-r', '10,60,120,40');
+  freshLink.textContent = 'Need a hand?';
+  w.document.querySelector('a[href="/help"]').replaceWith(freshLink);
+  const hl = S.heal(help.i);
+  ok(hl.ok && hl.how === 'link' && hl.id !== help.i, 'a link is found again by its href: ' + JSON.stringify(hl));
+  // Gone for good.
+  w.document.getElementById('q').remove();
+  const gone = S.heal(snap.els.find((e) => e.t === '' || e.k.indexOf('field') === 0).i);
+  ok(gone.err, 'a control that is gone for good says so: ' + JSON.stringify(gone));
+  ok(S.heal(999999).err, 'a number never seen says so too');
+}
 })().then(() => {
   console.log(fails ? fails + ' FAILED' : 'ALL OK');
   process.exit(fails ? 1 : 0);
