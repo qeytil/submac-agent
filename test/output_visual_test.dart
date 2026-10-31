@@ -24,7 +24,9 @@ const _svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60">'
     '<rect width="100" height="60" fill="#f4f0e7"/><circle cx="50" cy="30" r="20" fill="#c2361b"/></svg>';
 
 // final (not const): const string repetition inside interpolation trips the const evaluator (const_eval_type_num).
-final _long = '# Meeting summary\n\n${'We agreed on the budget and the dates for the trip. ' * 40}';
+// Eight sentences: long enough to fold, and open it still fits the 800x600 test surface, so the fold
+// control is tappable without scrolling (in-test drags do not move this scroll view reliably).
+final _long = '# Meeting summary\n\n${'We agreed on the budget and the dates for the trip. ' * 8}';
 
 void main() {
   test('```visual takes SVG and nothing else', () {
@@ -52,10 +54,6 @@ void main() {
     await t.pump(const Duration(milliseconds: 100));
     expect(find.text('Show less'), findsOneWidget);
     expect(find.byType(HarkOverlay), findsNothing, reason: 'the fold opens in place; the reader stays behind the card tap');
-    // The open body is taller than the test surface: drag the scroll view until the fold control
-    // is really on screen, then tap it (a tap at an off-screen position never lands).
-    await t.scrollUntilVisible(find.text('Show less'), 500);
-    await t.pump(const Duration(milliseconds: 100));
     await t.tap(find.text('Show less'));
     await t.pump(const Duration(milliseconds: 100));
     expect(find.text('Show more'), findsOneWidget);
