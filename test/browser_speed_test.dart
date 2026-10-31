@@ -15,7 +15,7 @@ void main() {
     test('scripts, styles and markup go; the words stay', () {
       const html = '<html><head><title>Hargeisa flights | Site</title><style>.a{color:red}</style>'
           '<script>var x = "<p>not text</p>";</script></head><body><h1>Flights</h1>'
-          '<p>From Nairobi to Hargeisa, from <b>$180</b>.</p><!-- hidden --><div>Book now</div></body></html>';
+          '<p>From Nairobi to Hargeisa, from <b>\$180</b>.</p><!-- hidden --><div>Book now</div></body></html>';
       final t = htmlToText(html);
       expect(t, contains('Flights'));
       expect(t, contains('From Nairobi to Hargeisa, from \$180.'));
