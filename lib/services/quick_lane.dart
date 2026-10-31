@@ -2,7 +2,7 @@
 ///
 ///  quick  greetings, thanks, "ok", "how are you", "who are you": no tools, a tiny prompt, a short reply.
 ///         The first words appear in about a second on any provider.
-///  light  short everyday messages with no sign of an action: only the core tools, plus `more_tools`
+///  light  short everyday messages with no sign of an action or a request: only the core tools, plus `more_tools`
 ///         that opens the full set in the next step if it turns out to be needed. Nothing is ever out of reach.
 ///  full   everything else: all tools, the full prompt.
 class QuickLane {
@@ -46,8 +46,20 @@ class QuickLane {
       r'[\s,.!?👍🙏]*((please|pls|thanks|thank you|walaal|saaxiib)[\s,.!?👍🙏]*)?$',
       caseSensitive: false);
 
+  /// A question or a request in disguise ("can you...", "how do i...", "please help", "i need..."): real work
+  /// whose wording may carry no action word, so it never takes the light lane — it gets the full prompt and
+  /// every tool its words could point at (Claude Code rule, 2026-10-31: never guess a task into a small lane).
+  static final _request = RegExp(
+      r'\?|\b(can|could|would|will|should|shall|may|might|how|what|why|when|where|which|who|'
+      r'please|pls|help|assist|need|needs|want|wants|advice|idea|ideas|suggest|suggestion|recommend|'
+      r'caawi|ii sheeg|ii qor|ladoon|rabaa|rabtaa|u baahanahay)\b',
+      caseSensitive: false);
+
   /// True when [text] carries a word that means "do something" (search, send, make, book...).
   static bool hasAction(String text) => _action.hasMatch(text);
+
+  /// True when [text] asks or requests something even without an action word (see [laneFor]).
+  static bool isRequest(String text) => _request.hasMatch(text.trim());
 
   /// True when the whole of [text] is small talk (a greeting, thanks, "ok").
   static bool isSmallTalk(String text) {
@@ -66,7 +78,7 @@ class QuickLane {
     if (hasAttachments || midTask || t.isEmpty) return full;
     if (answeringQuestion && _answer.hasMatch(t)) return full;
     if (t.length <= 60 && _smallTalk.hasMatch(t) && !_action.hasMatch(t)) return quick;
-    if (t.length <= 160 && !_action.hasMatch(t) && !t.contains('\n')) return light;
+    if (t.length <= 160 && !_action.hasMatch(t) && !_request.hasMatch(t) && !t.contains('\n')) return light;
     return full;
   }
 }

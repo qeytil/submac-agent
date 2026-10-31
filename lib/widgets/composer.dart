@@ -28,7 +28,6 @@ import 'meeting_sheet.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 import '../screens/skills_screen.dart';
-import '../screens/billing/billing_notice_sheet.dart';
 import 'chat/activity.dart';
 import 'chat/edge_fade.dart';
 
@@ -508,7 +507,6 @@ class _ComposerState extends State<Composer> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const BillingNoticeBanner(), // CB-40: a refusal sits above the composer, never over it
               AnimatedSize(
                 duration: LuxMotion.base,
                 curve: LuxMotion.ease,

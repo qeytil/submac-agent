@@ -282,27 +282,23 @@ extension AppStateTools on AppState {
     return out;
   }
 
-  /// The in-app sheet, one ask at a time. It says which chat it is from when that isn't the chat on screen, and it is
-  /// skipped (or closed) when that chat's task is stopped.
+  /// The inline ask, one at a time: a thin card under the newest message of the task's own chat (owner,
+  /// 2026-10-31), never a sheet. It is skipped (or folded away) when that chat's task is stopped.
   Future<bool> _confirmInApp(ActionRequest req, String? convId) {
     final cb = confirmCallback;
     if (cb == null) return Future<bool>.value(false);
     return confirmQueue.run(convId, token: req, () async {
       // Nobody answered while it waited its turn: the task has already moved on.
       if (req.timedOut) return false;
-      if (convId != null && convId != currentId) {
-        final c = conversations.where((c) => c.id == convId).firstOrNull;
-        req.where = Bots.I.byConv(convId)?.name ?? c?.title ?? '';
-        if (req.where.trim().isEmpty) req.where = ' ';
-      } else {
-        req.where = '';
-      }
+      // The card lives under the messages of the chat it belongs to, so it never needs a "from" line.
+      req.convId ??= convId;
+      req.where = '';
       // CB-42: SubMac is in the background (another app is in front, e.g. one a task opened): a high-priority
       // notification says an OK is waiting and opens SubMac on the sheet, so the ask is never hidden.
       int? note;
       if (!appVisible) {
         note = 9600 + ((convId ?? 'none').hashCode % 90).abs();
-        await OutboundGuard.notify(id: note, title: 'SubMac needs your OK', body: 'Needs your OK: ${req.title}', payload: convId == null ? '' : 'conv/$convId');
+        await OutboundGuard.notify(id: note, title: 'SubMac needs your OK', body: req.title, payload: convId == null ? '' : 'conv/$convId');
         await SystemBridge.I.bringToFront();
       }
       HapticFeedback.lightImpact(); // SubHaptics.attention (part file)

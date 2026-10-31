@@ -7,7 +7,6 @@ import '../services/tools.dart';
 import '../theme.dart';
 import 'chat/fade_append.dart';
 import 'chat_logic.dart';
-import 'logo.dart';
 import 'markdown_view.dart';
 import 'motion.dart';
 import 'sub_icon.dart';
@@ -147,29 +146,6 @@ class _ShimmerTextState extends State<ShimmerText> with SingleTickerProviderStat
           ).createShader(r);
         },
         child: child,
-      ),
-    );
-  }
-}
-
-/// Shown the instant a message is sent, before the task has started: the same look as the task line,
-/// so the hand-over is seamless.
-class PendingLine extends StatelessWidget {
-  const PendingLine({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      liveRegion: true,
-      label: 'SubMac is thinking',
-      child: const Padding(
-        padding: EdgeInsetsDirectional.fromSTEB(16, 6, 14, 12),
-        child: Row(children: [
-          // A fine working ring (no dots in the interface).
-          RedDot(size: 14, animate: true),
-          SizedBox(width: 10),
-          Expanded(child: ShimmerText('Thinking')),
-        ]),
       ),
     );
   }

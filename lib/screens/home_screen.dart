@@ -15,11 +15,11 @@ import '../app_state.dart';
 import '../models.dart';
 import '../services/phone_tools.dart';
 import '../services/tools.dart';
-import '../services/trust.dart';
 import '../theme.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 import '../widgets/ask_bar.dart';
+import '../widgets/approval_card.dart' show ConfirmInline;
 import '../widgets/chat_extras.dart';
 import '../widgets/chat_logic.dart';
 import '../widgets/composer.dart';
@@ -142,32 +142,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<bool> _confirm(ActionRequest req) async {
     if (!mounted) return false;
-    final ok = await showModalBottomSheet<bool>(
-      sheetAnimationStyle: SubMotion.sheet,
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      // Room for the keyboard when the user edits a message before approving it.
-      isScrollControlled: true,
-      builder: (ctx) {
-        // Its task stopped while the sheet is up (from the notification, the bubble or another screen): it closes.
-        final state = context.read<AppState>();
-        state.confirmQueue.onClose(() {
-          final route = ModalRoute.of(ctx);
-          if (route == null || !route.isActive) return;
-          if (route.isCurrent) {
-            Navigator.of(ctx).pop(false);
-          } else {
-            Navigator.of(ctx).removeRoute(route);
-          }
-        });
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SingleChildScrollView(child: ConfirmSheet(request: req)),
-        );
-      },
-    );
-    return ok == true;
+    final state = context.read<AppState>();
+    // The ask waits its turn in ConfirmQueue, then shows as a thin card under the newest message of the task's
+    // own chat (owner, 2026-10-31) — never a modal sheet over half the screen. A stopped task or a timeout
+    // folds it away as "no".
+    state.confirmQueue.onClose(state.dropConfirm);
+    return state.askInChat(req.convId, req);
   }
 
   @override
@@ -384,168 +364,6 @@ class FloatIcon extends StatelessWidget {
 
   static Widget _maybeBlur(bool on, Widget child) =>
       on ? BackdropFilter.grouped(filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: child) : child;
-}
-
-/// Plain-language confirmation for a risky action.
-class ConfirmSheet extends StatefulWidget {
-  final ActionRequest request;
-  const ConfirmSheet({super.key, required this.request});
-
-  @override
-  State<ConfirmSheet> createState() => _ConfirmSheetState();
-}
-
-class _ConfirmSheetState extends State<ConfirmSheet> {
-  bool _details = false;
-  bool _editing = false;
-  bool _answered = false;
-  TextEditingController? _edit;
-
-  @override
-  void dispose() {
-    _edit?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    final r = widget.request;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(24, 0, 24, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(tr('Needs your OK'), style: TextStyle(color: p.muted, fontSize: AppText.meta)),
-            // From a task in another chat (a browser task, a chat left working): say which one.
-            if (r.where.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  r.where.trim().isEmpty ? tr('From another chat') : tr('From {chat}', {'chat': r.where.trim()}),
-                  key: const ValueKey('confirm-where'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: p.muted, fontSize: AppText.micro),
-                ),
-              ),
-            const SizedBox(height: 10),
-            Text(r.title, style: Brand.serif(size: 28, color: p.text)),
-            const SizedBox(height: 8),
-            if (!_editing && r.body.trim().isNotEmpty) Text(r.body, style: TextStyle(color: p.muted, fontSize: AppText.body, height: 1.4)),
-            if (_editing)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: TextField(
-                  controller: _edit,
-                  autofocus: true,
-                  minLines: 2,
-                  maxLines: 8,
-                  decoration: InputDecoration(hintText: tr('Message')),
-                ),
-              ),
-            const SizedBox(height: 6),
-            // Nothing more to show: no "Show details" that opens onto nothing.
-            if (!_editing && r.detail.trim().isNotEmpty) ...[
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton(
-                  style: TextButton.styleFrom(padding: EdgeInsets.zero, foregroundColor: p.muted),
-                  onPressed: () => setState(() => _details = !_details),
-                  child: Text(tr(_details ? 'Hide details' : 'Show details'), style: const TextStyle(fontSize: AppText.meta)),
-                ),
-              ),
-              SubFold(
-                open: _details,
-                child: Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: SelectableText(r.detail, style: TextStyle(fontSize: AppText.meta, height: 1.45, color: p.muted)),
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
-            // Plan 5.2: the one approval card, Approve · Edit · Not now (same as the cards on Today and the job page).
-            Row(children: [
-              Expanded(
-                child: FilledButton(
-                  key: const ValueKey('confirm-approve'),
-                  style: r.destructive
-                      ? FilledButton.styleFrom(backgroundColor: p.accent, foregroundColor: Colors.white, minimumSize: const Size(0, 46), shape: const StadiumBorder())
-                      : FilledButton.styleFrom(backgroundColor: p.text, foregroundColor: p.bg, minimumSize: const Size(0, 46), shape: const StadiumBorder()),
-                  onPressed: () {
-                    if (_answered) return;
-                    _answered = true;
-                    final e = r.edit;
-                    if (e != null && _edit != null && _edit!.text.trim().isNotEmpty && _edit!.text.trim() != e.value.trim()) {
-                      e.value = _edit!.text.trim();
-                      e.edited = true;
-                    }
-                    Navigator.pop(context, true);
-                  },
-                  child: Text(tr(r.confirmLabel == 'Allow' ? 'Approve' : r.confirmLabel), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 46), backgroundColor: p.text.withValues(alpha: 0.06), shape: const StadiumBorder()),
-                  onPressed: () {
-                    if (_editing) {
-                      setState(() => _editing = false);
-                    } else if (r.edit != null) {
-                      setState(() {
-                        _edit ??= TextEditingController(text: r.edit!.value);
-                        _editing = true;
-                      });
-                    } else {
-                      if (_answered) return;
-                      _answered = true;
-                      // Nothing to change in place: SubMac asks what to change.
-                      r.wantsChange = true;
-                      Navigator.pop(context, false);
-                    }
-                  },
-                  child: Text(tr(_editing ? 'Cancel' : 'Edit'), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 4),
-            // Grok's "Always allow": approve and turn on Full access (payments still ask every time). On its own line: it
-            // used to share half a row with "Not now" and was cut off on small phones and in Somali.
-            if (!_editing && !_isMoney(r))
-              TextButton(
-                key: const ValueKey('allow-always'),
-                style: TextButton.styleFrom(foregroundColor: p.muted),
-                onPressed: () {
-                  if (_answered) return;
-                  _answered = true;
-                  r.allowAlways = true;
-                  Navigator.pop(context, true);
-                },
-                child: Text(tr('Allow always (Full access)'), textAlign: TextAlign.center),
-              ),
-            TextButton(
-              key: const ValueKey('confirm-not-now'),
-              onPressed: () {
-                if (_answered) return;
-                _answered = true;
-                Navigator.pop(context, false);
-              },
-              child: Text(tr('Not now')),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// A payment never offers "Allow always": by the router's own reading (tool name included) or by its words.
-  static bool _isMoney(ActionRequest r) =>
-      r.kind == 'money' || r.kind == 'settings' || BotTrust.kindOf('', '${r.title} ${r.detail}', destructive: r.destructive) == 'money';
 }
 
 /// The "SubMac" wordmark, free on the paper. A gentle note follows it only when today's allowance needs a
@@ -1070,6 +888,18 @@ class _ChatListState extends State<ChatList> {
       );
     }
 
+    /// The live approval ask (owner, 2026-10-31): a thin card under the newest message of this chat —
+    /// never a modal sheet. An ask from another chat waits there, not here.
+    Widget confirmSlot() {
+      return ValueListenableBuilder<ConfirmAsk?>(
+        valueListenable: state.confirmNow,
+        builder: (context, ask, _) {
+          if (ask == null || (ask.convId != null && ask.convId != state.currentId)) return const SizedBox.shrink();
+          return ConfirmInline(key: ValueKey('ask-${ask.req.hashCode}'), request: ask.req, onAnswer: ask.answer);
+        },
+      );
+    }
+
     Widget block() {
       final userFirst = turn.isNotEmpty && turn.first.role == 'user';
       final replies = userFirst ? turn.skip(1).toList() : turn;
@@ -1129,18 +959,21 @@ class _ChatListState extends State<ChatList> {
           // The top of the list clears the floating buttons, so the oldest line you scroll to is never under them.
           // The bottom clears the floating composer, so the newest message rests fully above it.
           padding: EdgeInsets.only(top: Space.x3 + chatTopInset(context), bottom: Space.x6 + ChatFooterInset.of(context)),
-          itemCount: itemCount,
+          itemCount: itemCount + 1,
           // Keep each bubble's state when the list shifts (a new message), so nothing re-animates on send.
           findChildIndexCallback: (key) {
             if (key is! ValueKey) return null;
             final v = key.value;
             if (v is! String) return null;
-            if (v.startsWith('turn-')) return hasBlock ? 0 : null;
+            if (v.startsWith('turn-')) return hasBlock ? 1 : null;
             final idx = visible.indexWhere((m) => m.id == v);
             if (idx < 0 || idx >= history) return null;
-            return (history - 1 - idx) + (hasBlock ? 1 : 0);
+            return (history - 1 - idx) + (hasBlock ? 2 : 1);
           },
           itemBuilder: (context, i) {
+            // The live approval ask: a thin card under the newest message of this chat (owner, 2026-10-31).
+            if (i == 0) return confirmSlot();
+            i -= 1;
             if (hasBlock) {
               if (i == 0) return block();
               i -= 1;

@@ -76,6 +76,7 @@ extension AppStateSystem on AppState {
     };
     Bots.I.ring = _botRing;
     Bots.I.consult = _botConsult;
+    Bots.I.makeTeam = _botMakeTeam;
     // Teams run on the Genkit agent core; members get their own tools and ask the owner through approval interrupts.
     TeamRun.I
       ..llm = _teamLlm

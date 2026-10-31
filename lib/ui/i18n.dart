@@ -307,6 +307,13 @@ class Strings {
       'Privacy policy': 'Siyaasadda asturnaanta',
       'Live voice': 'Codka tooska ah',
       'Not available right now': 'Hadda lama heli karo',
+      // Voice > Hello SubMac
+      'Say “Hello SubMac” and SubMac wakes up to listen': 'Dheh “Hello SubMac” si SubMac u tooso oo dhagoos go',
+      'Sensitivity': 'Xasaasiyad',
+      'Resume the voice pack': 'Sii wad codka',
+      // Visual card (the agent's own drawings)
+      'Visual': 'Muqaal',
+      'The drawing could not be shown': 'Sawirranna lama muujin karo',
       // Menu (chat groups)
       'Pinned': 'La dhejiyay',
       'Previous 7 days': '7-dii maalmood ee la soo dhaafay',
@@ -722,6 +729,13 @@ class Strings {
       'Privacy policy': 'سياسة الخصوصية',
       'Live voice': 'الصوت المباشر',
       'Not available right now': 'غير متاح الآن',
+      // Voice > Hello SubMac
+      'Say “Hello SubMac” and SubMac wakes up to listen': 'قل «Hello SubMac» ليصحو SubMac ويستمع',
+      'Sensitivity': 'الحساسية',
+      'Resume the voice pack': 'متابعة تنزيل الصوت',
+      // Visual card (the agent's own drawings)
+      'Visual': 'رسم',
+      'The drawing could not be shown': 'تعذّر عرض الرسم',
       // Menu (chat groups)
       'Pinned': 'المثبتة',
       'Previous 7 days': 'آخر 7 أيام',

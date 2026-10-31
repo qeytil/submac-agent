@@ -450,7 +450,7 @@ extension AppStateAgentRunner on AppState {
       ..writeln(somaliIn(list)
           ? Somali.quickGuide
           : replyLanguage == 'auto'
-              ? 'Reply in the language they wrote in (Somali replies in natural everyday Somali).'
+              ? 'Reply in the language of their latest message, and switch when they switch (Somali replies in natural everyday Somali).'
               : 'Always reply in $replyLanguage.');
     final out = <Map<String, dynamic>>[
       {'role': 'system', 'content': sb.toString().trim()},

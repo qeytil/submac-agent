@@ -23,6 +23,7 @@ class LibSkill {
     this.powers = const [],
     this.level = 'basic',
     this.v = 1,
+    this.local = false,
   });
   final String id;
   final String name;
@@ -34,7 +35,10 @@ class LibSkill {
   final String level;
   final int v;
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'cat': cat, 'sub': sub, 'desc': desc, 'tags': tags, 'powers': powers, 'level': level, 'v': v};
+  /// Saved on this phone by the agent itself (skill_save), not from the shared library.
+  final bool local;
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'cat': cat, 'sub': sub, 'desc': desc, 'tags': tags, 'powers': powers, 'level': level, 'v': v, if (local) 'local': true};
   static LibSkill fromJson(Map<String, dynamic> j) => LibSkill(
         id: '${j['id']}',
         name: '${j['name'] ?? j['id']}',
@@ -45,6 +49,7 @@ class LibSkill {
         powers: [for (final t in (j['powers'] as List? ?? const [])) '$t'],
         level: '${j['level'] ?? 'basic'}',
         v: (j['v'] as num?)?.toInt() ?? 1,
+        local: j['local'] == true,
       );
 
   String get line => '$id: $name. $desc';
@@ -76,6 +81,7 @@ class SkillLibrary extends ChangeNotifier {
     'writing': 'Writing',
     'life': 'Everyday life',
     'somalia': 'Somalia',
+    'mine': 'Your own skills',
   };
 
   /// Skills that ship inside the app: always listed and readable, even offline or before the library index loads.
@@ -120,6 +126,20 @@ class SkillLibrary extends ChangeNotifier {
         installed['${e.key}'] = [for (final x in e.value as List) '$x'];
       }
     } catch (_) {}
+    // Skills saved on this phone (skill_save) are listed again before any library index loads.
+    try {
+      for (final e in _dir!.listSync()) {
+        if (e is! File || !e.path.endsWith('.json')) continue;
+        try {
+          final j = jsonDecode(e.readAsStringSync()) as Map;
+          if (j['local'] == true) {
+            final s = LibSkill.fromJson(Map<String, dynamic>.from(j));
+            skills.removeWhere((x) => x.id == s.id);
+            skills.add(s);
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
     // A fresh index once a day, in the background.
     if (fetched == null || DateTime.now().difference(fetched!).inHours >= 24) unawaited(refresh());
   }
@@ -127,12 +147,15 @@ class SkillLibrary extends ChangeNotifier {
   void _readIndex(Map<String, dynamic> j) {
     final list = j['skills'] as List?;
     if (list == null) return;
+    // Skills the agent saved itself (skill_save) outlive every library refresh and id clash with the index.
+    final mine = skills.where((s) => s.local).toList();
     skills
       ..clear()
       ..addAll([for (final e in list) LibSkill.fromJson(Map<String, dynamic>.from(e as Map))]);
     // Built-in skills stay (the app's own copy wins over a library entry with the same id).
-    skills.removeWhere((s) => builtIn.any((b) => b.id == s.id));
+    skills.removeWhere((s) => builtIn.any((b) => b.id == s.id) || s.local);
     skills.addAll(builtIn);
+    skills.addAll(mine);
   }
 
   Future<bool> refresh() async {
@@ -173,6 +196,10 @@ class SkillLibrary extends ChangeNotifier {
 
   File? _file(String id) => _dir == null ? null : File('${_dir!.path}/${id.replaceAll(RegExp(r'[^a-z0-9_-]'), '_')}.json');
 
+  /// Tests: where skills saved by the agent go.
+  @visibleForTesting
+  void setDirForTest(Directory d) => _dir = d;
+
   /// The full instructions of a skill (from the phone when downloaded before, otherwise from the library).
   Future<String?> body(String id) async {
     final own = builtInBody(id);
@@ -203,6 +230,46 @@ class SkillLibrary extends ChangeNotifier {
     if (!l.contains(id)) l.add(id);
     while (l.length > 60) {
       l.removeAt(0);
+    }
+    await _save();
+    return null;
+  }
+
+  /// Saves a method the agent built and tested as its own skill (`skill_save`). Stored only on this phone,
+  /// in the same folder and JSON format as downloaded skills, so skill_use, the installed list and the
+  /// search read it back with no server and no new code path.
+  Future<String?> save(String target, {required String id, required String name, required String desc, required String body, List<String> tags = const []}) async {
+    final clean = id.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9_-]'), '-');
+    if (clean.length < 3 || clean.length > 40) return 'The skill id needs 3 to 40 letters, numbers or dashes (like "cv-to-pdf").';
+    if (body.trim().length < 20) return 'The skill is too short to reuse. Write the whole method: the steps, the script itself, how to run it.';
+    final existing = byId(clean);
+    if (existing != null && !existing.local) return '"$clean" is taken by a library skill. Pick another id.';
+    final f = _file(clean);
+    if (f == null) return 'Could not reach this phone\'s storage.';
+    final text = body.trim();
+    final j = <String, dynamic>{
+      'id': clean,
+      'name': name.trim().isEmpty ? clean : name.trim(),
+      'cat': 'mine',
+      'sub': '',
+      'desc': desc.trim(),
+      'tags': tags.take(8).toList(),
+      'powers': const <String>[],
+      'level': 'basic',
+      'v': (existing?.v ?? 0) + 1,
+      'local': true,
+      'body': text.length > 40000 ? text.substring(0, 40000) : text,
+    };
+    await f.writeAsString(jsonEncode(j));
+    final s = LibSkill.fromJson(j);
+    skills.removeWhere((e) => e.id == clean);
+    skills.add(s);
+    final l = installed.putIfAbsent(target, () => []);
+    if (!l.contains(clean)) l.add(clean);
+    // A skill the agent wrote itself is never evicted by the 60-skill cap; library installs make room first.
+    while (l.length > 60) {
+      final own = l.indexWhere((x) => byId(x)?.local == true);
+      l.removeAt(own < 0 ? 0 : own);
     }
     await _save();
     return null;
@@ -303,8 +370,9 @@ class SkillLibrary extends ChangeNotifier {
           '${DesignSkills.chartsId} (honest charts).\n'
           'Rule: before any real task (not small talk) where a proven method helps, check the library: if "Skills that may fit" lists one, read '
           'it with skill_use first; otherwise call skill_search with the task in a few words. Follow the skill, adapting to what the user asked '
-          '(their words win). Install skills they will need again with skill_install. Skip it for simple questions you can answer directly. '
-          'Never mention the library unless it helps the user.');
+          '(their words win). Install skills they will need again with skill_install. When you built and tested something that would help again '
+          '(a script, a recipe, a checklist), save it as your own tool with skill_save — the next task like it starts from skill_use, not from '
+          'zero. Skip all this for simple questions you can answer directly. Never mention the library unless it helps the user.');
     if (mine.isNotEmpty) {
       sb.writeln('Installed (read one with skill_use before you do that kind of task):');
       for (final s in mine.take(40)) {
@@ -323,7 +391,7 @@ class SkillLibrary extends ChangeNotifier {
         },
       };
 
-  static const names = {'skill_search', 'skill_use', 'skill_install', 'skill_remove'};
+  static const names = {'skill_search', 'skill_use', 'skill_install', 'skill_remove', 'skill_save'};
 
   static final List<Map<String, dynamic>> definitions = [
     _fn('skill_search', 'Search the shared skill library for a proven playbook (by app, platform, field or task). Returns ids and one-line descriptions.', {
@@ -339,6 +407,15 @@ class SkillLibrary extends ChangeNotifier {
     _fn('skill_remove', 'Uninstall one of your skills.', {
       'id': {'type': 'string'},
     }, ['id']),
+    _fn('skill_save', 'Save a method you built and tested as your own reusable skill — a working script, a recipe, a checklist — so the next task like it '
+        'starts from skill_use instead of from zero. Call it after something worked, with the whole method written out. Saved on this phone only; '
+        'listed for you from now on.', {
+      'id': {'type': 'string', 'description': 'Short id, letters-numbers-dashes, e.g. "cv-to-pdf"'},
+      'name': {'type': 'string', 'description': 'A clear name, e.g. "CV to PDF converter"'},
+      'desc': {'type': 'string', 'description': 'One line: what it does and when to use it'},
+      'body': {'type': 'string', 'description': 'The whole method: the steps, the script itself, how to run it, what to watch out for'},
+      'tags': {'type': 'array', 'items': {'type': 'string'}, 'description': 'A few search words'},
+    }, ['id', 'name', 'desc', 'body']),
   ];
 
   Future<String> execute(String name, Map<String, dynamic> a, String target, {String who = 'you'}) async {
@@ -363,6 +440,14 @@ class SkillLibrary extends ChangeNotifier {
       case 'skill_remove':
         await uninstall(target, id);
         return 'Removed.';
+      case 'skill_save':
+        final e = await save(target,
+            id: '${a['id'] ?? ''}',
+            name: '${a['name'] ?? ''}',
+            desc: '${a['desc'] ?? ''}',
+            body: '${a['body'] ?? ''}',
+            tags: [for (final t in (a['tags'] as List? ?? const [])) '$t']);
+        return e ?? 'Saved "${a['name'] ?? a['id']}" as your own skill. It is listed for $who from now on; read it back with skill_use.';
     }
     return 'Unknown skill tool.';
   }

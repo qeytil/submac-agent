@@ -97,13 +97,8 @@ class _BillingNoticeCardState extends State<BillingNoticeCard> {
   @override
   void initState() {
     super.initState();
-    // Raise the banner above the composer once, right when it happens (not when scrolling back to an old refusal).
-    // CB-40: never a modal sheet on its own: that covered the composer, so the user could not type.
-    final n = widget.notice;
-    final fresh = DateTime.now().difference(n.seenAt) < const Duration(seconds: 20);
-    if (widget.isLast && fresh && n.code != 'busy' && b.claimAutoShow(n)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => b.banner.value = n);
-    }
+    // One message rule (owner, 2026-10-31): the refusal is the card in the chat — nothing pops up,
+    // nothing extra sits above the composer. The card carries Get more / Details itself.
   }
 
   @override
@@ -139,53 +134,3 @@ class _BillingNoticeCardState extends State<BillingNoticeCard> {
   }
 }
 
-/// CB-40: the refusal, as a small banner just above the composer: what happened, when it resets, Get more, and a
-/// close. It never covers the composer, so the user can keep typing (a reply that needs no allowance, or later).
-class BillingNoticeBanner extends StatelessWidget {
-  const BillingNoticeBanner({super.key, this.billing});
-  final Billing? billing;
-
-  @override
-  Widget build(BuildContext context) {
-    final b = billing ?? Billing.I;
-    return ValueListenableBuilder<BillingNotice?>(
-      valueListenable: b.banner,
-      builder: (context, n, _) {
-        if (n == null) return const SizedBox(width: double.infinity);
-        final p = Palette.of(context);
-        final reset = n.resetLine();
-        return Container(
-          key: const ValueKey('billing-notice-banner'),
-          margin: const EdgeInsets.only(bottom: Space.x2),
-          padding: const EdgeInsetsDirectional.fromSTEB(12, 6, 2, 6),
-          decoration: BoxDecoration(color: p.sheet, border: Border.all(color: p.border), borderRadius: BorderRadius.circular(Radii.field)),
-          child: Row(children: [
-            Icon(n.isInfo ? Icons.hourglass_top_rounded : Icons.data_usage_rounded, size: IconSize.sm, color: p.muted),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(n.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontSize: AppText.meta, fontWeight: FontWeight.w600)),
-                if (reset.isNotEmpty) Text(reset, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.muted, fontSize: AppText.micro)),
-              ]),
-            ),
-            if (!n.isInfo)
-              TextButton(
-                key: const ValueKey('billing-banner-get-more'),
-                onPressed: () {
-                  b.banner.value = null;
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => GetMoreScreen(billing: billing)));
-                },
-                child: Text(tr('Get more')),
-              ),
-            IconButton(
-              key: const ValueKey('billing-banner-close'),
-              tooltip: tr('Not now'),
-              icon: Icon(Icons.close_rounded, size: IconSize.sm, color: p.muted),
-              onPressed: () => b.banner.value = null,
-            ),
-          ]),
-        );
-      },
-    );
-  }
-}

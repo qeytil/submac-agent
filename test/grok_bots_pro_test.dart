@@ -2,7 +2,6 @@
 // create screen. Research: docs/grok-bots-research.md.
 import 'package:agent/app_state.dart';
 import 'package:agent/screens/hire_screen.dart';
-import 'package:agent/screens/home_screen.dart' show ConfirmSheet;
 import 'package:agent/screens/settings_screen.dart' show FullAccessTile;
 import 'package:agent/services/bot_ask.dart';
 import 'package:agent/services/bot_manner.dart';
@@ -11,6 +10,7 @@ import 'package:agent/services/tools.dart';
 import 'package:agent/services/trust.dart';
 import 'package:agent/theme.dart';
 import 'package:agent/ui/motion.dart';
+import 'package:agent/widgets/approval_card.dart' show ConfirmInline;
 import 'package:agent/widgets/bot_list.dart' show DrawerSection;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -130,25 +130,18 @@ void main() {
       expect(find.textContaining('Payments and purchases still ask every time'), findsOneWidget);
     });
 
-    Future<bool?> openSheet(WidgetTester t, ActionRequest req) async {
+    Future<bool?> openCard(WidgetTester t, ActionRequest req) async {
       bool? result;
-      await t.pumpWidget(_app(Builder(
-        builder: (context) => Scaffold(
-          body: TextButton(
-            onPressed: () async => result = await showModalBottomSheet<bool>(
-                context: context, isScrollControlled: true, builder: (_) => SingleChildScrollView(child: ConfirmSheet(request: req))),
-            child: const Text('open'),
-          ),
-        ),
+      await t.pumpWidget(_app(Scaffold(
+        body: ConfirmInline(request: req, onAnswer: (ok) => result = ok),
       )));
-      await t.tap(find.text('open'));
       await t.pumpAndSettle();
       return result;
     }
 
     testWidgets('an approval offers Allow always, which approves and marks the ask', (t) async {
       final req = ActionRequest(title: 'Send this email to amal@example.com?', body: 'Invoice', detail: 'Hi Amal', confirmLabel: 'Send');
-      await openSheet(t, req);
+      await openCard(t, req);
       expect(find.byKey(const ValueKey('allow-always')), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('allow-always')));
       await t.pumpAndSettle();
@@ -157,7 +150,7 @@ void main() {
 
     testWidgets('a payment never offers Allow always', (t) async {
       final req = ActionRequest(title: 'Pay 20 USD for the order?', body: '', detail: 'checkout', confirmLabel: 'Pay');
-      await openSheet(t, req);
+      await openCard(t, req);
       expect(find.byKey(const ValueKey('allow-always')), findsNothing);
     });
   });

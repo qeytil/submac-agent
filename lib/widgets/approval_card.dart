@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/bots.dart';
 import '../services/full_access.dart';
 import '../services/offices.dart';
+import '../services/tools.dart';
 import '../services/trust.dart';
 import '../theme.dart';
 import 'motion.dart';
@@ -294,9 +295,158 @@ class _ApprovalGroupCardState extends State<ApprovalGroupCard> {
   }
 }
 
+/// The chat's live ask (owner, 2026-10-31): a thin card under the newest message of the task's own chat —
+/// never a modal sheet over half the screen. Same answer rules the old sheet had: the edit writes back into
+/// the request, "Edit" on an ask with nothing to change asks for a change first, and "Allow always" (never on
+/// money) approves and marks the ask for Full access.
+class ConfirmInline extends StatefulWidget {
+  const ConfirmInline({super.key, required this.request, required this.onAnswer});
+  final ActionRequest request;
+  final ValueChanged<bool> onAnswer;
+
+  @override
+  State<ConfirmInline> createState() => _ConfirmInlineState();
+}
+
+class _ConfirmInlineState extends State<ConfirmInline> {
+  bool _details = false;
+  bool _editing = false;
+  bool _answered = false;
+  TextEditingController? _edit;
+
+  void _answer(bool ok) {
+    if (_answered) return;
+    _answered = true;
+    widget.onAnswer(ok);
+  }
+
+  @override
+  void dispose() {
+    _edit?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final r = widget.request;
+    return Container(
+      margin: const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 10),
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 10, 14, 10),
+      decoration: BoxDecoration(color: p.sheet, borderRadius: Radii.rowAll, border: Border.all(color: p.text.withValues(alpha: 0.05))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Text(tr('Needs your OK'), style: TextStyle(color: p.muted, fontSize: AppText.micro)),
+        const SizedBox(height: 3),
+        Text(r.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.text, fontSize: AppText.body, fontWeight: FontWeight.w600, height: 1.3)),
+        if (!_editing && r.body.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(r.body, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.35)),
+          ),
+        if (_editing)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: TextField(
+              controller: _edit,
+              autofocus: true,
+              minLines: 1,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(isDense: true),
+            ),
+          ),
+        if (!_editing && r.detail.trim().isNotEmpty) ...[
+          InkWell(
+            onTap: () => setState(() => _details = !_details),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Text(tr(_details ? 'Hide details' : 'Show details'), style: TextStyle(color: p.muted, fontSize: AppText.micro)),
+            ),
+          ),
+          if (_details)
+            Text(r.detail, maxLines: 8, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.muted, fontSize: AppText.micro, height: 1.4)),
+        ],
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(
+            child: FilledButton(
+              key: const ValueKey('confirm-approve'),
+              style: (r.destructive
+                      ? FilledButton.styleFrom(backgroundColor: p.accent, foregroundColor: Colors.white)
+                      : FilledButton.styleFrom(backgroundColor: p.text, foregroundColor: p.bg))
+                  .copyWith(
+                      minimumSize: const Size(0, 38),
+                      shape: const StadiumBorder(),
+                      textStyle: TextStyle(fontSize: AppText.meta, fontWeight: FontWeight.w600)),
+              onPressed: () {
+                final e = r.edit;
+                if (e != null && _edit != null && _edit!.text.trim().isNotEmpty && _edit!.text.trim() != e.value.trim()) {
+                  e.value = _edit!.text.trim();
+                  e.edited = true;
+                }
+                _answer(true);
+              },
+              child: Text(tr(r.confirmLabel == 'Allow' ? 'Approve' : r.confirmLabel), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+                foregroundColor: p.text,
+                minimumSize: const Size(0, 38),
+                backgroundColor: p.text.withValues(alpha: 0.06),
+                side: BorderSide.none,
+                shape: const StadiumBorder(),
+                textStyle: TextStyle(fontSize: AppText.meta)),
+            onPressed: () {
+              if (_editing) {
+                setState(() => _editing = false);
+              } else if (r.edit != null) {
+                setState(() {
+                  _edit ??= TextEditingController(text: r.edit!.value);
+                  _editing = true;
+                });
+              } else {
+                // Nothing to change in place: SubMac asks what to change.
+                r.wantsChange = true;
+                _answer(false);
+              }
+            },
+            child: Text(tr(_editing ? 'Cancel' : 'Edit'), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 4),
+          TextButton(
+            key: const ValueKey('confirm-not-now'),
+            style: TextButton.styleFrom(foregroundColor: p.muted, minimumSize: const Size(0, 38)),
+            onPressed: () => _answer(false),
+            child: Text(tr('Not now'), maxLines: 1),
+          ),
+        ]),
+        // Grok's "Always allow": approve and turn on Full access; money never offers it.
+        if (!_editing && !_isMoney(r))
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              key: const ValueKey('allow-always'),
+              style: TextButton.styleFrom(foregroundColor: p.muted, padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+              onPressed: () {
+                r.allowAlways = true;
+                _answer(true);
+              },
+              child: Text(tr('Allow always (Full access)'), style: const TextStyle(fontSize: AppText.micro)),
+            ),
+          ),
+      ]),
+    );
+  }
+
+  /// A payment never offers "Allow always": by the router's own reading (tool name included) or by its words.
+  static bool _isMoney(ActionRequest r) =>
+      r.kind == 'money' || r.kind == 'settings' || BotTrust.kindOf('', '${r.title} ${r.detail}', destructive: r.destructive) == 'money';
+}
+
 /// "Nova has earned your trust": offered after ten approvals in a row with no edits.
-class TrustOfferCard extends StatelessWidget {
-  const TrustOfferCard({super.key, required this.bot});
+class TrustOfferCard extends StatelessWidget {  const TrustOfferCard({super.key, required this.bot});
   final Bot bot;
 
   @override

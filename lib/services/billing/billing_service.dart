@@ -123,10 +123,6 @@ class Billing with WidgetsBindingObserver {
   /// Bumps when the app comes back to the foreground or a submac://pay link arrives: payment screens re-check.
   final resumeTick = ValueNotifier<int>(0);
 
-  /// CB-40: a fresh refusal shows here, as a dismissible banner above the composer (it used to open a modal sheet that
-  /// covered the composer). Null = no banner.
-  final banner = ValueNotifier<BillingNotice?>(null);
-
   /// A short message for a snackbar (payment recovered after a restart...). Set by main.dart.
   void Function(String message)? onToast;
 
@@ -134,7 +130,6 @@ class Billing with WidgetsBindingObserver {
   final List<PendingPurchase> _all = [];
   final Map<String, Future<PayUpdate>> _inFlight = {};
   final _notices = <String, BillingNotice>{};
-  final Set<String> _shownNotices = {};
   bool _observing = false;
   bool _recovering = false;
   final _uuid = const Uuid();
@@ -183,7 +178,6 @@ class Billing with WidgetsBindingObserver {
     final cur = usage.value;
     usage.value = cur == null ? UsageSummary.fromJson({'enabled': true, ...v}, at: now) : cur.merged(v, at: now);
     if (v['today_left'] is int) balance.value = v['today_left'] as int;
-    if (v['today_left'] is int && (v['today_left'] as int) > 0) banner.value = null; // a reply went through again
     enabled.value = true;
   }
 
@@ -200,9 +194,6 @@ class Billing with WidgetsBindingObserver {
   }
 
   BillingNotice? noticeFor(String message) => _notices[message];
-
-  /// True the first time a notice is asked to auto-open (each notice opens its sheet once).
-  bool claimAutoShow(BillingNotice n) => _shownNotices.add('${n.code}|${n.message}|${n.seenAt.millisecondsSinceEpoch}');
 
   // ------------------------------------------------------------------ usage
 

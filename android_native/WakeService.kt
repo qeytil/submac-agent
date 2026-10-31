@@ -145,7 +145,7 @@ class WakeService : Service() {
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val text = when {
             paused -> "Paused"
-            state == "mic_busy" -> "Waiting for the mic (another app is using it)"
+            state == "mic_busy" -> "Waiting for the microphone"
             state == "call" -> "Paused during your call"
             else -> "Say \u201CHello SubMac\u201D"
         }
@@ -164,7 +164,7 @@ class WakeService : Service() {
         @Suppress("DEPRECATION")
         return Notifier.builder(this, Notifier.WAKE)
             .setSmallIcon(R.drawable.ic_stat_submac).setColor(0xFFC2361B.toInt())
-            .setContentTitle("SubMac is listening for its name")
+            .setContentTitle("SubMac is listening")
             .setContentText(text)
             .setColor(0xFFC2361B.toInt())
             .setOngoing(true)
@@ -194,7 +194,7 @@ class WakeService : Service() {
         } catch (e: Exception) {
             // Android blocks starting the mic from the background (e.g. right after a restart).
             moveTo("needs_tap")
-            Notifier.task(this, 7105, "", "Listening is paused. Tap to turn it on", "wake/restart", "paused")
+            Notifier.task(this, 7105, "", "Listening is paused. Open SubMac to turn it back on.", "wake/restart", "paused")
             false
         }
     }

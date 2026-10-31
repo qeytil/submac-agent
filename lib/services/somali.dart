@@ -6,19 +6,40 @@
 class Somali {
   Somali._();
 
-  // Frequent Somali words that are not English words (so "i", "u", "a", "so", "is" are left out).
+  // Frequent Somali words that are not English words (so "i", "u", "a", "so", "is" are left out — and
+  // "way", "wax" and "ma", which are real English words and used to trip the detector on English chat).
   static const _words = {
-    'waa', 'waan', 'waad', 'wuu', 'way', 'waxaan', 'waxaad', 'waxaa', 'waxa', 'wax', 'iyo', 'aan', 'aad', 'ayaa', 'baa',
+    'waa', 'waan', 'waad', 'wuu', 'waxaan', 'waxaad', 'waxaa', 'waxa', 'iyo', 'aan', 'aad', 'ayaa', 'baa',
     'baan', 'buu', 'bay', 'baad', 'maxaa', 'maxaad', 'maxay', 'sidee', 'sida', 'haa', 'maya', 'waayahay', 'hagaag', 'haye',
     'fadlan', 'mahadsanid', 'mahadsan', 'ii', 'ku', 'ka', 'kale', 'hadda', 'maanta', 'berri', 'shalay', 'miyaa', 'miyaad',
     'oo', 'ee', 'inaan', 'inaad', 'inuu', 'iga', 'igu', 'kuu', 'kaa', 'haddii', 'laakiin', 'sababtoo', 'dhan', 'badan', 'yar',
     'wanaagsan', 'fiican', 'walaal', 'salaan', 'iska', 'warran', 'nabad', 'immisa', 'goorma', 'xaggee', 'halkee', 'samee',
     'sameey', 'sameyn', 'caawi', 'caawin', 'rabaa', 'rabtaa', 'doonayaa', 'aniga', 'adiga', 'isaga', 'iyada', 'annaga',
-    'innaga', 'idinka', 'iyaga', 'kuwa', 'kan', 'wali', 'weli', 'markaas', 'kadib', 'kaddib', 'ma',
+    'innaga', 'idinka', 'iyaga', 'kuwa', 'kan', 'wali', 'weli', 'markaas', 'kadib', 'kaddib',
     'qof', 'lacag', 'shaqo', 'magac', 'taleefan', 'fariin', 'dir', 'kaydi', 'furo', 'gacaliye', 'asc', 'wcs', 'nolosha',
     'aqaan', 'garan', 'fahmay', 'fahmin', 'jirtaa', 'jira', 'leeyahay', 'leedahay', 'tahay', 'ahay', 'ahayn', 'noqon',
   };
   static final _token = RegExp(r"[a-z']+");
+
+  // English words whose spelling looks Somali (doubled vowels, x, c or q before a vowel) but are English:
+  // they never count towards the Somali "shape" score (see, book, box, come, taxi, question...).
+  static const _englishShape = {
+    'see', 'seen', 'seem', 'seems', 'need', 'needs', 'week', 'weeks', 'weekend', 'keep', 'deep', 'feel', 'feels',
+    'feet', 'meet', 'meets', 'meeting', 'sweet', 'free', 'three', 'green', 'sleep', 'street', 'screen', 'between',
+    'agree', 'agreed', 'degree', 'employee', 'good', 'book', 'books', 'look', 'looked', 'looking', 'looks', 'took',
+    'food', 'too', 'moon', 'soon', 'room', 'rooms', 'cool', 'school', 'schools', 'tool', 'tools', 'foot', 'wood',
+    'noon', 'pool', 'choose', 'smooth', 'afternoon', 'box', 'boxes', 'next', 'taxi', 'text', 'texts', 'six', 'mix',
+    'fox', 'relax', 'index', 'excel', 'extra', 'expert', 'experts', 'exit', 'exam', 'example', 'examples', 'exist',
+    'fix', 'fixed', 'flex', 'max', 'exact', 'complex', 'context', 'expand', 'expect', 'expected', 'explain',
+    'explore', 'express', 'extend', 'expensive', 'experience', 'explain', 'come', 'comes', 'came', 'face', 'place',
+    'places', 'nice', 'service', 'services', 'office', 'price', 'prices', 'police', 'piece', 'notice', 'practice',
+    'cat', 'cats', 'can', 'car', 'cars', 'card', 'cards', 'call', 'calls', 'called', 'cut', 'cuts', 'cup', 'care',
+    'case', 'cases', 'cash', 'copy', 'code', 'codes', 'color', 'cost', 'costs', 'city', 'center', 'certain',
+    'circle', 'quick', 'quickly', 'quiet', 'quite', 'question', 'questions', 'quality', 'equal', 'request',
+    'requests', 'require', 'required', 'quite',
+  };
+  // Somali spelling: doubled vowels, dh, kh, x anywhere, or c/q before a vowel (xaal, cunto, qoys, dhakhtar).
+  static final _shape = RegExp(r'(aa|ee|ii|oo|uu)|(dh|kh)|x|(c|q)[aeiou]');
 
   /// True when [text] reads as Somali (a few function words, or a clear share of the words).
   static bool detect(String text) {
@@ -28,8 +49,9 @@ class Somali {
     for (final w in words) {
       if (_words.contains(w)) hits++;
     }
-    // Somali spelling: doubled vowels and the letters x, c, q, dh inside words (xaal, cunto, qoys, dhakhtar).
-    final shape = words.where((w) => RegExp(r'(aa|ee|ii|oo|uu).*|.*(dh|kh|x|c[aeiou]|q[aeiou])').hasMatch(w) && w.length > 2).length;
+    final shape = words
+        .where((w) => w.length > 2 && !_englishShape.contains(w) && _shape.hasMatch(w))
+        .length;
     if (words.length <= 3) return hits >= 1 && (hits + shape) >= words.length;
     return hits >= 2 && (hits * 4 >= words.length || (hits + shape) * 2 >= words.length);
   }

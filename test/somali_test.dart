@@ -20,6 +20,11 @@ void main() {
       'Can you check the weather in Nairobi tomorrow?',
       'ha ha nice',
       'see the book',
+      // English that used to trip the detector: "way"/"wax"/"ma" counted as Somali words, and
+      // "see"/"book"/"box"/"come"/"tomorrow" counted as Somali shape.
+      'what is the best way to fix this on my phone',
+      'come see the new box tomorrow',
+      'take a taxi to the market and call me when you are done',
     ]) {
       expect(Somali.detect(s), isFalse, reason: s);
     }

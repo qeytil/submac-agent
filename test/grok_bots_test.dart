@@ -4,6 +4,7 @@ import 'package:agent/app_state.dart';
 import 'package:agent/screens/bots_screen.dart';
 import 'package:agent/screens/bots_workspace.dart';
 import 'package:agent/services/bot_status.dart';
+import 'package:agent/services/bot_powers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:agent/services/bots.dart';
 import 'package:agent/services/offices.dart';
@@ -50,19 +51,30 @@ void main() {
     expect(c.routines, isEmpty);
   });
 
-  test('only the Chief gets bot_make', () {
+  test('only the Chief gets bot_make and team_make', () {
     final c = BotTemplates.chief;
     final other = BotTemplates.researcher;
-    bool has(Bot b) => Bots.I.definitionsFor(b).any((d) => (d['function'] as Map)['name'] == 'bot_make');
+    bool has(Bot b, String n) => Bots.I.definitionsFor(b).any((d) => (d['function'] as Map)['name'] == n);
     Bots.I.chiefId = c.id;
-    expect(has(c), isTrue);
-    expect(has(other), isFalse);
-    expect(Bots.I.definitionsFor(null).any((d) => (d['function'] as Map)['name'] == 'bot_make'), isFalse);
+    expect(has(c, 'bot_make'), isTrue);
+    expect(has(c, 'team_make'), isTrue);
+    expect(has(other, 'bot_make'), isFalse);
+    expect(has(other, 'team_make'), isFalse);
+    expect(Bots.I.definitionsFor(null).any((d) => ['bot_make', 'team_make'].contains((d['function'] as Map)['name'])), isFalse);
     Bots.I.chiefId = other.id;
-    expect(has(other), isTrue);
-    expect(has(c), isFalse);
+    expect(has(other, 'bot_make'), isTrue);
+    expect(has(c, 'bot_make'), isFalse);
     Bots.I.chiefId = '';
     expect(Bots.names, contains('bot_make'));
+    expect(Bots.names, contains('team_make'));
+  });
+
+  test('the Chief\'s hiring tools are never switched off by a power', () {
+    // bot_make used to fall through BotPowers.groupOf to 'apps' and vanish when the apps power was off.
+    expect(BotPowers.groupOf('bot_make'), isEmpty);
+    expect(BotPowers.groupOf('team_make'), isEmpty);
+    expect(BotPowers.allowed({'apps'}, 'bot_make'), isTrue);
+    expect(BotPowers.allowed({'apps'}, 'team_make'), isTrue);
   });
 
   test('a team answer keeps every member\'s part', () {

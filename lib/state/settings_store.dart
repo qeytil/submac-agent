@@ -31,18 +31,19 @@ extension AppStateSettings on AppState {
   /// Making a picture is a separate capability switched on from the server, not a model the user picks.
   bool get hasImageModel => Cloud.features.value.image;
 
-  /// The user writes Somali in this chat now (one of their last three messages), or chose Somali replies.
-  /// Learning it once also tells calls to speak Somali well from the first word.
+  /// The user writes Somali in this chat now: their **newest** message reads Somali, or they chose Somali
+  /// replies. Only the newest message decides, so when they switch to English the reply switches too
+  /// (owner rule, 2026-10-31: always speak the language the user speaks). Learning it once also tells
+  /// calls to speak Somali well from the first word.
   bool somaliIn(List<ChatMessage> list) {
     if (replyLanguage == 'Somali') return true;
-    var seen = 0;
     for (final m in list.reversed) {
       if (m.role != 'user' || m.content.startsWith(botWakeMark)) continue;
       if (Somali.detect(m.content)) {
         if (local.prefs.getBool('speaks_somali') != true) local.prefs.setBool('speaks_somali', true);
         return true;
       }
-      if (++seen >= 3) break;
+      return false;
     }
     return false;
   }
