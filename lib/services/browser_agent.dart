@@ -12,6 +12,7 @@ import 'browser/actions.dart';
 import 'browser/loop_guard.dart';
 import 'browser/page_model.dart';
 import 'browser/page_script.dart';
+import 'browser/net_calls.dart' show NetCall, dataLine, formatFetch, formatNetBody, formatNetList;
 import 'browser/shots.dart';
 import 'system_bridge.dart';
 import 'tools.dart' show AgentTools;
@@ -682,6 +683,17 @@ class BrowserAgent extends ChangeNotifier {
       'text': {'type': 'string'},
     }, ['text']),
     _fn('browser_read', 'Read all the text on the current page (long articles, results, terms).', {}, []),
+    _fn('browser_net', 'List the data calls this page made (the site\'s own APIs) — often the exact answer, no scraping. '
+        'With an id, read that call\'s JSON body instead.', {
+      'id': {'type': 'integer', 'description': 'Read this call\'s body (from a browser_net list).'},
+      'filter': {'type': 'string', 'description': 'Only calls whose url contains this, e.g. "/api/search".'},
+      'clear': {'type': 'boolean', 'description': 'Forget the recorded calls.'},
+    }, []),
+    _fn('browser_fetch', 'Call a url with this page\'s own session (cookies, sign-in) and read the response — the site\'s API, '
+        'one step instead of many clicks. GET/HEAD only.', {
+      'url': {'type': 'string', 'description': 'Absolute, or relative to the current page (e.g. "/api/items?page=2").'},
+      'headers': {'type': 'object', 'description': 'Extra headers, e.g. {"accept": "application/json"}.'},
+    }, ['url']),
     _fn('browser_copy', 'Copy the text of a numbered element (or text you give) to paste later; also on the phone clipboard.', {
       'id': {'type': 'integer'},
       'text': {'type': 'string'},
@@ -753,9 +765,11 @@ class BrowserAgent extends ChangeNotifier {
         return tr('Typing on {site}', {'site': site()});
       case 'browser_login':
         return tr('Signing in to {site}', {'site': (a['site'] ?? '').toString().isNotEmpty ? '${a['site']}' : site()});
-      case 'browser_read':
-      case 'browser_find':
-        return tr('Reading {site}', {'site': site()});
+        case 'browser_read':
+        case 'browser_net':
+        case 'browser_fetch':
+        case 'browser_find':
+          return tr('Reading {site}', {'site': site()});
       case 'browser_scroll':
       case 'browser_swipe':
         return tr('Looking through {site}', {'site': site()});
@@ -909,6 +923,10 @@ class BrowserAgent extends ChangeNotifier {
           await Bounded.run<void>(Clipboard.setData(ClipboardData(text: text)), const Duration(seconds: 2), null);
           return 'Copied ${text.length} characters: "${text.length > 160 ? '${text.substring(0, 160)}…' : text}". '
               'Use browser_type with paste:true to put it in a field.';
+        case 'browser_net':
+          return await _net(c, a);
+        case 'browser_fetch':
+          return await _fetchApi(c, a);
         case 'browser_js':
           final code = (a['code'] ?? '').toString();
           if (code.toLowerCase().contains('password')) return 'Error: reading passwords is not allowed.';
@@ -957,8 +975,68 @@ class BrowserAgent extends ChangeNotifier {
     }
   }
 
-  // ---- actions ----
-  /// The result of one action: ok or not, and a line for the model.
+  // ---- the data ear (browser_net / browser_fetch) ----
+  /// The site's own API calls, heard by the page script: list them, read one body, forget them.
+  Future<String> _net(InAppWebViewController c, Map<String, dynamic> a) async {
+    if (a['clear'] == true) {
+      await _js(c, 'return S.netClear();', limit: const Duration(seconds: 3));
+      return 'Forgot the recorded data calls (the ear keeps listening).';
+    }
+    final id = _intV(a['id']);
+    if (id > 0) {
+      final raw = await _js(c, 'return S.netBody($id);', limit: const Duration(seconds: 5));
+      final dynamic j;
+      try {
+        j = jsonDecode(raw);
+      } catch (_) {
+        return 'Error: could not read call $id.';
+      }
+      if (j is! Map) return 'Error: could not read call $id.';
+      if (j['err'] == 'gone') return 'Call $id is gone (the ear keeps the last 40). List again with browser_net.';
+      return formatNetBody(NetCall.fromJson(Map<String, dynamic>.from(j)));
+    }
+    final raw = await _js(c, 'return S.netList(${jsonEncode((a['filter'] ?? '').toString())});', limit: const Duration(seconds: 5));
+    final List<dynamic> list;
+    try {
+      list = raw.isEmpty ? const [] : (jsonDecode(raw) as List? ?? const []);
+    } catch (_) {
+      return 'Error: could not read the page\'s data calls.';
+    }
+    return formatNetList([for (final e in list) if (e is Map) NetCall.fromJson(Map<String, dynamic>.from(e))]);
+  }
+
+  /// Call the site's API with the page's own session (cookies, sign-in): one step instead of many clicks.
+  /// Reads only (GET/HEAD) — acting on a site goes through its own controls, which ask the user first.
+  Future<String> _fetchApi(InAppWebViewController c, Map<String, dynamic> a) async {
+    final u = (a['url'] ?? '').toString().trim();
+    if (u.isEmpty) return 'Error: no url given.';
+    final m = ((a['method'] ?? 'GET') as String).toUpperCase();
+    if (m != 'GET' && m != 'HEAD') {
+      return 'Error: browser_fetch reads (GET/HEAD). To act on the site, use its own controls — that asks the user first.';
+    }
+    final headers = a['headers'] is Map ? {for (final e in (a['headers'] as Map).entries) '${e.key}': '${e.value}'} : <String, String>{};
+    final r = await Bounded.run<CallAsyncJavaScriptResult?>(
+        c.callAsyncJavaScript(functionBody: '''
+      var r = await fetch(u, {method: m, headers: h, credentials: 'include'});
+      var t = await r.text();
+      var ct = '';
+      try { ct = r.headers.get('content-type') || ''; } catch (e) {}
+      return JSON.stringify({status: r.status, ct: ct, text: t.length > 24000 ? t.slice(0, 24000) : t});
+    ''', args: {'u': u, 'm': m, 'h': headers}), const Duration(seconds: 15), null);
+    if (r == null) return 'Error: the site did not answer in time.';
+    if (r.error != null) {
+      return 'Error: ${r.error}. The site may block this call from the page (origin rules) — read it from the page instead.';
+    }
+    Map<String, dynamic>? j;
+    try {
+      final v = r.value;
+      j = v is String ? Map<String, dynamic>.from(jsonDecode(v) as Map) : (v is Map ? Map<String, dynamic>.from(v) : null);
+    } catch (_) {}
+    if (j == null) return 'Error: unreadable answer.';
+    return formatFetch(method: m, url: u, status: (j['status'] as num?)?.toInt() ?? 0, ct: '${j['ct'] ?? ''}', body: '${j['text'] ?? ''}');
+  }
+
+  // ---- actions ----  /// The result of one action: ok or not, and a line for the model.
   static ({bool ok, String text}) _r(bool ok, String text) => (ok: ok, text: text);
 
   /// Runs a batch: in order, stopping at the first failure or as soon as the page changes under it.
@@ -1335,6 +1413,8 @@ class BrowserAgent extends ChangeNotifier {
       sb.writeln('Notices: ${t.dialogs.join(' | ')}');
       t.dialogs.clear();
     }
+    // The data ear: one quiet hint that the site's own APIs are there to be read (P1, browser-godmode).
+    if (snap.calls > 0) sb.writeln('Data: ${dataLine(snap.calls)}');
     sb.writeln(snap.describe(before: prev.url.isEmpty ? null : prev));
     if (t.offered.isNotEmpty) sb.writeln('Files offered on this tab: ${t.offered.length} (browser_download saves the newest).');
     if (t.desktop) sb.writeln('(Desktop site mode.)');

@@ -7,7 +7,7 @@ const src = fs.readFileSync(path.join(__dirname, 'browser_page.js'), 'utf8');
 let fails = 0;
 function ok(c, m) { if (!c) { fails++; console.log('FAIL', m); } else console.log('ok  ', m); }
 
-function page(html) {
+function page(html, pre) {
   const dom = new JSDOM(`<!doctype html><body>${html}</body>`, { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://shop.test/cart' });
   const w = dom.window;
   w.innerWidth = 400; w.innerHeight = 800;
@@ -31,6 +31,7 @@ function page(html) {
   w.Element.prototype.scrollIntoView = function () { const r = rect(this); w.__sy = Math.max(0, (r.top + (w.__sy || 0)) - 300); };
   w.scrollBy = function (o) { w.__sy = (w.__sy || 0) + (o.top || 0); };
   Object.defineProperty(w, 'scrollY', { get: () => w.__sy || 0 });
+  if (pre) pre(w); // set fakes up BEFORE the script wraps them
   w.eval(src);
   return w;
 }
@@ -114,5 +115,34 @@ function page(html) {
   const sel = snap.els.find((e) => e.k.startsWith('dropdown'));
   ok(S.select(sel.i, 'large').ok && w.document.getElementById('s').value === '2', 'select picks by visible text');
 }
-console.log(fails ? fails + ' FAILED' : 'ALL OK');
-process.exit(fails ? 1 : 0);
+// 8. The data ear: fetch calls that carry data are recorded with bodies; assets are not; the API reads back.
+(async () => {
+  const w = page(`<button data-r="10,10,100,40">x</button>`, (w0) => {
+    const mkRes = (ct, body) => ({
+      status: 200,
+      headers: { get: (k) => (String(k).toLowerCase() === 'content-type' ? ct : null) },
+      clone() { return this; },
+      text: async () => body,
+    });
+    w0.fetch = async (u) => {
+      if (String(u).includes('/api/list')) return mkRes('application/json', '{"items":[1,2,3]}');
+      if (String(u).includes('/img/logo.png')) return mkRes('image/png', '\x89PNG');
+      return mkRes('text/plain', 'plain data body');
+    };
+  });
+  const S = w.__sm2;
+  await Promise.all([w.fetch('/api/list'), w.fetch('/img/logo.png'), w.fetch('/data/readme')]);
+  await new Promise((r) => setTimeout(r, 10));
+  ok(S.calls.length === 2, 'only data calls recorded, the image is not (got ' + S.calls.length + ')');
+  ok(S.snapshot().calls === 2, 'snapshot carries the call count');
+  const list = JSON.parse(S.netList('api'));
+  ok(list.length === 1 && list[0].m === 'GET' && list[0].st === 200 && list[0].hasBody === true, 'netList filters by url and lists metadata');
+  const one = JSON.parse(S.netBody(list[0].id));
+  ok(one.body === '{"items":[1,2,3]}', 'netBody returns the JSON body');
+  ok(JSON.parse(S.netBody(99999)).err === 'gone', 'netBody says gone for unknown ids');
+  S.netClear();
+  ok(S.calls.length === 0, 'netClear forgets everything');
+})().then(() => {
+  console.log(fails ? fails + ' FAILED' : 'ALL OK');
+  process.exit(fails ? 1 : 0);
+});

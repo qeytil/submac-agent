@@ -6,7 +6,7 @@ class PageScript {
   PageScript._();
 
   /// Bumped whenever the script changes; a page holding an older copy gets the new one.
-  static const version = 7;
+  static const version = 8;
 
   static const source = r'''
 // SubMac browser page script v2 (browser-use v2). Injected at document start and on demand.
@@ -15,7 +15,7 @@ class PageScript {
 // coordinates the agent sees are fractions of the VISUAL viewport (what the screenshot shows), so
 // pinch zoom, device pixel ratio and scroll never shift a tap.
 (function () {
-  var VERSION = 7;
+  var VERSION = 8;
   if (window.__sm2 && window.__sm2.v === VERSION) return;
   var S = (window.__sm2 = { v: VERSION });
 
@@ -25,6 +25,31 @@ class PageScript {
   S.mut = 0;
   S.mutAt = Date.now();
   function netDone() { S.net = Math.max(0, S.net - 1); S.netAt = Date.now(); }
+
+  // The data ear: the page's own API calls (fetch/XHR), recorded with bodies when they carry data.
+  // The agent reads these with browser_net / re-calls them with browser_fetch — it sees what the
+  // site's own code receives, which humans cannot. Ring of 40; bodies capped at 20000 chars.
+  S.calls = [];
+  S.callId = 0;
+  var ASSET = /\.(js|css|mjs|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot|mp4|webm|m3u8|ts|mp3|wav|pdf)([?#]|$)/i;
+  function wantsData(u, ct) {
+    u = String(u || '');
+    if (u.indexOf('data:') === 0 || ASSET.test(u)) return false;
+    ct = String(ct || '').toLowerCase();
+    if (/\bjson\b|xml|csv|text\/plain/.test(ct)) return true;
+    if (ct === '' && (u.indexOf('/api/') >= 0 || /\.json([?#]|$)/i.test(u))) return true;
+    return false;
+  }
+  function cut(b) { b = String(b == null ? '' : b); return b.length > 20000 ? b.slice(0, 20000) : b; }
+  function record(o) {
+    try {
+      S.callId++;
+      o.id = S.callId;
+      S.calls.push(o);
+      if (S.calls.length > 40) S.calls.shift();
+    } catch (e) {}
+  }
+
   try {
     var of = window.fetch;
     if (of && !of.__sm) {
@@ -32,6 +57,25 @@ class PageScript {
         S.net++; S.netAt = Date.now();
         var p;
         try { p = of.apply(this, arguments); } catch (e) { netDone(); throw e; }
+        try {
+          var inp = arguments[0];
+          var u = typeof inp === 'string' ? inp : (inp && inp.url) || '';
+          var m = (arguments[1] && arguments[1].method) || (inp && inp.method) || 'GET';
+          var t0 = Date.now();
+          p.then(function (res) {
+            try {
+              var ct = '';
+              try { ct = res.headers.get('content-type') || ''; } catch (e2) {}
+              if (!wantsData(u, ct) && !(ct !== '' && !/html|javascript|ecmascript|image|video|audio|font|octet|event-stream/.test(ct.toLowerCase()))) return;
+              var size = 0;
+              try { size = +(res.headers.get('content-length') || 0); } catch (e2) {}
+              var rec = function (body) { record({ url: String(u).slice(0, 300), m: String(m), st: res.status, ct: ct.slice(0, 60), ms: Date.now() - t0, size: body != null ? body.length : size, body: cut(body || '') }); };
+              try {
+                res.clone().text().then(rec, function () { rec(null); });
+              } catch (e2) { rec(null); }
+            } catch (e2) {}
+          }, function () {});
+        } catch (e) {}
         try { p.then(netDone, netDone); } catch (e) { netDone(); }
         return p;
       };
@@ -40,8 +84,43 @@ class PageScript {
     }
   } catch (e) {}
   try {
+    var ox = XMLHttpRequest.prototype.open;
+    if (ox && !ox.__smOpen) {
+      var nop = function (m, u) { try { this.__smReq = { m: String(m || 'GET'), u: String(u || '').slice(0, 300) }; } catch (e) {} return ox.apply(this, arguments); };
+      nop.__smOpen = 1;
+      XMLHttpRequest.prototype.open = nop;
+    }
+  } catch (e) {}
+  try {
     var xs = XMLHttpRequest.prototype.send;
     if (!xs.__sm) {
+      var ns = function () {
+        S.net++; S.netAt = Date.now();
+        var done = false, self = this;
+        var fin = function () { if (!done) { done = true; netDone(); } };
+        try { self.addEventListener('loadend', fin); } catch (e) { fin(); }
+        // A request that never ends must not hold every wait hostage.
+        setTimeout(fin, 15000);
+        try {
+          self.addEventListener('load', function () {
+          try {
+            var req = self.__smReq || { m: 'GET', u: '' };
+            var ct = '';
+            try { ct = self.getResponseHeader('content-type') || ''; } catch (e2) {}
+            if (!wantsData(req.u, ct)) return;
+            var len = 0, body = '';
+            try { len = self.responseText ? self.responseText.length : 0; } catch (e2) {}
+            if (len > 0 && len <= 20000) {
+              try { body = String(self.responseText || '').slice(0, 20000); } catch (e2) {}
+            }
+            record({ url: req.u, m: req.m, st: self.status, ct: ct.slice(0, 60), ms: Date.now() - (self.__smT0 || Date.now()), size: len, body: body });
+          } catch (e2) {}
+          });
+          self.__smT0 = Date.now();
+        } catch (e) {}
+        return xs.apply(self, arguments);
+      };
+      ns.__sm = 1;
       var ns = function () {
         S.net++; S.netAt = Date.now();
         var done = false, self = this;
@@ -360,9 +439,31 @@ class PageScript {
       more: (window.scrollY + H) < (sh - 40), sy: sh > H ? Math.round(window.scrollY / (sh - H) * 100) : 0,
       vw: Math.round(v.w), vh: Math.round(v.h), zoom: round3(v.s), dpr: window.devicePixelRatio || 1,
       fav: fav, banner: banner, frames: sc.blocked.slice(0, 6), ready: document.readyState,
+      calls: S.calls.length,
       fp: S.fp(), focus: S.focusName(),
     };
   };
+
+  // The data ear's API: list the recorded calls (no bodies), read one body, forget them all.
+  S.netList = function (filter) {
+    var f = String(filter || '').toLowerCase(), out = [];
+    for (var i = 0; i < S.calls.length; i++) {
+      var c = S.calls[i];
+      if (f && String(c.url).toLowerCase().indexOf(f) < 0) continue;
+      out.push({ id: c.id, url: c.url, m: c.m, st: c.st, ct: c.ct, ms: c.ms, size: c.size, hasBody: !!c.body });
+    }
+    return JSON.stringify(out);
+  };
+  S.netBody = function (id) {
+    for (var i = 0; i < S.calls.length; i++) {
+      if (S.calls[i].id === id) {
+        var c = S.calls[i];
+        return JSON.stringify({ id: c.id, url: c.url, m: c.m, st: c.st, ct: c.ct, ms: c.ms, size: c.size, body: c.body || '' });
+      }
+    }
+    return JSON.stringify({ err: 'gone' });
+  };
+  S.netClear = function () { S.calls.length = 0; return 'ok'; };
 
   // A cheap fingerprint of what the page is showing (url + structure + visible words).
   S.fp = function () {

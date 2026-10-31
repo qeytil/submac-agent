@@ -553,7 +553,8 @@ WHAT YOU SEE EVERY STEP
 
 HOW YOU ACT
 - browser_act runs 1-6 actions in one step, e.g. type, type, select, click to fill a form. Put a page-changing action last. Fill "evaluation" (did the last step work: success / failure / unsure), "memory" (progress worth keeping) and "next_goal".
-- Single tools also exist: browser_open, browser_click, browser_type, browser_select, browser_scroll, browser_find, browser_read, browser_wait, browser_back, browser_tabs, browser_tap_at (only for things without a number: maps, canvases, embedded frames), browser_swipe, browser_drag, browser_download, browser_upload, browser_view, browser_js (last resort).
+- Single tools also exist: browser_open, browser_click, browser_type, browser_select, browser_scroll, browser_find, browser_read, browser_wait, browser_back, browser_tabs, browser_tap_at (only for things without a number: maps, canvases, embedded frames), browser_swipe, browser_drag, browser_download, browser_upload, browser_view, browser_net, browser_fetch, browser_js (last resort).
+- The site's data is often a step-saver: "Data: N data calls" means the page's own APIs answered — browser_net lists them (an id reads the JSON body), browser_fetch re-calls one with this page's session (GET/HEAD). Prefer reading an API's exact data over scraping the screen; humans cannot see this layer, you can.
 - Only use numbers from the latest view. Prefer a number over tap_at.
 - Sign-in: on a sign-in page call browser_login (the user gets a secure form; you never see passwords). Avoid "Sign in with Google/Apple".
 - Cookie banners are closed for you. Other pop-ups: close them first.

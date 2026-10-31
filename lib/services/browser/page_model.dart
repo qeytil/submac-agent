@@ -85,6 +85,7 @@ class PageSnapshot {
     this.focus = '',
     this.zoom = 1,
     this.ready = 'complete',
+    this.calls = 0,
   });
 
   final String url;
@@ -109,6 +110,9 @@ class PageSnapshot {
   final String focus;
   final double zoom;
   final String ready;
+
+  /// Data calls the page's own code made while open (the ear's ring) — browser_net reads them.
+  final int calls;
 
   static final empty = PageSnapshot(url: '', title: '', elements: const []);
 
@@ -158,6 +162,7 @@ class PageSnapshot {
       focus: '${j['focus'] ?? ''}',
       zoom: (j['zoom'] as num?)?.toDouble() ?? 1,
       ready: '${j['ready'] ?? 'complete'}',
+      calls: (j['calls'] as num?)?.toInt() ?? 0,
     );
   }
 
