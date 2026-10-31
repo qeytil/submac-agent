@@ -181,15 +181,15 @@ void main() {
   late FakeAccount account;
 
   setUp(() async {
-    // Owner (2026-10-31): every test starts from a clean phone. In Flutter tests SharedPreferences is a cached
-    // singleton, so the setMockInitialValues({}) inside _freshPhone does NOT wipe what a prior test persisted — its
-    // instance was already created. Without this, bot_sync_v1 / bot_acct_stash_v1 / bots_v1 / bot_chief_* accumulate
-    // across tests, and a test that removes the Chief (stashing a bot under acct-A) leaks it into later tests' first
-    // sign-in via _unstash. Clear the keys explicitly so each test is hermetic, exactly as _freshPhone intends.
+    // Owner (2026-10-31): every test starts from a clean phone. The legacy SharedPreferences keeps a per-instance
+    // cache and is a cached singleton under flutter_test, so the setMockInitialValues({}) inside _freshPhone does NOT
+    // wipe what a prior test persisted — its instance was already created. Without this, bot_sync_v1 / bot_acct_stash_v1
+    // / bots_v1 / bot_chief_* accumulate across tests, and a test that removes the Chief (stashing a bot under acct-A)
+    // leaks it into later tests' first sign-in via _unstash. Register the mock store FIRST (so getInstance() does not
+    // throw MissingPluginException), then clear the cached instance so each test is hermetic.
+    SharedPreferences.setMockInitialValues({});
     final p = await SharedPreferences.getInstance();
-    for (final k in const ['bots_v1', 'bot_chief_v1', 'bot_chief_seeded_v1', 'bot_sync_v1', 'bot_acct_stash_v1', 'bot_sync_device']) {
-      await p.remove(k);
-    }
+    await p.clear();
     await _freshPhone();
     account = FakeAccount()..uid = 'acct-A';
     BotSync.I.stop();
