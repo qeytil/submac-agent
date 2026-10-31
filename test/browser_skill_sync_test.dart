@@ -110,18 +110,25 @@ class FakeSkills {
     return old;
   }
 
+  /// postgrest reads `response.request!.method`, so every response has to carry the request it answers
+  /// (the same reason test/bots_restore_test.dart wraps its responses this way).
   http.Client client() => MockClient((req) async {
-        final path = req.url.path;
-        if (path.endsWith('/rpc/browser_skill_push')) {
-          final body = Map<String, dynamic>.from(jsonDecode(req.body) as Map);
-          return _json(_push(body));
-        }
-        if (path.endsWith('/cloud_browser_skills') && req.method == 'GET') {
-          final list = mine..sort((a, b) => '${a['updated_at']}'.compareTo('${b['updated_at']}'));
-          return _json([for (final r in list) r]);
-        }
-        return _json({'code': '42P01', 'message': 'relation does not exist'}, status: 404);
+        final r = await _handle(req);
+        return http.Response.bytes(r.bodyBytes, r.statusCode, headers: r.headers, request: req);
       });
+
+  Future<http.Response> _handle(http.Request req) async {
+    final path = req.url.path;
+    if (path.endsWith('/rpc/browser_skill_push')) {
+      final body = Map<String, dynamic>.from(jsonDecode(req.body) as Map);
+      return _json(_push(body));
+    }
+    if (path.endsWith('/cloud_browser_skills') && req.method == 'GET') {
+      final list = mine..sort((a, b) => '${a['updated_at']}'.compareTo('${b['updated_at']}'));
+      return _json([for (final r in list) r]);
+    }
+    return _json({'code': '42P01', 'message': 'relation does not exist'}, status: 404);
+  }
 
   http.Response _json(Object body, {int status = 200}) =>
       http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json; charset=utf-8'});
