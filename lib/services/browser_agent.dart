@@ -1022,7 +1022,7 @@ class BrowserAgent extends ChangeNotifier {
       var ct = '';
       try { ct = r.headers.get('content-type') || ''; } catch (e) {}
       return JSON.stringify({status: r.status, ct: ct, text: t.length > 24000 ? t.slice(0, 24000) : t});
-    ''', args: {'u': u, 'm': m, 'h': headers}), const Duration(seconds: 15), null);
+    ''', arguments: {'u': u, 'm': m, 'h': headers}), const Duration(seconds: 15), null);
     if (r == null) return 'Error: the site did not answer in time.';
     if (r.error != null) {
       return 'Error: ${r.error}. The site may block this call from the page (origin rules) — read it from the page instead.';
