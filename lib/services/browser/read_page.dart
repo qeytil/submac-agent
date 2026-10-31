@@ -11,6 +11,8 @@ String htmlToText(String html, {int max = 6000}) {
   s = s.replaceAll(RegExp(r'<[^>]+>'), ' ');
   s = _entities(s);
   s = s.replaceAll(RegExp(r'[ \t\r\f\v]+'), ' ');
+  // Inline tags became spaces: "from $180 ." must read "from $180." — a space never belongs before punctuation.
+  s = s.replaceAllMapped(RegExp(r' +([.,;:!?%)\]])'), (m) => m.group(1)!);
   s = s.replaceAll(RegExp(r' *\n *'), '\n');
   s = s.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
   return s.length > max ? '${s.substring(0, max)}…' : s;
