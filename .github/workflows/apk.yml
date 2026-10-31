@@ -64,6 +64,23 @@ jobs:
 
       - run: flutter pub get
 
+      # The SubMac launcher icon is GENERATED, never tracked: android/ is gitignored and flutter
+      # create stamps the default Flutter logo, so this step is the only thing that replaces it.
+      # Leaving it out shipped an APK with the Flutter logo (v1.13.104-174), hence the hard guard.
+      - name: App icon (the SubMac logo, not the Flutter default)
+        run: |
+          dart run flutter_launcher_icons
+          R=android/app/src/main/res
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            test -f "$R/mipmap-$d/ic_launcher.png" \
+              || { echo "::error::flutter_launcher_icons wrote no mipmap-$d/ic_launcher.png — this APK would ship the Flutter logo"; exit 1; }
+          done
+          # Only an adaptive icon (anydpi-v26) proves the generator ran: the stock Flutter template
+          # has no anydpi-v26 at all, only five legacy PNGs.
+          test -f "$R/mipmap-anydpi-v26/ic_launcher.xml" \
+            || { echo "::error::no mipmap-anydpi-v26/ic_launcher.xml — the Flutter default icon is still in place"; exit 1; }
+          ls -l "$R"/mipmap-*/ic_launcher.png
+
       - name: Build ${{ inputs.variant }} APK
         run: flutter build apk --${{ inputs.variant }}
 
@@ -102,6 +119,9 @@ jobs:
           gh release view "$TAG" >/dev/null 2>&1 \
             || gh release create "$TAG" --title "SubMac Agent ${{ steps.name.outputs.ver }}${{ inputs.variant == 'debug' && ' (debug)' || '' }}" --notes-file "$NOTES"
           gh release upload "$TAG" "${{ steps.name.outputs.file }}" "${{ steps.name.outputs.file }}.sha256" --clobber
+          # --clobber replaces the asset, so the notes must be refreshed too: the sha256 in them
+          # would otherwise describe the previous file.
+          gh release edit "$TAG" --notes-file "$NOTES"
           echo "url=$(gh release view "$TAG" --json url -q .url)" >> "$GITHUB_OUTPUT"
           echo "dl=https://github.com/${{ github.repository }}/releases/download/$TAG/${{ steps.name.outputs.file }}" >> "$GITHUB_OUTPUT"
 
