@@ -109,7 +109,7 @@ A flow that worked once replays with **zero model calls per step**; the first mi
 - **Approvals stay in the path**: a replay halts before a click on a payment page ("the user is asked before money moves") — the final purchase is done by the agent's own gated step, never by the replay.
 - **Variables**: `values` replaces typed values by field label (`{"Search": "flights to Hargeisa"}`) or by step number (`"2"`).
 - Code: `lib/services/browser/playbook.dart` (PlayStep/Playbook, resolveStep, compressSteps, withValues), `lib/services/browser/site_skills.dart` (storage), `browser_agent.dart` (`_record`/`_sig`/`_refresh`/`_play`, the `browser_play` tool), sub-agent prompt. Tests: `test/browser_playbook_test.dart`.
-- Boundary (honest): v1 has no cross-visit step *repair* — a mismatch stops and hands over (the agent then saves the new path); values are substituted, not inferred; playbooks are per phone (the Supabase sync is the next step).
+- Boundary (honest): v1 has no cross-visit step *repair* — a mismatch stops and hands over (the agent then saves the new path); values are substituted, not inferred; playbooks were per phone at first — the account sync landed as P7.
 
 ### P3 — Site skills (memory: the 50th visit is free) 🔑 (original plan)
 The highest-leverage feature, and SubMac already owns the perfect container (`skill_save` + skill library):
@@ -188,6 +188,15 @@ A scheduled task used to be able to *ask* for a browser task, but the browser jo
 - **Login vault UX**: per-domain saved logins surface as one-tap approvals ("Sign into X with your
   saved login?") so replays never stall on auth.
 
+### P7 — Site skills follow the account — SHIPPED 2026-10-31
+- **What changed**: a flow learned on one phone replays on the next one, and comes back after a reinstall. Until now a playbook lived only in `<documents>/browser_skills`, so a new phone started with none.
+- **The table** (`supabase/migrations/20261031_browser_skill_sync.sql`, live on `moeemacbvsueekuvfjbo`): `cloud_browser_skills`, one row per skill — what it is (`name`, `site`, `goal`, `steps` jsonb) and how it has done (`runs`, `wins`) — plus `at` (when it was last learned or changed on a phone) and `deleted` (a tombstone). RLS: a user reads only their own rows, and the table is **read-only for the client**: every write goes through `browser_skill_push()`, a security-definer function that does the merge in one statement.
+- **Why a function and not an upsert**: two phones replay the same flow and both send their own counts. `browser_skill_push` merges instead of overwriting — **counts only ever grow** (`greatest`), so the same phone can send the same skill every round without inflating them; **the newest `at` wins the steps**; **a removal wins over anything older**; and `wins` is clamped to `runs` whatever a file says. It returns the merged row, so a phone that was behind catches up at once. (The lesson from R2 was that a PostgREST upsert also failed on the column grants; a function sidesteps that entirely.)
+- **The client** (`lib/services/browser/skill_sync.dart`, the `BotSync` shape: `debugClient`/`debugUid` seams, debounce, `flush` before sign-out): on sign-in and on resume it pulls, writes what is newer, and drops what the account removed; six seconds after a save, a replay or a forget it pushes only what changed. A forgotten skill sends **one** tombstone, not one every round.
+- **Whose skills are whose**: the folder now belongs to the account that claimed it (`SiteSkills.claim`, `.owner` file). Another account signing in sets it aside as `browser_skills.off.<uid>` — kept, never deleted — and starts from its own account copy, so one account's saved flows are never uploaded as another's; signing back in brings the folder back. A phone that has just claimed the folder **sends no tombstones**, so restoring can never wipe the account it is restoring from.
+- Boundary (honest): counts are merged with `greatest`, not summed — two phones each replaying a skill five times shows five, not ten. That is deliberate: a sum would double-count every push, and an honest low number beats an inflated one. Skills are capped at 200 per account. Passwords never reach the table at all (`compressSteps` drops them; the login is offered at replay time instead).
+- Code: `supabase/migrations/20261031_browser_skill_sync.sql`, `lib/services/browser/skill_sync.dart`, `SiteSkills` (`claim`, `owner`, `onChanged`, `at`/`notify` on `save`, `notify` on `forget`), wired in `settings_store.dart` (sign-in), `main.dart` (resume), `chat_controller.dart` (sign-out/delete). Tests: `test/browser_skill_sync_test.dart` (a fake account that enforces the same merge).
+
 ---
 
 ## 5. What we deliberately do NOT do (the honesty list)
@@ -217,5 +226,5 @@ An internal eval set, like `prompt_eval` but for the browser — 20 recorded tas
 Each phase lands with its eval slice green before the next starts. Order: P1 → P2 → P3 → P4 → P5 (+P5b
 background) → P6 (P1+P2 are one release; P3 is the release after; P4–P6 follow as capacity allows).
 
-The whole roadmap P1–P6 is now shipped on `feat/browser-godmode-p1` (PR #35). What is left is not a phase
-but the eval run itself (browser_eval on real sites) and the cross-device sync of site skills.
+The whole roadmap P1–P6 is now shipped on `feat/browser-godmode-p1` (PR #35), and site skills follow the
+account (P7). What is left is not a phase but the eval run itself: browser_eval on real sites.

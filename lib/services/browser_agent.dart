@@ -793,7 +793,8 @@ class BrowserAgent extends ChangeNotifier {
         'Site skills: a flow you did on this site before replays with no thinking per step. "list" shows the skills saved '
             'for this site; "run" replays one (values override typed fields; it pauses on payment pages for the user\'s OK); '
             '"save" saves the steps you just did (name + what it does); "forget" deletes one. Save after a multi-step flow '
-            'worked — the next visit becomes one step.',
+            'worked — the next visit becomes one step. Skills follow the user\'s account: one saved here replays on their '
+            'other phones too, and a forgotten one is gone from them as well.',
         {
           'action': {'type': 'string', 'enum': ['list', 'run', 'save', 'forget']},
           'id': {'type': 'string', 'description': 'The skill id (from a list), for run and forget.'},
@@ -1302,7 +1303,8 @@ class BrowserAgent extends ChangeNotifier {
             body: p.readable,
             tags: ['browser', host]);
       } catch (_) {}
-      return 'Saved "${p.name}" as a site skill for $host (${steps.length} steps). Next time: browser_play action "run", id "${p.id}".';
+      return 'Saved "${p.name}" as a site skill for $host (${steps.length} steps). It follows the account, so it replays on '
+          'the user\'s other phones too. Next time: browser_play action "run", id "${p.id}".';
     }
     // run
     final id = '${a['id'] ?? ''}'.trim();

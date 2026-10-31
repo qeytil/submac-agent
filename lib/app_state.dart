@@ -49,6 +49,7 @@ import 'services/paste_guard.dart';
 import 'services/web_tools.dart';
 import 'services/browser_agent.dart';
 import 'services/browser_jobs.dart';
+import 'services/browser/skill_sync.dart';
 import 'services/bot_package.dart';
 import 'services/bot_ask.dart';
 import 'services/bots.dart';

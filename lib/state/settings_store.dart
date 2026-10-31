@@ -187,6 +187,8 @@ extension AppStateSettings on AppState {
     Inbox.I.onChatItems = _mirrorTeamMessages;
     unawaited(Inbox.I.refresh());
     unawaited(BotSync.I.start().catchError((Object e) => debugPrint('bot sync start: $e')));
+    // Saved browser flows are kept in the account too: learned on this phone, replayed on the next one.
+    unawaited(SkillSync.I.start().catchError((Object e) => debugPrint('skill sync start: $e')));
     // CB-46: a bot wake that came before the account was restored runs now.
     unawaited(_runHeldWakes().catchError((Object e) => debugPrint('held wakes: $e')));
     // Scheduled tasks belong to the account: arm only this account's.
