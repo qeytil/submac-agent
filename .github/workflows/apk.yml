@@ -3,7 +3,12 @@ name: APK (build on demand)
 # Owner request: build an installable APK when asked, and only when asked. The branch check
 # (analyze-test.yml) stays analyze + tests with no build, so a push never waits for Gradle.
 # Run it from Actions → "APK (build on demand)" → Run workflow, or:
-#   gh workflow run apk.yml --ref <branch>
+#   gh workflow run apk.yml --ref main
+#
+# The APK is published as a RELEASE ASSET, never through actions/upload-artifact: this account's
+# artifact storage quota is full, and an upload there fails the run *after* a good build
+# ("Failed to CreateArtifact: Artifact storage quota has been hit"). A release asset also gives a
+# plain download link that can be opened on the phone, which is what an APK is for.
 
 on:
   workflow_dispatch:
@@ -13,6 +18,9 @@ on:
         type: choice
         options: [release, debug]
         default: release
+
+permissions:
+  contents: write # publish the release and its assets
 
 concurrency:
   group: apk-${{ github.ref }}-${{ inputs.variant }}
@@ -36,6 +44,14 @@ jobs:
           channel: stable
           cache: true
 
+      # A new signing key silently breaks every future update (Android refuses a cross-key
+      # install), so refuse to build if the keystore is not the pinned SubMac key.
+      - name: Pinned signing key (never regenerate — a new key breaks updates)
+        run: |
+          test -f keys/debug.keystore || { echo "::error::keys/debug.keystore missing — refusing to sign with a new key"; exit 1; }
+          keytool -list -v -keystore keys/debug.keystore -storepass android | grep -E "SHA256" | tee /tmp/k.txt
+          grep -qi "4D:6D:11:6E" /tmp/k.txt || { echo "::error::keystore is not the pinned SubMac key"; exit 1; }
+
       # android/ and ios/ are gitignored; the tracked native code lives in android_native/ and is
       # stamped in by tools/patch_android.py (same as analyze-test.yml).
       - name: Generate platform folders
@@ -51,33 +67,51 @@ jobs:
       - name: Build ${{ inputs.variant }} APK
         run: flutter build apk --${{ inputs.variant }}
 
-      - name: Name it with the version
+      - name: Name it with the version, and checksum it
         id: name
         run: |
           VER=$(awk '/^version:/{print $2}' pubspec.yaml | tr '+' '-')
           OUT="submac-${VER}-${{ inputs.variant }}.apk"
           cp "build/app/outputs/flutter-apk/app-${{ inputs.variant }}.apk" "$OUT"
+          sha256sum "$OUT" | cut -d' ' -f1 > "$OUT.sha256"
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
           echo "file=$OUT" >> "$GITHUB_OUTPUT"
-          echo "sha=$(sha256sum "$OUT" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "sha=$(cat "$OUT.sha256")" >> "$GITHUB_OUTPUT"
           ls -l "$OUT"
 
       # Fails the run if the APK is malformed: testOnly, no v2 signature, wrong key, 4 KB-aligned
-      # native libs on a 16 KB-page device, missing ABIs.
+      # native libs on a 16 KB-page device, missing ABIs. STRICT=1 is what makes it exit non-zero —
+      # without it the script only reports (that is how it is used by hand).
       - name: Verify the APK
-        run: bash tools/verify_apk.sh "${{ steps.name.outputs.file }}"
+        run: STRICT=1 bash tools/verify_apk.sh "${{ steps.name.outputs.file }}"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: submac-${{ inputs.variant }}-apk
-          path: ${{ steps.name.outputs.file }}
-          retention-days: 30
-          if-no-files-found: error
+      - name: Publish the release (the download link)
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="apk-${{ steps.name.outputs.ver }}${{ inputs.variant == 'debug' && '-debug' || '' }}"
+          NOTES="$(mktemp)"
+          {
+            echo "SubMac Agent ${{ steps.name.outputs.ver }}${{ inputs.variant == 'debug' && ' (debug)' || '' }} — automated build from \`${GITHUB_SHA}\`."
+            echo
+            echo "- sha256: \`${{ steps.name.outputs.sha }}\`"
+            echo
+            echo "**If SubMac Agent 1.3.0 or 1.4.0 is on your phone, uninstall it first.** Those builds were signed with a different key, and Android refuses to update an app across keys (many phones show this as \"App not installed as package appears to be invalid\"). From 1.4.1 on every build uses the same key, so later updates install over this one."
+          } > "$NOTES"
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --title "SubMac Agent ${{ steps.name.outputs.ver }}${{ inputs.variant == 'debug' && ' (debug)' || '' }}" --notes-file "$NOTES"
+          gh release upload "$TAG" "${{ steps.name.outputs.file }}" "${{ steps.name.outputs.file }}.sha256" --clobber
+          echo "url=$(gh release view "$TAG" --json url -q .url)" >> "$GITHUB_OUTPUT"
+          echo "dl=https://github.com/${{ github.repository }}/releases/download/$TAG/${{ steps.name.outputs.file }}" >> "$GITHUB_OUTPUT"
 
       - name: Summary
         run: |
           {
             echo "### SubMac ${{ inputs.variant }} APK"
             echo ""
+            echo "- download: ${{ steps.rel.outputs.dl }}"
+            echo "- release: ${{ steps.rel.outputs.url }}"
             echo "- file: \`${{ steps.name.outputs.file }}\`"
             echo "- sha256: \`${{ steps.name.outputs.sha }}\`"
             echo "- commit: \`${GITHUB_SHA}\`"
