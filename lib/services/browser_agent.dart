@@ -12,6 +12,14 @@ import 'browser/actions.dart';
 import 'browser/loop_guard.dart';
 import 'browser/page_model.dart';
 import 'browser/page_script.dart';
+import 'browser/net_calls.dart' show NetCall, dataLine, formatFetch, formatNetBody, formatNetList;
+import 'browser/extract.dart' show ExtractPage, formatExtract, formatManyExtract, formatSchemaIndex, formatSchemaOpen, parseExtractPage;
+import 'browser/human_input.dart' show HumanInput;
+import 'browser/heal.dart' show HealedTarget, parseHeal;
+import 'browser/playbook.dart' show Playbook, compressSteps, playbookId, resolveStep, withValues;
+import 'browser/read_page.dart' show htmlTitle, htmlToText;
+import 'browser/site_skills.dart' show SiteSkills;
+import 'skill_library.dart' show SkillLibrary;
 import 'browser/shots.dart';
 import 'system_bridge.dart';
 import 'tools.dart' show AgentTools;
@@ -237,6 +245,11 @@ class BrowserAgent extends ChangeNotifier {
   Future<bool> onConfirm(BrowserTab t, String msg) async {
     onDialog(t, 'confirm', msg);
     if (!PageRisk.dialogNeedsOk(msg) || approveDialog == null) return true;
+    if (Zone.current[#smUnattended] == true) {
+      // A scheduled run has nobody to ask: the confirmation is refused, and the job is told why.
+      t.dialogs.add('nobody was watching to confirm this (a scheduled run), so it was cancelled');
+      return false;
+    }
     final ok = await Bounded.run<bool>(approveDialog!(msg, t.host, t.owner), const Duration(minutes: 5), false);
     t.dialogs.add(ok ? 'the user approved it' : 'the user said no, so it was cancelled');
     return ok;
@@ -418,6 +431,7 @@ class BrowserAgent extends ChangeNotifier {
   }
 
   Future<void> _waitIfUser() async {
+    if (Zone.current[#smUnattended] == true) return; // a scheduled run has nobody to hand the browser to
     if (!userControl || _handBack == null) return;
     await Bounded.orCancel<void>(_handBack!.future, _endOf(jobNow), limit: userLimit);
   }
@@ -433,6 +447,41 @@ class BrowserAgent extends ChangeNotifier {
   /// Screenshots by tool call, so a task always gets its own picture even when others act in between.
   final Map<String, Uint8List> shotsByCall = {};
   final Map<String, PageSnapshot> _snapByJob = {};
+
+  /// What each job has done, as replayable step signatures (the raw material of a site skill).
+  final Map<String, List<Map<String, dynamic>>> _rec = {};
+  static const _recCap = 80;
+
+  /// Records one action of the running job: kind + label + href, never coordinates.
+  void _record(Map<String, dynamic> step) {
+    if ('${step['k'] ?? ''}'.contains('password')) return; // a password is never part of a skill
+    final l = _rec.putIfAbsent(jobNow ?? '', () => <Map<String, dynamic>>[]);
+    l.add(step);
+    if (l.length > _recCap) l.removeAt(0);
+  }
+
+  /// The steps this job has done so far (what browser_play "save" compresses).
+  @visibleForTesting
+  List<Map<String, dynamic>> get recorded => List.of(_rec[jobNow ?? ''] ?? const <Map<String, dynamic>>[]);
+
+  /// The signature of element [id] as the page had it when the step ran.
+  Map<String, dynamic> _sig(int id) {
+    final e = snapFor(jobNow).byId(id);
+    if (e == null) return const {};
+    return {'k': e.kind, if (e.label.isNotEmpty) 't': e.label, if (e.href.isNotEmpty) 'h': e.href};
+  }
+
+  /// A fresh numbered view without a screenshot: replay needs the elements, not pixels.
+  Future<PageSnapshot> _refresh(InAppWebViewController c, BrowserTab t) async {
+    final raw = await _js(c, 'return JSON.stringify(S.snapshot({max: 140, text: 400}));', limit: const Duration(seconds: 10));
+    try {
+      final s = PageSnapshot.parse(raw);
+      t.snap = s;
+      return s;
+    } catch (_) {
+      return t.snap;
+    }
+  }
   final Map<String, Completer<void>> _ends = {};
 
   /// Element labels from the latest view of the given task (or the shared one).
@@ -547,6 +596,7 @@ class BrowserAgent extends ChangeNotifier {
     }
     _jobTab.remove(job);
     _snapByJob.remove(job);
+    _rec.remove(job);
     for (final t in tabs) {
       if (t.owner == job) t.owner = null;
     }
@@ -575,6 +625,12 @@ class BrowserAgent extends ChangeNotifier {
     'browser_wait',
     'browser_find',
     'browser_read',
+    'browser_net',
+    'browser_fetch',
+    'browser_schema',
+    'browser_extract',
+    'browser_extract_many',
+    'browser_play',
     'browser_copy',
     'browser_login',
     'browser_js',
@@ -609,10 +665,13 @@ class BrowserAgent extends ChangeNotifier {
         ['actions']),
     _fn('browser_open',
         'Open a web page (or search words). Returns the numbered elements, the visible text and a screenshot with the same '
-            'numbers. new_tab keeps the current page open in its own tab.',
+            'numbers. new_tab keeps the current page open in its own tab. read:true is for reading only — it fetches the '
+            'page with this session and answers from its text without rendering (one fast step; falls back to rendering '
+            'when the page needs scripts).',
         {
           'url': {'type': 'string'},
           'new_tab': {'type': 'boolean'},
+          'read': {'type': 'boolean', 'description': 'Reading only, no clicking: answer from a fetch of the page text, no render.'},
         },
         ['url']),
     _fn('browser_tabs', 'Tabs: list, open a new one, switch, or close.', {
@@ -673,17 +732,78 @@ class BrowserAgent extends ChangeNotifier {
       'key': {'type': 'string'},
       'about': _about,
     }, ['key']),
-    _fn('browser_wait', 'Wait for text to appear (or go with gone:true), or a few seconds. Max 20 s.', {
+    _fn('browser_wait', 'Wait for text to appear (or go with gone:true), or a few seconds. quiet:true waits until the page '
+        'stops talking (no requests in flight, no changes), max 10 s. Max 20 s.', {
       'seconds': {'type': 'number'},
       'text': {'type': 'string'},
       'gone': {'type': 'boolean'},
+      'quiet': {'type': 'boolean', 'description': 'Wait until the page goes quiet instead of a fixed time.'},
     }, []),
     _fn('browser_find', 'Find text on the page and scroll to it.', {
       'text': {'type': 'string'},
     }, ['text']),
-    _fn('browser_read', 'Read all the text on the current page (long articles, results, terms).', {}, []),
-    _fn('browser_copy', 'Copy the text of a numbered element (or text you give) to paste later; also on the phone clipboard.', {
-      'id': {'type': 'integer'},
+    _fn('browser_read', 'Read all the text on the current page (long articles, results, terms). full:true lists every '
+        'numbered element again after a patch showed only what changed.', {
+      'full': {'type': 'boolean', 'description': 'List every element again (the last view showed only changes).'},
+    }, []),
+    _fn('browser_net', 'List the data calls this page made (the site\'s own APIs) — often the exact answer, no scraping. '
+        'With an id, read that call\'s JSON body instead.', {
+      'id': {'type': 'integer', 'description': 'Read this call\'s body (from a browser_net list).'},
+      'filter': {'type': 'string', 'description': 'Only calls whose url contains this, e.g. "/api/search".'},
+      'clear': {'type': 'boolean', 'description': 'Forget the recorded calls.'},
+    }, []),
+    _fn('browser_fetch', 'Call a url with this page\'s own session (cookies, sign-in) and read the response — the site\'s API, '
+        'one step instead of many clicks. GET/HEAD only.', {
+      'url': {'type': 'string', 'description': 'Absolute, or relative to the current page (e.g. "/api/items?page=2").'},
+      'headers': {'type': 'object', 'description': 'Extra headers, e.g. {"accept": "application/json"}.'},
+    }, ['url']),
+    _fn('browser_schema',
+        'The site\'s own structured data, free: JSON-LD blocks (Product, Article, Event...), the app state the page '
+            'carries (__NEXT_DATA__ and friends), OpenGraph metas. No arguments: list what is there. With an index: '
+            'read that block in full (usually the exact answer, no scraping).',
+        {
+          'index': {'type': 'integer', 'description': 'Read this block in full (from a browser_schema list).'},
+        },
+        []),
+    _fn('browser_extract',
+        'Pull EVERY matching item on the page in ONE step: rows is a CSS selector matching each item (a product card, '
+            'a search result, a table row); fields say what to take from each row — a CSS selector for the text, or '
+            '{"sel": "a", "attr": "href"} for a link. Returns JSON. Show the answer to the user as a ```data card.',
+        {
+          'rows': {'type': 'string', 'description': 'CSS selector matching each item, e.g. ".product-card" or "table tr".'},
+          'fields': {'type': 'object', 'description': 'What to take from each row, e.g. {"name": ".title", "price": ".price", "link": {"sel": "a", "attr": "href"}}.'},
+          'limit': {'type': 'integer', 'description': 'Cap the rows (default 200).'},
+        },
+        ['rows', 'fields']),
+    _fn('browser_extract_many',
+        'The same fields from SEVERAL pages in one step: give links (a list of URLs, or a CSS selector whose links are '
+            'collected from this page) and it reads them all — fetched, not rendered — and returns ONE table with a '
+            'source column. Up to 8 pages, no tab switching, no waiting for each page to draw. Pages built by scripts '
+            'come back as "not read": open those with browser_open and use browser_extract. Show the result as a ```data card.',
+        {
+          'links': {'type': 'array', 'items': {'type': 'string'}, 'description': 'The page URLs to read.'},
+          'from': {'type': 'string', 'description': 'Instead of links: a CSS selector whose links (on this page) to read, e.g. ".result a".'},
+          'rows': {'type': 'string', 'description': 'CSS selector matching each item on those pages, e.g. ".product-card".'},
+          'fields': {'type': 'object', 'description': 'What to take from each row, e.g. {"name": ".title", "price": ".price"}.'},
+          'limit': {'type': 'integer', 'description': 'Cap the rows per page (default 50).'},
+          'max_pages': {'type': 'integer', 'description': 'Cap the pages read (default 6, max 8).'},
+        },
+        ['rows', 'fields']),
+    _fn('browser_play',
+        'Site skills: a flow you did on this site before replays with no thinking per step. "list" shows the skills saved '
+            'for this site; "run" replays one (values override typed fields; it pauses on payment pages for the user\'s OK); '
+            '"save" saves the steps you just did (name + what it does); "forget" deletes one. Save after a multi-step flow '
+            'worked — the next visit becomes one step. Skills follow the user\'s account: one saved here replays on their '
+            'other phones too, and a forgotten one is gone from them as well.',
+        {
+          'action': {'type': 'string', 'enum': ['list', 'run', 'save', 'forget']},
+          'id': {'type': 'string', 'description': 'The skill id (from a list), for run and forget.'},
+          'name': {'type': 'string', 'description': 'For save: what the flow does, e.g. "Book a hotel room".'},
+          'goal': {'type': 'string', 'description': 'For save: when to use it, one line.'},
+          'values': {'type': 'object', 'description': 'For run: replace typed values by field label, e.g. {"Search": "flights to Hargeisa"}.'},
+        },
+        ['action']),
+    _fn('browser_copy', 'Copy the text of a numbered element (or text you give) to paste later; also on the phone clipboard.', {      'id': {'type': 'integer'},
       'text': {'type': 'string'},
     }, []),
     _fn('browser_login',
@@ -753,9 +873,15 @@ class BrowserAgent extends ChangeNotifier {
         return tr('Typing on {site}', {'site': site()});
       case 'browser_login':
         return tr('Signing in to {site}', {'site': (a['site'] ?? '').toString().isNotEmpty ? '${a['site']}' : site()});
-      case 'browser_read':
-      case 'browser_find':
-        return tr('Reading {site}', {'site': site()});
+        case 'browser_read':
+        case 'browser_net':
+        case 'browser_fetch':
+        case 'browser_schema':
+        case 'browser_extract':
+        case 'browser_extract_many':
+        case 'browser_play':
+        case 'browser_find':
+          return tr('Reading {site}', {'site': site()});
       case 'browser_scroll':
       case 'browser_swipe':
         return tr('Looking through {site}', {'site': site()});
@@ -822,6 +948,11 @@ class BrowserAgent extends ChangeNotifier {
         case 'browser_open':
           final u = toUrl((a['url'] ?? '').toString());
           if (u.isEmpty) return 'Error: no url';
+          if (a['read'] == true) {
+            final r = await _fetchRead(u);
+            if (r != null) return r;
+            note = '(That page is drawn by script, so it was rendered instead of fetched.)';
+          }
           await _load(t, u);
           break;
         case 'browser_click':
@@ -899,6 +1030,16 @@ class BrowserAgent extends ChangeNotifier {
           await _settle(c, t, max: 500);
           break;
         case 'browser_read':
+          if (a['full'] == true) {
+            final raw = await _js(c, 'return JSON.stringify(S.snapshot({max: 140, text: 2600}));', limit: const Duration(seconds: 10));
+            try {
+              final s = PageSnapshot.parse(raw);
+              t.snap = s;
+              return s.describe();
+            } catch (_) {
+              return 'Could not read this page. Try browser_reload.';
+            }
+          }
           final txt = await _js(c, 'return S.readAll(16000);', limit: jsLimit);
           return 'Page: $title — $url\n\n$txt';
         case 'browser_copy':
@@ -909,6 +1050,21 @@ class BrowserAgent extends ChangeNotifier {
           await Bounded.run<void>(Clipboard.setData(ClipboardData(text: text)), const Duration(seconds: 2), null);
           return 'Copied ${text.length} characters: "${text.length > 160 ? '${text.substring(0, 160)}…' : text}". '
               'Use browser_type with paste:true to put it in a field.';
+        case 'browser_net':
+          return await _net(c, a);
+        case 'browser_fetch':
+          return await _fetchApi(c, a);
+        case 'browser_schema':
+          return await _schema(c, a);
+        case 'browser_extract':
+          return await _extract(c, a);
+        case 'browser_extract_many':
+          return await _extractMany(c, t, a);
+        case 'browser_play':
+          final p = await _play(c, t, a);
+          if (a['action'] != 'run') return p;
+          note = p;
+          break;
         case 'browser_js':
           final code = (a['code'] ?? '').toString();
           if (code.toLowerCase().contains('password')) return 'Error: reading passwords is not allowed.';
@@ -957,8 +1113,327 @@ class BrowserAgent extends ChangeNotifier {
     }
   }
 
-  // ---- actions ----
-  /// The result of one action: ok or not, and a line for the model.
+  // ---- the data ear (browser_net / browser_fetch) ----
+  /// The site's own API calls, heard by the page script: list them, read one body, forget them.
+  Future<String> _net(InAppWebViewController c, Map<String, dynamic> a) async {
+    if (a['clear'] == true) {
+      await _js(c, 'return S.netClear();', limit: const Duration(seconds: 3));
+      return 'Forgot the recorded data calls (the ear keeps listening).';
+    }
+    final id = _intV(a['id']);
+    if (id > 0) {
+      final raw = await _js(c, 'return S.netBody($id);', limit: const Duration(seconds: 5));
+      final dynamic j;
+      try {
+        j = jsonDecode(raw);
+      } catch (_) {
+        return 'Error: could not read call $id.';
+      }
+      if (j is! Map) return 'Error: could not read call $id.';
+      if (j['err'] == 'gone') return 'Call $id is gone (the ear keeps the last 40). List again with browser_net.';
+      return formatNetBody(NetCall.fromJson(Map<String, dynamic>.from(j)));
+    }
+    final raw = await _js(c, 'return S.netList(${jsonEncode((a['filter'] ?? '').toString())});', limit: const Duration(seconds: 5));
+    final List<dynamic> list;
+    try {
+      list = raw.isEmpty ? const [] : (jsonDecode(raw) as List? ?? const []);
+    } catch (_) {
+      return 'Error: could not read the page\'s data calls.';
+    }
+    return formatNetList([for (final e in list) if (e is Map) NetCall.fromJson(Map<String, dynamic>.from(e))]);
+  }
+
+  /// Call the site's API with the page's own session (cookies, sign-in): one step instead of many clicks.
+  /// Reads only (GET/HEAD) — acting on a site goes through its own controls, which ask the user first.
+  Future<String> _fetchApi(InAppWebViewController c, Map<String, dynamic> a) async {
+    final u = (a['url'] ?? '').toString().trim();
+    if (u.isEmpty) return 'Error: no url given.';
+    final m = ((a['method'] ?? 'GET') as String).toUpperCase();
+    if (m != 'GET' && m != 'HEAD') {
+      return 'Error: browser_fetch reads (GET/HEAD). To act on the site, use its own controls — that asks the user first.';
+    }
+    final headers = a['headers'] is Map ? {for (final e in (a['headers'] as Map).entries) '${e.key}': '${e.value}'} : <String, String>{};
+    final r = await Bounded.run<CallAsyncJavaScriptResult?>(
+        c.callAsyncJavaScript(functionBody: '''
+      var r = await fetch(u, {method: m, headers: h, credentials: 'include'});
+      var t = await r.text();
+      var ct = '';
+      try { ct = r.headers.get('content-type') || ''; } catch (e) {}
+      return JSON.stringify({status: r.status, ct: ct, text: t.length > 24000 ? t.slice(0, 24000) : t});
+    ''', arguments: {'u': u, 'm': m, 'h': headers}), const Duration(seconds: 15), null);
+    if (r == null) return 'Error: the site did not answer in time.';
+    if (r.error != null) {
+      return 'Error: ${r.error}. The site may block this call from the page (origin rules) — read it from the page instead.';
+    }
+    Map<String, dynamic>? j;
+    try {
+      final v = r.value;
+      j = v is String ? Map<String, dynamic>.from(jsonDecode(v) as Map) : (v is Map ? Map<String, dynamic>.from(v) : null);
+    } catch (_) {}
+    if (j == null) return 'Error: unreadable answer.';
+    return formatFetch(method: m, url: u, status: (j['status'] as num?)?.toInt() ?? 0, ct: '${j['ct'] ?? ''}', body: '${j['text'] ?? ''}');
+  }
+
+  /// The page's own structured data (JSON-LD, app state): list it, or read one block in full.
+  Future<String> _schema(InAppWebViewController c, Map<String, dynamic> a) async {
+    final idx = _intV(a['index']);
+    if (idx > 0) {
+      final raw = await _js(c, 'return S.schemaOpen($idx);', limit: const Duration(seconds: 5));
+      return formatSchemaOpen(raw);
+    }
+    final raw = await _js(c, 'return S.schema();', limit: const Duration(seconds: 5));
+    return formatSchemaIndex(raw);
+  }
+
+  /// The one-call walker: every element matching `rows` becomes one record of the given fields.
+  Future<String> _extract(InAppWebViewController c, Map<String, dynamic> a) async {
+    final spec = {'rows': '${a['rows'] ?? ''}', 'fields': a['fields'] is Map ? a['fields'] : <String, dynamic>{}, 'limit': _intV(a['limit'])};
+    final raw = await _js(c, 'return S.extract(${jsonEncode(spec)});', limit: const Duration(seconds: 8));
+    return formatExtract(raw);
+  }
+
+  /// Many pages, one table (P5): the links are fetched together with the WebView's own cookies and each page is
+  /// parsed by the same walker in one JS call — no tab per page, no render, no waiting for the page to draw.
+  /// Pages that only exist after their scripts run are reported back, not guessed at.
+  Future<String> _extractMany(InAppWebViewController c, BrowserTab t, Map<String, dynamic> a) async {
+    if (_ended2(jobNow)) return 'Stopped: this browser task has ended.';
+    final rows = '${a['rows'] ?? ''}'.trim();
+    if (rows.isEmpty) return 'Error: give rows — the CSS selector that matches each item on those pages.';
+    final limitRaw = _intV(a['limit']);
+    final limit = limitRaw <= 0 ? 50 : limitRaw.clamp(1, 200).toInt();
+    final pagesRaw = _intV(a['max_pages']);
+    final maxPages = pagesRaw <= 0 ? 6 : pagesRaw.clamp(1, 8).toInt();
+    final spec = {
+      'rows': rows,
+      'fields': a['fields'] is Map ? a['fields'] : <String, dynamic>{},
+      'limit': limit,
+    };
+    var links = <String>[];
+    if (a['links'] is List) {
+      links = [for (final e in a['links'] as List) '$e'.trim()];
+    } else if ('${a['from'] ?? ''}'.trim().isNotEmpty) {
+      final sel = '${a['from']}'.trim();
+      final raw = await _js(
+          c,
+          'return JSON.stringify([].slice.call(document.querySelectorAll(${jsonEncode(sel)}), 0, 40)'
+              '.map(function(e){return e.href || e.getAttribute("href") || "";}).filter(function(u){return !!u;}));',
+          limit: const Duration(seconds: 8));
+      try {
+        final l = jsonDecode(raw);
+        if (l is List) links = [for (final e in l) '$e'.trim()];
+      } catch (_) {}
+      if (links.isEmpty) {
+        return 'No links matched "$sel" on this page. Give links: [...] instead, or check the selector with browser_read.';
+      }
+    }
+    // Real pages only, absolute, once each, in the order given.
+    final base = Uri.tryParse(t.url);
+    final seen = <String>{};
+    final urls = <String>[];
+    for (final l in links) {
+      if (l.isEmpty) continue;
+      final u = Uri.tryParse(l);
+      final abs = u == null ? null : (u.hasScheme ? u : base?.resolveUri(u));
+      if (abs == null || (abs.scheme != 'http' && abs.scheme != 'https')) continue;
+      if (seen.add(abs.toString())) urls.add(abs.toString());
+      if (urls.length >= maxPages) break;
+    }
+    if (urls.isEmpty) return 'Error: no usable http(s) links to read.';
+    // Fetched together (fast), parsed one at a time (the page script is one engine).
+    final bodies = await Future.wait(urls.map(_httpGet));
+    final pages = <ExtractPage>[];
+    for (var i = 0; i < urls.length; i++) {
+      final res = bodies[i];
+      if (res == null) {
+        pages.add(ExtractPage(urls[i], error: 'could not be fetched'));
+        continue;
+      }
+      if (_ended2(jobNow)) return 'Stopped: this browser task has ended.';
+      final html = res.body.length > 400000 ? res.body.substring(0, 400000) : res.body;
+      final raw = await _js(c, 'return S.extractHtml(${jsonEncode(html)}, ${jsonEncode(spec)});', limit: const Duration(seconds: 12));
+      final p = parseExtractPage(urls[i], raw);
+      // A page that is all script has no items until it runs: say so instead of reporting an empty page.
+      if (p.ok && p.rows.isEmpty && html.length < 2000) {
+        pages.add(ExtractPage(urls[i], error: 'needs a render'));
+        continue;
+      }
+      pages.add(p);
+    }
+    return formatManyExtract(pages);
+  }
+
+  // ---- site skills (browser_play): list, save what worked, replay with no model calls ----
+  /// A saved flow replays step by step against the live page. It never thinks, never spends a model call,
+  /// and never decides for the user: on the first step that no longer matches, or when a payment page is
+  /// reached, it stops and hands the job back to the agent with the page in front of it (self-heal).
+  Future<String> _play(InAppWebViewController c, BrowserTab t, Map<String, dynamic> a) async {
+    final action = '${a['action'] ?? 'list'}';
+    final host = snapFor(jobNow).host;
+    if (action == 'list') {
+      final list = await SiteSkills.I.forHost(host);
+      if (list.isEmpty) {
+        return 'No site skills saved for $host yet. When a multi-step flow works, save it: browser_play action "save" '
+            'with a name and what it does.';
+      }
+      return 'Site skills for $host (run one with browser_play action "run", id):\n'
+          '${[for (final p in list) '- ${p.line}${p.goal.isEmpty ? '' : ' — ${p.goal}'}'].join('\n')}';
+    }
+    if (action == 'forget') {
+      final id = '${a['id'] ?? ''}'.trim();
+      if (id.isEmpty) return 'Error: give the id of the skill to forget (browser_play action "list" shows them).';
+      await SiteSkills.I.forget(id);
+      return 'Forgot "$id".';
+    }
+    if (action == 'save') {
+      final name = '${a['name'] ?? ''}'.trim();
+      if (name.isEmpty) return 'Error: give the skill a name (what the flow does), e.g. "Book a hotel room".';
+      final steps = compressSteps(recorded);
+      if (steps.isEmpty) {
+        return 'Nothing to save: this job has no click/type/select steps recorded yet. Do the flow first, then save it.';
+      }
+      final p = Playbook(id: playbookId(name), name: name, site: host, goal: '${a['goal'] ?? ''}'.trim(), steps: steps);
+      final err = await SiteSkills.I.save(p);
+      if (err != null) return 'Error: $err';
+      // Also in "Your own skills", readable: the user sees what the agent learned and can remove it there.
+      try {
+        await SkillLibrary.I.save(SkillLibrary.agent,
+            id: 'web-${p.id}',
+            name: 'On $host: $name',
+            desc: p.goal.isEmpty ? 'A saved browser flow for $host.' : p.goal,
+            body: p.readable,
+            tags: ['browser', host]);
+      } catch (_) {}
+      return 'Saved "${p.name}" as a site skill for $host (${steps.length} steps). It follows the account, so it replays on '
+          'the user\'s other phones too. Next time: browser_play action "run", id "${p.id}".';
+    }
+    // run
+    final id = '${a['id'] ?? ''}'.trim();
+    Playbook? p;
+    if (id.isNotEmpty) p = await SiteSkills.I.byId(id);
+    if (p == null) {
+      final list = await SiteSkills.I.forHost(host);
+      if (list.length == 1) p = list.first;
+    }
+    if (p == null) {
+      return 'Error: no site skill ${id.isEmpty ? '(none given)' : '"$id"'} for $host. List them with browser_play action "list".';
+    }
+    final values = <String, String>{};
+    if (a['values'] is Map) {
+      for (final e in (a['values'] as Map).entries) {
+        values['${e.key}'] = '${e.value}';
+      }
+    }
+    final steps = withValues(p.steps, values);
+    var done = 0;
+    var signedIn = false;
+    for (var i = 0; i < steps.length; i++) {
+      final s = steps[i];
+      if (_ended2(jobNow)) return 'Stopped: this browser task has ended.';
+      var snap = await _refresh(c, t);
+      // A replay that lands on a sign-in page offers the saved login ONCE, as one tap, so a saved flow never
+      // stalls on auth (P6). Nothing is used silently: the user still confirms it.
+      if (snap.password && !signedIn) {
+        signedIn = true;
+        final lr = await _login(c, p.site);
+        if (!lr.startsWith('ok')) {
+          await SiteSkills.I.bump(p, win: false);
+          return 'Replay paused at step ${i + 1} of ${steps.length} (${s.line}): this page asks for a sign-in. $lr';
+        }
+        await _settle(c, t, nav: true);
+        snap = await _refresh(c, t);
+      }
+      if (snap.moneyPage && s.act == 'click') {
+        await SiteSkills.I.bump(p, win: false);
+        return 'Paused before step ${i + 1} of ${steps.length} (${s.line}): this is a payment page, and the user is asked '
+            'before money moves. Finish this step yourself, then the rest.';
+      }
+      if (s.act == 'scroll') {
+        await _js(c, 'return JSON.stringify(S.scroll(${jsonEncode(s.value.isEmpty ? 'down' : s.value)}, "page", null));');
+        await _settle(c, t, max: 700);
+        done++;
+        continue;
+      }
+      if (s.act == 'key') {
+        await _key(c, t, s.value);
+        done++;
+        continue;
+      }
+      if (s.act == 'wait') {
+        await Future<void>.delayed(Duration(milliseconds: int.tryParse(s.value) ?? 800));
+        continue;
+      }
+      final el = resolveStep(s, snap.elements);
+      if (el == null) {
+        await SiteSkills.I.bump(p, win: false);
+        return 'Replay stopped at step ${i + 1} of ${steps.length} (${s.line}): that control is not on this page now. '
+            'Take over from here — do this step yourself and the rest of the goal; saving the skill again records the new path.';
+      }
+      final ({bool ok, String text}) r;
+      if (s.act == 'type') {
+        r = await _type(c, t, el.id, s.value, submit: s.submit);
+      } else if (s.act == 'select') {
+        r = await _select(c, t, el.id, s.value);
+      } else {
+        r = await _click(c, t, el.id);
+      }
+      if (!r.ok) {
+        await SiteSkills.I.bump(p, win: false);
+        return 'Replay stopped at step ${i + 1} of ${steps.length} (${s.line}): ${r.text}. Take over from here.';
+      }
+      done++;
+    }
+    await SiteSkills.I.bump(p, win: true);
+    return 'Replayed "${p.name}": $done steps with no model calls. Check the result below before you finish.';
+  }
+
+  // ---- speed (P4): HTTP-first triage ----
+  /// A read-only open answers from a same-session fetch (the WebView's cookies, no CORS, no render):
+  /// "Served from fetch, no render". Null means the page needs scripts — render it instead.
+  Future<String?> _fetchRead(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return null;
+    final res = await _httpGet(url);
+    if (res == null) return null; // let the browser show the error page
+    if (res.ct.contains('json')) {
+      var out = res.body;
+      try {
+        out = const JsonEncoder.withIndent('  ').convert(jsonDecode(res.body));
+      } catch (_) {}
+      return 'Served from fetch, no render — ${uri.host} (JSON, ${res.status})\n$url\n\n'
+          '${out.length > 8000 ? '${out.substring(0, 8000)}…' : out}';
+    }
+    if (!res.ct.contains('html') && !res.ct.contains('text')) return null;
+    final text = htmlToText(res.body);
+    if (text.length < 200) return null; // a script shell: the browser has to draw it
+    final title = htmlTitle(res.body);
+    return 'Served from fetch, no render — ${title.isEmpty ? uri.host : title}\n$url\n\n$text';
+  }
+
+  /// One GET with the WebView's own cookies (same session, no CORS, no render). Null when it fails.
+  /// Used by the read-only open and by the many-page extraction.
+  Future<({int status, String ct, String body})?> _httpGet(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return null;
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    try {
+      final cookies = await CookieManager.instance().getCookies(url: WebUri(url)).timeout(const Duration(seconds: 3));
+      final req = await client.getUrl(uri).timeout(const Duration(seconds: 8));
+      if (cookies.isNotEmpty) req.headers.set('cookie', cookies.map((c) => '${c.name}=${c.value}').join('; '));
+      req.headers.set('user-agent', 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36');
+      req.headers.set('accept', 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8');
+      final res = await req.close().timeout(const Duration(seconds: 15));
+      if (res.statusCode >= 400) return null;
+      final ct = (res.headers.contentType?.mimeType ?? '').toLowerCase();
+      final body = await const Utf8Decoder(allowMalformed: true).bind(res).join().timeout(const Duration(seconds: 10));
+      return (status: res.statusCode, ct: ct, body: body);
+    } catch (_) {
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  // ---- actions ----  /// The result of one action: ok or not, and a line for the model.
   static ({bool ok, String text}) _r(bool ok, String text) => (ok: ok, text: text);
 
   /// Runs a batch: in order, stopping at the first failure or as soon as the page changes under it.
@@ -989,10 +1464,12 @@ class BrowserAgent extends ChangeNotifier {
           final m = await _jsMap(c, 'return JSON.stringify(S.scroll(${jsonEncode('${x.args['direction'] ?? 'down'}')}, '
               '${jsonEncode('${x.args['amount'] ?? 'page'}')}, ${x.args['id'] == null ? 'null' : _int(x.args['id'])}));');
           await _settle(c, t, max: 600);
+          if (m['ok'] == true) _record({'do': 'scroll', 'v': '${x.args['direction'] ?? 'down'}'});
           r = _r(m['ok'] == true, m['ok'] == true ? 'Scrolled ${x.args['direction'] ?? 'down'}.' : '${m['err'] ?? 'Could not scroll'}.');
           break;
         case 'key':
           await _key(c, t, '${x.args['key']}');
+          _record({'do': 'key', 'v': '${x.args['key']}'});
           r = _r(true, 'Pressed ${x.args['key']}.');
           break;
         case 'wait':
@@ -1023,6 +1500,11 @@ class BrowserAgent extends ChangeNotifier {
   }
 
   /// Click: page script first (hit-tested, the exact element), verify the effect, real touch only if nothing happened.
+  ({bool ok, String text}) _clicked(int id, String text) {
+    _record({'do': 'click', ..._sig(id)});
+    return _r(true, text);
+  }
+
   Future<({bool ok, String text})> _click(InAppWebViewController c, BrowserTab t, int id, {bool long = false}) async {
     final before = await _state(c);
     if (long) {
@@ -1030,14 +1512,28 @@ class BrowserAgent extends ChangeNotifier {
       if (p['ok'] != true) return _r(false, '${p['err'] ?? 'element $id is not there'}');
       if (await _touch(c, t, 'long', _d(p['fx']), _d(p['fy']), id: id) == 'target') {
         await _settle(c, t, nav: true);
-        return _r(true, 'Long-pressed [$id].');
+        return _clicked(id, 'Long-pressed [$id].');
       }
     }
     final r = await _jsMap(c, 'return JSON.stringify(S.click($id));');
-    if (r['ok'] != true) return _r(false, '${r['err'] ?? 'could not tap $id'}');
+    if (r['ok'] != true) {
+      // Self-heal (P6): the number is gone because the page redrew that control. Find it again by what it
+      // looked like and tap it once, instead of spending a model turn on re-perceiving the page.
+      final he = await _heal(c, id);
+      if (he != null) {
+        final r2 = await _jsMap(c, 'return JSON.stringify(S.click(${he.id}));');
+        if (r2['ok'] == true) {
+          await _settle(c, t, nav: true, max: 1500);
+          return _clicked(he.id,
+              'Tapped [${he.id}] instead: [$id] had been redrawn by the page and was found again by its ${he.how}'
+              '${he.label.isEmpty ? '' : ' ("${he.label}")'}.');
+        }
+      }
+      return _r(false, '${r['err'] ?? 'could not tap $id'}');
+    }
     await _settle(c, t, nav: true, max: 1500);
     final after = await _state(c);
-    if (StepEffect.compare(before, after).any || t.loading || after['net'] != before['net']) return _r(true, 'Tapped [$id].');
+    if (StepEffect.compare(before, after).any || t.loading || after['net'] != before['net']) return _clicked(id, 'Tapped [$id].');
     // Nothing happened: some sites only listen to real fingers. Tap the same verified point for real.
     if (realHands) {
       final p = await _jsMap(c, 'return JSON.stringify(S.point($id));');
@@ -1045,13 +1541,25 @@ class BrowserAgent extends ChangeNotifier {
         final hit = await _touch(c, t, 'tap', _d(p['fx']), _d(p['fy']), id: id);
         if (hit == 'target') {
           await _settle(c, t, nav: true, max: 1500);
-          return _r(true, 'Tapped [$id] (with a real touch).');
+          return _clicked(id, 'Tapped [$id] (with a real touch).');
         }
         if (hit == 'other') return _r(false, 'the tap on [$id] reached something else on top of it; close what covers it, or scroll');
       }
     }
-    return _r(true, 'Tapped [$id], but nothing visible changed.');
+    // The tap landed and nothing changed: if the control has been redrawn since, say where it went so the next
+    // step is a number, not another look at the page.
+    final he = await _heal(c, id);
+    if (he != null) {
+      return _clicked(id, 'Tapped [$id], but nothing visible changed. [$id] is gone now and the same control is [${he.id}] — '
+          'tap that next.');
+    }
+    return _clicked(id, 'Tapped [$id], but nothing visible changed.');
   }
+
+  /// The same control, found again by its signature after the page redrew it (P6). Null when it is still there
+  /// under the same number, or when nothing on the page matches what it looked like.
+  Future<HealedTarget?> _heal(InAppWebViewController c, int id) async =>
+      parseHeal(await _jsMap(c, 'return JSON.stringify(S.heal($id));'), id);
 
   Future<({bool ok, String text})> _tapAt(InAppWebViewController c, BrowserTab t, double fx, double fy, {bool long = false}) async {
     fx = fx.clamp(0.0, 1.0).toDouble();
@@ -1070,7 +1578,19 @@ class BrowserAgent extends ChangeNotifier {
   /// Type: set the value through the page (fast, works with React), check it; real keyboard only if it did not take.
   Future<({bool ok, String text})> _type(InAppWebViewController c, BrowserTab t, int id, String text, {bool submit = false, bool append = false}) async {
     var r = await _jsMap(c, 'return JSON.stringify(S.type($id, ${jsonEncode(text)}, $append));');
-    if (r['ok'] != true && r['err'] != null && '${r['err']}'.contains('gone')) return _r(false, '${r['err']}');
+    var healedNote = '';
+    if (r['ok'] != true && '${r['err']}'.contains('gone')) {
+      // Self-heal (P6): the field was redrawn under a new number — find it by its label and type there.
+      final he = await _heal(c, id);
+      if (he != null) {
+        final r2 = await _jsMap(c, 'return JSON.stringify(S.type(${he.id}, ${jsonEncode(text)}, $append));');
+        if (r2['ok'] == true) {
+          healedNote = ' ([$id] had been redrawn; it is [${he.id}] now)';
+          id = he.id;
+          r = r2;
+        }
+      }
+    }
     if (r['ok'] != true && realHands) {
       final prep = await _js(c, 'return S.prep($id, $append);');
       if (prep == 'ok' && await _keys(c, t, text: text)) {
@@ -1080,7 +1600,8 @@ class BrowserAgent extends ChangeNotifier {
     if (r['ok'] != true) return _r(false, '${r['err'] ?? 'the field did not take the text'}');
     if (submit) await _key(c, t, 'Enter');
     await _settle(c, t, nav: submit, max: submit ? 2500 : 500);
-    return _r(true, 'Typed into [$id]${submit ? ' and pressed Enter' : ''}.');
+    _record({'do': 'type', ..._sig(id), 'v': text, if (submit) 's': true});
+    return _r(true, 'Typed into [$id]${submit ? ' and pressed Enter' : ''}.$healedNote');
   }
 
   Future<({bool ok, String text})> _select(InAppWebViewController c, BrowserTab t, int id, String option) async {
@@ -1092,6 +1613,7 @@ class BrowserAgent extends ChangeNotifier {
     }
     if (r['ok'] != true) return _r(false, '${r['err'] ?? 'could not choose "$option"'}');
     await _settle(c, t, max: 600);
+    _record({'do': 'select', ..._sig(id), 'v': '${r['value'] ?? option}'});
     return _r(true, 'Chose "${r['value'] ?? option}" in [$id].');
   }
 
@@ -1107,6 +1629,12 @@ class BrowserAgent extends ChangeNotifier {
   }
 
   Future<String> _wait(InAppWebViewController c, BrowserTab t, Map<String, dynamic> a) async {
+    if (a['quiet'] == true) {
+      final r = await _js(c, 'return await S.quiet(10000, 400);', limit: const Duration(seconds: 12));
+      return r == 'calm'
+          ? 'The page went quiet (no requests in flight, no changes). Act now.'
+          : 'Waited 10 s; the page is still busy. Act on what is there, or wait once more.';
+    }
     final want = (a['text'] ?? '').toString();
     final secs = _numD(a['seconds'], want.isEmpty ? 2 : 10).clamp(0.5, 20.0).toDouble();
     final ms = (secs * 1000).round();
@@ -1136,8 +1664,13 @@ class BrowserAgent extends ChangeNotifier {
       fx2 = _d(p['fx2']);
       fy2 = _d(p['fy2']);
     }
+    // A real finger travels a curve with a wobble (and, on a long drag, a small overshoot), as one gesture;
+    // how long it takes follows the distance and is never the same twice.
     var ok = false;
-    if (realHands) ok = await _touch(c, t, 'swipe', fx, fy, fx2: fx2, fy2: fy2, ms: 380) != 'none';
+    if (realHands) {
+      final ms = HumanInput.swipeMs(HumanInput.distance(fx, fy, fx2, fy2));
+      ok = await _touch(c, t, 'swipe', fx, fy, fx2: fx2, fy2: fy2, ms: ms, pts: HumanInput.stroke(fx, fy, fx2, fy2)) != 'none';
+    }
     if (!ok) await _js(c, 'return JSON.stringify(await S.swipe($fx, $fy, $fx2, $fy2));', limit: const Duration(seconds: 5));
     await _settle(c, t, max: 800);
     return 'Swiped.';
@@ -1161,12 +1694,21 @@ class BrowserAgent extends ChangeNotifier {
 
   /// A real touch at a fraction of the visible page. Returns 'target' when the element [id] (if given) got the trusted
   /// event, 'other' when something else got it, 'none' when no real touch reached the page.
+  ///
+  /// A tap rests a little longer or shorter each time, and a swipe/drag travels the path in [pts] — curved, with a
+  /// wobble and, on a long drag, a small overshoot — as ONE gesture (P6: hands that look like a person's).
   Future<String> _touch(InAppWebViewController c, BrowserTab t, String kind, double fx, double fy,
-      {double? fx2, double? fy2, int ms = 320, int? id}) async {
+      {double? fx2, double? fy2, int ms = 320, int? id, List<({double x, double y})>? pts}) async {
     if (!realHands || t.url.isEmpty) return 'none';
     await _js(c, 'return S.armHits();');
     final m = await _mark(c, t);
-    final r = await SystemBridge.I.webTouch(t.url, kind, fx, fy, x2: fx2, y2: fy2, ms: ms, mark: m);
+    final String r;
+    if (pts != null && pts.length > 1) {
+      r = await SystemBridge.I.webStroke(t.url, pts, ms: ms, mark: m);
+    } else {
+      final hold = kind == 'long' ? HumanInput.longPressMs() : HumanInput.tapHoldMs();
+      r = await SystemBridge.I.webTouch(t.url, kind, fx, fy, x2: fx2, y2: fy2, ms: ms, hold: hold, mark: m);
+    }
     await _unmark(c, m);
     if (r != 'ok') return 'none';
     await Future<void>.delayed(const Duration(milliseconds: 60));
@@ -1176,12 +1718,32 @@ class BrowserAgent extends ChangeNotifier {
     return hit == 'target' || hit == 'other' ? hit : 'none';
   }
 
+  /// Real keys into the focused field. Text is typed in bursts with pauses — the way a keyboard app delivers
+  /// keys — because one instant paste is not what a person's hands do.
   Future<bool> _keys(InAppWebViewController c, BrowserTab t, {String? text, String? key}) async {
     if (!realHands || t.url.isEmpty) return false;
     final m = await _mark(c, t);
-    final r = text != null ? await SystemBridge.I.webType(t.url, text, mark: m) : await SystemBridge.I.webKey(t.url, key ?? 'enter', mark: m);
-    await _unmark(c, m);
-    return r == 'ok';
+    var ok = true;
+    try {
+      if (text != null && text.isNotEmpty) {
+        for (final p in HumanInput.typing(text)) {
+          if (_ended2(jobNow)) {
+            ok = false;
+            break;
+          }
+          if (p.delayMs > 0) await Future<void>.delayed(Duration(milliseconds: p.delayMs));
+          if (await SystemBridge.I.webType(t.url, p.chunk, mark: m) != 'ok') {
+            ok = false;
+            break;
+          }
+        }
+      } else {
+        ok = await SystemBridge.I.webKey(t.url, key ?? 'enter', mark: m) == 'ok';
+      }
+    } finally {
+      await _unmark(c, m);
+    }
+    return ok;
   }
 
   // ---- waiting, state, observing ----
@@ -1335,7 +1897,10 @@ class BrowserAgent extends ChangeNotifier {
       sb.writeln('Notices: ${t.dialogs.join(' | ')}');
       t.dialogs.clear();
     }
-    sb.writeln(snap.describe(before: prev.url.isEmpty ? null : prev));
+    // The data ear: one quiet hint that the site's own APIs are there to be read (P1, browser-godmode).
+    if (snap.calls > 0) sb.writeln('Data: ${dataLine(snap.calls)}');
+    if (snap.schema.isNotEmpty) sb.writeln('Schema: ${snap.schema} — browser_schema opens one; browser_extract walks the page.');
+    sb.writeln(snap.describe(before: prev.url.isEmpty ? null : prev, diff: true));
     if (t.offered.isNotEmpty) sb.writeln('Files offered on this tab: ${t.offered.length} (browser_download saves the newest).');
     if (t.desktop) sb.writeln('(Desktop site mode.)');
     if (snap.moneyPage) sb.writeln('(Payment page: buttons that move on here ask the user first.)');

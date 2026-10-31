@@ -8,3 +8,6 @@ ios/
 *.iml
 .idea/
 pubspec.lock
+
+# local agent scratch (CI logs, tmp)
+.workbuddy-ai/

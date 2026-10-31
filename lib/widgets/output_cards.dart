@@ -51,6 +51,7 @@ const cardLanguages = {
   'graph', 'list', 'sections', 'math',
   'diagram', 'roadmap', 'timeline', 'flow', 'chart', 'event', 'browser',
   'visual',
+  'data',
 };
 
 /// The card frame, for cards defined in other files.
@@ -114,6 +115,8 @@ String cardKicker(String lang) {
       return 'Roadmap';
     case 'visual':
       return 'Visual';
+    case 'data':
+      return 'Data';
   }
   return 'Preparing';
 }
@@ -238,6 +241,8 @@ Widget? buildOutputCard(String language, String body, {String? owner}) {
           rows: rws,
           pick: j['pick'] == true,
         );
+      case 'data':
+        return dataCardFrom(body);
       case 'photos':
       case 'images':
         dynamic j;
@@ -291,6 +296,37 @@ Widget? buildOutputCard(String language, String body, {String? owner}) {
   }
   return null;
 }
+
+/// A ```data fence: extracted rows as the SubMac table card. Accepts what browser_extract returns
+/// (a JSON array of objects — columns from the first row's keys), a table-shaped map
+/// ({"columns": [...], "rows": [[...]]}), or plain CSV. Null falls back to a code block.
+TableCard? dataCardFrom(String body) {
+  final t = body.trim();
+  if (t.isEmpty) return null;
+  dynamic j;
+  try {
+    j = looseJson(t);
+  } catch (_) {}
+  List<String> cols;
+  List<List<String>> rows;
+  if (j is List && j.isNotEmpty && j.first is Map) {
+    cols = [for (final k in (j.first as Map).keys) k.toString()];
+    rows = [for (final r in j) if (r is Map) [for (final c in cols) cellOf(r[c])]];
+  } else if (j is Map && j['columns'] is List && j['rows'] is List) {
+    cols = [for (final c in (j['columns'] as List)) c.toString()];
+    rows = [for (final r in (j['rows'] as List)) if (r is List) [for (final c in r) cellOf(c)]];
+  } else {
+    // Plain CSV: a header line with commas, then rows.
+    final lines = t.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    if (lines.length < 2 || !lines.first.contains(',')) return null;
+    cols = [for (final c in lines.first.split(',')) c.trim()];
+    rows = [for (final l in lines.skip(1)) [for (final c in l.split(',')) c.trim()]];
+  }
+  if (cols.isEmpty || rows.isEmpty) return null;
+  return TableCard(ornament: '', title: '', columns: cols, rows: fixRowLinks(rows), pick: false);
+}
+
+String cellOf(Object? v) => v == null ? '' : v.toString();
 
 /// The frame every output shares, now without a frame: a quiet label, the content, and its actions
 /// (Copy, Open, Share...) kept out of sight until you hold the output. No fill, no border, no shadow; air

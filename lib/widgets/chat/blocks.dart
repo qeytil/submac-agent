@@ -39,6 +39,7 @@ BlockKind blockKindOf(String? lang) {
       return BlockKind.chart;
     case 'table':
     case 'grid':
+    case 'data':
       return BlockKind.table;
     case 'plan':
       return BlockKind.plan;

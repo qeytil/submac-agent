@@ -10,6 +10,7 @@ import 'screens/bots_screen.dart';
 import 'app_state.dart';
 import 'services/billing/billing_service.dart';
 import 'services/bot_sync.dart';
+import 'services/browser/skill_sync.dart';
 import 'services/first_launch.dart';
 import 'services/full_access.dart';
 import 'services/intro_sound.dart';
@@ -157,6 +158,7 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
         // A task the phone killed while SubMac was away picks up where it left off.
         unawaited(state.resumeKilledRuns().catchError((Object e) => debugPrint('resume runs: $e')));
         BotSync.I.resumed();
+        SkillSync.I.resumed();
         Inbox.I.refresh();
         Rewards.I.refresh();
       }

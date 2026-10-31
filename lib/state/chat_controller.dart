@@ -200,6 +200,7 @@ extension AppStateChat on AppState {
     } catch (_) {}
     // The account is gone on the server: nothing of it stays on this phone.
     await BotSync.I.leave(send: false);
+    SkillSync.I.stop();
     await local.wipeAll();
     try {
       await Supabase.instance.client.auth.signOut();
@@ -222,6 +223,10 @@ extension AppStateChat on AppState {
     await Scheduler.I.useAccount('');
     // Bots belong to the account, not to this phone: send what is waiting, then take them off it.
     await BotSync.I.leave();
+    // Saved browser flows are the account's too: send what is waiting, then stop (the folder is set aside the
+    // moment another account signs in here, so it is never uploaded as theirs).
+    await SkillSync.I.flush();
+    SkillSync.I.stop();
     await repo.signOut();
     _notify();
   }

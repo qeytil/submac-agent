@@ -19,12 +19,15 @@ import '../ui/i18n.dart';
 /// checklist, and acts (up to 6 actions per step). A loop guard catches repeats and stalls (nudge, then re-plan, then
 /// a clean stop with a clear message); a step and time budget bounds every task; Stop ends it at once.
 class BrowserJob {
-  BrowserJob(this.id, this.goal, this.details, this.convId, this.checkInMinutes);
+  BrowserJob(this.id, this.goal, this.details, this.convId, this.checkInMinutes, {this.unattended = false});
   final String id;
   final String goal;
   final String details;
   final String convId;
   int checkInMinutes;
+
+  /// Started by a scheduled task while the user is away: it never waits on them and never asks.
+  final bool unattended;
 
   /// running | needs (waiting for an answer) | checkin (time box reached) | done | failed | stopped
   String status = 'running';
@@ -189,10 +192,28 @@ class BrowserJobs extends ChangeNotifier {
   BrowserJobs._();
   static final BrowserJobs I = BrowserJobs._();
 
-  static const maxParallel = 3;
+  static const maxParallel = 6;
+
+  /// Steps the whole fleet may spend at once: six jobs must never burn the user's day.
+  static const fleetSteps = 400;
+  int _fleet = 0;
+
+  /// Set by the app: holds the phone awake while background browser work runs (the same bridge the teams use).
+  static Future<void> Function(bool on)? keepAwake;
 
   /// Hard stop for one run segment even inside the time box, so nothing loops forever unseen.
   static const segmentStepCap = 80;
+
+  /// Whether this job should pause and hand back to the chat agent now: its time box is up, or it has taken
+  /// [segmentStepCap] steps in this segment. A scheduled run never pauses — nobody is there to answer.
+  @visibleForTesting
+  static bool shouldCheckIn(BrowserJob j, DateTime now) =>
+      !j.unattended &&
+      (now.difference(j.segmentStart).inMinutes >= j.checkInMinutes || j.segmentSteps >= segmentStepCap);
+
+  /// Test seam: pretend the fleet has already spent [n] of its shared steps.
+  @visibleForTesting
+  void setFleetForTest(int n) => _fleet = n;
 
   /// One model call may take this long before it is abandoned (twice in a row ends the task cleanly).
   static Duration modelLimit = const Duration(seconds: 150);
@@ -274,7 +295,7 @@ class BrowserJobs extends ChangeNotifier {
             'any website, before phone control. It hands the job to your browser agent, which uses the built-in browser '
             'like a person and shows the user one quiet live card. Give the full goal with every detail and rule the user '
             'gave (exact words, names, amounts, what to avoid, what "done" looks like). By default it waits and returns '
-            'when the job is done, needs an answer, or reaches its check-in. wait:false runs up to 3 jobs in parallel; '
+            'when the job is done, needs an answer, or reaches its check-in. wait:false runs up to 6 jobs in parallel; '
             'then use browser_task_wait.',
         {
           'goal': {'type': 'string', 'description': 'What to achieve, in one or two sentences, with the user\'s exact requirements.'},
@@ -325,8 +346,9 @@ class BrowserJobs extends ChangeNotifier {
     }
   }
 
-  /// The chat agent's tool calls.
-  Future<String> execute(String name, Map<String, dynamic> a, String convId, {bool Function()? parentCancelled}) async {
+  /// The chat agent's tool calls. [unattended] marks a run started by a scheduled task (nobody is watching).
+  Future<String> execute(String name, Map<String, dynamic> a, String convId,
+      {bool Function()? parentCancelled, bool unattended = false}) async {
     switch (name) {
       case 'browser_task':
         final goal = '${a['goal'] ?? ''}'.trim();
@@ -338,8 +360,9 @@ class BrowserJobs extends ChangeNotifier {
         final mins = (a['check_in_minutes'] is num ? (a['check_in_minutes'] as num).toInt() : int.tryParse('${a['check_in_minutes']}') ?? 20)
             .clamp(5, 60)
             .toInt();
-        final j = BrowserJob('b${_next++}', goal, '${a['details'] ?? ''}'.trim(), convId, mins);
+        final j = BrowserJob('b${_next++}', goal, '${a['details'] ?? ''}'.trim(), convId, mins, unattended: unattended);
         jobs.add(j);
+        if (unattended) unawaited(keepAwake?.call(true) ?? Future<void>.value());
         // Finished, reported tasks beyond the newest 20 are forgotten.
         while (jobs.length > 20) {
           final old = jobs.where((x) => x.finished && x.reported).firstOrNull;
@@ -477,6 +500,11 @@ class BrowserJobs extends ChangeNotifier {
     }
     notifyListeners();
     if (j.finished) onEnded?.call(j);
+    if (!jobs.any((x) => x.live)) {
+      // The whole fleet is idle: the shared step count starts fresh, and a background wake lock is let go.
+      _fleet = 0;
+      unawaited(keepAwake?.call(false) ?? Future<void>.value());
+    }
   }
 
   static String _progressLine(BrowserJob j) {
@@ -553,7 +581,11 @@ WHAT YOU SEE EVERY STEP
 
 HOW YOU ACT
 - browser_act runs 1-6 actions in one step, e.g. type, type, select, click to fill a form. Put a page-changing action last. Fill "evaluation" (did the last step work: success / failure / unsure), "memory" (progress worth keeping) and "next_goal".
-- Single tools also exist: browser_open, browser_click, browser_type, browser_select, browser_scroll, browser_find, browser_read, browser_wait, browser_back, browser_tabs, browser_tap_at (only for things without a number: maps, canvases, embedded frames), browser_swipe, browser_drag, browser_download, browser_upload, browser_view, browser_js (last resort).
+- Single tools also exist: browser_open, browser_click, browser_type, browser_select, browser_scroll, browser_find, browser_read, browser_wait, browser_back, browser_tabs, browser_tap_at (only for things without a number: maps, canvases, embedded frames), browser_swipe, browser_drag, browser_download, browser_upload, browser_view, browser_net, browser_fetch, browser_schema, browser_extract, browser_extract_many, browser_play (site skills), browser_js (last resort).
+- The site's data is often a step-saver: "Data: N data calls" means the page's own APIs answered — browser_net lists them (an id reads the JSON body), browser_fetch re-calls one with this page's session (GET/HEAD). Prefer reading an API's exact data over scraping the screen; humans cannot see this layer, you can. "Schema: ..." means the page hands over JSON-LD or app state — browser_schema opens it (often the exact answer). browser_extract pulls EVERY matching item in one call (rows = a CSS selector per item, fields = what to take from each row); use it for lists, tables and search results instead of reading rows one by one, and show the result as a ```data card.
+- Many pages, one table: browser_extract_many takes links (a list, or "from": a selector whose links to collect on this page) and the same rows/fields, reads up to 8 pages without opening a tab each, and returns ONE table with a source column. Use it when the task needs the same details from several results or listings; pages that only exist after their scripts run come back as "not read" — open those with browser_open and use browser_extract.
+- Speed: after a step the view is a patch — only the elements that are new or changed, and "Text: unchanged" when the words did not move (browser_read full:true lists every element again). browser_wait quiet:true waits until the page stops talking instead of guessing seconds. For reading only, browser_open read:true answers from a fetch with no render ("Served from fetch, no render") — one step instead of a load, a screenshot and a scroll.
+- Site skills: on a site you have handled before, browser_play action "list" first; if one matches the task, run it (it replays with no thinking per step and stops the moment the page changed; if it lands on a sign-in page it offers the saved login once). When a multi-step flow worked, save it: browser_play action "save" with a clear name — the next visit is one step.
 - Only use numbers from the latest view. Prefer a number over tap_at.
 - Sign-in: on a sign-in page call browser_login (the user gets a secure form; you never see passwords). Avoid "Sign in with Google/Apple".
 - Cookie banners are closed for you. Other pop-ups: close them first.
@@ -567,13 +599,18 @@ HOW YOU WORK
 5. Finish with finish(success, result). success:true only when every requirement is met and verified; otherwise success:false with what is done and what blocked you. Put ALL the facts, numbers and links the user wanted in result. Never invent a value you did not see.
 
 WHEN STUCK (never the same failing action twice in a row)
+- A number that is gone is not a dead end: the app finds the same control again by what it looked like and tells you its new number ("[12] is gone now and the same control is [15]") — tap that one instead of re-reading the page.
 - Missed tap: the element may be covered (close the overlay), off screen (scroll), or need its own label/icon; try a different element or the site's search.
 - Content not there yet: browser_wait for text, scroll to load more, or browser_reload.
 - Wrong place: browser_back, the site's menu or search, a direct URL, or another site.
 - Captcha or one-time code: ask_user. Site refuses the in-app browser: try its mobile URL or another site.
 - If a whole approach fails twice, change the approach (re-plan), not the click.
 
-TASK
+${j.unattended ? '''
+THIS RUN IS IN THE BACKGROUND (a scheduled task; the user is not watching):
+- Never wait for an answer and never ask (no ask_user, no "about" question). If a step needs the user's OK — money, posting, sending, a password — stop and finish with success:false and one line saying exactly what needs approving.
+- Keep the result to one plain line a notification can show.
+''' : ''}TASK
 Goal: ${j.goal}
 ${j.details.isEmpty ? '' : 'Details: ${j.details}\n'}''';
   }
@@ -741,8 +778,14 @@ ${j.details.isEmpty ? '' : 'Details: ${j.details}\n'}''';
             _end(j, 'failed', 'I ran out of my step/time budget before finishing. ${_progressLine(j)}');
             return 'budget';
           }
-          // Time box: pause and let the chat agent check in with the user.
-          if (DateTime.now().difference(j.segmentStart).inMinutes >= j.checkInMinutes || j.segmentSteps >= segmentStepCap) {
+          // The fleet's shared budget: six jobs may not spend the user's whole day.
+          if (_fleet >= fleetSteps) {
+            _end(j, 'failed', 'The whole browser fleet ran out of its shared step budget. ${_progressLine(j)}');
+            return 'fleet';
+          }
+          // Time box: pause and let the chat agent check in with the user. A scheduled run has nobody to
+          // check in with, so it keeps going until its own budget ends it.
+          if (shouldCheckIn(j, DateTime.now())) {
             j.now = tr('Checking in');
             _end(j, 'checkin', '');
             return 'checkin';
@@ -817,6 +860,12 @@ ${j.details.isEmpty ? '' : 'Details: ${j.details}\n'}''';
         return 'Noted.';
       case 'ask':
         j.question = '${a['question'] ?? ''}'.trim();
+        if (j.unattended) {
+          // Nobody is watching: a question that cannot be answered is a clean stop with the reason, not a pause.
+          _end(j, 'failed',
+              'Stopped for the user\'s approval: ${j.question.isEmpty ? 'a step needs their OK' : j.question}');
+          return 'No one is watching (a scheduled run), so the task stopped for approval instead of asking.';
+        }
         _end(j, 'needs', '');
         return 'Asked.';
       case 'finish':
@@ -840,7 +889,7 @@ ${j.details.isEmpty ? '' : 'Details: ${j.details}\n'}''';
     }
     if (BrowserAgent.names.contains(tc.name)) j.now = BrowserAgent.I.label(tc.name, a);
     notifyListeners();
-    return runZoned(() => runTool!(j, tc.name, a, tc.id), zoneValues: {#smBrowserJob: j.id});
+    return runZoned(() => runTool!(j, tc.name, a, tc.id), zoneValues: {#smBrowserJob: j.id, #smUnattended: j.unattended});
   }
 
   static void _remember(BrowserJob j, String f) {
@@ -864,6 +913,11 @@ ${j.details.isEmpty ? '' : 'Details: ${j.details}\n'}''';
 
   @visibleForTesting
   void runForTest(BrowserJob j) => unawaited(_run(j));
+
+  /// Test seam: one of the job's own tools (plan, check, note, ask, finish) without a model in front of it.
+  @visibleForTesting
+  Future<String> ownToolForTest(BrowserJob j, String name, Map<String, dynamic> args) =>
+      _do(j, ToolCall(id: 'own-${j.id}', name: name, arguments: jsonEncode(args)), args);
 
   @visibleForTesting
   static dynamic stepForTest(ToolCall call, String result, {String? shot}) => _Step(call, result)..shotCall = shot;
@@ -950,6 +1004,7 @@ class _BrowserHooks extends CoreHooks {
       step.shotCall = tc.id;
       j.budget.steps++;
       j.segmentSteps++;
+      jobs._fleet++;
       final snap = BrowserAgent.I.snapFor(j.id);
       if (snap.url.isNotEmpty) {
         final v = '${snap.host}${Uri.tryParse(snap.url)?.path ?? ''} — ${snap.title.length > 40 ? snap.title.substring(0, 40) : snap.title}';

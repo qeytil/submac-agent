@@ -81,7 +81,19 @@ extension AppStateTools on AppState {
             'checkin' => 'The browser task has been working ${job.elapsed()}: ${job.now}. Say "continue" to keep it going.',
             _ => '',
           };
-          if (msg.isNotEmpty) unawaited(_sayIn(job.convId, msg));
+          if (msg.isNotEmpty) {
+            unawaited(_sayIn(job.convId, msg));
+            // A background job (started by a scheduled task) reaches the user the way a finished task does, even
+            // when the run that started it has already ended.
+            if (job.unattended) {
+              unawaited(SystemBridge.I.notify(
+                  id: job.convId.hashCode & 0x7ffffff,
+                  title: 'Scheduled: browser task',
+                  body: msg.length > 300 ? '${msg.substring(0, 300)}…' : msg,
+                  kind: 'scheduled',
+                  payload: 'conv/${job.convId}'));
+            }
+          }
         }
       }
       if (BrowserJobs.I.running.isEmpty && !runs.any((r) => r.browsing)) BrowserAgent.I.taskEnded();
@@ -185,6 +197,12 @@ extension AppStateTools on AppState {
     final field = kind == 'send' ? AppState._editField(name, args) : null;
     final req = field == null ? risk : risk.withEdit(field.$2);
     req.kind = kind;
+    // A scheduled run has nobody to answer a press that needs the user's OK: it is refused at once, with the reason,
+    // instead of waiting minutes for an answer that cannot come.
+    if (ask && BrowserAgent.names.contains(name) && Zone.current[#smUnattended] == true) {
+      return ToolGate.blocked('Stopped: "${req.title}" needs the user\'s OK and nobody is watching (this is a scheduled run). '
+          'Do not try another way. Finish with success:false and say in one line exactly what needs their approval.');
+    }
     if (!ask) return ToolGate.none(field: field, req: req);
     final background = worker != null && !(appVisible && currentId == convId);
     return ToolGate(ask: req, kind: kind, field: field, worker: worker, office: office,
@@ -403,7 +421,10 @@ extension AppStateTools on AppState {
       return Offices.I.execute(name, args, o, b);
     }
     if (BrowserJobs.names.contains(name)) {
-      return BrowserJobs.I.execute(name, args, convId ?? currentId ?? '', parentCancelled: () {
+      final id = convId ?? currentId ?? '';
+      return BrowserJobs.I.execute(name, args, id,
+          // A scheduled task has nobody to answer a check-in, so its browser work runs unattended.
+          unattended: _scheduledConvs.contains(id), parentCancelled: () {
         final r = runs.where((r) => r.convId == convId && !r.side).firstOrNull;
         return r == null || r.cancelled;
       });

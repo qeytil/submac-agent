@@ -200,6 +200,7 @@ object Bridge {
                             val x = ((call.argument<Double>("x") ?: 0.5).toFloat() * ww).coerceIn(1f, ww - 1f)
                             val y = ((call.argument<Double>("y") ?: 0.5).toFloat() * wh).coerceIn(1f, wh - 1f)
                             val kind = call.argument<String>("kind") ?: "tap"
+                            val hold = (call.argument<Int>("hold") ?: 55).toLong()
                             var replied = false
                             val done = { if (!replied) { replied = true; result.success("ok") } }
                             when (kind) {
@@ -209,8 +210,36 @@ object Bridge {
                                     ((call.argument<Double>("y2") ?: 0.5).toFloat() * wh).coerceIn(1f, wh - 1f),
                                     (call.argument<Int>("ms") ?: 320).toLong(), done
                                 )
-                                "long" -> WebHands.tap(w, x, y, true, done)
-                                else -> WebHands.tap(w, x, y, false, done)
+                                // The finger rests a little longer for a long press, and never exactly as long
+                                // as last time for a tap (a machine is always the same length).
+                                "long" -> WebHands.stroke(w, listOf(x to y), 0, hold.coerceAtLeast(500L), done)
+                                else -> WebHands.stroke(w, listOf(x to y), 0, hold.coerceIn(28L, 260L), done)
+                            }
+                        }
+                    }
+                    // One gesture through many points: the path of a real finger (curved, with a wobble).
+                    "webStroke" -> {
+                        val w = WebHands.find(activity?.get(), call.argument<String>("url") ?: "", call.argument<String>("mark") ?: "")
+                        val raw = call.argument<List<Any?>>("pts") ?: emptyList<Any?>()
+                        if (w == null || w.width < 2 || w.height < 2) {
+                            result.success("no-view")
+                        } else {
+                            val ww = w.width.toFloat()
+                            val wh = w.height.toFloat()
+                            val pts = ArrayList<Pair<Float, Float>>()
+                            for (p in raw) {
+                                val pair = p as? List<*> ?: continue
+                                if (pair.size < 2) continue
+                                val fx = (pair[0] as? Number)?.toFloat() ?: continue
+                                val fy = (pair[1] as? Number)?.toFloat() ?: continue
+                                pts.add((fx * ww).coerceIn(1f, ww - 1f) to (fy * wh).coerceIn(1f, wh - 1f))
+                            }
+                            if (pts.isEmpty()) {
+                                result.success("no-view")
+                            } else {
+                                var replied = false
+                                val done = { if (!replied) { replied = true; result.success("ok") } }
+                                WebHands.stroke(w, pts, (call.argument<Int>("ms") ?: 320).toLong(), (call.argument<Int>("hold") ?: 30).toLong(), done)
                             }
                         }
                     }

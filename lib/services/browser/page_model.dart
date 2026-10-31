@@ -85,6 +85,8 @@ class PageSnapshot {
     this.focus = '',
     this.zoom = 1,
     this.ready = 'complete',
+    this.calls = 0,
+    this.schema = '',
   });
 
   final String url;
@@ -109,6 +111,13 @@ class PageSnapshot {
   final String focus;
   final double zoom;
   final String ready;
+
+  /// Data calls the page's own code made while open (the ear's ring) — browser_net reads them.
+  final int calls;
+
+  /// One-line summary of the page's own structured data ("JSON-LD Product, state 84.3KB, og:8").
+  /// Empty when the page carries none — browser_schema opens the blocks.
+  final String schema;
 
   static final empty = PageSnapshot(url: '', title: '', elements: const []);
 
@@ -158,14 +167,18 @@ class PageSnapshot {
       focus: '${j['focus'] ?? ''}',
       zoom: (j['zoom'] as num?)?.toDouble() ?? 1,
       ready: '${j['ready'] ?? 'complete'}',
+      calls: (j['calls'] as num?)?.toInt() ?? 0,
+      schema: '${j['sch'] ?? ''}',
     );
   }
 
   /// Is this a page where a press can spend money? (checkout, payment, card fields)
   bool get moneyPage => PageRisk.isMoneyPage(url, title, text, cardFields);
 
-  /// What the model reads: page line, notices, the numbered elements (new ones starred), visible text.
-  String describe({PageSnapshot? before, int maxChars = 9000}) {
+  /// What the model reads: page line, notices, the numbered elements, visible text.
+  /// With [diff] (a step on the same page), only the elements that are new or changed go out, and
+  /// unchanged text is not repeated — the patch, not the whole page. browser_read full:true lists all.
+  String describe({PageSnapshot? before, int maxChars = 9000, bool diff = false}) {
     final sb = StringBuffer();
     sb.writeln('Page: ${title.isEmpty ? host : title} — $url');
     if (ready == 'loading') sb.writeln('(Still loading.)');
@@ -177,8 +190,29 @@ class PageSnapshot {
       sb.writeln('This page has a password field: call browser_login (secure sheet for the user; you never see passwords).');
     }
     final known = before == null || before.url != url ? const <int>{} : {for (final e in before.elements) e.id};
+    final samePage = before != null && before.url == url;
     if (elements.isEmpty) {
       sb.writeln('No clickable elements found.');
+    } else if (diff && samePage) {
+      final old = {for (final e in before.elements) e.id: e};
+      final shown = <PageElement>[
+        for (final e in elements)
+          if (old[e.id] == null ||
+              old[e.id]!.kind != e.kind ||
+              old[e.id]!.label != e.label ||
+              old[e.id]!.href != e.href ||
+              old[e.id]!.disabled != e.disabled ||
+              old[e.id]!.offscreen != e.offscreen)
+            e,
+      ];
+      if (shown.isEmpty) {
+        sb.writeln('Elements: no change since your last step (${elements.length} on screen). browser_read full:true lists them again.');
+      } else {
+        sb.writeln('Elements (${shown.length} of ${elements.length} — only what is new or changed; browser_read full:true lists all):');
+        for (final e in shown) {
+          sb.writeln(e.line(fresh: !known.contains(e.id)));
+        }
+      }
     } else {
       sb.writeln('Elements (number, kind, label, @x,y = % of the screenshot; * = new since your last step):');
       for (final e in elements) {
@@ -192,7 +226,13 @@ class PageSnapshot {
         sb.writeln('Embedded frame from ${f['host']} @$cx,$cy cannot be read: use browser_tap_at on the screenshot inside it.');
       }
     }
-    if (text.isNotEmpty) sb.writeln('\nText in view:\n$text');
+    if (text.isNotEmpty) {
+      if (diff && samePage && before.text == text) {
+        sb.writeln('\nText: unchanged since your last step.');
+      } else {
+        sb.writeln('\nText in view:\n$text');
+      }
+    }
     sb.writeln('\nScrolled $scrolled%.${more ? ' More below.' : ''}${zoom > 1.05 ? ' Zoomed ${zoom.toStringAsFixed(1)}x.' : ''}');
     final out = sb.toString().trimRight();
     return out.length > maxChars ? '${out.substring(0, maxChars)}\n…' : out;

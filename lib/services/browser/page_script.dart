@@ -6,7 +6,7 @@ class PageScript {
   PageScript._();
 
   /// Bumped whenever the script changes; a page holding an older copy gets the new one.
-  static const version = 7;
+  static const version = 11;
 
   static const source = r'''
 // SubMac browser page script v2 (browser-use v2). Injected at document start and on demand.
@@ -15,7 +15,7 @@ class PageScript {
 // coordinates the agent sees are fractions of the VISUAL viewport (what the screenshot shows), so
 // pinch zoom, device pixel ratio and scroll never shift a tap.
 (function () {
-  var VERSION = 7;
+  var VERSION = 11;
   if (window.__sm2 && window.__sm2.v === VERSION) return;
   var S = (window.__sm2 = { v: VERSION });
 
@@ -25,6 +25,31 @@ class PageScript {
   S.mut = 0;
   S.mutAt = Date.now();
   function netDone() { S.net = Math.max(0, S.net - 1); S.netAt = Date.now(); }
+
+  // The data ear: the page's own API calls (fetch/XHR), recorded with bodies when they carry data.
+  // The agent reads these with browser_net / re-calls them with browser_fetch — it sees what the
+  // site's own code receives, which humans cannot. Ring of 40; bodies capped at 20000 chars.
+  S.calls = [];
+  S.callId = 0;
+  var ASSET = /\.(js|css|mjs|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot|mp4|webm|m3u8|ts|mp3|wav|pdf)([?#]|$)/i;
+  function wantsData(u, ct) {
+    u = String(u || '');
+    if (u.indexOf('data:') === 0 || ASSET.test(u)) return false;
+    ct = String(ct || '').toLowerCase();
+    if (/\bjson\b|xml|csv|text\/plain/.test(ct)) return true;
+    if (ct === '' && (u.indexOf('/api/') >= 0 || /\.json([?#]|$)/i.test(u))) return true;
+    return false;
+  }
+  function cut(b) { b = String(b == null ? '' : b); return b.length > 20000 ? b.slice(0, 20000) : b; }
+  function record(o) {
+    try {
+      S.callId++;
+      o.id = S.callId;
+      S.calls.push(o);
+      if (S.calls.length > 40) S.calls.shift();
+    } catch (e) {}
+  }
+
   try {
     var of = window.fetch;
     if (of && !of.__sm) {
@@ -32,6 +57,25 @@ class PageScript {
         S.net++; S.netAt = Date.now();
         var p;
         try { p = of.apply(this, arguments); } catch (e) { netDone(); throw e; }
+        try {
+          var inp = arguments[0];
+          var u = typeof inp === 'string' ? inp : (inp && inp.url) || '';
+          var m = (arguments[1] && arguments[1].method) || (inp && inp.method) || 'GET';
+          var t0 = Date.now();
+          p.then(function (res) {
+            try {
+              var ct = '';
+              try { ct = res.headers.get('content-type') || ''; } catch (e2) {}
+              if (!wantsData(u, ct) && !(ct !== '' && !/html|javascript|ecmascript|image|video|audio|font|octet|event-stream/.test(ct.toLowerCase()))) return;
+              var size = 0;
+              try { size = +(res.headers.get('content-length') || 0); } catch (e2) {}
+              var rec = function (body) { record({ url: String(u).slice(0, 300), m: String(m), st: res.status, ct: ct.slice(0, 60), ms: Date.now() - t0, size: body != null ? body.length : size, body: cut(body || '') }); };
+              try {
+                res.clone().text().then(rec, function () { rec(null); });
+              } catch (e2) { rec(null); }
+            } catch (e2) {}
+          }, function () {});
+        } catch (e) {}
         try { p.then(netDone, netDone); } catch (e) { netDone(); }
         return p;
       };
@@ -40,8 +84,43 @@ class PageScript {
     }
   } catch (e) {}
   try {
+    var ox = XMLHttpRequest.prototype.open;
+    if (ox && !ox.__smOpen) {
+      var nop = function (m, u) { try { this.__smReq = { m: String(m || 'GET'), u: String(u || '').slice(0, 300) }; } catch (e) {} return ox.apply(this, arguments); };
+      nop.__smOpen = 1;
+      XMLHttpRequest.prototype.open = nop;
+    }
+  } catch (e) {}
+  try {
     var xs = XMLHttpRequest.prototype.send;
     if (!xs.__sm) {
+      var ns = function () {
+        S.net++; S.netAt = Date.now();
+        var done = false, self = this;
+        var fin = function () { if (!done) { done = true; netDone(); } };
+        try { self.addEventListener('loadend', fin); } catch (e) { fin(); }
+        // A request that never ends must not hold every wait hostage.
+        setTimeout(fin, 15000);
+        try {
+          self.addEventListener('load', function () {
+          try {
+            var req = self.__smReq || { m: 'GET', u: '' };
+            var ct = '';
+            try { ct = self.getResponseHeader('content-type') || ''; } catch (e2) {}
+            if (!wantsData(req.u, ct)) return;
+            var len = 0, body = '';
+            try { len = self.responseText ? self.responseText.length : 0; } catch (e2) {}
+            if (len > 0 && len <= 20000) {
+              try { body = String(self.responseText || '').slice(0, 20000); } catch (e2) {}
+            }
+            record({ url: req.u, m: req.m, st: self.status, ct: ct.slice(0, 60), ms: Date.now() - (self.__smT0 || Date.now()), size: len, body: body });
+          } catch (e2) {}
+          });
+          self.__smT0 = Date.now();
+        } catch (e) {}
+        return xs.apply(self, arguments);
+      };
+      ns.__sm = 1;
       var ns = function () {
         S.net++; S.netAt = Date.now();
         var done = false, self = this;
@@ -198,6 +277,10 @@ class PageScript {
   S.ids = S.ids || new WeakMap();
   S.byId = S.byId || {};
   S.next = S.next || 1;
+  // What each number looked like (kind family, label, href). A control that is redrawn under a new number can
+  // then be found again by what it looked like — that is what S.heal does.
+  S.sig = S.sig || {};
+  function kfam(k) { return String(k || '').split(/[ (]/)[0]; }
   function idOf(el) {
     var i = S.ids.get(el);
     if (!i) { i = S.next++; S.ids.set(el, i); }
@@ -205,6 +288,39 @@ class PageScript {
     return i;
   }
   S.get = function (i) { var el = S.byId[i]; return el && el.isConnected ? el : null; };
+  // The number is gone (the page redrew the control, a list refreshed, a step re-rendered): find the same
+  // control again by what it looked like and return its NEW number, so the agent taps it instead of spending a
+  // model turn on re-perceiving the page. Never guesses past a kind change: a button never becomes a field.
+  S.heal = function (i) {
+    try {
+      var old = S.sig[i];
+      var live = S.get(i);
+      if (live && shown(live)) return { ok: true, id: i, how: 'same' };
+      if (!old) return { err: 'nothing is remembered about [' + i + ']' };
+      var want = txt(old.t || '');
+      var nodes;
+      try { nodes = Array.prototype.slice.call(document.querySelectorAll(Q)); } catch (e) { return { err: 'cannot look again: ' + e }; }
+      var best = null, bestHow = '', near = null;
+      for (var k = 0; k < nodes.length && k < 4000; k++) {
+        var el = nodes[k];
+        if (el === live) continue;
+        if (!shown(el)) continue;
+        var r = el.getBoundingClientRect();
+        if (r.width < 3 || r.height < 3) continue;
+        if (kfam(kind(el)) !== old.k) continue;
+        var nm = txt(name(el));
+        var hr = el.tagName === 'A' && el.href && el.href.indexOf('javascript:') !== 0 ? el.href : '';
+        if (want && nm === want) { best = el; bestHow = 'label'; break; }
+        if (!best && old.h && hr && hr === old.h) { best = el; bestHow = 'link'; }
+        if (!best && want.length >= 3 && nm && (nm.indexOf(want) >= 0 || want.indexOf(nm) >= 0)) { best = el; bestHow = 'text'; }
+        if (!best && want.length >= 3 && !nm) near = el; // a bare control of the same kind: the last resort
+      }
+      if (!best) { best = near; bestHow = near ? 'kind' : ''; }
+      if (!best) return { err: 'the control is not on the page any more' };
+      var nid = idOf(best);
+      return { ok: true, id: nid, how: bestHow, t: name(best).slice(0, 60) };
+    } catch (e) { return { err: '' + e }; }
+  };
 
   // Every document we can read: the page, open shadow roots, same-origin frames (with their offset).
   function scopes() {
@@ -314,8 +430,11 @@ class PageScript {
         var href = '';
         if (el.tagName === 'A' && el.href && el.href.indexOf('javascript:') !== 0) href = el.href.length > 160 ? el.href.slice(0, 160) : el.href;
         var c = hp ? frac(hp.x, hp.y) : frac(left + r.width / 2, top + r.height / 2);
+        var kd = kind(el), nm = name(el);
+        // What this number looked like, so it can be found again after the page redraws it (S.heal).
+        S.sig[id] = { k: kfam(kd), t: nm, h: href };
         list.push({
-          el: el, i: id, k: kind(el), t: name(el), h: href,
+          el: el, i: id, k: kd, t: nm, h: href,
           c: [round3(c.fx), round3(c.fy)],
           b: box(left, top, r.width, r.height),
           o: inView ? 0 : 1,
@@ -360,9 +479,152 @@ class PageScript {
       more: (window.scrollY + H) < (sh - 40), sy: sh > H ? Math.round(window.scrollY / (sh - H) * 100) : 0,
       vw: Math.round(v.w), vh: Math.round(v.h), zoom: round3(v.s), dpr: window.devicePixelRatio || 1,
       fav: fav, banner: banner, frames: sc.blocked.slice(0, 6), ready: document.readyState,
+      calls: S.calls.length,
+      sch: schLine(),
       fp: S.fp(), focus: S.focusName(),
     };
   };
+
+  // The data ear's API: list the recorded calls (no bodies), read one body, forget them all.
+  S.netList = function (filter) {
+    var f = String(filter || '').toLowerCase(), out = [];
+    for (var i = 0; i < S.calls.length; i++) {
+      var c = S.calls[i];
+      if (f && String(c.url).toLowerCase().indexOf(f) < 0) continue;
+      out.push({ id: c.id, url: c.url, m: c.m, st: c.st, ct: c.ct, ms: c.ms, size: c.size, hasBody: !!c.body });
+    }
+    return JSON.stringify(out);
+  };
+  S.netBody = function (id) {
+    for (var i = 0; i < S.calls.length; i++) {
+      if (S.calls[i].id === id) {
+        var c = S.calls[i];
+        return JSON.stringify({ id: c.id, url: c.url, m: c.m, st: c.st, ct: c.ct, ms: c.ms, size: c.size, body: c.body || '' });
+      }
+    }
+    return JSON.stringify({ err: 'gone' });
+  };
+  S.netClear = function () { S.calls.length = 0; return 'ok'; };
+
+  // ---------------------------------------------------------------- schema: the site's own structured data
+  // The free wins a page hands over without scraping: JSON-LD blocks, the app state it carries
+  // (__NEXT_DATA__ and friends), OpenGraph metas. Collected once as an index (kind + size only);
+  // S.schemaOpen(i) returns one item in full, capped. Everything bounded: 12 LD + 4 state items.
+  function humanB(n) { return n >= 1024 ? (Math.round(n / 102.4) / 10) + 'KB' : n + 'B'; }
+  S.sch = null;
+  function schCollect() {
+    if (S.sch) return S.sch;
+    var items = [], og = 0;
+    try {
+      var lds = document.querySelectorAll('script[type="application/ld+json"]');
+      for (var k = 0; k < lds.length && items.length < 12; k++) {
+        var t = (lds[k].textContent || '').trim();
+        if (!t) continue;
+        var ty = 'JSON-LD';
+        try {
+          var v = JSON.parse(t);
+          ty = v['@type'] || (v['@graph'] && v['@graph'][0] && v['@graph'][0]['@type']) || 'JSON-LD';
+          if (typeof ty !== 'string') ty = ty.join ? ty.join('+') : 'JSON-LD';
+        } catch (e) { ty = 'JSON-LD?'; }
+        items.push({ i: items.length, kind: 'ld', name: txt(ty).slice(0, 40), kb: humanB(t.length), text: cut(t) });
+      }
+      var sc = document.querySelectorAll('script:not([src])'), seen = {};
+      for (var s = 0; s < sc.length && s < 80 && items.length < 16; s++) {
+        var m = (sc[s].textContent || '').slice(0, 300).match(/(NEXT_DATA|INITIAL_STATE|APOLLO_STATE|NUXT|PRELOADED_STATE)__/);
+        if (!m) continue;
+        var nm = '__' + m[1] + '__';
+        if (seen[nm]) continue;
+        seen[nm] = 1;
+        var st = sc[s].textContent || '';
+        if (!st) continue;
+        items.push({ i: items.length, kind: 'state', name: nm, kb: humanB(st.length), text: cut(st) });
+      }
+      og = document.querySelectorAll('meta[property^="og:"],meta[name^="twitter:"]').length;
+    } catch (e) {}
+    S.sch = { items: items, og: og };
+    return S.sch;
+  }
+  S.schema = function () {
+    var c = schCollect();
+    return JSON.stringify({ n: c.items.length, og: c.og,
+      items: c.items.map(function (it) { return { i: it.i, kind: it.kind, name: it.name, kb: it.kb }; }) });
+  };
+  S.schemaOpen = function (i) {
+    var c = schCollect();
+    for (var k = 0; k < c.items.length; k++) {
+      if (c.items[k].i === i) return JSON.stringify({ i: c.items[k].i, kind: c.items[k].kind, name: c.items[k].name, kb: c.items[k].kb, text: c.items[k].text });
+    }
+    return JSON.stringify({ err: 'gone' });
+  };
+  // The walker: every element matching `rows` becomes one record of the given fields, in ONE call —
+  // instead of the read-page -> reason -> retype loop. fields: {name: 'css'} takes the row-relative
+  // text; {name: {sel: 'a', attr: 'href'}} takes an attribute. Values capped at 300 chars.
+  // It takes any root (the live document, or a parsed one), so the same walker serves pages fetched
+  // over HTTP without rendering them.
+  function walkRows(root, spec) {
+    spec = spec || {};
+    var sel = String(spec.rows || '');
+    if (!sel) return { err: 'rows: a CSS selector that matches each item' };
+    var rows;
+    try { rows = root.querySelectorAll(sel); } catch (e) { return { err: 'bad rows selector: ' + e }; }
+    if (!rows.length) return { n: 0, rows: [] };
+    var fields = spec.fields || {}, out = [];
+    var cap = Math.min(rows.length, Math.max(1, Math.min(200, spec.limit | 0 || 200)));
+    for (var r = 0; r < cap; r++) {
+      var el = rows[r], o = {};
+      for (var key in fields) {
+        var f = fields[key], fsel = null, attr = null;
+        if (typeof f === 'string') fsel = f;
+        else if (f && typeof f === 'object') { fsel = f.sel ? String(f.sel) : null; attr = f.attr ? String(f.attr) : null; }
+        var t = fsel ? el.querySelector(fsel) : el;
+        if (!t) { o[key] = null; continue; }
+        var v;
+        if (attr && attr !== 'text') {
+          v = (attr === 'href' || attr === 'src') ? (t.getAttribute(attr) || t[attr] || '') : (t.getAttribute(attr) || '');
+        } else {
+          v = t.textContent || t.value || t.getAttribute('content') || '';
+        }
+        v = txt(v);
+        o[key] = v.length > 300 ? v.slice(0, 300) + '…' : v;
+      }
+      out.push(o);
+    }
+    return { n: rows.length, rows: out };
+  }
+  S.extract = function (spec) {
+    try {
+      var r = walkRows(document, spec);
+      return JSON.stringify(r.err ? { err: r.err } : r);
+    } catch (e) { return JSON.stringify({ err: '' + e }); }
+  };
+  // The same walker on an HTML string that was never rendered: one page fetched over HTTP is parsed
+  // here, so a list of links costs no navigation and no waiting.
+  S.extractHtml = function (html, spec) {
+    try {
+      var doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+      var r = walkRows(doc, spec);
+      return JSON.stringify(r.err ? { err: r.err } : r);
+    } catch (e) { return JSON.stringify({ err: '' + e }); }
+  };
+  // The one-line summary the observe payload gains: "JSON-LD Product ×2, state 84.3KB, og:8".
+  function schLine() {
+    try {
+      var c = schCollect(), parts = {}, order = [];
+      for (var i = 0; i < c.items.length; i++) {
+        var it = c.items[i];
+        var key = it.kind === 'ld' ? 'JSON-LD ' + it.name : 'state ' + it.kb;
+        if (parts[key] == null) { parts[key] = 0; order.push(key); }
+        parts[key]++;
+      }
+      var s = [];
+      for (var j = 0; j < order.length && j < 4; j++) s.push(order[j] + (parts[order[j]] > 1 ? ' ×' + parts[order[j]] : ''));
+      if (order.length > 4) s.push('+' + (order.length - 4) + ' more');
+      if (c.og > 0) s.push('og:' + c.og);
+      var out = s.join(', ');
+      return out.length > 140 ? out.slice(0, 140) + '…' : out;
+    } catch (e) { return ''; }
+  }
+  S.schLine = schLine;
 
   // A cheap fingerprint of what the page is showing (url + structure + visible words).
   S.fp = function () {
