@@ -77,7 +77,7 @@ String formatFetch({required String method, required String url, required int st
   final c = NetCall(id: 0, url: url, method: method, status: status, ct: ct, size: body.length, body: body);
   if (status == 0) return '$method $url → no answer (network error or blocked). Try the page itself instead.';
   final kind = c.kb;
-  if (RegExp(r'image|video|audio|font|octet-stream', caseSensitive: false).hasMatch(ct)) {
+  if (RegExp(r'image|video|audio|font|octet-stream|pdf|zip|gzip|compressed|msword|spreadsheet|presentation', caseSensitive: false).hasMatch(ct)) {
     return '$method $url → $status binary response ($kind, ${c.kb}). browser_download saves files like this.';
   }
   final b = body.length > 14000 ? '${body.substring(0, 14000)}\n…(truncated at 14000 of ${body.length} chars)' : body;
