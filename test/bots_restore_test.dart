@@ -181,18 +181,12 @@ void main() {
   late FakeAccount account;
 
   setUp(() async {
-    // Owner (2026-10-31): a clean phone for every test. setMockInitialValues must be the first SharedPreferences call
-    // and run EXACTLY once per test — _freshPhone() owns it (it wipes the mock store, so bot_sync_v1 / bot_acct_stash_v1
-    // / bots_v1 never carry over between tests). A second call rebinds the mock store and splits what the test and
-    // BotSync read, which silently corrupts those keys and leaks one account's bots into the next (this is what
-    // regressed the account-isolation tests 7 & 8 at commit 05aef0d). Do not call setMockInitialValues or getInstance()
-    // here: just let _freshPhone() do it once.
+    // Owner (2026-10-31): a clean phone for every test. _freshPhone() calls SharedPreferences.setMockInitialValues({})
+    // which wipes the mock store, so bot_sync_v1 / bot_acct_stash_v1 / bots_v1 never carry over between tests. This is
+    // the exact setUp the account-isolation tests 7 & 8 passed against at 4c6a166 — do not add stop()/callback-nulls
+    // here: those reset BotSync/Bots singletons in a way that leaks one account's bots into the next (regressed 7 & 8).
     await _freshPhone();
     account = FakeAccount()..uid = 'acct-A';
-    BotSync.I.stop();
-    Bots.I.onChanged = null;
-    Bots.I.cloudOwns = null;
-    Bots.I.onChiefRemoved = null;
     BotSync.debugClient = SupabaseClient('http://fake.local', 'anon-key',
         httpClient: account.client(), authOptions: const AuthClientOptions(autoRefreshToken: false));
     BotSync.debugUid = () => account.uid;
