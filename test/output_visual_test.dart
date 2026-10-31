@@ -2,7 +2,6 @@
 // ```visual card renders the agent's own SVG (architecture, artwork, posters, mockups) in chat.
 import 'package:agent/app_state.dart';
 import 'package:agent/theme.dart';
-import 'package:agent/widgets/hark_style.dart';
 import 'package:agent/widgets/output_cards.dart';
 import 'package:agent/widgets/visual_card.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +23,8 @@ Widget _host(Widget child) => ChangeNotifierProvider<AppState>.value(
 const _svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60">'
     '<rect width="100" height="60" fill="#f4f0e7"/><circle cx="50" cy="30" r="20" fill="#c2361b"/></svg>';
 
-const _long = '# Meeting summary\n\n${'We agreed on the budget and the dates for the trip. ' * 40}';
+// final (not const): const string repetition inside interpolation trips the const evaluator (const_eval_type_num).
+final _long = '# Meeting summary\n\n${'We agreed on the budget and the dates for the trip. ' * 40}';
 
 void main() {
   test('```visual takes SVG and nothing else', () {

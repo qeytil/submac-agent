@@ -31,12 +31,12 @@ class Somali {
     'noon', 'pool', 'choose', 'smooth', 'afternoon', 'box', 'boxes', 'next', 'taxi', 'text', 'texts', 'six', 'mix',
     'fox', 'relax', 'index', 'excel', 'extra', 'expert', 'experts', 'exit', 'exam', 'example', 'examples', 'exist',
     'fix', 'fixed', 'flex', 'max', 'exact', 'complex', 'context', 'expand', 'expect', 'expected', 'explain',
-    'explore', 'express', 'extend', 'expensive', 'experience', 'explain', 'come', 'comes', 'came', 'face', 'place',
+    'explore', 'express', 'extend', 'expensive', 'experience', 'come', 'comes', 'came', 'face', 'place',
     'places', 'nice', 'service', 'services', 'office', 'price', 'prices', 'police', 'piece', 'notice', 'practice',
     'cat', 'cats', 'can', 'car', 'cars', 'card', 'cards', 'call', 'calls', 'called', 'cut', 'cuts', 'cup', 'care',
     'case', 'cases', 'cash', 'copy', 'code', 'codes', 'color', 'cost', 'costs', 'city', 'center', 'certain',
     'circle', 'quick', 'quickly', 'quiet', 'quite', 'question', 'questions', 'quality', 'equal', 'request',
-    'requests', 'require', 'required', 'quite',
+    'requests', 'require', 'required',
   };
   // Somali spelling: doubled vowels, dh, kh, x anywhere, or c/q before a vowel (xaal, cunto, qoys, dhakhtar).
   static final _shape = RegExp(r'(aa|ee|ii|oo|uu)|(dh|kh)|x|(c|q)[aeiou]');

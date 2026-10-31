@@ -375,9 +375,9 @@ class _ConfirmInlineState extends State<ConfirmInline> {
                       ? FilledButton.styleFrom(backgroundColor: p.accent, foregroundColor: Colors.white)
                       : FilledButton.styleFrom(backgroundColor: p.text, foregroundColor: p.bg))
                   .copyWith(
-                      minimumSize: const Size(0, 38),
-                      shape: const StadiumBorder(),
-                      textStyle: TextStyle(fontSize: AppText.meta, fontWeight: FontWeight.w600)),
+                      minimumSize: const WidgetStatePropertyAll(Size(0, 38)),
+                      shape: const WidgetStatePropertyAll(StadiumBorder()),
+                      textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: AppText.meta, fontWeight: FontWeight.w600))),
               onPressed: () {
                 final e = r.edit;
                 if (e != null && _edit != null && _edit!.text.trim().isNotEmpty && _edit!.text.trim() != e.value.trim()) {

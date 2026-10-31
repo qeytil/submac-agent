@@ -10,6 +10,7 @@ import '../services/phone_tools.dart';
 import '../services/reply_text.dart' show majorityDir;
 import '../theme.dart';
 import '../ui/tokens.dart';
+import 'motion.dart' show Pressable;
 import 'chat/message_actions.dart';
 import 'markdown_view.dart';
 import 'sub_icon.dart';
