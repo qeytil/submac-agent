@@ -181,15 +181,12 @@ void main() {
   late FakeAccount account;
 
   setUp(() async {
-    // Owner (2026-10-31): every test starts from a clean phone. The legacy SharedPreferences keeps a per-instance
-    // cache and is a cached singleton under flutter_test, so the setMockInitialValues({}) inside _freshPhone does NOT
-    // wipe what a prior test persisted — its instance was already created. Without this, bot_sync_v1 / bot_acct_stash_v1
-    // / bots_v1 / bot_chief_* accumulate across tests, and a test that removes the Chief (stashing a bot under acct-A)
-    // leaks it into later tests' first sign-in via _unstash. Register the mock store FIRST (so getInstance() does not
-    // throw MissingPluginException), then clear the cached instance so each test is hermetic.
-    SharedPreferences.setMockInitialValues({});
-    final p = await SharedPreferences.getInstance();
-    await p.clear();
+    // Owner (2026-10-31): a clean phone for every test. setMockInitialValues must be the first SharedPreferences call
+    // and run EXACTLY once per test — _freshPhone() owns it (it wipes the mock store, so bot_sync_v1 / bot_acct_stash_v1
+    // / bots_v1 never carry over between tests). A second call rebinds the mock store and splits what the test and
+    // BotSync read, which silently corrupts those keys and leaks one account's bots into the next (this is what
+    // regressed the account-isolation tests 7 & 8 at commit 05aef0d). Do not call setMockInitialValues or getInstance()
+    // here: just let _freshPhone() do it once.
     await _freshPhone();
     account = FakeAccount()..uid = 'acct-A';
     BotSync.I.stop();
