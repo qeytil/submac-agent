@@ -205,11 +205,6 @@ void main() {
       expect(taps, 1);
     });
 
-    testWidgets('PendingLine says Thinking', (t) async {
-      await t.pumpWidget(_wrap(const PendingLine(), still: true));
-      expect(find.text('Thinking'), findsOneWidget);
-    });
-
     testWidgets('StreamingMarkdown renders every block', (t) async {
       await t.pumpWidget(_wrap(const StreamingMarkdown('# Hello\n\nFirst line.\n\nSecond line.')));
       expect(find.textContaining('Hello'), findsOneWidget);

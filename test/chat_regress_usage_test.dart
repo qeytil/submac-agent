@@ -376,7 +376,6 @@ void main() {
         home: Scaffold(
           body: Column(children: [
             Expanded(child: ListView(children: [BillingNoticeCard(notice: n, isLast: true, billing: b)])),
-            BillingNoticeBanner(billing: b),
             TextField(key: const ValueKey('composer'), focusNode: focus),
           ]),
         ),
@@ -388,10 +387,8 @@ void main() {
       expect(focus.hasFocus, isTrue, reason: 'the composer could not be reached');
       await t.enterText(find.byKey(const ValueKey('composer')), 'ok');
       expect(find.text('ok'), findsOneWidget);
-      // The notice is a banner above it, and it can be dismissed.
-      expect(find.byKey(const ValueKey('billing-notice-banner')), findsOneWidget);
-      await t.tap(find.byKey(const ValueKey('billing-banner-close')));
-      await t.pump();
+      // One message rule (owner 2026-10-31): the card in the chat is the only limit message — no
+      // second one above the composer.
       expect(find.byKey(const ValueKey('billing-notice-banner')), findsNothing);
     });
   });

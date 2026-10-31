@@ -643,6 +643,9 @@ class ActionRequest {
   /// The chat this ask comes from when it isn't the one on screen (its title), so a card from a background task or a
   /// browser task in another chat says where it is from ('' = this chat).
   String where = '';
+  /// The chat the ask belongs to (set by the router when it asks): the thin inline card lives under that chat's
+  /// newest message.
+  String? convId;
   /// Nobody answered in time (CB-42): the task moved on, and a sheet still waiting its turn is never shown.
   bool timedOut = false;
   ActionRequest({
@@ -657,4 +660,13 @@ class ActionRequest {
   /// The same ask with an editable text.
   ActionRequest withEdit(String text) =>
       ActionRequest(title: title, body: body, detail: detail, confirmLabel: confirmLabel, destructive: destructive, edit: TextBox(text));
+}
+
+/// The one live approval ask (owner, 2026-10-31): a thin card under the newest message of its own chat —
+/// never a modal sheet over half the screen. [answer] resolves the waiting task (true = approved).
+class ConfirmAsk {
+  ConfirmAsk({required this.convId, required this.req, required this.answer});
+  final String? convId;
+  final ActionRequest req;
+  final void Function(bool ok) answer;
 }

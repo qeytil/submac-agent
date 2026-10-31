@@ -186,7 +186,7 @@ class _ExpandableState extends State<Expandable> {
                 onTap: () {
                   setState(() => _open = !_open);
                 },
-                // A quiet text link, not a pill: the output stays the loudest thing on screen.
+                // A quiet text link, not a pill: the folded content is the card; the fold stays quiet.
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [

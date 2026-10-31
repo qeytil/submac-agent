@@ -43,10 +43,14 @@ import kotlin.math.sin
  */
 @SuppressLint("StaticFieldLeak", "ClickableViewAccessibility", "SetTextI18n")
 object Overlay {
-    private val INK = 0xFF000000.toInt()
+    // The app's real ink (theme.dart), not pure black, so the card reads as SubMac.
+    private val INK = 0xFF17150F.toInt()
     private val PAPER = 0xFFF4F0E7.toInt()
     private val RED = 0xFFF4F0E7.toInt() // the orb is paper-white on ink: calm, no red
     private val MUTED = 0xFFA39E92.toInt()
+    // Translucent ink surface: the card floats like Siri over whatever is behind it.
+    private val CARD = 0xB317150F.toInt()
+    private val CARD_STROKE = 0x24F4F0E7
 
     @Volatile var liveActive = false
     private var wm: WindowManager? = null
@@ -252,10 +256,10 @@ object Overlay {
         card.setPadding(dp(20f), dp(10f), dp(20f), dp(16f))
         card.background = GradientDrawable().apply {
             cornerRadius = dp(28f).toFloat()
-            setColor(INK)
-            setStroke(dp(1f), 0x1FF4F0E7)
+            setColor(CARD)
+            setStroke(dp(1f), CARD_STROKE)
         }
-        card.elevation = dp(16f).toFloat()
+        card.elevation = dp(10f).toFloat()
 
         val o = OrbView(c, small = false)
         orb = o
@@ -306,7 +310,7 @@ object Overlay {
             et.maxLines = 4
             et.imeOptions = EditorInfo.IME_ACTION_SEND
             et.setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
-            et.background = GradientDrawable().apply { cornerRadius = dp(22f).toFloat(); setColor(0x14F4F0E7) }
+            et.background = GradientDrawable().apply { cornerRadius = dp(22f).toFloat(); setColor(0x1FF4F0E7) }
             input = et
             val sendIt = {
                 val t = et.text.toString().trim()

@@ -340,22 +340,18 @@ void main() {
       });
     }
 
-    testWidgets('error card raises the banner once for a fresh notice (CB-40: never a modal sheet)', (t) async {
+    testWidgets('one message rule: the refusal is the card in the chat, nothing extra appears (owner 2026-10-31)', (t) async {
       final n = notice('limit_daily');
       b.noteNotice(n);
-      Widget screen({Key? key}) => app(Scaffold(
-          body: Column(children: [BillingNoticeCard(key: key, notice: n, isLast: true, billing: b), BillingNoticeBanner(billing: b)])));
+      Widget screen({Key? key}) =>
+          app(Scaffold(body: Column(children: [BillingNoticeCard(key: key, notice: n, isLast: true, billing: b)])));
       await t.pumpWidget(screen());
       await t.pumpAndSettle();
+      // No modal sheet on its own, and no second message anywhere else.
       expect(find.byType(BillingNoticeSheet), findsNothing);
-      expect(find.byKey(const ValueKey('billing-notice-banner')), findsOneWidget);
-      await t.tap(find.byKey(const ValueKey('billing-banner-close')));
-      await t.pumpAndSettle();
-      expect(find.byKey(const ValueKey('billing-notice-banner')), findsNothing);
-      // Rebuilt card (scrolling back): no second banner.
+      // Rebuilt card (scrolling back): still exactly one limit message.
       await t.pumpWidget(screen(key: UniqueKey()));
       await t.pumpAndSettle();
-      expect(find.byKey(const ValueKey('billing-notice-banner')), findsNothing);
       expect(find.text('Get more'), findsOneWidget);
     });
   });

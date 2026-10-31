@@ -641,10 +641,11 @@ class TeamRun extends ChangeNotifier {
       final byTool = {for (var i = 0; i < plan.parts.length; i++) Wire.toolName(offs[i]): plan.parts[i]};
       if (llm != null && offs.isNotEmpty) {
         final sys = '${promptOf(lead)}\n\n${BotManner.lead}\n\n# Lead the work\nYou lead the team "${o.name}". The owner approved this plan '
-            'for the task: "${plan.job}"${_ownerSaid(o)}\nHand each part to its member with their hand-off tool (one call each, in a '
-            'sensible order; a later part may use what an earlier member reported). When every part is back, write ONE clear answer '
-            'for the owner: the result first, then what matters, then the next step if there is one. Credit a teammate by name only '
-            'where it helps. Plain, calm words in the owner\'s language.';
+            'for the task: "${plan.job}"${_ownerSaid(o)}\nHand each part to its member with their hand-off tool. Parts that do not '
+            'depend on each other can be handed off together in one message; they then run side by side (like sub-agents), so do that '
+            'when you can. When a later part needs what an earlier member found, hand them off one at a time, in order. When every part '
+            'is back, write ONE clear answer for the owner: the result first, then what matters, then the next step if there is one. '
+            'Credit a teammate by name only where it helps. Plain, calm words in the owner\'s language.';
         try {
           final r = await _agent(lead, sys, 'Start the work.', extra: offs, maxSteps: plan.parts.length + 3, maxTokens: 2000,
               stopped: () => _stopped.contains(o.id), office: o.id, onExtra: (c, a) async {
@@ -885,6 +886,15 @@ class _TeamHooks extends CoreHooks {
 
   @override
   String cleanOutput(String out) => ToolOutputClean.clean(out);
+
+  /// The lead handing off several members in one message: their parts are independent by that choice,
+  /// so they run side by side (the agent core starts them together and awaits each in turn). The
+  /// member's own tools stay in order — approvals and one-at-a-time phone hands are theirs alone.
+  @override
+  List<List<int>> parallel(List<ToolCall> calls) {
+    final idx = <int>[for (var i = 0; i < calls.length; i++) if (extra.contains(calls[i].name)) i];
+    return idx.length >= 2 ? [idx] : const [];
+  }
 
   @override
   Future<void> toolDone(ToolCall call, Map<String, dynamic> args, String output) async {

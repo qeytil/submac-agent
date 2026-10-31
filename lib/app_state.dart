@@ -507,6 +507,27 @@ class AppState extends ChangeNotifier {
   /// The in-app approval sheet shows one ask at a time and closes when its task is stopped.
   final ConfirmQueue confirmQueue = ConfirmQueue();
 
+  /// The one live approval ask (owner, 2026-10-31): a thin card under the newest message of the task's own
+  /// chat — never a modal sheet over half the screen. ConfirmQueue still lets one ask through at a time.
+  final ValueNotifier<ConfirmAsk?> confirmNow = ValueNotifier(null);
+
+  /// Shows [req] as the inline ask of [convId]'s chat; completes when the card is answered.
+  Future<bool> askInChat(String? convId, ActionRequest req) {
+    final c = Completer<bool>();
+    confirmNow.value = ConfirmAsk(convId: convId, req: req, answer: (ok) {
+      if (!c.isCompleted) c.complete(ok);
+      if (identical(confirmNow.value?.req, req)) confirmNow.value = null;
+    });
+    return c.future;
+  }
+
+  /// The ask left without an answer (its task stopped, or nobody answered in time): it folds away as "no".
+  void dropConfirm() {
+    final a = confirmNow.value;
+    confirmNow.value = null;
+    a?.answer(false);
+  }
+
   // ---------- browser + questions for the user ----------
   String? _browserConv;
   List<String> savedLoginSites = [];
@@ -834,6 +855,12 @@ class AppState extends ChangeNotifier {
       'scatter "axes","items":[{"x","y","label"}]; heatmap "rows","cols","values"; radar "axes","series","max"; waterfall "items":[{"label","value","total"}]; '
       'canvas "width","height","shapes":[rect/circle/line/text/path] with colour tokens accent, ink, muted, wash, paper, bubble, border, brass, slate. '
       'Mark what matters with "highlight":true. 3-7 items, a few words per label, real numbers only. Never ASCII art.\n'
+      '- ```visual  raw SVG markup (<svg xmlns viewBox ...>...</svg>, inline colours only, no scripts or external images): a crisp 2D drawing that words, photos and charts cannot be — '
+      'an architecture sketch or floor plan, a logo, a poster or artwork, an icon or illustration, a product mockup, a labelled scene. '
+      'Perfect timing: the visual arrives in the same reply as the words it explains, exactly when the answer needs the picture — never several messages later, never on its own, never two visuals for one idea. '
+      'Keep it small (about 20-120 lines), draw clean simple shapes, and close every tag: a drawing that does not parse shows a quiet tile. '
+      'Artwork and architecture can also be made as files: write_file the .svg into the workspace and end with its ```file card (it renders in chat too). '
+      'A presentation the user asked for (or 5+ parts of one topic) is make_document kind "slides": agree the outline first, one idea per slide, then build it.\n'
       '- ```order  JSON {"merchant","items":[{"name","qty","price","image"}],"breakdown":[{"label","amount"}],"total","payment","ornament","action":"Place order"} for a cart, booking or bill.\n'
       '- ```page  a complete HTML document (inline CSS, mobile-first, no external scripts) for a small one-screen thing that fits easily in one reply: a flyer, invoice, CV, menu or a simple shop. Add a ```qr  JSON {"data":"https://wa.me/...","title":"..."} for a WhatsApp order link. '
       'Anything bigger (a multi-section website, a web app, a game, several pages) is built as files, never in chat: settle the details first, then todo, then a folder sites/<short-name>/ with index.html and its styles, scripts and pictures, '

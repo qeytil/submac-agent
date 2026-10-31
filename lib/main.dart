@@ -24,7 +24,7 @@ import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/intro_screen.dart';
 import 'screens/live_screen.dart';
-import 'screens/system_screens.dart';
+import 'screens/settings_screen.dart' show VoiceScreen;
 import 'services/live_controller.dart';
 import 'theme.dart';
 import 'ui/i18n.dart';
@@ -137,7 +137,7 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
       if (nav == null || state.liveCtl.screenOpen) return;
       nav.push(liveRoute());
     };
-    state.openSystemSettings = () => appNavKey.currentState?.push(MaterialPageRoute(builder: (_) => const SystemPermissionsScreen()));
+    state.openSystemSettings = () => appNavKey.currentState?.push(MaterialPageRoute(builder: (_) => const VoiceScreen()));
   }
 
   @override

@@ -298,8 +298,9 @@ extension AppStateChat on AppState {
     _notify();
   }
 
-  /// A stopped task's approval asks go with it: its card leaves Today / the job page / the team chat, its sheet closes,
-  /// and an ask still queued is never shown. They used to stay up for hours, and approving one did nothing.
+  /// A stopped task's approval asks go with it: its card leaves Today / the job page / the team chat, its inline
+  /// ask folds away, and an ask still queued is never shown. They used to stay up for hours, and approving one
+  /// did nothing.
   void _dropApprovalsFor(String convId) {
     unawaited(Offices.I.expireFor(convId));
     confirmQueue.stopped(convId);

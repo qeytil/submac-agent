@@ -10,17 +10,19 @@ import '../services/phone_tools.dart';
 import '../services/reply_text.dart' show majorityDir;
 import '../theme.dart';
 import '../ui/tokens.dart';
+import 'motion.dart' show Pressable;
 import 'chat/message_actions.dart';
 import 'markdown_view.dart';
 import 'sub_icon.dart';
 import '../ui/i18n.dart';
 
-/// Chat cards in the hark.com style (study 2026-10-24): one dark card primitive with the bubble's soft corners, no
-/// border and no shadow; a quiet title with a faint hairline under it where the study saw one; muted secondary text;
+/// Chat cards in the hark.com style (study 2026-10-24): one card primitive with the bubble's soft corners, no
+/// shadow; a quiet title with a faint hairline under it where the study saw one; muted secondary text;
 /// one small rounded-square corner action at most. Theme tokens only; directional layout (RTL); no motion of their
 /// own beyond the chat's entrance, and opened views use the shared page motion (reduced motion: they just appear).
 
-/// The card primitive: the chat's card fill, the bubble's corners.
+/// The card primitive: a glassy take on the chat's card fill (owner, 2026-10-31) — the fill lets a little of the
+/// chat through, a soft light sweeps it from its start corner, and a hairline holds the edge on any background.
 class HarkSurface extends StatelessWidget {
   const HarkSurface({super.key, required this.child, this.padding = const EdgeInsets.all(Space.x4), this.color, this.maxWidth});
   final Widget child;
@@ -30,8 +32,18 @@ class HarkSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final fill = color ?? p.bubble;
     Widget box = DecoratedBox(
-      decoration: BoxDecoration(color: color ?? Palette.of(context).bubble, borderRadius: Radii.sheetAll),
+      decoration: BoxDecoration(
+        borderRadius: Radii.sheetAll,
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [fill.withValues(alpha: 0.94), fill.withValues(alpha: 0.78)],
+        ),
+        border: Border.all(color: p.text.withValues(alpha: 0.05)),
+      ),
       child: Padding(padding: padding, child: child),
     );
     if (maxWidth != null) {
@@ -172,20 +184,46 @@ class DraftCard extends StatelessWidget {
 
 // ───────────────────────────────── Summary / document
 
-/// Long text as Hark's summary card: bubble-wide, a fixed-height preview with a serif title that fades out at the
-/// bottom (the fade says there is more). The whole card opens the reader.
-class SummaryCard extends StatelessWidget {
+/// Long text as Hark's summary card: bubble-wide. Folded by default (owner, 2026-10-31): a fixed-height preview
+/// that fades out at the bottom, with a card-shaped "Show more" chip that opens it right here ("Show less" folds
+/// it back). A tap on the folded preview still opens the full-screen reader.
+class SummaryCard extends StatefulWidget {
   final String body;
   const SummaryCard(this.body, {super.key});
 
+  @override
+  State<SummaryCard> createState() => _SummaryCardState();
+}
+
+class _SummaryCardState extends State<SummaryCard> {
+  bool _open = false;
+
   (String, String) get parts {
-    var lines = body.trim().split('\n');
+    var lines = widget.body.trim().split('\n');
     var title = '';
     if (lines.isNotEmpty && lines.first.startsWith('#')) {
       title = lines.first.replaceFirst(RegExp(r'^#+\s*'), '');
       lines = lines.sublist(1);
     }
     return (title, lines.join('\n').trim());
+  }
+
+  void _reader(BuildContext context) => openSummaryReader(context, title: parts.$1, body: parts.$2, raw: widget.body.trim());
+
+  /// The fold control: a quiet link — the folded preview is the card, the fold itself stays quiet.
+  Widget chip(BuildContext context, String label) {
+    final p = Palette.of(context);
+    return Pressable(
+      onTap: () => setState(() => _open = !_open),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label, style: TextStyle(color: p.muted, fontSize: AppText.meta, fontWeight: FontWeight.w500)),
+          const SizedBox(width: 4),
+          SubIcon('chevron_down', size: 14, color: p.muted),
+        ]),
+      ),
+    );
   }
 
   @override
@@ -197,41 +235,58 @@ class SummaryCard extends StatelessWidget {
     final dir = summaryDirOf(title, rest);
     return Semantics(
       container: true,
-      button: true,
+      button: !_open,
       textDirection: dir,
       label: 'Open summary${title.isEmpty ? '' : ': $title'}',
       child: GestureDetector(
-        onTap: () => openSummaryReader(context, title: title, body: rest, raw: body.trim()),
+        onTap: _open ? null : () => _reader(context),
         onLongPress: () => showMessageActions(context, actions: [
-          MessageAction('Open', 'expand', () => openSummaryReader(context, title: title, body: rest, raw: body.trim())),
-          MessageAction('Copy', 'copy', () => harkCopy(context, body.trim())),
-          MessageAction('Share', 'share', () => SharePlus.instance.share(ShareParams(text: body.trim()))),
+          MessageAction('Open', 'expand', () => _reader(context)),
+          MessageAction('Copy', 'copy', () => harkCopy(context, widget.body.trim())),
+          MessageAction('Share', 'share', () => SharePlus.instance.share(ShareParams(text: widget.body.trim()))),
         ]),
         child: HarkSurface(
           maxWidth: 420,
           padding: EdgeInsets.zero,
-          child: SizedBox(
-            height: 178,
-            child: ShaderMask(
-              shaderCallback: (r) => LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0, 0.7, 1],
-                colors: [p.text, p.text, p.text.withValues(alpha: 0)],
-              ).createShader(r),
-              blendMode: BlendMode.dstIn,
-              child: ClipRect(
-                // The preview's start edge follows the card's own words (CB-9).
-                child: OverflowBox(
-                  alignment: dir == TextDirection.rtl ? Alignment.topRight : Alignment.topLeft,
-                  maxHeight: double.infinity,
-                  child: Padding(
-                    padding: const EdgeInsets.all(Space.x4),
-                    child: IgnorePointer(child: _SummaryBody(title: title, body: rest)),
+          child: AnimatedSize(
+            duration: SubMotion.base,
+            curve: SubMotion.settle,
+            alignment: AlignmentDirectional.topCenter,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+              if (!_open)
+                SizedBox(
+                  height: 178,
+                  child: ShaderMask(
+                    shaderCallback: (r) => LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0, 0.7, 1],
+                      colors: [p.text, p.text, p.text.withValues(alpha: 0)],
+                    ).createShader(r),
+                    blendMode: BlendMode.dstIn,
+                    child: ClipRect(
+                      // The preview's start edge follows the card's own words (CB-9).
+                      child: OverflowBox(
+                        alignment: dir == TextDirection.rtl ? Alignment.topRight : Alignment.topLeft,
+                        maxHeight: double.infinity,
+                        child: Padding(
+                          padding: const EdgeInsets.all(Space.x4),
+                          child: IgnorePointer(child: _SummaryBody(title: title, body: rest)),
+                        ),
+                      ),
+                    ),
                   ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.all(Space.x4),
+                  child: _SummaryBody(title: title, body: rest),
                 ),
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, 0, Space.x4, Space.x3),
+                child: Align(alignment: AlignmentDirectional.centerStart, child: chip(context, _open ? 'Show less' : 'Show more')),
               ),
-            ),
+            ]),
           ),
         ),
       ),

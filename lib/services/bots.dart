@@ -690,8 +690,14 @@ class Bots extends ChangeNotifier {
   /// Drafts the Chief showed in a chat, waiting for the owner's yes (convId → spec).
   final Map<String, Map<String, dynamic>> _drafts = {};
 
+  /// Team drafts the Chief showed in a chat, waiting for the owner's yes (convId → spec).
+  final Map<String, Map<String, dynamic>> _teamDrafts = {};
+
   /// Every chat was deleted: drafts shown there can no longer be approved.
-  void forgetDrafts() => _drafts.clear();
+  void forgetDrafts() {
+    _drafts.clear();
+    _teamDrafts.clear();
+  }
 
   /// Wakes a bot (set by AppState): [reason] says why, [instruction] what to do, [kind] work | message | call.
   Future<void> Function(Bot bot, String reason, String instruction, String kind)? onWake;
@@ -1531,6 +1537,9 @@ class Bots extends ChangeNotifier {
         ..writeln('You lead the owner\'s bots. Colleagues: ${others.isEmpty ? 'none yet' : others}.')
         ..writeln('- When the owner wants a new bot ("make me a sales bot"), design it with bot_make action "draft", show the draft in a few '
             'quiet lines (name and role, its job, how it works, skills) and ask "Make it?". Call bot_make action "create" only after a clear yes.')
+        ..writeln('- When the owner wants a team ("start a team for the shop launch"), design it with team_make action "draft" the same way: '
+            'a name, a goal, who leads it, and its members — existing colleagues by name, new ones described in a few words (they get made). '
+            'Call team_make action "create" only after a clear yes. The team waits for the owner\'s first task in its chat.')
         ..writeln('- A question a colleague knows best: ask them with bot_ask and give the owner one combined answer.');
     }
     if (b.instructions.trim().isNotEmpty) {
@@ -1741,13 +1750,16 @@ class Bots extends ChangeNotifier {
 
   static const names = {
     'bot_remember', 'bot_desk', 'bot_followup', 'bot_routine', 'bot_watch', 'bot_call', 'bot_ask', 'knowledge_search', 'knowledge_read',
-    'bot_lesson', 'bot_make',
+    'bot_lesson', 'bot_make', 'team_make',
   };
 
-  /// The tools a bot sees: bot_make only for the Chief.
+  /// The tools only the Chief sees.
+  static const _chiefOnly = {'bot_make', 'team_make'};
+
+  /// The tools a bot sees: bot_make and team_make only for the Chief.
   List<Map<String, dynamic>> definitionsFor(Bot? b) => [
         for (final d in definitions)
-          if ((d['function'] as Map)['name'] != 'bot_make' || (b != null && isChief(b))) d,
+          if (!_chiefOnly.contains((d['function'] as Map)['name']) || (b != null && isChief(b))) d,
       ];
 
   static Map<String, dynamic> _fn(String name, String desc, Map<String, dynamic> props, List<String> req) => {
@@ -1802,17 +1814,27 @@ class Bots extends ChangeNotifier {
       'action': {'type': 'string', 'enum': ['add', 'remove', 'list']},
       'lesson': {'type': 'string', 'description': 'e.g. "Check the site\'s search page before saying a product is out of stock."'},
     }, ['action']),
-    _fn('bot_make', 'Chief only. Make a new bot for the owner. First call with action "draft": it returns the draft to show the '
-        'owner. Show it in a few quiet lines and ask for a yes. Only after they say yes, call action "create" (no other fields). '
-        'To change the draft, call "draft" again.', {
+    _fn('bot_make', 'Chief only. Make a bot for the owner. Call "draft" first to show it and ask a yes; after yes, call '
+        '"create" (no other fields). Call "draft" again to change it.', {
       'action': {'type': 'string', 'enum': ['draft', 'create']},
-      'name': {'type': 'string', 'description': 'A short human first name.'},
-      'role': {'type': 'string', 'description': 'Job title, e.g. "Sales lead".'},
-      'instructions': {'type': 'string', 'description': 'How the bot works: 3-6 short sentences in the owner\'s language.'},
-      'mission': {'type': 'string', 'description': 'One sentence: its job for the owner.'},
-      'skills': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Up to 5 short skill names, e.g. "follow-up emails".'},
+      'name': {'type': 'string', 'description': 'A human first name.'},
+      'role': {'type': 'string', 'description': 'Their job title.'},
+      'instructions': {'type': 'string', 'description': '3-6 short sentences in the owner\'s language.'},
+      'mission': {'type': 'string', 'description': 'Its job for the owner.'},
+      'skills': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Up to 5 short skill names.'},
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action']),
+    _fn('team_make', 'Chief only. Make a team: a lead bot and members in one chat. Call "draft" first: it returns the draft '
+        'to show and ask a yes for. Only after yes, call "create" (no other fields). Call "draft" again to change it. '
+        'A member is an existing bot\'s name or a new bot\'s description.', {
+      'action': {'type': 'string', 'enum': ['draft', 'create']},
+      'name': {'type': 'string', 'description': 'e.g. "Shop launch".'},
+      'goal': {'type': 'string', 'description': 'What this team is for.'},
+      'members': {'type': 'array', 'items': {'type': 'string'}, 'description': '2-8: an existing bot\'s name, or a description of a new bot to hire.'},
+      'chief': {'type': 'string', 'description': 'Which member leads.'},
+      'rules': {'type': 'string', 'description': 'Working rules, one line.'},
+      'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
+    }, ['action', 'name', 'members']),
     _fn('knowledge_search', 'Search your own knowledge (notes and files you were given). Returns the best passages with their ids.', {
       'query': {'type': 'string', 'description': 'What you need, in a few words.'},
     }, ['query']),
@@ -1826,6 +1848,9 @@ class Bots extends ChangeNotifier {
   Future<String> Function(Bot b, String reason)? ring;
   /// One quick answer from another bot (set by AppState).
   Future<String> Function(Bot asker, Bot expert, String question)? consult;
+  /// The Chief made a team from a draft (set by AppState): members resolved, hired, office opened.
+  /// Returns an error line, or null when the team exists.
+  Future<String?> Function(Bot chief, Map<String, dynamic> spec)? makeTeam;
 
   Future<String> execute(String name, Map<String, dynamic> a, String? convId) async {
     final b = byConv(convId);
@@ -1964,6 +1989,8 @@ class Bots extends ChangeNotifier {
         return ring == null ? 'Error: calls are not available.' : await ring!(b, s('reason').isEmpty ? 'Quick call' : s('reason'));
       case 'bot_make':
         return _botMake(b, a, convId ?? '');
+      case 'team_make':
+        return _teamMake(b, a, convId ?? '');
       case 'bot_ask':
         final other = byName(s('bot'));
         if (other == null || other == b) return 'Error: no colleague called "${s('bot')}". Colleagues: ${bots.where((o) => o != b).map((o) => o.name).join(', ')}.';
@@ -2010,6 +2037,47 @@ class Bots extends ChangeNotifier {
       b.log('work', 'Made a new bot: ${nb.name} (${nb.role}).');
       await save();
       return 'Created ${nb.name}, ${nb.role}. It is in the sidebar under Bots; the owner taps it to start.';
+    }
+    return 'Error: action must be draft or create.';
+  }
+
+  /// The Chief makes a team: a lead and its members (existing bots by name, new ones hired from a description),
+  /// same two-step as bot_make — draft, the owner's yes, then create.
+  Future<String> _teamMake(Bot b, Map<String, dynamic> a, String convId) async {
+    if (!isChief(b)) return 'Error: only the Chief makes teams. Ask the owner to talk to their Chief.';
+    String s(String k) => '${a[k] ?? ''}'.trim();
+    final members = [for (final m in (a['members'] as List? ?? const [])) '$m'.trim()].where((m) => m.isNotEmpty).take(8).toList();
+    if (s('action') == 'draft') {
+      if (s('name').isEmpty || members.length < 2) {
+        return 'Error: give a team name and at least two members (an existing bot\'s name, or a plain description of a new one, '
+            'like "a designer who makes instagram posters").';
+      }
+      final chief = s('chief').isEmpty ? members.first : s('chief');
+      final spec = <String, dynamic>{
+        'name': s('name'),
+        'goal': s('goal'),
+        'chief': chief,
+        'members': members,
+        'rules': s('rules'),
+        'icon': s('icon').isEmpty ? 'work' : s('icon'),
+      };
+      _teamDrafts[convId] = spec;
+      return 'Draft ready. Show the owner this, quietly, then ask "Make the team?":\n'
+          '${spec['name']}${spec['goal'] == '' ? '' : ' — ${spec['goal']}'}\n'
+          'Lead: $chief\n'
+          'Members: ${members.join('; ')}'
+          '${spec['rules'] == '' ? '' : '\nRules: ${spec['rules']}'}';
+    }
+    if (s('action') == 'create') {
+      final spec = _teamDrafts.remove(convId);
+      if (spec == null) return 'Error: no team draft in this chat. Call team_make with action "draft" first and get the owner\'s yes.';
+      if (makeTeam == null) return 'Error: not available.';
+      final e = await makeTeam!(b, spec);
+      if (e != null) return e;
+      b.log('work', 'Made a team: ${spec['name']} (${(spec['members'] as List).length} members).');
+      await save();
+      return 'Team "${spec['name']}" is ready. It is in the owner\'s Teams now; ${spec['chief']} leads it. The team waits for the '
+          'owner\'s first task in its chat.';
     }
     return 'Error: action must be draft or create.';
   }

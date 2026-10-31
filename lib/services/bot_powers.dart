@@ -40,11 +40,14 @@ class BotPowers {
   };
 
   static const _core = {
-    'say', 'ask_user', 'more_tools', 'calculate', 'skill_search', 'skill_use', 'skill_install', 'skill_remove', 'remember', 'forget', 'list_memories',
+    'say', 'ask_user', 'more_tools', 'calculate', 'skill_search', 'skill_use', 'skill_install', 'skill_remove', 'skill_save', 'remember', 'forget', 'list_memories',
     'schedule_task', 'list_scheduled', 'cancel_scheduled',
     'prayer_times', 'hijri_date', 'quran', 'qibla', 'money_add', 'money_report', 'money_delete',
     'somali_knowledge', 'somali_knowledge_read',
     'bot_remember', 'bot_desk', 'bot_followup', 'bot_routine', 'bot_watch', 'bot_call', 'bot_ask', 'knowledge_search', 'knowledge_read', 'bot_lesson',
+    // The Chief's hiring tools are its core duty: they are never taken away by a switched-off power
+    // (bot_make used to fall through groupOf to 'apps' and vanish when apps was off).
+    'bot_make', 'team_make',
     'office_board', 'office_post', 'office_brief', 'office_ask_owner', 'office_kpi', 'docs_share', 'docs_list', 'docs_read',
   };
 

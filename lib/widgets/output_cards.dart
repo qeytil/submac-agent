@@ -39,6 +39,7 @@ import 'media_view.dart';
 import 'media_lightbox.dart';
 import 'hark_style.dart';
 import 'browser_card.dart' show BrowserResultCard;
+import 'visual_card.dart';
 import '../ui/i18n.dart';
 import '../services/reply_text.dart' show cleanGlyphs;
 export 'hark_style.dart';
@@ -49,6 +50,7 @@ const cardLanguages = {
   'template', 'order', 'order_summary', 'page', 'video', 'grid', 'qr',
   'graph', 'list', 'sections', 'math',
   'diagram', 'roadmap', 'timeline', 'flow', 'chart', 'event', 'browser',
+  'visual',
 };
 
 /// The card frame, for cards defined in other files.
@@ -110,6 +112,8 @@ String cardKicker(String lang) {
     case 'roadmap':
     case 'timeline':
       return 'Roadmap';
+    case 'visual':
+      return 'Visual';
   }
   return 'Preparing';
 }
@@ -134,6 +138,8 @@ Widget? buildOutputCard(String language, String body, {String? owner}) {
         if (j is Map) return diagramCardFrom(language == 'diagram' || j['type'] != null ? j : {...j, 'type': language});
         if (j is List) return diagramCardFrom({'type': language == 'diagram' ? 'steps' : language, 'items': j});
         return null;
+      case 'visual':
+        return VisualCard.isSvg(body) ? VisualCard(body) : null;
       case 'math':
         return Builder(
           builder: (c) => Padding(
@@ -778,12 +784,16 @@ class FileCard extends StatelessWidget {
   const FileCard(this.path, {super.key});
 
   static final _imageName = RegExp(r'\.(png|jpe?g|webp|gif|bmp)$', caseSensitive: false);
+  static final _svgName = RegExp(r'\.svg$', caseSensitive: false);
   bool get _isImage => _imageName.hasMatch(path);
+  bool get _isSvg => _svgName.hasMatch(path);
 
   @override
   Widget build(BuildContext context) {
     final name = path.split('/').last;
     if (_isImage) return ImageResultCard(path: path);
+    // The agent's own drawings render in chat too (owner, 2026-10-31).
+    if (_isSvg) return SvgFileCard(path);
     // The file on this phone, or fetched back from the account (another phone, a reinstall). Only a file that is in
     // neither place says so, with Try again.
     return MediaResolve(

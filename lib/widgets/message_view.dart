@@ -711,7 +711,13 @@ class _WorkSummaryState extends State<WorkSummary> {
             ? SizedBox(
                 height: turnHeadHeight,
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(head, style: TextStyle(color: p.muted, fontSize: AppText.meta)),
+                  // The live line's status word sits inside a quiet pill (12px inset from the start
+                  // edge); the finished line's words take the same inset, so the handover from the
+                  // pill to "Worked for ..." never moves the text.
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 12),
+                    child: Text(head, style: TextStyle(color: p.muted, fontSize: AppText.meta)),
+                  ),
                 ]),
               )
             : Padding(

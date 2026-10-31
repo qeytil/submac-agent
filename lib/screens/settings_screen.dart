@@ -12,6 +12,7 @@ import '../services/device_access.dart';
 import '../services/full_access.dart';
 import '../services/rewards.dart';
 import '../services/tools.dart';
+import '../services/wake_word.dart';
 import '../widgets/logo.dart';
 import '../widgets/motion.dart';
 import '../theme.dart';
@@ -328,6 +329,16 @@ class _LanguagePage extends StatelessWidget {
 
 // ------------------------------------------------------------------ Voice
 
+/// The Voice page (PLAN.md 5.4): Live voice and the "Hello SubMac" wake word in one place.
+///
+/// Public entry so deep links (the wake notification's "settings/wake") can land here directly.
+class VoiceScreen extends StatelessWidget {
+  const VoiceScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => const _VoicePage();
+}
+
 class _VoicePage extends StatelessWidget {
   const _VoicePage();
 
@@ -356,6 +367,43 @@ class _VoicePage extends StatelessWidget {
     );
   }
 
+  /// The "Hello SubMac" rows: one switch, the live status underneath, and the
+  /// sensitivity slider once the voice pack is on the phone.
+  List<Widget> _wakeRows(WakeWord w, Palette p) {
+    String subtitle;
+    if (!w.enabled && (w.setup == WakeSetup.off || w.setup == WakeSetup.ready)) {
+      subtitle = tr('Say “Hello SubMac” and SubMac wakes up to listen');
+    } else {
+      subtitle = w.statusLine;
+    }
+    return [
+      SwitchListTile(
+        title: const Text('Hello SubMac'),
+        subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+        value: w.enabled,
+        onChanged: (v) => w.setEnabled(v),
+      ),
+      if (w.enabled && w.setup == WakeSetup.ready)
+        ListTile(
+          title: Text(tr('Sensitivity')),
+          subtitle: Slider(
+            value: w.sensitivity.clamp(0.1, 0.95).toDouble(),
+            min: 0.1,
+            max: 0.95,
+            divisions: 8,
+            label: '${(w.sensitivity * 100).round()}%',
+            onChanged: (v) => w.setSensitivity(v),
+          ),
+        ),
+      if (w.setup == WakeSetup.paused || w.setup == WakeSetup.error)
+        ListTile(
+          title: Text(tr('Resume the voice pack')),
+          trailing: Icon(Icons.refresh_rounded, color: p.muted),
+          onTap: () => w.download(),
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = _watchSettings(context);
@@ -366,6 +414,12 @@ class _VoicePage extends StatelessWidget {
           subtitle: Text(state.liveAvailable ? state.liveVoice : tr('Not available right now')),
           enabled: state.liveAvailable,
           onTap: () => _pickVoice(context, state),
+        ),
+      ]),
+      _Group([
+        ListenableBuilder(
+          listenable: WakeWord.I,
+          builder: (context, _) => Column(children: _wakeRows(WakeWord.I, Palette.of(context))),
         ),
       ]),
     ]);

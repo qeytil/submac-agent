@@ -28,6 +28,10 @@ extension AppStateAgentStream on AppState {
     ];
     final g = _convGroups[convId] ??= <String>{};
     g.addAll(ToolScope.hinted(t, attachments: lu?.attachments.isNotEmpty ?? false, appNames: appNames));
+    // A task whose words point at no group (something new we never wrote a hint for) still gets the general
+    // workbench: the web and the files. A novel task must never start with every capability closed, waiting
+    // for the model to think of more_tools (Claude Code rule, 2026-10-31). Groups only grow, so this is once.
+    if (g.isEmpty && !QuickLane.isSmallTalk(t)) g.addAll(const {ToolScope.browser, ToolScope.files});
     if (deepResearch) g.add(ToolScope.browser);
     if (_skillNoteUsed || _liveTaskConvs.contains(convId)) g.addAll(ToolScope.groups);
     // The Business adviser always has its books, documents and charts at hand.

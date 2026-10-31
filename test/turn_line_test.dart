@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:agent/app_state.dart';
 import 'package:agent/theme.dart';
+import 'package:agent/widgets/chat/activity.dart';
 import 'package:agent/widgets/composer.dart';
 import 'package:agent/widgets/message_view.dart';
 
@@ -56,10 +57,12 @@ void main() {
     await tester.pumpWidget(host(const SizedBox(width: 600, child: WorkingLine(key: ValueKey('live'))), dir: TextDirection.rtl));
     await tester.pump(const Duration(milliseconds: 50));
     final box = tester.getRect(find.byKey(const ValueKey('live')));
+    // The status word lives in a quiet pill; the pill (the line's visible start element) starts at the
+    // line's start edge, and the word sits one pill-padding inside it, from that edge, both directions.
+    final pill = tester.getRect(find.byType(StatusWord));
     final text = tester.getRect(find.text(WorkingLine.lineFor(null)));
-    // Plain text only (no mark before it): the word starts right at the line's start edge.
-    expect((box.right - text.right).abs(), lessThan(turnMarkSize));
-    expect(text.left - box.left, greaterThan(100));
+    expect((box.right - pill.right).abs(), lessThan(turnMarkSize));
+    expect((pill.right - text.right).abs(), 12.0);
     await tester.pumpWidget(const SizedBox());
   });
 }

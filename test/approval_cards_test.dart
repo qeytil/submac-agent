@@ -3,7 +3,6 @@
 import 'dart:async';
 
 import 'package:agent/app_state.dart';
-import 'package:agent/screens/home_screen.dart' show ConfirmSheet;
 import 'package:agent/services/confirm_queue.dart';
 import 'package:agent/services/full_access.dart';
 import 'package:agent/services/offices.dart';
@@ -175,60 +174,28 @@ void main() {
     });
   });
 
-  group('the approval sheet', () {
+  group('the inline approval card (thin, under the task\'s message — never a sheet)', () {
     Future<void> open(WidgetTester t, ActionRequest req, {Size size = const Size(400, 860), TextDirection dir = TextDirection.ltr}) async {
       _screen(t, size);
       await t.pumpWidget(_app(
-        Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => showModalBottomSheet<bool>(
-                  context: context, isScrollControlled: true, builder: (_) => SingleChildScrollView(child: ConfirmSheet(request: req))),
-              child: const Text('open'),
-            ),
-          ),
-        ),
+        Scaffold(body: SingleChildScrollView(child: ConfirmInline(request: req, onAnswer: (_) {}))),
         dir: dir,
       ));
-      await t.tap(find.text('open'));
       await t.pumpAndSettle();
     }
 
-    testWidgets('a double tap on Approve answers once and never closes the screen underneath', (t) async {
-      var popped = 0;
+    testWidgets('a double tap on Approve answers exactly once', (t) async {
+      var answered = 0;
       final req = ActionRequest(title: 'Push the changes?', body: 'Fix', detail: 'main', confirmLabel: 'Push');
-      await t.pumpWidget(_app(Builder(
-        builder: (context) => Scaffold(
-          body: TextButton(
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
-              builder: (c) => PopScope(
-                onPopInvokedWithResult: (did, _) {
-                  if (did) popped++;
-                },
-                child: Scaffold(
-                  body: TextButton(
-                    onPressed: () => showModalBottomSheet<bool>(
-                        context: c, isScrollControlled: true, builder: (_) => SingleChildScrollView(child: ConfirmSheet(request: req))),
-                    child: const Text('sheet'),
-                  ),
-                ),
-              ),
-            )),
-            child: const Text('page'),
-          ),
-        ),
+      await t.pumpWidget(_app(Scaffold(
+        body: ConfirmInline(request: req, onAnswer: (_) => answered++),
       )));
-      await t.tap(find.text('page'));
-      await t.pumpAndSettle();
-      await t.tap(find.text('sheet'));
       await t.pumpAndSettle();
       final approve = find.byKey(const ValueKey('confirm-approve'));
       await t.tap(approve);
       await t.tap(approve, warnIfMissed: false);
       await t.pumpAndSettle();
-      expect(find.byType(ConfirmSheet), findsNothing);
-      expect(find.text('sheet'), findsOneWidget, reason: 'the page under the sheet must stay');
-      expect(popped, 0);
+      expect(answered, 1);
     });
 
     testWidgets('no "Show details" when there are no details', (t) async {
@@ -240,12 +207,6 @@ void main() {
       final req = ActionRequest(title: 'Run the shop tool?', body: '', detail: 'item 4')..kind = 'money';
       await open(t, req);
       expect(find.byKey(const ValueKey('allow-always')), findsNothing);
-    });
-
-    testWidgets('an ask from another chat says where it is from', (t) async {
-      final req = ActionRequest(title: 'Click "Book"?', body: '', detail: '')..where = 'Flights to Nairobi';
-      await open(t, req);
-      expect(find.text('From Flights to Nairobi'), findsOneWidget);
     });
 
     testWidgets('Somali: labels and buttons are translated', (t) async {
@@ -263,14 +224,25 @@ void main() {
         AppLang.I.choice = lang;
         addTearDown(() => AppLang.I.choice = 'en');
         final req = ActionRequest(
-            title: 'Send this long message to the whole customer group right now?', body: 'A long body ' * 12, detail: 'd ' * 80, confirmLabel: 'Take offline')
-          ..where = 'A chat with a very long title that keeps going and going';
+            title: 'Send this long message to the whole customer group right now?', body: 'A long body ' * 12, detail: 'd ' * 80, confirmLabel: 'Take offline');
         await open(t, req, size: const Size(320, 568), dir: lang == 'ar' ? TextDirection.rtl : TextDirection.ltr);
         expect(t.takeException(), isNull);
         expect(find.byKey(const ValueKey('allow-always')), findsOneWidget);
         expect(find.byKey(const ValueKey('confirm-not-now')), findsOneWidget);
       });
     }
+
+    testWidgets('Edit on an ask with editable text opens the field in place; Cancel folds it back', (t) async {
+      final req = ActionRequest(title: 'Send this to Amal?', body: '', detail: '', confirmLabel: 'Send').withEdit('Hi Amal');
+      await open(t, req);
+      await t.tap(find.text('Edit'));
+      await t.pumpAndSettle();
+      expect(find.text('Cancel'), findsOneWidget);
+      await t.tap(find.text('Cancel'));
+      await t.pumpAndSettle();
+      expect(find.text('Edit'), findsOneWidget);
+      expect(req.edit!.edited, isFalse);
+    });
   });
 
   group('the approval card', () {

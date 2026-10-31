@@ -20,6 +20,7 @@ BlockKind blockKindOf(String? lang) {
     case 'images':
     case 'video':
     case 'qr':
+    case 'visual':
       return BlockKind.media;
     case 'summary':
     case 'draft':

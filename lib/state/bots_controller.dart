@@ -891,7 +891,7 @@ extension AppStateBots on AppState {
       _officeCtx[convId] = o.id;
       _botWakeConvs[convId] = 'office';
       _officeJobKind[convId] = j.kind;
-      await SystemBridge.I.keepAlive(true, text: '${o.name} is at work');
+      await SystemBridge.I.keepAlive(true, text: '${o.name} is working');
       final done = Completer<String>();
       final err = await startBackgroundTask(prompt, reuseConvId: convId, onDone: (r) {
         if (!done.isCompleted) done.complete(r);
@@ -1197,6 +1197,39 @@ extension AppStateBots on AppState {
     if (err != null) return null;
     final o = await Offices.I.create(name: t.name, goal: goal ?? t.goal, icon: t.icon, members: members, chiefId: chief, rules: t.rules);
     return o;
+  }
+
+  /// The Chief made a team (team_make create): resolve each member — an existing bot's name, or a plain
+  /// description that becomes a new bot — hire them, and open the office. Returns an error line, or null.
+  Future<String?> _botMakeTeam(Bot chief, Map<String, dynamic> spec) async {
+    final members = <String>[];
+    String? lead;
+    final wantLead = '${spec['chief'] ?? ''}'.trim().toLowerCase();
+    for (final m in (spec['members'] as List? ?? const [])) {
+      final text = '$m'.trim();
+      if (text.isEmpty) continue;
+      var id = Bots.I.byName(text)?.id;
+      if (id == null) {
+        final nb = await createBotFromText(text);
+        id = nb?.id;
+        if (id == null) return 'Could not make a bot from "${text.length > 40 ? '${text.substring(0, 40)}…' : text}". Try again with plainer words.';
+      }
+      if (!members.contains(id)) members.add(id);
+      if (lead == null && (wantLead.isEmpty || wantLead == text.toLowerCase() || Bots.I.byId(id)?.name.toLowerCase() == wantLead)) lead = id;
+    }
+    if (members.length < 2) return 'A team needs at least two members.';
+    lead ??= members.first;
+    final err = await prepareOfficeBots(members);
+    if (err != null) return err;
+    final icon = '${spec['icon'] ?? ''}'.trim();
+    await Offices.I.create(
+        name: '${spec['name'] ?? ''}',
+        goal: '${spec['goal'] ?? ''}',
+        icon: icon.isEmpty ? 'work' : icon,
+        members: members,
+        chiefId: lead,
+        rules: '${spec['rules'] ?? ''}');
+    return null;
   }
 
   /// Who is working in an office right now ("Nova: Competitor prices").

@@ -9,7 +9,6 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
-import android.widget.RemoteViews
 
 /** Calm system notifications: a task finished, a scheduled task ran, the wake word needs a tap. */
 object Notifier {
@@ -118,16 +117,7 @@ object Notifier {
     fun builder(ctx: Context, channel: String): Notification.Builder =
         if (Build.VERSION.SDK_INT >= 26) Notification.Builder(ctx, channel) else Notification.Builder(ctx)
 
-    private fun kicker(kind: String) = when (kind) {
-        "scheduled" -> "SUBMAC  ·  ON SCHEDULE"
-        "attention" -> "SUBMAC  ·  FOR YOU"
-        "approval" -> "SUBMAC  ·  NEEDS YOUR OK"
-        "paused" -> "SUBMAC  ·  PAUSED"
-        "info" -> "SUBMAC"
-        else -> "SUBMAC  ·  READY"
-    }
-
-    /** A quiet, editorial notification: red kicker, serif headline, one short line. Never the full reply. */
+    /** A quiet notification: one plain line that says what matters. Never the full reply. */
     fun task(ctx: Context, id: Int, title: String, body: String, payload: String, kind: String = "done") {
         ensureChannels(ctx)
         val prefs = ctx.getSharedPreferences("submac_notes", Context.MODE_PRIVATE)
