@@ -243,6 +243,11 @@ class BrowserAgent extends ChangeNotifier {
   Future<bool> onConfirm(BrowserTab t, String msg) async {
     onDialog(t, 'confirm', msg);
     if (!PageRisk.dialogNeedsOk(msg) || approveDialog == null) return true;
+    if (Zone.current[#smUnattended] == true) {
+      // A scheduled run has nobody to ask: the confirmation is refused, and the job is told why.
+      t.dialogs.add('nobody was watching to confirm this (a scheduled run), so it was cancelled');
+      return false;
+    }
     final ok = await Bounded.run<bool>(approveDialog!(msg, t.host, t.owner), const Duration(minutes: 5), false);
     t.dialogs.add(ok ? 'the user approved it' : 'the user said no, so it was cancelled');
     return ok;
@@ -424,6 +429,7 @@ class BrowserAgent extends ChangeNotifier {
   }
 
   Future<void> _waitIfUser() async {
+    if (Zone.current[#smUnattended] == true) return; // a scheduled run has nobody to hand the browser to
     if (!userControl || _handBack == null) return;
     await Bounded.orCancel<void>(_handBack!.future, _endOf(jobNow), limit: userLimit);
   }
@@ -621,6 +627,7 @@ class BrowserAgent extends ChangeNotifier {
     'browser_fetch',
     'browser_schema',
     'browser_extract',
+    'browser_extract_many',
     'browser_play',
     'browser_copy',
     'browser_login',
@@ -766,6 +773,20 @@ class BrowserAgent extends ChangeNotifier {
           'limit': {'type': 'integer', 'description': 'Cap the rows (default 200).'},
         },
         ['rows', 'fields']),
+    _fn('browser_extract_many',
+        'The same fields from SEVERAL pages in one step: give links (a list of URLs, or a CSS selector whose links are '
+            'collected from this page) and it reads them all — fetched, not rendered — and returns ONE table with a '
+            'source column. Up to 8 pages, no tab switching, no waiting for each page to draw. Pages built by scripts '
+            'come back as "not read": open those with browser_open and use browser_extract. Show the result as a ```data card.',
+        {
+          'links': {'type': 'array', 'items': {'type': 'string'}, 'description': 'The page URLs to read.'},
+          'from': {'type': 'string', 'description': 'Instead of links: a CSS selector whose links (on this page) to read, e.g. ".result a".'},
+          'rows': {'type': 'string', 'description': 'CSS selector matching each item on those pages, e.g. ".product-card".'},
+          'fields': {'type': 'object', 'description': 'What to take from each row, e.g. {"name": ".title", "price": ".price"}.'},
+          'limit': {'type': 'integer', 'description': 'Cap the rows per page (default 50).'},
+          'max_pages': {'type': 'integer', 'description': 'Cap the pages read (default 6, max 8).'},
+        },
+        ['rows', 'fields']),
     _fn('browser_play',
         'Site skills: a flow you did on this site before replays with no thinking per step. "list" shows the skills saved '
             'for this site; "run" replays one (values override typed fields; it pauses on payment pages for the user\'s OK); '
@@ -854,6 +875,7 @@ class BrowserAgent extends ChangeNotifier {
         case 'browser_fetch':
         case 'browser_schema':
         case 'browser_extract':
+        case 'browser_extract_many':
         case 'browser_play':
         case 'browser_find':
           return tr('Reading {site}', {'site': site()});
@@ -1033,6 +1055,8 @@ class BrowserAgent extends ChangeNotifier {
           return await _schema(c, a);
         case 'browser_extract':
           return await _extract(c, a);
+        case 'browser_extract_many':
+          return await _extractMany(c, t, a);
         case 'browser_play':
           final p = await _play(c, t, a);
           if (a['action'] != 'run') return p;
@@ -1165,6 +1189,76 @@ class BrowserAgent extends ChangeNotifier {
     return formatExtract(raw);
   }
 
+  /// Many pages, one table (P5): the links are fetched together with the WebView's own cookies and each page is
+  /// parsed by the same walker in one JS call — no tab per page, no render, no waiting for the page to draw.
+  /// Pages that only exist after their scripts run are reported back, not guessed at.
+  Future<String> _extractMany(InAppWebViewController c, BrowserTab t, Map<String, dynamic> a) async {
+    if (_ended2(jobNow)) return 'Stopped: this browser task has ended.';
+    final rows = '${a['rows'] ?? ''}'.trim();
+    if (rows.isEmpty) return 'Error: give rows — the CSS selector that matches each item on those pages.';
+    final limitRaw = _intV(a['limit']);
+    final limit = limitRaw <= 0 ? 50 : limitRaw.clamp(1, 200).toInt();
+    final pagesRaw = _intV(a['max_pages']);
+    final maxPages = pagesRaw <= 0 ? 6 : pagesRaw.clamp(1, 8).toInt();
+    final spec = {
+      'rows': rows,
+      'fields': a['fields'] is Map ? a['fields'] : <String, dynamic>{},
+      'limit': limit,
+    };
+    var links = <String>[];
+    if (a['links'] is List) {
+      links = [for (final e in a['links'] as List) '$e'.trim()];
+    } else if ('${a['from'] ?? ''}'.trim().isNotEmpty) {
+      final sel = '${a['from']}'.trim();
+      final raw = await _js(
+          c,
+          'return JSON.stringify([].slice.call(document.querySelectorAll(${jsonEncode(sel)}), 0, 40)'
+              '.map(function(e){return e.href || e.getAttribute("href") || "";}).filter(function(u){return !!u;}));',
+          limit: const Duration(seconds: 8));
+      try {
+        final l = jsonDecode(raw);
+        if (l is List) links = [for (final e in l) '$e'.trim()];
+      } catch (_) {}
+      if (links.isEmpty) {
+        return 'No links matched "$sel" on this page. Give links: [...] instead, or check the selector with browser_read.';
+      }
+    }
+    // Real pages only, absolute, once each, in the order given.
+    final base = Uri.tryParse(t.url);
+    final seen = <String>{};
+    final urls = <String>[];
+    for (final l in links) {
+      if (l.isEmpty) continue;
+      final u = Uri.tryParse(l);
+      final abs = u == null ? null : (u.hasScheme ? u : (base == null ? null : base.resolveUri(u)));
+      if (abs == null || (abs.scheme != 'http' && abs.scheme != 'https')) continue;
+      if (seen.add(abs.toString())) urls.add(abs.toString());
+      if (urls.length >= maxPages) break;
+    }
+    if (urls.isEmpty) return 'Error: no usable http(s) links to read.';
+    // Fetched together (fast), parsed one at a time (the page script is one engine).
+    final bodies = await Future.wait(urls.map(_httpGet));
+    final pages = <ExtractPage>[];
+    for (var i = 0; i < urls.length; i++) {
+      final res = bodies[i];
+      if (res == null) {
+        pages.add(ExtractPage(urls[i], error: 'could not be fetched'));
+        continue;
+      }
+      if (_ended2(jobNow)) return 'Stopped: this browser task has ended.';
+      final html = res.body.length > 400000 ? res.body.substring(0, 400000) : res.body;
+      final raw = await _js(c, 'return S.extractHtml(${jsonEncode(html)}, ${jsonEncode(spec)});', limit: const Duration(seconds: 12));
+      final p = parseExtractPage(urls[i], raw);
+      // A page that is all script has no items until it runs: say so instead of reporting an empty page.
+      if (p.ok && p.rows.isEmpty && html.length < 2000) {
+        pages.add(ExtractPage(urls[i], error: 'needs a render'));
+        continue;
+      }
+      pages.add(p);
+    }
+    return formatManyExtract(pages);
+  }
+
   // ---- site skills (browser_play): list, save what worked, replay with no model calls ----
   /// A saved flow replays step by step against the live page. It never thinks, never spends a model call,
   /// and never decides for the user: on the first step that no longer matches, or when a payment page is
@@ -1281,6 +1375,28 @@ class BrowserAgent extends ChangeNotifier {
   Future<String?> _fetchRead(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasScheme) return null;
+    final res = await _httpGet(url);
+    if (res == null) return null; // let the browser show the error page
+    if (res.ct.contains('json')) {
+      var out = res.body;
+      try {
+        out = const JsonEncoder.withIndent('  ').convert(jsonDecode(res.body));
+      } catch (_) {}
+      return 'Served from fetch, no render — ${uri.host} (JSON, ${res.status})\n$url\n\n'
+          '${out.length > 8000 ? '${out.substring(0, 8000)}…' : out}';
+    }
+    if (!res.ct.contains('html') && !res.ct.contains('text')) return null;
+    final text = htmlToText(res.body);
+    if (text.length < 200) return null; // a script shell: the browser has to draw it
+    final title = htmlTitle(res.body);
+    return 'Served from fetch, no render — ${title.isEmpty ? uri.host : title}\n$url\n\n$text';
+  }
+
+  /// One GET with the WebView's own cookies (same session, no CORS, no render). Null when it fails.
+  /// Used by the read-only open and by the many-page extraction.
+  Future<({int status, String ct, String body})?> _httpGet(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return null;
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
       final cookies = await CookieManager.instance().getCookies(url: WebUri(url)).timeout(const Duration(seconds: 3));
@@ -1289,22 +1405,10 @@ class BrowserAgent extends ChangeNotifier {
       req.headers.set('user-agent', 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36');
       req.headers.set('accept', 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8');
       final res = await req.close().timeout(const Duration(seconds: 15));
-      if (res.statusCode >= 400) return null; // let the browser show the error page
+      if (res.statusCode >= 400) return null;
       final ct = (res.headers.contentType?.mimeType ?? '').toLowerCase();
       final body = await const Utf8Decoder(allowMalformed: true).bind(res).join().timeout(const Duration(seconds: 10));
-      if (ct.contains('json')) {
-        var out = body;
-        try {
-          out = const JsonEncoder.withIndent('  ').convert(jsonDecode(body));
-        } catch (_) {}
-        return 'Served from fetch, no render — ${uri.host} (JSON, ${res.statusCode})\n$url\n\n'
-            '${out.length > 8000 ? '${out.substring(0, 8000)}…' : out}';
-      }
-      if (!ct.contains('html') && !ct.contains('text')) return null;
-      final text = htmlToText(body);
-      if (text.length < 200) return null; // a script shell: the browser has to draw it
-      final title = htmlTitle(body);
-      return 'Served from fetch, no render — ${title.isEmpty ? uri.host : title}\n$url\n\n$text';
+      return (status: res.statusCode, ct: ct, body: body);
     } catch (_) {
       return null;
     } finally {

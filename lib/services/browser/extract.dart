@@ -71,3 +71,82 @@ String formatExtract(String raw, {int maxChars = 14000}) {
   return '${rows.length} rows${(j['n'] as num?)?.toInt() != rows.length ? ' (of ${(j['n'] as num?)?.toInt() ?? rows.length} on the page)' : ''}. '
       'Show this to the user as a ```data card when it answers the task.\n\n$out';
 }
+
+/// One page's answer in a browser_extract_many run.
+class ExtractPage {
+  const ExtractPage(this.url, {this.rows = const <Map<String, dynamic>>[], this.error});
+  final String url;
+  final List<Map<String, dynamic>> rows;
+  final String? error;
+
+  bool get ok => error == null;
+}
+
+/// Reads one page's raw answer; a failure is kept as a page, never thrown away silently.
+ExtractPage parseExtractPage(String url, String raw) {
+  dynamic j;
+  try {
+    j = jsonDecode(raw);
+  } catch (_) {
+    return ExtractPage(url, error: 'no readable answer');
+  }
+  if (j is! Map) return ExtractPage(url, error: 'no readable answer');
+  if (j['err'] != null) return ExtractPage(url, error: '${j['err']}');
+  final rows = j['rows'];
+  if (rows is! List) return ExtractPage(url, error: 'no rows in the answer');
+  return ExtractPage(url, rows: [
+    for (final r in rows)
+      if (r is Map) Map<String, dynamic>.from(r),
+  ]);
+}
+
+/// A page name short enough for a table column: host and a little of the path.
+String shortSource(String url) {
+  var s = url.trim();
+  s = s.replaceFirst(RegExp(r'^https?://'), '');
+  if (s.startsWith('www.')) s = s.substring(4);
+  if (s.endsWith('/')) s = s.substring(0, s.length - 1);
+  return s.length > 48 ? '${s.substring(0, 48)}…' : s;
+}
+
+/// What browser_extract_many returns: every page's rows in ONE table, each row carrying the page it came from.
+/// The same `source` value twice is dropped, and the table is capped, so eight pages cannot flood the chat.
+String formatManyExtract(List<ExtractPage> pages, {int maxChars = 16000, int maxRows = 400}) {
+  final good = pages.where((p) => p.ok).toList();
+  final bad = pages.where((p) => !p.ok).toList();
+  final merged = <Map<String, dynamic>>[];
+  final seen = <String>{};
+  for (final p in good) {
+    final src = shortSource(p.url);
+    for (final r in p.rows) {
+      final row = <String, dynamic>{'source': src};
+      for (final e in r.entries) {
+        if (e.key == 'source') continue; // the page always wins, so a field cannot fake it
+        row[e.key] = e.value;
+      }
+      if (!seen.add(jsonEncode(row))) continue;
+      merged.add(row);
+      if (merged.length >= maxRows) break;
+    }
+    if (merged.length >= maxRows) break;
+  }
+  if (merged.isEmpty) {
+    final why = bad.isEmpty ? 'No items matched those selectors on any of the ${pages.length} pages.'
+        : 'Nothing came back: ${bad.map((p) => '${shortSource(p.url)} (${p.error})').join('; ')}.';
+    return '$why The pages that need scripts can be opened one by one with browser_open and read with browser_extract.';
+  }
+  var out = const JsonEncoder.withIndent('  ').convert(merged);
+  if (out.length > maxChars) {
+    out = '${out.substring(0, maxChars)}\n…(truncated at $maxChars of ${out.length} chars)';
+  }
+  final sb = StringBuffer()
+    ..writeln('${merged.length} rows from ${good.length} page${good.length == 1 ? '' : 's'}. '
+        'Show this to the user as a ```data card when it answers the task.');
+  if (bad.isNotEmpty) {
+    sb.writeln('Not read (${bad.length}): ${bad.map((p) => '${shortSource(p.url)} — ${p.error}').join('; ')}. '
+        'Those pages build their content with scripts: open them with browser_open and extract one by one.');
+  }
+  sb.writeln();
+  sb.write(out);
+  return sb.toString();
+}

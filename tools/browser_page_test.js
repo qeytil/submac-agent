@@ -181,6 +181,21 @@ function page(html, pre) {
   try { JSON.parse(S.extract({ rows: 'a[bad' })); } catch (e) { noThrow = false; }
   ok(noThrow, 'a bad selector answers (err on strict engines), never throws');
 }
+// 10. The same walker on HTML that was never rendered (many links, no navigation).
+{
+  const w = page(`<div class="card" data-r="10,10,380,120"><h3 class="name">Live</h3></div>`);
+  const S = w.__sm2;
+  const html = '<html><body><div class="card"><h3 class="name">Far shoes</h3>' +
+    '<span class="price">$5.00</span><a href="/p/far">View</a></div>' +
+    '<div class="card"><h3 class="name">Far hat</h3><span class="price">$7.00</span></div></body></html>';
+  const r = JSON.parse(S.extractHtml(html, { rows: '.card', fields: { name: '.name', price: '.price', link: { sel: 'a', attr: 'href' } } }));
+  ok(r.n === 2 && r.rows.length === 2, 'extractHtml walks a fetched page (got ' + JSON.stringify(r).slice(0, 80) + ')');
+  ok(r.rows[0].name === 'Far shoes' && r.rows[0].price === '$5.00' && r.rows[0].link === '/p/far', 'fields resolved from the string');
+  ok(r.rows[1].link === null, 'a missing field is null on a fetched page too');
+  ok(JSON.parse(S.extract({ rows: '.card', fields: { name: '.name' } })).rows[0].name === 'Live', 'the live page is untouched by extractHtml');
+  ok(JSON.parse(S.extractHtml('', { rows: '.card' })).n === 0, 'empty html is no rows, not an error');
+  ok(JSON.parse(S.extractHtml(html, {})).err, 'a spec with no rows still answers with an error');
+}
 })().then(() => {
   console.log(fails ? fails + ' FAILED' : 'ALL OK');
   process.exit(fails ? 1 : 0);

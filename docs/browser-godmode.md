@@ -143,7 +143,24 @@ Three cuts that convert directly into more steps per budget.
   cookie manager) + readability pass; if the text answers a read-only task, return it in ONE step with
   `Served from fetch, no render`. Render only for interactive work. Read-heavy research gets 10×+ faster.
 
-### P5 — The fleet: scale and fan-out
+### P5 — The fleet: scale and fan-out — SHIPPED 2026-10-31
+- **Six jobs at once** (`BrowserJobs.maxParallel` 3 → 6), each with its own tab, all under **one shared fleet budget** (`fleetSteps = 400`): a seventh task is refused with the ids of the six that are running, and the fleet's step count resets when no job is live. Six jobs can no longer spend the user's whole day.
+- **`browser_extract_many`**: "these fields from each of these links" in one step. Links come as a list, or as `from:` — a CSS selector whose links are collected on the current page. The pages are **fetched together** with the WebView's own cookies and each one is parsed by the same CSS walker in a single JS call (`S.extractHtml` + `DOMParser` on the fetched HTML) — no tab per page, no render, no waiting for eight pages to draw. Rows from every page land in **one table with a `source` column**; identical rows are kept once, the table is capped at 400 rows, and pages that only exist after their scripts run come back as `Not read (n): … needs a render` with the way forward (open + `browser_extract`).
+- Code: `browser_jobs.dart` (cap, fleet budget, `keepAwake`), `browser_agent.dart` (`_extractMany`, `_httpGet` shared with `_fetchRead`), `browser/extract.dart` (`ExtractPage`, `parseExtractPage`, `formatManyExtract`, `shortSource`), `tools/browser_page.js` v10 (`walkRows` + `S.extractHtml`). Tests: `test/browser_fleet_test.dart`, jsdom §10.
+- Boundary (honest): the many-page read is HTTP, so pages whose content is built in the browser are reported, not scraped — one `browser_open` + `browser_extract` each; the walker is the same one, so `limit`/`fields` behave identically.
+
+### P5b — Background: browser work inside scheduled tasks — SHIPPED 2026-10-31
+A scheduled task used to be able to *ask* for a browser task, but the browser job behaved as if the user were watching: it paused at every check-in, asked before risky presses, and could hand the browser back to a person who was not there.
+- **Unattended runs.** A scheduled run's conversation is already marked (`_scheduledConvs`), so `browser_task` now passes `unattended: true` to the job. Such a job:
+  - never pauses for a check-in (`BrowserJobs.shouldCheckIn`) — it keeps working until its own step/time budget ends it;
+  - never waits for a hand-back to the user (`_waitIfUser` returns at once in the `#smUnattended` zone);
+  - never asks: its `ask` tool ends the run with `failed` and the exact question ("Stopped for the user's approval: …"), a JS `confirm()` that would send/pay/delete is refused with a line saying nobody was watching, and a browser press that needs approval is refused by the gate at once instead of blocking on an approval nobody will answer;
+  - is told so in its prompt ("THIS RUN IS IN THE BACKGROUND … one plain line a notification can show"), so the result is one line the scheduled notification can show.
+- **Holds the phone awake**: `BrowserJobs.keepAwake` is wired to the same bridge the teams use, so a scheduled browser job survives the app being closed, and lets go only when nothing else is running.
+- Code: `browser_jobs.dart` (`BrowserJob.unattended`, `shouldCheckIn`, prompt block, `keepAwake`), `browser_agent.dart` (`_waitIfUser`, `onConfirm`), `tool_router.dart` (`unattended:` from the scheduled conversation, gate refusal), `system_phone.dart` (`keepAwake` wiring). Tests: `test/browser_fleet_test.dart`.
+- Boundary (honest): the scheduler still runs the task's agent, which starts the browser job — the job is unattended for its whole life, even if the user opens that chat later; and a background job that needs money, posting or a password stops rather than guessing.
+
+### P5 — The fleet: scale and fan-out (original plan)
 - Raise the job cap (3 → 6–8) with a global step/token budget; per-job tabs stay owned (existing pattern).
 - `browser_extract_many`: "extract this schema from each of these links" → parallel tabs, merged into
   one ```data``` table card. This is the demonstration users will screenshot: *30 product pages →
@@ -171,7 +188,8 @@ Three cuts that convert directly into more steps per budget.
 - **No CAPTCHA-solving services.** Captchas go to `ask_user` (human solves, agent continues) — same
   honesty rule as payments. A "god" that lies about being human is not the product.
 - **No scraping of what the site forbids.** BrowserGate's money/risk heuristics extend to replay
-  (P3): replays never bypass approvals.
+  (P3): replays never bypass approvals — and a background run never approves anything on the user's
+  behalf, it stops and says what needs their OK (P5b).
 
 ---
 
@@ -183,6 +201,8 @@ An internal eval set, like `prompt_eval` but for the browser — 20 recorded tas
 3. **Breadth**: extract-many over 20 links → one table, zero dropped rows.
 4. **Data layer**: tasks only answerable via network JSON (e.g. "exact fare breakdown") — pass rate.
 5. **Cost**: tokens per task (target: ÷2 via diffing).
+6. **Unattended**: a scheduled browser task completes with the app closed, never waits on a person, and
+   its notification line answers the task in one sentence (or says exactly what needs approval).
 
-Each phase lands with its eval slice green before the next starts. Order: P1 → P2 → P3 → P4 → P5 → P6
-(P1+P2 are one release; P3 is the release after; P4–P6 follow as capacity allows).
+Each phase lands with its eval slice green before the next starts. Order: P1 → P2 → P3 → P4 → P5 (+P5b
+background) → P6 (P1+P2 are one release; P3 is the release after; P4–P6 follow as capacity allows).

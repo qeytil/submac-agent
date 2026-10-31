@@ -4,7 +4,7 @@
 // coordinates the agent sees are fractions of the VISUAL viewport (what the screenshot shows), so
 // pinch zoom, device pixel ratio and scroll never shift a tap.
 (function () {
-  var VERSION = 9;
+  var VERSION = 10;
   if (window.__sm2 && window.__sm2.v === VERSION) return;
   var S = (window.__sm2 = { v: VERSION });
 
@@ -508,36 +508,51 @@
   // The walker: every element matching `rows` becomes one record of the given fields, in ONE call —
   // instead of the read-page -> reason -> retype loop. fields: {name: 'css'} takes the row-relative
   // text; {name: {sel: 'a', attr: 'href'}} takes an attribute. Values capped at 300 chars.
+  // It takes any root (the live document, or a parsed one), so the same walker serves pages fetched
+  // over HTTP without rendering them.
+  function walkRows(root, spec) {
+    spec = spec || {};
+    var sel = String(spec.rows || '');
+    if (!sel) return { err: 'rows: a CSS selector that matches each item' };
+    var rows;
+    try { rows = root.querySelectorAll(sel); } catch (e) { return { err: 'bad rows selector: ' + e }; }
+    if (!rows.length) return { n: 0, rows: [] };
+    var fields = spec.fields || {}, out = [];
+    var cap = Math.min(rows.length, Math.max(1, Math.min(200, spec.limit | 0 || 200)));
+    for (var r = 0; r < cap; r++) {
+      var el = rows[r], o = {};
+      for (var key in fields) {
+        var f = fields[key], fsel = null, attr = null;
+        if (typeof f === 'string') fsel = f;
+        else if (f && typeof f === 'object') { fsel = f.sel ? String(f.sel) : null; attr = f.attr ? String(f.attr) : null; }
+        var t = fsel ? el.querySelector(fsel) : el;
+        if (!t) { o[key] = null; continue; }
+        var v;
+        if (attr && attr !== 'text') {
+          v = (attr === 'href' || attr === 'src') ? (t.getAttribute(attr) || t[attr] || '') : (t.getAttribute(attr) || '');
+        } else {
+          v = t.textContent || t.value || t.getAttribute('content') || '';
+        }
+        v = txt(v);
+        o[key] = v.length > 300 ? v.slice(0, 300) + '…' : v;
+      }
+      out.push(o);
+    }
+    return { n: rows.length, rows: out };
+  }
   S.extract = function (spec) {
     try {
-      spec = spec || {};
-      var sel = String(spec.rows || '');
-      if (!sel) return JSON.stringify({ err: 'rows: a CSS selector that matches each item' });
-      var rows;
-      try { rows = document.querySelectorAll(sel); } catch (e) { return JSON.stringify({ err: 'bad rows selector: ' + e }); }
-      if (!rows.length) return JSON.stringify({ n: 0, rows: [] });
-      var fields = spec.fields || {}, out = [];
-      var cap = Math.min(rows.length, Math.max(1, Math.min(200, spec.limit | 0 || 200)));
-      for (var r = 0; r < cap; r++) {
-        var el = rows[r], o = {};
-        for (var key in fields) {
-          var f = fields[key], fsel = null, attr = null;
-          if (typeof f === 'string') fsel = f;
-          else if (f && typeof f === 'object') { fsel = f.sel ? String(f.sel) : null; attr = f.attr ? String(f.attr) : null; }
-          var t = fsel ? el.querySelector(fsel) : el;
-          if (!t) { o[key] = null; continue; }
-          var v;
-          if (attr && attr !== 'text') {
-            v = (attr === 'href' || attr === 'src') ? (t.getAttribute(attr) || t[attr] || '') : (t.getAttribute(attr) || '');
-          } else {
-            v = t.textContent || t.value || t.getAttribute('content') || '';
-          }
-          v = txt(v);
-          o[key] = v.length > 300 ? v.slice(0, 300) + '…' : v;
-        }
-        out.push(o);
-      }
-      return JSON.stringify({ n: rows.length, rows: out });
+      var r = walkRows(document, spec);
+      return JSON.stringify(r.err ? { err: r.err } : r);
+    } catch (e) { return JSON.stringify({ err: '' + e }); }
+  };
+  // The same walker on an HTML string that was never rendered: one page fetched over HTTP is parsed
+  // here, so a list of links costs no navigation and no waiting.
+  S.extractHtml = function (html, spec) {
+    try {
+      var doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+      var r = walkRows(doc, spec);
+      return JSON.stringify(r.err ? { err: r.err } : r);
     } catch (e) { return JSON.stringify({ err: '' + e }); }
   };
   // The one-line summary the observe payload gains: "JSON-LD Product ×2, state 84.3KB, og:8".

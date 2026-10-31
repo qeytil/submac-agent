@@ -92,6 +92,15 @@ extension AppStateSystem on AppState {
           await SystemBridge.I.keepAlive(false);
         }
       };
+    // A browser task started by a scheduled run works with the app closed, so it holds the phone awake the
+    // same way a team does, and lets go only when nothing else is running.
+    BrowserJobs.I.keepAwake = (on) async {
+      if (on) {
+        await SystemBridge.I.keepAlive(true, text: 'Working on your browser task');
+      } else if (!runs.any((r) => !r.side) && _officeBusy.isEmpty) {
+        await SystemBridge.I.keepAlive(false);
+      }
+    };
     Bots.I.resolveModel = resolveModelHint;
     Bots.I.isAppConnected = botAppConnected;
     b.onPhoneStop = () {
