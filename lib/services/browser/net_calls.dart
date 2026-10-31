@@ -76,7 +76,7 @@ String formatNetBody(NetCall c) {
 String formatFetch({required String method, required String url, required int status, required String ct, required String body}) {
   final c = NetCall(id: 0, url: url, method: method, status: status, ct: ct, size: body.length, body: body);
   if (status == 0) return '$method $url → no answer (network error or blocked). Try the page itself instead.';
-  final kind = c.kb;
+  final kind = c.kind;
   if (RegExp(r'image|video|audio|font|octet-stream|pdf|zip|gzip|compressed|msword|spreadsheet|presentation', caseSensitive: false).hasMatch(ct)) {
     return '$method $url → $status binary response ($kind, ${c.kb}). browser_download saves files like this.';
   }
