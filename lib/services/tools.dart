@@ -20,13 +20,12 @@ class AgentTools {
       'command': {'type': 'string', 'description': 'The shell command to run.'},
       'timeout_seconds': {'type': 'integer', 'description': 'Max seconds to wait (default 60, max 300).'},
     }, ['command']),
-    _fn('read_file', 'Read a UTF-8 text file. Relative paths are resolved from the workspace. Long files come in parts: pass offset to read on. '
-        'For code or anything you will edit, pass start_line (and end_line): you get numbered lines, so you can find your place, '
-        'quote the exact text for edit_file, and read a big file part by part.', {
+    _fn('read_file', 'Read a UTF-8 text file. Relative paths are resolved from the workspace. Long files: offset reads on; '
+        'start_line/end_line give numbered lines.', {
       'path': {'type': 'string'},
-      'offset': {'type': 'integer', 'description': 'Character to start from (default 0).'},
-      'start_line': {'type': 'integer', 'description': 'First line to read, 1-based. Returns numbered lines.'},
-      'end_line': {'type': 'integer', 'description': 'Last line to read (default: start_line + 399).'},
+      'offset': {'type': 'integer'},
+      'start_line': {'type': 'integer'},
+      'end_line': {'type': 'integer'},
     }, ['path']),
     _fn('write_file', 'Create or overwrite a text file. Relative paths are resolved from the workspace. '
         'Keep one call under about 150 lines: for a longer file, write the first part here, then add the rest with append_file.', {

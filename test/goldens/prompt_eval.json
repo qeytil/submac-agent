@@ -249,8 +249,8 @@
   },
   {
     "text": "xisaabi 15% of 2400",
-    "lane": "light",
-    "fastStart": true,
+    "lane": "full",
+    "fastStart": false,
     "groups": [
       "cards",
       "files",
@@ -288,7 +288,7 @@
   },
   {
     "text": "Explain photosynthesis without using jargon, in 3 sentences",
-    "lane": "light",
+    "lane": "full",
     "fastStart": false,
     "groups": [
       "cards"

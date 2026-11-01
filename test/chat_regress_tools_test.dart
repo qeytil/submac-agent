@@ -386,10 +386,12 @@ void main() {
       expect(b.after('fetch_url', 'Error: x'), 'Error: x');
     });
 
-    test('a read-only browser_task runs once per task; tasks that act are not capped', () {
+    test('read-only browser_tasks run three times per task (core loop v3); tasks that act are not capped', () {
       final b = SearchBudget();
       expect(b.before('browser_task', {'goal': 'Find the price of the Galaxy S25 on samsung.com'}), isNull);
-      expect(b.before('browser_task', {'goal': 'Look up the S25 price on another shop'}), SearchBudget.browserCapText);
+      expect(b.before('browser_task', {'goal': 'Look up the S25 price on another shop'}), isNull);
+      expect(b.before('browser_task', {'goal': 'Look up the S25 price on a third shop'}), isNull);
+      expect(b.before('browser_task', {'goal': 'Look up the S25 price on a fourth shop'}), SearchBudget.browserCapText);
       expect(b.before('browser_task', {'goal': 'Sign in to my bank and download the statement'}), isNull);
       expect(b.before('browser_task', {'goal': 'Book a table for two at 8pm'}), isNull);
       expect(b.before('web_search', {'query': 'x'}), isNull);

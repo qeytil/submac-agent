@@ -102,8 +102,13 @@ class LoopGuard {
       }
       if (l3.every((s) => s.error && s.name == l3.last.name)) return LoopSignal(LoopKind.failingTool, tool: l3.last.name);
     }
-    // (Core loop v3: the "same call six times, whatever it returned" rule is gone. Polling a build, a job or a page
-    // that is still changing is legitimate; only the same call with the SAME result, or the same error, is a loop.)
+    // Core loop v3: the "same call six times, whatever it returned" rule is gone. Polling a build, a job or a page that
+    // is still changing is legitimate; only the same call with the SAME result is a loop. Patient tools (scroll, wait)
+    // get nine identical tries instead of three.
+    if (n >= 9 && _patient.contains(_steps.last.name)) {
+      final tail = _steps.sublist(n - 9);
+      if (tail.every((s) => s.sig == tail.last.sig && s.out == tail.last.out)) return LoopSignal(LoopKind.repeat, tool: tail.last.name);
+    }
     if (n >= 6) {
       final t = _steps.sublist(n - 6);
       final a = t[0].sig, b = t[1].sig;

@@ -1061,9 +1061,8 @@ class AppState extends ChangeNotifier {
     'type': 'function',
     'function': {
       'name': 'more_tools',
-      'description': 'Open your full toolbox (browser, phone control, texts and calls, WhatsApp, files and documents, running code (Python), '
-          'connected apps and email, scheduled tasks, pictures, video and sound, business books, the health book, prayer times and '
-          'the money notebook). '
+      'description': 'Open your full toolbox (browser, phone control, texts and calls, WhatsApp, files and documents, Python, '
+          'connected apps and email, scheduled tasks, pictures and sound, prayer times and the money notebook). '
           'Call it first whenever the request needs any tool you do not see here. Never tell the user you cannot do something before calling it.',
       'parameters': {
         'type': 'object',
