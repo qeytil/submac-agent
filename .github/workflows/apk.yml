@@ -79,6 +79,14 @@ jobs:
           # has no anydpi-v26 at all, only five legacy PNGs.
           test -f "$R/mipmap-anydpi-v26/ic_launcher.xml" \
             || { echo "::error::no mipmap-anydpi-v26/ic_launcher.xml — the Flutter default icon is still in place"; exit 1; }
+          # The launch screen draws the mark from the adaptive foreground, and Android 13 themed icons need the
+          # monochrome layer: both must exist or the build would fail (or theme a blank square).
+          test -f "$R/drawable-xxxhdpi/ic_launcher_foreground.png" \
+            || { echo "::error::no ic_launcher_foreground — the launch screen has no mark to draw"; exit 1; }
+          test -f "$R/drawable-xxxhdpi/ic_launcher_monochrome.png" \
+            || { echo "::error::no ic_launcher_monochrome — Android 13 themed icons would show a blank square"; exit 1; }
+          grep -q monochrome "$R/mipmap-anydpi-v26/ic_launcher.xml" \
+            || { echo "::error::ic_launcher.xml has no monochrome layer"; exit 1; }
           ls -l "$R"/mipmap-*/ic_launcher.png
 
       - name: Build ${{ inputs.variant }} APK

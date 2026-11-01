@@ -181,6 +181,7 @@ void main() {
   late FakeAccount account;
 
   setUp(() async {
+    BotSync.I.debugReset();
     await _freshPhone();
     account = FakeAccount()..uid = 'acct-A';
     BotSync.debugClient = SupabaseClient('http://fake.local', 'anon-key',

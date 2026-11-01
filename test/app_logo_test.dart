@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('New SubMac logo', () {
     test('launcher icon sources exist at full size', () {
-      for (final f in ['assets/icon.png', 'assets/icon_ios.png', 'assets/icon_fg.png', 'assets/icon_bg.png']) {
+      for (final f in ['assets/icon.png', 'assets/icon_ios.png', 'assets/icon_fg.png', 'assets/icon_bg.png', 'assets/icon_mono.png']) {
         final file = File(f);
         expect(file.existsSync(), isTrue, reason: f);
         final b = file.readAsBytesSync();
@@ -26,7 +26,30 @@ void main() {
       expect(pub, contains('adaptive_icon_foreground: assets/icon_fg.png'));
       expect(pub, contains('adaptive_icon_background: assets/icon_bg.png'));
       expect(pub, contains('adaptive_icon_foreground_inset: 0'));
+      expect(pub, contains('adaptive_icon_monochrome: assets/icon_mono.png'));
       expect(pub, contains('- assets/brand/'));
+    });
+
+    test('the launch screen is SubMac, not the white Flutter template (light and dark, Android 12+)', () {
+      for (final f in ['android_native/res/drawable/launch_background.xml', 'android_native/res/drawable-v21/launch_background.xml']) {
+        final x = File(f).readAsStringSync();
+        expect(x, contains('@color/submac_launch_sky'), reason: f);
+        expect(x, contains('@drawable/ic_launcher_foreground'), reason: f);
+      }
+      expect(File('android_native/res/values/submac_launch.xml').readAsStringSync(), contains('submac_launch_sky'));
+      for (final f in ['android_native/res/values-v31/styles.xml', 'android_native/res/values-night-v31/styles.xml']) {
+        final x = File(f).readAsStringSync();
+        expect(x, contains('name="LaunchTheme"'), reason: f);
+        expect(x, contains('name="NormalTheme"'), reason: f);
+        expect(x, contains('android:windowSplashScreenBackground'), reason: f);
+      }
+    });
+
+    test('the APK build refuses an icon set without the themed layer or the launch mark', () {
+      final y = File('.github/workflows/apk.yml').readAsStringSync();
+      expect(y, contains('dart run flutter_launcher_icons'));
+      expect(y, contains('ic_launcher_monochrome'));
+      expect(y, contains('ic_launcher_foreground'));
     });
 
     test('in-app marks parse as vectors', () async {

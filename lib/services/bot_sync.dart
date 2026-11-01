@@ -356,6 +356,9 @@ class BotSync {
     // Nothing may schedule a round while they are being removed.
     Bots.I.onChanged = null;
     Bots.I.cloudOwns = null;
+    // Taking the Chief off the phone at sign-out is not the owner removing it: it must not mark the account's Chief
+    // as removed (that flag would stop the Chief coming back for this account).
+    Bots.I.onChiefRemoved = null;
     // Teams first: a team is a group of bots, and its alarms point at them.
     for (final o in List.of(Offices.I.offices)) {
       try {
@@ -386,6 +389,19 @@ class BotSync {
     await _saveState();
     status.value = BotSyncState.idle;
     lastError.value = '';
+  }
+
+  /// Tests: forget everything held in memory, as a fresh app start would. The cached [SharedPreferences] goes too:
+  /// `setMockInitialValues` makes a new store, and a kept reference would still read the last test's stash and
+  /// sync state (that is how one test's account leaked its bots into the next, bots_restore 7 & 8).
+  @visibleForTesting
+  void debugReset() {
+    stop();
+    _p = null;
+    _st = {};
+    _round = null;
+    _leaving = false;
+    Bots.I.onChiefRemoved = null;
   }
 
   void stop() {

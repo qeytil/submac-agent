@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SubMac's own launch screen (replaces the white Flutter template): the brand sky with the SubMac mark, shown
+     from the tap on the launcher icon until Flutter draws its first frame. The mark is the adaptive icon's
+     foreground, which flutter_launcher_icons generates in the APK workflow. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/submac_launch_sky" />
+    <item>
+        <bitmap android:gravity="center" android:src="@drawable/ic_launcher_foreground" />
+    </item>
+</layer-list>

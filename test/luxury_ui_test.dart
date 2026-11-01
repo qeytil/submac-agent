@@ -139,13 +139,13 @@ void main() {
       expect(find.descendant(of: find.byType(StatusWord), matching: find.byType(Icon)), findsNothing);
     });
 
-    testWidgets('the status word breathes while SubMac works', (t) async {
+    testWidgets('the status word rests (does not pulse) while SubMac works', (t) async {
+      // Owner (2026-10-31): the progress word no longer breathes; it says what SubMac is doing and stays still.
       await t.pumpWidget(_host(const StatusWord('Thinking')));
-      await t.pump(const Duration(milliseconds: 600));
-      final a = t.widget<Opacity>(find.descendant(of: find.byType(Breath), matching: find.byType(Opacity)).first).opacity;
-      await t.pump(const Duration(milliseconds: 600));
-      final b = t.widget<Opacity>(find.descendant(of: find.byType(Breath), matching: find.byType(Opacity)).first).opacity;
-      expect(a, isNot(b));
+      await t.pumpAndSettle(); // would time out if the word kept animating
+      expect(find.text('Thinking'), findsOneWidget);
+      expect(find.descendant(of: find.byType(StatusWord), matching: find.byType(Breath)), findsNothing);
+      expect(find.descendant(of: find.byType(StatusWord), matching: find.byType(Icon)), findsNothing);
       await t.pumpWidget(const SizedBox());
     });
   });
