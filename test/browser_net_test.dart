@@ -44,14 +44,28 @@ void main() {
     expect(dataLine(12), contains('browser_fetch'));
   });
 
-  test('the page script ships the ear: v11 with netList/netBody/netClear and a calls count in the snapshot', () {
+  test('the page script ships the ear: v12 with netList/netBody/netClear and a calls count in the snapshot', () {
     final src = PageScript.source;
-    expect(src, contains('var VERSION = 11;'));
+    expect(src, contains('var VERSION = 12;'));
     expect(src, contains('S.netList'), reason: 'the list API the browser_net tool calls');
     expect(src, contains('S.netBody'), reason: 'the one-body API');
     expect(src, contains('S.netClear'), reason: 'the forget API');
     expect(src, contains('calls: S.calls.length'), reason: 'the snapshot count the Data line reads');
     expect(src, contains('20000'), reason: 'bodies are capped');
+  });
+
+  test('the ear hears XHR too: exactly one send wrapper, and it records (browser_eval 2026-11-01)', () {
+    final src = PageScript.source;
+    // A second plain `var ns = function` used to replace the recording one, so jQuery/XHR sites were invisible.
+    expect(RegExp(r'var ns = function').allMatches(src).length, 1);
+    final send = src.substring(src.indexOf('var ns = function'), src.indexOf('XMLHttpRequest.prototype.send = ns'));
+    expect(send, contains('record({'), reason: 'the XHR wrapper must record the call');
+  });
+
+  test('a pop-up with no ARIA still counts as a modal (browser_eval: the-internet entry_ad)', () {
+    final src = PageScript.source;
+    expect(src, contains("[class*=modal i]"));
+    expect(src, contains('W * H * 0.3'));
   });
 
   test('PageSnapshot carries the ear count from the snapshot JSON', () {

@@ -228,3 +228,7 @@ background) → P6 (P1+P2 are one release; P3 is the release after; P4–P6 foll
 
 The whole roadmap P1–P6 is now shipped on `feat/browser-godmode-p1` (PR #35), and site skills follow the
 account (P7). What is left is not a phase but the eval run itself: browser_eval on real sites.
+
+**browser_eval shipped (2026-11-01):** `tools/browser_eval/eval.js` + `.github/workflows/browser-eval.yml`, 20 tasks on
+real sites through the shipped page script. The first run found three real bugs (XHR data ear deaf, ARIA-less pop-ups,
+clickable paragraphs unnumbered), fixed in page script v12: 16/20 → 20/20. Details: `docs/browser-eval.md`.

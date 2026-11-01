@@ -1,0 +1,59 @@
+name: browser_eval (real sites)
+
+# The browser god-mode eval (docs/browser-eval.md): 20 tasks on real public sites, driven through the same page
+# script the phone injects (tools/browser_page.js), in a phone-sized Chromium. Runs when the page script or the eval
+# changes, every Monday (real sites drift), and on demand. No secrets, no account: nothing here signs in anywhere
+# real or spends tokens. A summary table lands on the run page and the JSON is published as a release asset
+# (the Actions artifact quota is full, see apk.yml).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+  push:
+    paths:
+      - 'tools/browser_page.js'
+      - 'tools/browser_eval/**'
+      - '.github/workflows/browser-eval.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: browser-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Playwright + Chromium
+        run: |
+          cd tools/browser_eval
+          npm install --no-audit --no-fund playwright@1
+          npx playwright install --with-deps chromium
+      - name: The generated Dart copy matches the JS (the app ships what the eval tested)
+        run: |
+          python3 tools/gen_page_script.py
+          git diff --exit-code lib/services/browser/page_script.dart \
+            || { echo "::error::page_script.dart is stale: run tools/gen_page_script.py"; exit 1; }
+      - name: Run the eval
+        run: |
+          cd tools/browser_eval
+          node eval.js --json /tmp/browser_eval.json --md /tmp/browser_eval.md
+      - name: Summary
+        if: always()
+        run: test -f /tmp/browser_eval.md && cat /tmp/browser_eval.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Publish the result (release asset, not an artifact)
+        if: always() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -f /tmp/browser_eval.json || exit 0
+          gh release view browser-eval >/dev/null 2>&1 || gh release create browser-eval --title "browser_eval results" --notes "Latest browser_eval run on main." --prerelease
+          gh release upload browser-eval /tmp/browser_eval.json /tmp/browser_eval.md --clobber

@@ -161,7 +161,7 @@ void main() {
   group('the page script', () {
     test('ships the heal ear: v11 remembers every number and can find it again', () {
       final src = PageScript.source;
-      expect(src, contains('var VERSION = 11;'));
+      expect(src, contains('var VERSION = 12;'));
       expect(src, contains('S.heal = function'), reason: 'the find-it-again API the browser agent calls');
       expect(src, contains('S.sig[id] = '), reason: 'every listed number remembers what it looked like');
       expect(src, contains('kfam('), reason: 'a button never heals into a field');

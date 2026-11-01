@@ -4,7 +4,7 @@
 // coordinates the agent sees are fractions of the VISUAL viewport (what the screenshot shows), so
 // pinch zoom, device pixel ratio and scroll never shift a tap.
 (function () {
-  var VERSION = 11;
+  var VERSION = 12;
   if (window.__sm2 && window.__sm2.v === VERSION) return;
   var S = (window.__sm2 = { v: VERSION });
 
@@ -109,16 +109,8 @@
         } catch (e) {}
         return xs.apply(self, arguments);
       };
-      ns.__sm = 1;
-      var ns = function () {
-        S.net++; S.netAt = Date.now();
-        var done = false, self = this;
-        var fin = function () { if (!done) { done = true; netDone(); } };
-        try { self.addEventListener('loadend', fin); } catch (e) { fin(); }
-        // A request that never ends must not hold every wait hostage.
-        setTimeout(fin, 15000);
-        return xs.apply(self, arguments);
-      };
+      // (browser_eval 2026-11-01: a second, plain `ns` used to follow here and replace this one, so the data ear
+      // never heard an XHR call — jQuery and older sites were invisible to browser_net.)
       ns.__sm = 1;
       XMLHttpRequest.prototype.send = ns;
     }
@@ -390,7 +382,7 @@
       var scp = sc.scopes[s], nodes;
       try { nodes = Array.prototype.slice.call(scp.root.querySelectorAll(Q)); } catch (e) { continue; }
       try {
-        var extra = scp.root.querySelectorAll('div,span,li,img,svg,i');
+        var extra = scp.root.querySelectorAll('div,span,li,img,svg,i,p,h1,h2,h3,h4,h5,h6,td,dt,dd');
         for (var x = 0; x < extra.length && x < 1500; x++) if (pointer(extra[x])) nodes.push(extra[x]);
       } catch (e) {}
       for (var k = 0; k < nodes.length; k++) {
@@ -458,6 +450,18 @@
       modal = Array.prototype.slice.call(document.querySelectorAll('[role=dialog],[role=alertdialog],[aria-modal=true],dialog[open]')).some(function (d) {
         var b = d.getBoundingClientRect(); return b.width > 40 && b.height > 40 && shown(d);
       });
+      // Many pop-ups carry no ARIA at all (a plain div.modal over a dimmed page): a fixed layer named like one
+      // that covers a good part of the screen counts too (browser_eval 2026-11-01, the-internet entry_ad).
+      if (!modal) {
+        var cands = document.querySelectorAll('[class*=modal i],[id*=modal i],[class*=popup i],[id*=popup i],[class*=dialog i],[class*=lightbox i]');
+        for (var mi = 0; mi < cands.length && mi < 60 && !modal; mi++) {
+          var md = cands[mi], cs = getComputedStyle(md);
+          if (cs.position !== 'fixed' && cs.position !== 'absolute') continue;
+          if (!shown(md)) continue;
+          var mb = md.getBoundingClientRect();
+          if (mb.width * mb.height >= W * H * 0.3 && mb.bottom > 0 && mb.top < H) modal = true;
+        }
+      }
     } catch (e) {}
     var fav = '';
     try { var li = document.querySelector('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]'); if (li && li.href) fav = li.href; } catch (e) {}
