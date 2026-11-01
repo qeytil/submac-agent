@@ -78,7 +78,9 @@ class QuickLane {
     if (hasAttachments || midTask || t.isEmpty) return full;
     if (answeringQuestion && _answer.hasMatch(t)) return full;
     if (t.length <= 60 && _smallTalk.hasMatch(t) && !_action.hasMatch(t)) return quick;
-    if (t.length <= 160 && !_action.hasMatch(t) && !_request.hasMatch(t) && !t.contains('\n')) return light;
+    // Core loop v3 (2026-11-01): no light lane any more. A short plain imperative with an uncommon verb ("reconcile my
+    // two statements", "benchmark three sorts") is real work; guessing it small hid write_file and code_run from it.
+    // Only whole-message small talk is quick; everything else is full. [light] stays as a name for old callers.
     return full;
   }
 }

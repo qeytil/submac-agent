@@ -276,7 +276,8 @@ test("non-streamed hang: ends at the total budget", async () => {
 test("effort hint maps to reasoning_effort only where the route takes it", () => {
   assertEquals(effortBody(route("A", 1, { model: "gemini-3-flash-preview" }), "low"), { reasoning_effort: "low" });
   assertEquals(effortBody(route("A", 1, { model: "gpt-oss:120b" }), "high"), { reasoning_effort: "high" });
-  assertEquals(effortBody(route("A", 1, { model: "gemini-3-flash-preview" }), "normal"), {});
+  assertEquals(effortBody(route("A", 1, { model: "gemini-3-flash-preview" }), "normal"), { reasoning_effort: "medium" });
+  assertEquals(effortBody(route("A", 1, { model: "x", extra_body: { reasoning_effort: "low" } }), "normal"), { reasoning_effort: "medium" });
   assertEquals(effortBody(route("A", 1, { model: "agnes-3.0-flash" }), "low"), {});
   assertEquals(effortBody(route("A", 1, { model: "x", extra_body: { reasoning_effort: "medium" } }), "low"), { reasoning_effort: "low" });
 });

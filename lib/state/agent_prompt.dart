@@ -54,8 +54,9 @@ extension AppStateAgentPrompt on AppState {
       ..writeln('- ${PromptQuiet.workQuietly}')
       ..writeln('- Shortest path first: a direct tool > a connected app (app_*, mcp_*, apps_run_tool) > a link or deep link (open_link) > '
           'the browser (browser_task) > phone control (phone_*). Facts: web_search, then fetch_url for details. Never guess current facts. '
-          'Search budget: about 6 searches and 3 pages for a normal question. When new searches stop adding facts, stop and answer with what '
-          'you found, saying in one line what you could not confirm. Never run the same or a near-identical search twice.')
+          'Research depth follows the question: a quick fact needs a search or two; a comparison, an investigation or a report reads as many '
+          'sources as it takes. When new searches stop adding facts, stop and answer with what you found, saying in one line what you could '
+          'not confirm. Never run the same or a near-identical search twice.')
       ..writeln('- Independent lookups (several searches, pages, files or facts) go in ONE reply as several tool calls: they run at the same time. '
           'Anything that changes something (a file, a screen, a page, a message) one at a time; read each result. If it failed, fix the cause '
           'or take another way; never repeat a failing step more than twice.')
@@ -72,6 +73,9 @@ extension AppStateAgentPrompt on AppState {
       ..writeln('- ${PromptQuiet.sayRule}')
       ..writeln('- Finish for real: check the result, re-read their request, then reply with what was done, ending on the detail. '
           'If blocked: what blocked you and the one thing they can do. Never end silently.')
+      ..writeln('- Before you end your turn, read your last paragraph: if it is a plan, a promise ("I will…", "next I\'ll…") or a list of '
+          'steps you have not done, do that work now with your tools instead of stopping. A long task is fine: older parts of the chat are '
+          'summarised for you automatically, so never wrap up early to save room or steps.')
       ..writeln('- Your tool list is the truth about what you can do now. Errors: fix the cause; tell the user only what you can\'t fix, in plain words.')
       ..writeln()
       ..writeln('# Approvals')
@@ -137,6 +141,10 @@ extension AppStateAgentPrompt on AppState {
           'really take. If something is truly impossible on this phone, say exactly what is missing (no such permission, no such API, needs a '
           'computer), still give the best part of the answer you can, and where you could not verify something, say so plainly and give them '
           'the exact step to check it themselves.')
+      ..writeln('A hard or unfamiliar task is not a reason to stop or to fake it; it is a reason to work like an engineer: understand what '
+          'they really want, break it into steps (todo), find out what you do not know (search, read, try small things first), do it, then '
+          'check it the way they would (open the file, run the code, re-read the page) before you say it is done. When an approach fails, read '
+          'why, change the approach, and say plainly what you tried if nothing works.')
       ..writeln('If no tool fits, make one: write the script with write_file, run and fix it with code_run or run_shell until it truly works, '
           'then save the proven method as your own tool with skill_save (the steps, the script itself, how to run it). The next task like it '
           'starts from skill_use, not from zero.')
@@ -206,7 +214,8 @@ extension AppStateAgentPrompt on AppState {
         ..writeln('- Make a file only when the user asks for one. Otherwise answer in the chat, however long (an essay, a story, a letter '
             'to read): the text itself, never a file card in place of the answer.')
         ..writeln('- read_pdf, read_text_in_image read files. Attachments are in the workspace "uploads/" folder; attached PDFs are already text below the message.')
-        ..writeln('- run_shell is Android toybox sh (no root, no python) in your private workspace. delete_file moves to SubMac Trash; never rm user files. '
+        ..writeln('- run_shell is Android toybox sh (no root) in your private workspace; for real programs (Python: parsing, maths, data, '
+            'conversions, anything no tool does) use code_run. delete_file moves to SubMac Trash; never rm user files. '
             'Check your work (list the folder) before saying done.')
         ..writeln(phoneAccess
             ? '- You can reach shared storage at /storage/emulated/0 (Download, Documents, DCIM/Camera, Pictures). Be careful with their files.'
@@ -381,6 +390,7 @@ extension AppStateAgentPrompt on AppState {
     } else {
       list.add(mark);
     }
+    _compactsDone[convId] = (_compactsDone[convId] ?? 0) + 1;
     _notify();
     await _save(convId, mark);
     return true;
@@ -406,11 +416,11 @@ extension AppStateAgentPrompt on AppState {
           if (m.content.trim().isNotEmpty) sb.writeln('Agent: ${clip(m.content, 1200)}');
           for (final c in m.toolCalls ?? const <ToolCall>[]) {
             names[c.id] = c.name;
-            sb.writeln('Agent used ${c.name} ${clip(c.arguments, 200)}');
+            sb.writeln('Agent used ${c.name} ${clip(c.arguments, 400)}');
           }
           break;
         case 'tool':
-          sb.writeln('Result${names[m.toolCallId] == null ? '' : ' of ${names[m.toolCallId]}'}: ${clip(m.content, 300)}');
+          sb.writeln('Result${names[m.toolCallId] == null ? '' : ' of ${names[m.toolCallId]}'}: ${clip(m.content, 1000)}');
           break;
       }
     }
@@ -423,10 +433,17 @@ extension AppStateAgentPrompt on AppState {
       final messages = <Map<String, dynamic>>[
         {
           'role': 'system',
-          'content': 'You compress the earlier part of a chat between a user and their AI agent, so the agent can carry on without it. '
-              'Write at most 300 words of short bullet points, in the language of the chat: what the user wants and how, their '
-              'preferences, key facts found (names, numbers, prices, dates, links, file paths, ids), what was done or decided, and what '
-              'is still open. Facts only, no commentary, no greeting.',
+          // Core loop v3: a structured continuation summary (what Claude Code and Codex keep), not 300 loose words: the
+          // agent must be able to pick the work up mid-way, including what already failed.
+          'content': 'You compress the earlier part of a chat between a user and their AI agent, so the agent can carry on the work '
+              'without it. Write in the language of the chat, facts only, under these headings:\n'
+              '## Task — what the user wants, in their words where it matters, and how they will judge it done\n'
+              '## State — what is finished, what is half-done, where the work stopped\n'
+              '## Files and ids — every file path, link, id, name, number, price and date the work depends on\n'
+              '## Found — key facts learned, and approaches that FAILED and why (so they are not tried again)\n'
+              '## Next — the next concrete steps\n'
+              '## Promised — anything the agent told the user it would do\n'
+              'At most 700 words. No commentary, no greeting.',
         },
         {
           'role': 'user',
@@ -434,8 +451,8 @@ extension AppStateAgentPrompt on AppState {
         },
       ];
       await RateLimiter.acquire(ref.provider, RateLimiter.estimateTokens(messages), local, onWait: (_) {}, cancelled: () => false);
-      var out = (await LlmClient().complete(source: 'compact', maxTokens: 1500, provider: ref.provider, model: ref.model, messages: messages)).trim();
-      if (out.length > 6000) out = out.substring(0, 6000);
+      var out = (await LlmClient().complete(source: 'compact', maxTokens: 3000, provider: ref.provider, model: ref.model, messages: messages)).trim();
+      if (out.length > 10000) out = out.substring(0, 10000);
       if (out.isNotEmpty) return out;
     } catch (_) {}
     // No model to spare: a plain digest of what the user asked and what was answered.

@@ -212,8 +212,10 @@ export function clampOut(room: number, provCap: number, learned?: number): numbe
 }
 /** Extra body for the effort hint: low/high map to reasoning_effort; normal keeps the route's own setting. */
 export function effortBody(r: Route, e: Effort | null): Record<string, unknown> {
-  if (!e || e === "normal" || !takesEffort(r)) return {};
-  return { reasoning_effort: e };
+  if (!e || !takesEffort(r)) return {};
+  // Core loop v3 (2026-11-01): "normal" is an explicit medium. It used to send nothing, so the route's own
+  // extra_body (reasoning_effort: low on every submac route) made every agent step think at low.
+  return { reasoning_effort: e === "normal" ? "medium" : e };
 }
 
 // ---------------------------------------------------------------- the attempt engine

@@ -360,6 +360,7 @@ extension AppStateAgentRunner on AppState {
         doneNow: run.todoDone.length,
         doneAtCheckpoint: run.doneAtCheckpoint,
         writesSinceCheckpoint: run.writesSinceCheckpoint,
+        freshSinceCheckpoint: run.freshSinceCheckpoint,
         steps: run.step,
       );
 
@@ -545,6 +546,25 @@ class _MainHooks extends CoreHooks {
   @override
   bool get cancelled => run.cancelled;
 
+  /// Core loop v3: the user's request is recited as a reminder now and then (every 8 steps, right after the user
+  /// changed the task, and after the chat was compacted), not as a fresh user message after every tool batch, which
+  /// made weak models answer the task from scratch again.
+  int _recitedChanges = 0;
+  bool _reciteNow(int step) {
+    if (step == 0) return false;
+    final changed = run.brief.changes.length != _recitedChanges;
+    _recitedChanges = run.brief.changes.length;
+    return changed || step % 8 == 0 || _compactedSinceRecital();
+  }
+
+  int _compactions = 0;
+  bool _compactedSinceRecital() {
+    final n = app._compactCount(convId);
+    if (n == _compactions) return false;
+    _compactions = n;
+    return true;
+  }
+
   String get _laneNow => (side || _quickNow) ? QuickLane.quick : (_allTools ? (run.step <= 1 ? lane : QuickLane.full) : QuickLane.light);
 
   // ---------------------------------------------------------------- turns
@@ -566,6 +586,7 @@ class _MainHooks extends CoreHooks {
           'then carry on with the next open step. Keep files saved as you go.${run.todo.isEmpty ? '' : '\n${AppState._todoText(run)}'}');
       run.doneAtCheckpoint = run.todoDone.length;
       run.writesSinceCheckpoint = 0;
+      run.freshSinceCheckpoint = 0;
     }
     final cap = _officeCap();
     if (cap > 0 && step >= cap && !run.officeCapNoted) {
@@ -608,7 +629,10 @@ class _MainHooks extends CoreHooks {
     if (!side) {
       // Recitation (end of the request): the open checklist keeps the plan in view on long tasks; once real work was
       // done, the final check keeps the answer honest and shaped for the user.
-      add(run.todo.isNotEmpty ? Recite.checklist(run.todo, run.todoDone) : (run.toolCalls >= 3 ? Recite.finalCheck(selfCheck: run.must.selfCheck()) : ''));
+      // Core loop v3: only the open checklist is recited each step. The "Before your final reply ... Then reply:" note
+      // used to ride on every step after the third tool call, and weak models read it as "answer now": long work
+      // ended early, always in the same shape (harness audit #3). The finish rules live in the system prompt.
+      add(run.todo.isNotEmpty ? Recite.checklist(run.todo, run.todoDone) : '');
       // The hard constraints in the user's words (count, language, format, don't/only), compact, every step.
       add(run.must.mustLine());
       // Plan, then act: a request with several parts starts with a visible checklist.
@@ -622,8 +646,10 @@ class _MainHooks extends CoreHooks {
       add(StepBudget.note(step, segment, willPause: willPause, ceiling: AppState.longTaskCeiling));
     }
     _quickNow = lane == QuickLane.quick && step == 0;
-    // Effort hint (PLAN 1.1): `low` for greetings, short questions and step 1; `high` for "think harder".
-    final effort = thinkHard ? 'high' : ((step == 0 || _quickNow) ? 'low' : null);
+    // Effort hint. Core loop v3: `low` only for small talk and side replies. The first step of real work is where the
+    // approach is chosen, so it thinks hard; the steps after it think normally (the route's own `low` default made
+    // every plan shallow, harness audit #2).
+    final effort = thinkHard ? 'high' : ((_quickNow || side) ? 'low' : (step == 0 ? 'high' : 'normal'));
     _stepTools = (side || _quickNow) ? null : (_allTools ? app._scopedTools(convId) : app._lightTools(convId));
     // A side reply (the user wrote while a task runs) answers in a line or two with no tools: it gets the small prompt
     // (house rules, the user, the language, the last few lines) instead of the whole agent prompt. It sent about 7k
@@ -633,7 +659,7 @@ class _MainHooks extends CoreHooks {
         : _quickNow
         ? app._quickPayload(convId, list, askNote: askNote)
         : app._payload(_trimTo > 0 ? _trimmed() : list,
-            sideNote: stepNote, withShot: !side && run.browsing, request: side ? '' : run.brief.recital(), convId: convId);
+            sideNote: stepNote, withShot: !side && run.browsing, request: side || !_reciteNow(step) ? '' : run.brief.recital(), convId: convId);
     // From here a new message can't be in this step's payload: it reaches the task through its inbox.
     if (!side) run.payloadBuilt = true;
     var payload = build();
@@ -1257,7 +1283,10 @@ class _MainHooks extends CoreHooks {
       // Ticks add up: a resent list keeps the ticks of unchanged steps. Only a newly finished step earns a fresh "carry
       // on" budget, and the loop guard sees these calls like any other.
       final progressed = Checklist.apply(run.todo, run.todoDone, steps: args['steps'], doneArg: args['done']);
-      if (progressed) run.nudges = 0;
+      if (progressed) {
+        run.nudges = 0;
+        run.guard.strikes = 0; // a finished step forgives earlier stuck notes (core loop v3)
+      }
       run.planLive = true;
       return AppState._todoText(run);
     }
@@ -1407,7 +1436,12 @@ class _MainHooks extends CoreHooks {
       app._phoneShotCall = tc.id;
       SystemTools.pendingShot = null;
     }
+    if (!ToolRecovery.isError(output) && output.trim().length > 20 && run.seenOutputs.length < 5000 && run.seenOutputs.add(output.hashCode)) {
+      run.freshSinceCheckpoint++;
+    }
     if (AppState._writesWork(tc.name, args) && !output.startsWith('Error')) {
+      // Real work done: earlier stuck notes are forgiven (the strikes were for one problem, not the whole task).
+      run.guard.strikes = 0;
       run.writes++;
       run.writesSinceCheckpoint++;
       run.nudges = 0;

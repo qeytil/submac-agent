@@ -31,7 +31,10 @@ extension AppStateAgentStream on AppState {
     // A task whose words point at no group (something new we never wrote a hint for) still gets the general
     // workbench: the web and the files. A novel task must never start with every capability closed, waiting
     // for the model to think of more_tools (Claude Code rule, 2026-10-31). Groups only grow, so this is once.
-    if (g.isEmpty && !QuickLane.isSmallTalk(t)) g.addAll(const {ToolScope.browser, ToolScope.files});
+    // Core loop v3: the workbench is always there for real work, whatever else the words pointed at: the web, the
+    // files and the code runner (Python), so any task can be composed from primitives (harness audit #1). A phone task
+    // used to open `phone` alone and have no way to write the report it was asked for.
+    if (!QuickLane.isSmallTalk(t)) g.addAll(const {ToolScope.browser, ToolScope.files, ToolScope.code});
     if (deepResearch) g.add(ToolScope.browser);
     if (_skillNoteUsed || _liveTaskConvs.contains(convId)) g.addAll(ToolScope.groups);
     // The Business adviser always has its books, documents and charts at hand.

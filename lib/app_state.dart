@@ -881,13 +881,19 @@ class AppState extends ChangeNotifier {
 
   final Set<String> _compacting = {};
 
+  /// How often each chat was compacted (a running task recites the request after one, core loop v3).
+  final Map<String, int> _compactsDone = {};
+  int _compactCount(String convId) => _compactsDone[convId] ?? 0;
+
   /// History budget (Plan 7): a chat's messages after its summary are folded once they pass this many tokens,
   /// right after a reply (so nobody waits), keeping the newest [_historyKeep] tokens whole. Before, a chat could
   /// re-send up to ~36k tokens of history on every step.
-  static const _historyBudget = 14000;
-  static const _historyKeep = 5000;
+  // Core loop v3: a heavy task's earlier work is its working memory. 14k/5k folded a multi-file job into 300 words
+  // after every reply (harness audit #4); the window is 128k and more.
+  static const _historyBudget = 48000;
+  static const _historyKeep = 16000;
 
-  static const _keepWholeResults = 3;
+  static const _keepWholeResults = 10;
 
   /// An older tool result: its first ~500 characters, enough to remember what it said.
   static String _shrinkResult(String v) => ResultClip.old(v);
@@ -946,11 +952,14 @@ class AppState extends ChangeNotifier {
   static const officeCapReason = 'The team task used its step budget for this round, so it paused. Send "continue" to keep going.';
 
   static String? checkpointReason({required bool cancelled, required bool lowAllowance, required bool background,
-      required int doneNow, required int doneAtCheckpoint, required int writesSinceCheckpoint, required int steps}) {
+      required int doneNow, required int doneAtCheckpoint, required int writesSinceCheckpoint, required int steps,
+      int freshSinceCheckpoint = 0}) {
     if (cancelled) return 'Stopped.';
     if (background) return 'Paused after $steps steps. Send "continue" to keep going.';
     if (lowAllowance) return 'Paused to keep a little of today\'s allowance for you. Send "continue" to carry on (it refreshes tomorrow).';
-    if (doneNow > doneAtCheckpoint || writesSinceCheckpoint >= 2) return null;
+    // Core loop v3: research, analysis and debugging move a task on by READING (new pages, new outputs, new errors),
+    // not by writing files. Six tool results never seen before in this task count as progress (harness audit #5).
+    if (doneNow > doneAtCheckpoint || writesSinceCheckpoint >= 2 || freshSinceCheckpoint >= 6) return null;
     return 'Paused after $steps steps: the last ones did not move the task on. Send "continue" with any hint, or a different approach.';
   }
 
@@ -1052,8 +1061,9 @@ class AppState extends ChangeNotifier {
     'type': 'function',
     'function': {
       'name': 'more_tools',
-      'description': 'Open your full toolbox (browser, phone control, texts and calls, WhatsApp, files and documents, connected apps and email, '
-          'scheduled tasks, pictures and sound, prayer times and the money notebook). '
+      'description': 'Open your full toolbox (browser, phone control, texts and calls, WhatsApp, files and documents, running code (Python), '
+          'connected apps and email, scheduled tasks, pictures, video and sound, business books, the health book, prayer times and '
+          'the money notebook). '
           'Call it first whenever the request needs any tool you do not see here. Never tell the user you cannot do something before calling it.',
       'parameters': {
         'type': 'object',
@@ -1228,6 +1238,10 @@ class AgentRun {
   /// (steps ticked off, files written) and today's allowance has room.
   int doneAtCheckpoint = 0;
   int writesSinceCheckpoint = 0;
+
+  /// Successful tool results this task had never seen before (by digest), since the last checkpoint (core loop v3).
+  int freshSinceCheckpoint = 0;
+  final Set<int> seenOutputs = {};
   /// When the last checkpoint was (by distance, so a turn of several model calls can't skip one), and whether the
   /// next model call carries the checkpoint note.
   final CheckpointClock checkpoints = CheckpointClock();

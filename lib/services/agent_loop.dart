@@ -102,11 +102,8 @@ class LoopGuard {
       }
       if (l3.every((s) => s.error && s.name == l3.last.name)) return LoopSignal(LoopKind.failingTool, tool: l3.last.name);
     }
-    final limit = n > 0 && _patient.contains(_steps.last.name) ? 9 : 6;
-    if (n >= limit) {
-      final tail = _steps.sublist(n - limit);
-      if (tail.every((s) => s.sig == tail.last.sig)) return LoopSignal(LoopKind.repeat, tool: tail.last.name);
-    }
+    // (Core loop v3: the "same call six times, whatever it returned" rule is gone. Polling a build, a job or a page
+    // that is still changing is legitimate; only the same call with the SAME result, or the same error, is a loop.)
     if (n >= 6) {
       final t = _steps.sublist(n - 6);
       final a = t[0].sig, b = t[1].sig;
@@ -459,7 +456,7 @@ class TaskBrief {
   /// The user's request, verbatim, for the very end of a later step. Empty for app-made wakes.
   String recital({String must = ''}) {
     if (isEmpty) return '';
-    final sb = StringBuffer('# The user\'s request (their own words; this is the task)\n');
+    final sb = StringBuffer('# Reminder of the task (the user\'s own words; not a new message: carry on from where you are)\n');
     if (original.isNotEmpty) sb.writeln(_quote(original));
     if (changes.isNotEmpty) {
       sb.writeln('Then, during the task, they said (each one amends the request above; keep everything it does not change):');

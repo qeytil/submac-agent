@@ -20,9 +20,13 @@ class AgentTools {
       'command': {'type': 'string', 'description': 'The shell command to run.'},
       'timeout_seconds': {'type': 'integer', 'description': 'Max seconds to wait (default 60, max 300).'},
     }, ['command']),
-    _fn('read_file', 'Read a UTF-8 text file. Relative paths are resolved from the workspace. Long files come in parts: pass offset to read on.', {
+    _fn('read_file', 'Read a UTF-8 text file. Relative paths are resolved from the workspace. Long files come in parts: pass offset to read on. '
+        'For code or anything you will edit, pass start_line (and end_line): you get numbered lines, so you can find your place, '
+        'quote the exact text for edit_file, and read a big file part by part.', {
       'path': {'type': 'string'},
       'offset': {'type': 'integer', 'description': 'Character to start from (default 0).'},
+      'start_line': {'type': 'integer', 'description': 'First line to read, 1-based. Returns numbered lines.'},
+      'end_line': {'type': 'integer', 'description': 'Last line to read (default: start_line + 399).'},
     }, ['path']),
     _fn('write_file', 'Create or overwrite a text file. Relative paths are resolved from the workspace. '
         'Keep one call under about 150 lines: for a longer file, write the first part here, then add the rest with append_file.', {
@@ -228,6 +232,28 @@ class AgentTools {
     return 'HTTP ${resp.statusCode}\n${_part(text, offset, fetchChars, 'this page')}$hint';
   }
 
+  /// Lines [from]..[to] (1-based, inclusive) of [text], numbered, at most 400 lines and [maxOutput] characters, with
+  /// a footer saying where to read on (core loop v3: read and edit big files by line, like Claude Code's Read).
+  static String numberedLines(String text, int from, int? to) {
+    final lines = text.split('\n');
+    final total = lines.length;
+    final a = from < 1 ? 1 : from;
+    if (a > total) return 'The file has only $total lines.';
+    var b = to == null || to < a ? a + 399 : to;
+    if (b - a > 399) b = a + 399;
+    if (b > total) b = total;
+    final sb = StringBuffer();
+    var last = a - 1;
+    for (var i = a; i <= b; i++) {
+      final row = '${i.toString().padLeft(5)}  ${lines[i - 1]}\n';
+      if (sb.length + row.length > maxOutput) break;
+      sb.write(row);
+      last = i;
+    }
+    if (last < total) sb.write('…[lines ${last + 1}-$total not shown: read on with start_line ${last + 1}; $total lines in all]');
+    return sb.toString();
+  }
+
   static String _truncate(String s) =>
       s.length > maxOutput ? '${s.substring(0, maxOutput)}\n…[truncated ${s.length - maxOutput} chars]' : s;
 
@@ -240,6 +266,8 @@ class AgentTools {
         case 'read_file':
           final f = File(await _resolve((args['path'] ?? '').toString()));
           if (!await f.exists()) return 'Error: file not found: ${f.path}';
+          final from = (args['start_line'] as num?)?.toInt();
+          if (from != null) return numberedLines(await f.readAsString(), from, (args['end_line'] as num?)?.toInt());
           return _part(await f.readAsString(), (args['offset'] as num?)?.toInt() ?? 0, maxOutput, 'this file');
         case 'write_file':
           final f = File(await _resolve((args['path'] ?? '').toString()));

@@ -11,7 +11,8 @@ import 'web_tools.dart';
 ///     a site (sign in, book, buy, fill, send...) are not counted.
 class SearchBudget {
   static const weakLimit = 2;
-  static const browserReadLimit = 1;
+  // Core loop v3: three, as the prompt says (it was one, so a comparison of two sites was refused half-way).
+  static const browserReadLimit = 3;
 
   int weakSearches = 0;
   int browserReads = 0;
@@ -44,7 +45,7 @@ class SearchBudget {
     return !_acts.hasMatch(goal);
   }
 
-  static const browserCapText = 'Not started: a read-only browser task already ran in this task, and they are slow and costly. '
+  static const browserCapText = 'Not started: three read-only browser tasks already ran in this task, and they are slow and costly. '
       'Read the exact pages you need with fetch_url, or answer now with what you have and say plainly what you could not check.';
 
   static const stopSearchingNote = '\n\nNote: web search is not working in this task (several searches came back empty or '
