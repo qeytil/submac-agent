@@ -15,8 +15,8 @@ class AgentTools {
   static const maxOutput = 12000;
 
   static final List<Map<String, dynamic>> definitions = [
-    _fn('run_shell', 'Run a shell command (/system/bin/sh) on the device inside the agent workspace directory. '
-        'Use for listing files, running scripts, text processing, curl, etc. Returns exit code, stdout and stderr.', {
+    _fn('run_shell', 'Run a shell command (Android toybox sh) in the workspace: ls, find, grep, sed, sort, cut, tr, wc, tar, '
+        'gzip, base64, md5sum, date, xargs. No curl, no python here: use fetch_url or code_run. Returns exit code, stdout and stderr.', {
       'command': {'type': 'string', 'description': 'The shell command to run.'},
       'timeout_seconds': {'type': 'integer', 'description': 'Max seconds to wait (default 60, max 300).'},
     }, ['command']),

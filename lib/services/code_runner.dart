@@ -5,6 +5,9 @@ import 'dart:ui' show Size;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 
+import 'tools.dart' show AgentTools;
+import 'web_tools.dart';
+
 /// Runs code for the Coder bot, at no cost to SubMac:
 ///  - Python, JavaScript, TypeScript and SQL run on the phone, in a hidden web view (Python and SQL engines are
 ///    downloaded once from a public CDN and then cached by the web view);
@@ -188,6 +191,19 @@ class CodeRunner {
       initialSize: const Size(400, 400),
       initialData: InAppWebViewInitialData(data: _harness, baseUrl: WebUri('https://submac.local/'), mimeType: 'text/html', encoding: 'utf-8'),
       initialSettings: InAppWebViewSettings(javaScriptEnabled: true, cacheEnabled: true, allowFileAccessFromFileURLs: false),
+      onWebViewCreated: (ctl) {
+        // `submac` inside Python and JavaScript: the web without the page's CORS wall, search and research (core loop
+        // v3). Code can now fetch an API, scrape a page or look something up, so a program can do real work.
+        ctl.addJavaScriptHandler(handlerName: 'submac', callback: (a) async {
+          try {
+            final op = a.isNotEmpty ? '${a[0]}' : '';
+            final p = a.length > 1 ? Map<String, dynamic>.from(jsonDecode('${a[1]}') as Map) : <String, dynamic>{};
+            return jsonEncode(await bridge(op, p));
+          } catch (e) {
+            return jsonEncode({'error': '$e'});
+          }
+        });
+      },
       onLoadStop: (ctl, _) {
         _ctl = ctl;
         if (!ready.isCompleted) ready.complete();
@@ -198,6 +214,49 @@ class CodeRunner {
     );
     await _view!.run();
     return ready.future.timeout(const Duration(seconds: 30));
+  }
+
+  /// What `submac.*` does inside code_run (and the agent's own tools). Web reads only: nothing here sends a message,
+  /// pays, or touches the phone, so it needs no approval beyond the code run itself.
+  static Future<Map<String, dynamic>> bridge(String op, Map<String, dynamic> p) async {
+    switch (op) {
+      case 'http':
+        final url = Uri.tryParse('${p['url'] ?? ''}');
+        if (url == null || !(url.scheme == 'http' || url.scheme == 'https')) return {'error': 'give an http(s) url'};
+        final method = '${p['method'] ?? 'GET'}'.toUpperCase();
+        final headers = <String, String>{
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
+          if (p['headers'] is Map) for (final e in (p['headers'] as Map).entries) '${e.key}': '${e.value}',
+        };
+        final req = http.Request(method, url)..headers.addAll(headers);
+        if (p['body'] != null) req.body = p['body'] is String ? p['body'] as String : jsonEncode(p['body']);
+        final res = await http.Response.fromStream(await req.send().timeout(const Duration(seconds: 40)));
+        final text = utf8.decode(res.bodyBytes, allowMalformed: true);
+        return {
+          'status': res.statusCode,
+          'headers': res.headers,
+          'text': text.length > 2000000 ? text.substring(0, 2000000) : text,
+          'url': '${res.request?.url ?? url}',
+        };
+      case 'search':
+        final r = await WebTools.webSearch('${p['q'] ?? ''}', ((p['n'] as num?)?.toInt() ?? 6).clamp(1, 10));
+        try {
+          return {'results': (jsonDecode(r) as Map)['results'] ?? []};
+        } catch (_) {
+          return {'results': [], 'error': r};
+        }
+      case 'research':
+        final r = await WebTools.research('${p['q'] ?? ''}');
+        try {
+          return Map<String, dynamic>.from(jsonDecode(r) as Map);
+        } catch (_) {
+          return {'error': r};
+        }
+      case 'read':
+        final r = await AgentTools.fetchUrl('${p['url'] ?? ''}', ((p['offset'] as num?)?.toInt() ?? 0));
+        return {'text': r};
+    }
+    return {'error': 'unknown submac call "$op" (get, post, search, research, read)'};
   }
 
   Future<void> _stop() async {
@@ -282,8 +341,47 @@ async function pyInit() {
   if (py) return py;
   if (!window.loadPyodide) await load('$_pyodide' + 'pyodide.js');
   py = await loadPyodide({ indexURL: '$_pyodide' });
+  await py.runPythonAsync(SUBMAC_PY);
   return py;
 }
+const SUBMAC_PY = [
+  'import sys, types, json as _json, js',
+  '_m = types.ModuleType("submac")',
+  'async def _call(op, **kw):',
+  '    r = await js.window.flutter_inappwebview.callHandler("submac", op, _json.dumps(kw))',
+  '    return _json.loads(r)',
+  'class Response:',
+  '    def __init__(self, d):',
+  '        self.status_code = d.get("status", 0); self.text = d.get("text", ""); self.headers = d.get("headers", {})',
+  '        self.url = d.get("url", ""); self.error = d.get("error")',
+  '        self.ok = 200 <= self.status_code < 400',
+  '    def json(self): return _json.loads(self.text)',
+  '    def __repr__(self): return "<Response " + str(self.status_code) + ">"',
+  'async def get(url, headers=None): return Response(await _call("http", method="GET", url=url, headers=headers or {}))',
+  'async def post(url, data=None, json=None, headers=None):',
+  '    h = dict(headers or {})',
+  '    if json is not None: h.setdefault("Content-Type", "application/json")',
+  '    return Response(await _call("http", method="POST", url=url, headers=h, body=_json.dumps(json) if json is not None else data))',
+  'async def request(method, url, data=None, headers=None): return Response(await _call("http", method=method, url=url, headers=headers or {}, body=data))',
+  'async def search(q, n=6): return (await _call("search", q=q, n=n)).get("results", [])',
+  'async def research(q): return await _call("research", q=q)',
+  'async def read(url, offset=0): return (await _call("read", url=url, offset=offset)).get("text", "")',
+  'for _k in ("get", "post", "request", "search", "research", "read", "Response"): setattr(_m, _k, globals()[_k])',
+  'sys.modules["submac"] = _m',
+  'del get, post, request, search, research, read',
+].join(String.fromCharCode(10));
+const submacJs = (() => {
+  const call = async (op, kw) => JSON.parse(await window.flutter_inappwebview.callHandler('submac', op, JSON.stringify(kw)));
+  const res = (d) => ({ status: d.status, ok: d.status >= 200 && d.status < 400, text: d.text || '', headers: d.headers || {},
+    error: d.error, json() { return JSON.parse(this.text); } });
+  return {
+    get: async (url, headers) => res(await call('http', { method: 'GET', url, headers: headers || {} })),
+    post: async (url, body, headers) => res(await call('http', { method: 'POST', url, headers: Object.assign({ 'Content-Type': 'application/json' }, headers || {}), body: typeof body === 'string' ? body : JSON.stringify(body) })),
+    search: async (q, n) => (await call('search', { q, n: n || 6 })).results || [],
+    research: async (q) => call('research', { q }),
+    read: async (url, offset) => (await call('read', { url, offset: offset || 0 })).text || '',
+  };
+})();
 async function tsInit() { if (!tsReady) tsReady = load('$_ts'); await tsReady; }
 function walk(FS, dir, out) {
   for (const n of FS.readdir(dir)) {
@@ -347,7 +445,7 @@ window.__js = async (a) => {
     const lines = String(a.stdin || '').split('\\n'); let li = 0;
     const input = () => (li < lines.length ? lines[li++] : null);
     const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
-    const r = await new AsyncFn('console', 'input', 'readline', code)(con, input, input);
+    const r = await new AsyncFn('console', 'input', 'readline', 'submac', code)(con, input, input, submacJs);
     return { ok: true, stdout: out, stderr: err, result: r === undefined ? null : fmt(r) };
   } catch (e) {
     return { ok: false, stdout: out, stderr: err, error: String(e && (e.stack || e.message) || e) };

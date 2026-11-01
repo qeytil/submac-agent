@@ -22,6 +22,7 @@ import 'services/biz_tools.dart';
 import 'services/health_tools.dart';
 import 'services/code_git.dart';
 import 'services/code_tools.dart';
+import 'services/forged_tools.dart';
 import 'services/mcp_oauth.dart';
 import 'services/media_coder.dart';
 import 'services/media_store.dart';

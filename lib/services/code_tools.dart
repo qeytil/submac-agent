@@ -49,8 +49,9 @@ class CodeTools {
     _fn('code_run', 'Run code and see the real output. Python, JavaScript, TypeScript and SQL (SQLite) run on the phone; C, C++, Rust, Go, '
         'C#, F#, Dart, Swift, Zig, Ruby, Haskell, Lua, Julia, OCaml, Pascal, Fortran, D and Crystal run on an online compiler. '
         'Give code, or path to a file (dir mounts that folder for Python, so it can read and write files there; new files come back). '
-        'Python packages: pure-Python and the common science ones (numpy, pandas, matplotlib...). No Java, Kotlin, PHP or Node APIs '
-        '(JavaScript runs like a browser: console, fetch, no require). Always run what you write before saying it works.', {
+        'Python packages: pure-Python and the common science ones (numpy, pandas, matplotlib...). No Java, Kotlin, PHP or Node APIs. '
+        'Web from Python/JS: `import submac` (Python) or the submac object (JS): await submac.get(url), post, search(q), '
+        'research(q), read(url). Always run what you write before saying it works.', {
       'language': {'type': 'string', 'description': 'python, javascript, typescript, sql, c, cpp, rust, go, csharp, fsharp, dart, swift, zig, ruby, haskell, lua, julia, ocaml, pascal, fortran, d, crystal'},
       'code': {'type': 'string', 'description': 'The program (or SQL). Leave empty to run path.'},
       'path': {'type': 'string', 'description': 'A file in the workspace to run (its extension picks the language).'},

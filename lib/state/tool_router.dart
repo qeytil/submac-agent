@@ -446,6 +446,9 @@ extension AppStateTools on AppState {
     if (BizTools.names.contains(name)) return BizTools.execute(name, args);
     if (HealthTools.names.contains(name)) return HealthTools.execute(name, args);
     if (CodeTools.names.contains(name)) return CodeTools.execute(name, args);
+    if (ForgedTools.handles(name)) {
+      return ForgedTools.execute(name, args, taken: {for (final t in _toolList()) '${(t['function'] as Map?)?['name']}'});
+    }
     if (ConnectorTools.names.contains(name)) return ConnectorTools.execute(name, args);
     if (ConnectorCatalog.isConnectorTool(name)) return ConnectorCatalog.execute(name, args);
     if (name == 'apps_list_tools') return _appTools(args, bot: Bots.I.byConv(convId));
@@ -787,6 +790,11 @@ extension AppStateTools on AppState {
       );
     }
     if (CodeTools.names.contains(name)) return CodeTools.riskFor(name, args);
+    // An own tool in shell (or the test run of one being made) is a shell command: the same approval as run_shell.
+    final forgedShell = name == ForgedTools.make
+        ? ('${args['language'] ?? ''}' == 'shell' && '${args['action'] ?? 'save'}' == 'save' ? '${args['code'] ?? ''}' : null)
+        : ForgedTools.shellCodeOf(name);
+    if (forgedShell != null) return AgentTools.riskFor('run_shell', {'command': forgedShell});
     return AgentTools.riskFor(name, args);
   }
 }

@@ -13,6 +13,9 @@ extension AppStateToolCatalog on AppState {
         ...BizTools.definitions,
         ...HealthTools.definitions,
         ...CodeTools.definitions,
+        // Core loop v3: the agent's own tools (tool_make) and the door to make more.
+        ...ForgedTools.definitions,
+        ...ForgedTools.userDefinitions(),
         ...MediaCoder.definitions,
         // The user's own AI models (their base URL + key, called from the phone).
         ...AiModels.definitions,

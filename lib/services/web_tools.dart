@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'tools.dart' show AgentTools;
+
 /// Tools that work without any login: web search, weather, Wikipedia,
 /// currency rates, places, RSS feeds and YouTube transcripts.
 class WebTools {
@@ -16,6 +18,7 @@ class WebTools {
 
   static const names = {
     'web_search',
+    'web_research',
     'get_weather',
     'wikipedia',
     'currency_convert',
@@ -34,6 +37,16 @@ class WebTools {
           'max_results': {'type': 'integer', 'description': 'How many results (default 6, max 10).'},
         },
         ['query']),
+    _fn('web_research',
+        'Research a question in one call: searches the web, reads the best pages at the same time, and returns the passages '
+            'that answer it, with their links. Use it for anything you do not know well (a topic, a product, a person, how to do '
+            'something, current facts); then fetch_url a source for more.',
+        {
+          'question': {'type': 'string'},
+          'queries': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Extra searches, other wordings or languages.'},
+          'sources': {'type': 'integer', 'description': 'Pages to read (default 5, max 8).'},
+        },
+        ['question']),
     _fn('get_weather', 'Current weather and a 5-day forecast for a place (Open-Meteo).', {
       'place': {'type': 'string', 'description': 'City or place name, e.g. "Mogadishu" or "Paris, France".'},
     }, ['place']),
@@ -75,6 +88,10 @@ class WebTools {
         case 'web_search':
           final n = ((a['max_results'] as num?)?.toInt() ?? 6).clamp(1, 10);
           return await webSearch((a['query'] ?? '').toString(), n);
+        case 'web_research':
+          return await research((a['question'] ?? '').toString(),
+              extra: [for (final q in (a['queries'] as List? ?? const [])) '$q'],
+              sources: ((a['sources'] as num?)?.toInt() ?? 5).clamp(1, 8));
         case 'get_weather':
           return await weather((a['place'] ?? '').toString());
         case 'wikipedia':
@@ -113,7 +130,9 @@ class WebTools {
     final attempts = <(String, Future<List<Map<String, String>>> Function())>[
       if (tavilyKey.isNotEmpty) ('Tavily', () => _tavily(q, n)),
       if (braveKey.isNotEmpty) ('Brave', () => _brave(q, n)),
-      ('DuckDuckGo', () => _ddgHtml(q, n)),
+      // No key: three independent engines at once, first good answer in priority order wins (one engine blocking
+      // a phone or a network no longer leaves the agent with encyclopedia titles only).
+      ('web', () => _keyless(q, n)),
       ('DuckDuckGo', () => _ddgLite(q, n)),
       ('Wikipedia', () => _wikiSearch(q, n)),
     ];
@@ -122,7 +141,7 @@ class WebTools {
       try {
         results = await a.$2();
         if (results.isNotEmpty) {
-          engine = a.$1;
+          engine = a.$1 == 'web' ? _lastKeyless : a.$1;
           break;
         }
       } catch (e) {
@@ -189,6 +208,178 @@ class WebTools {
       });
     }
     return out;
+  }
+
+  static String _lastKeyless = 'web';
+
+  /// DuckDuckGo, Bing and Brave (their plain HTML pages) at the same time. Waits for the first engine in priority
+  /// order that answers with results; an engine that fails or finds nothing hands over to the next.
+  static Future<List<Map<String, String>>> _keyless(String q, int n) async {
+    final engines = <(String, Future<List<Map<String, String>>>)>[
+      ('DuckDuckGo', _ddgHtml(q, n).catchError((_) => <Map<String, String>>[])),
+      ('Bing', _bing(q, n).catchError((_) => <Map<String, String>>[])),
+      ('Brave', _braveHtml(q, n).catchError((_) => <Map<String, String>>[])),
+    ];
+    for (final e in engines) {
+      final r = await e.$2.timeout(const Duration(seconds: 22), onTimeout: () => <Map<String, String>>[]);
+      if (r.isNotEmpty) {
+        _lastKeyless = e.$1;
+        return r;
+      }
+    }
+    return [];
+  }
+
+  static Future<List<Map<String, String>>> _bing(String q, int n) async {
+    final r = await http
+        .get(Uri.parse('https://www.bing.com/search?q=${Uri.encodeQueryComponent(q)}&setlang=en&count=${n + 4}'),
+            headers: {'User-Agent': _browserUa, 'Accept-Language': 'en,*;q=0.5'})
+        .timeout(const Duration(seconds: 20));
+    return parseBing(utf8.decode(r.bodyBytes, allowMalformed: true), n);
+  }
+
+  /// Bing's result page: each `li.b_algo` has the link around an h2 (or an h2 around the link) and a caption.
+  /// Links may be Bing click-through URLs carrying the real one base64url-encoded in `u=a1...`.
+  static List<Map<String, String>> parseBing(String s, int n) {
+    final out = <Map<String, String>>[];
+    for (final blk in s.split('<li class="b_algo"').skip(1)) {
+      if (out.length >= n) break;
+      final m = RegExp(r'<a[^>]*href="([^"]+)"[^>]*>(?:(?!</a>)[\s\S])*?<h2[^>]*>([\s\S]*?)</h2>').firstMatch(blk) ??
+          RegExp(r'<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)</a>').firstMatch(blk);
+      if (m == null) continue;
+      var url = _decode(m.group(1)!);
+      final ck = RegExp(r'[?&]u=a1([^&]+)').firstMatch(url);
+      if (url.contains('/ck/a?') && ck != null) {
+        try {
+          url = utf8.decode(base64Url.decode(base64Url.normalize(ck.group(1)!)));
+        } catch (_) {}
+      }
+      if (!url.startsWith('http') || url.contains('bing.com/')) continue;
+      final sn = RegExp(r'<p[^>]*>([\s\S]*?)</p>').firstMatch(blk);
+      out.add({'title': _strip(m.group(2)!), 'url': url, 'snippet': sn == null ? '' : _strip(sn.group(1)!)});
+    }
+    return out;
+  }
+
+  static Future<List<Map<String, String>>> _braveHtml(String q, int n) async {
+    final r = await http
+        .get(Uri.parse('https://search.brave.com/search?q=${Uri.encodeQueryComponent(q)}&source=web'),
+            headers: {'User-Agent': _browserUa, 'Accept-Language': 'en,*;q=0.5'})
+        .timeout(const Duration(seconds: 20));
+    return parseBraveHtml(utf8.decode(r.bodyBytes, allowMalformed: true), n);
+  }
+
+  /// Brave Search's page: each web result is a block marked data-type="web" with the link, a title and a snippet.
+  static List<Map<String, String>> parseBraveHtml(String s, int n) {
+    final out = <Map<String, String>>[];
+    for (final raw in s.split('data-type="web"').skip(1)) {
+      if (out.length >= n) break;
+      final blk = raw.length > 8000 ? raw.substring(0, 8000) : raw;
+      final a = RegExp(r'<a[^>]*href="(https?://[^"]+)"').firstMatch(blk);
+      if (a == null || a.group(1)!.contains('brave.com')) continue;
+      final t = RegExp(r'class="title[^"]*"[^>]*>([\s\S]*?)</div>').firstMatch(blk);
+      final d = RegExp(r'class="(?:snippet-description|content)[^"]*"[^>]*>([\s\S]*?)</div>').firstMatch(blk);
+      out.add({
+        'title': t == null ? a.group(1)! : _strip(t.group(1)!),
+        'url': _decode(a.group(1)!),
+        'snippet': d == null ? '' : _strip(d.group(1)!),
+      });
+    }
+    return out;
+  }
+
+  // ---------------- research: search + read the best pages at once ----------------
+  /// One call that does what a person does with a search: run it (plus [extra] wordings), open the best [sources]
+  /// pages in parallel, and keep the passages that speak to the question. Each source carries its link.
+  static Future<String> research(String question, {List<String> extra = const [], int sources = 5}) async {
+    final q = question.trim();
+    if (q.isEmpty) return 'Error: empty question';
+    final queries = [q, ...extra.map((e) => e.trim()).where((e) => e.isNotEmpty && e != q)].take(4).toList();
+    final found = <Map<String, String>>[];
+    final seen = <String>{};
+    String engine = '';
+    final lists = await Future.wait(queries.map((x) => webSearch(x, 8).catchError((_) => '')));
+    for (final l in lists) {
+      try {
+        final j = jsonDecode(l) as Map<String, dynamic>;
+        engine = engine.isEmpty ? '${j['engine'] ?? ''}' : engine;
+        for (final r in (j['results'] as List? ?? const [])) {
+          final m = Map<String, String>.from((r as Map).map((k, v) => MapEntry('$k', '$v')));
+          final host = Uri.tryParse(m['url'] ?? '')?.host ?? '';
+          if (host.isEmpty || !seen.add(m['url']!)) continue;
+          found.add(m);
+        }
+      } catch (_) {}
+    }
+    if (found.isEmpty) {
+      return 'Error: the web search found nothing for this question. Try other words (queries), or read a site you know with fetch_url.';
+    }
+    // Prefer different sites: one page per host first, then the rest.
+    final hosts = <String>{};
+    final pick = <Map<String, String>>[
+      ...found.where((m) => hosts.add(Uri.parse(m['url']!).host)),
+      ...found,
+    ].toSet().take(sources).toList();
+    final terms = keyTerms([q, ...extra].join(' '));
+    final read = await Future.wait(pick.map((m) async {
+      try {
+        final page = await AgentTools.fetchUrl(m['url']!, 0).timeout(const Duration(seconds: 18));
+        final body = page.startsWith('HTTP ') ? page.substring(page.indexOf('\n') + 1) : page;
+        return {...m, 'excerpt': bestPassages(body, terms, 2200)};
+      } catch (_) {
+        return {...m, 'excerpt': '', 'error': 'could not read this page'};
+      }
+    }));
+    return jsonEncode({
+      'question': q,
+      'engine': engine,
+      'sources': [for (final r in read) {'title': r['title'], 'url': r['url'], 'snippet': r['snippet'], 'excerpt': r['excerpt'], if (r['error'] != null) 'error': r['error']}],
+      'more': [for (final m in found.skip(pick.length).take(6)) {'title': m['title'], 'url': m['url']}],
+      'note': 'Answer from these passages and cite the links you used. Read a source in full with fetch_url when a passage is not enough.',
+    });
+  }
+
+  static const _stop = {
+    'the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'is', 'are', 'was', 'what', 'how', 'why', 'when', 'who',
+    'which', 'with', 'about', 'from', 'by', 'at', 'it', 'be', 'do', 'does', 'can', 'i', 'my', 'me', 'you', 'your', 'this', 'that',
+  };
+
+  /// The words of a question that a passage should contain (lowercase, no stop words).
+  static List<String> keyTerms(String q) => {
+        for (final w in q.toLowerCase().split(RegExp(r'[^\p{L}\p{N}]+', unicode: true)))
+          if (w.length > 2 && !_stop.contains(w)) w,
+      }.toList();
+
+  /// The paragraphs of [text] that mention the most [terms], in page order, up to [max] characters. Falls back to the
+  /// start of the page when nothing matches.
+  static String bestPassages(String text, List<String> terms, int max) {
+    final paras = text.split(RegExp(r'\n\s*\n|\n')).map((p) => p.trim()).where((p) => p.length > 40).toList();
+    if (paras.isEmpty) return text.length > max ? text.substring(0, max) : text;
+    final scored = <(int, int)>[];
+    for (var i = 0; i < paras.length; i++) {
+      final l = paras[i].toLowerCase();
+      var s = 0;
+      for (final t in terms) {
+        if (l.contains(t)) s++;
+      }
+      if (s > 0) scored.add((i, s));
+    }
+    if (scored.isEmpty) {
+      final t = paras.join('\n');
+      return t.length > max ? '${t.substring(0, max)}…' : t;
+    }
+    scored.sort((a, b) => b.$2.compareTo(a.$2));
+    final keep = <int>{};
+    var len = 0;
+    for (final s in scored) {
+      final p = paras[s.$1];
+      if (len + p.length > max && keep.isNotEmpty) continue;
+      keep.add(s.$1);
+      len += p.length + 1;
+      if (len >= max) break;
+    }
+    final out = [for (final i in keep.toList()..sort()) paras[i]].join('\n');
+    return out.length > max ? '${out.substring(0, max)}…' : out;
   }
 
   static Future<List<Map<String, String>>> _ddgLite(String q, int n) async {

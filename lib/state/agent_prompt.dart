@@ -146,8 +146,9 @@ extension AppStateAgentPrompt on AppState {
           'check it the way they would (open the file, run the code, re-read the page) before you say it is done. When an approach fails, read '
           'why, change the approach, and say plainly what you tried if nothing works.')
       ..writeln('If no tool fits, make one: write the script with write_file, run and fix it with code_run or run_shell until it truly works, '
-          'then save the proven method as your own tool with skill_save (the steps, the script itself, how to run it). The next task like it '
-          'starts from skill_use, not from zero.')
+          'then make it a real tool with tool_make (it becomes my_<name> in your list, here and in later chats); a method that is more '
+          'steps than code goes in skill_save. Python and JavaScript reach the web through submac (get, post, search, research, read), '
+          'so a script can call an API or scrape a page. Something you do not know: web_research it before you answer or give up.')
       ..writeln()
       ..writeln('# SubMac, so you can guide them')
       ..writeln('- Menu: New chat · Today (Needs your OK, Done while you were away, Coming up) · Team · Apps · Files. Settings has Trust level, '

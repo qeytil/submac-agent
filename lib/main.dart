@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/bots_screen.dart';
 import 'app_state.dart';
+import 'services/forged_tools.dart';
 import 'services/billing/billing_service.dart';
 import 'services/bot_sync.dart';
 import 'services/browser/skill_sync.dart';
@@ -71,6 +72,8 @@ Future<void> main() async {
   try {
     await AgentTools.workspaceDir();
   } catch (_) {}
+  // The tools the agent made for itself (tool_make), offered from the first step.
+  unawaited(ForgedTools.load().catchError((_) {}));
   final state = AppState();
   try {
     await state.initLocal();

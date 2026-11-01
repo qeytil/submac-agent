@@ -42,6 +42,8 @@ void main() {
     print('TOTAL $n tools ~${total ~/ 4} tokens');
     final top = per.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     print(top.take(10).map((e) => '${e.key}=${e.value}').join(', '));
-    expect(total ~/ 4, lessThan(11000));
+    // 11000 -> 11400 (core loop v3, 2026-11-01): web_research and the shell/run_shell honesty lines are worth ~160 tokens;
+    // the cap still catches a schema that balloons.
+    expect(total ~/ 4, lessThan(11400));
   });
 }
