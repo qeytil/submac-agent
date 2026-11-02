@@ -37,6 +37,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The opencode runtime is ~220 MB unpacked and Gradle copies native libs several times; the stock runner ran
+      # out of disk ("No space left on device", run 41428610744). Drop toolchains this build never uses.
+      - name: Free disk (opencode builds)
+        if: ${{ inputs.opencode }}
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/node_modules /opt/ghc /usr/local/.ghcup /usr/share/swift \
+            /usr/local/share/boost /opt/hostedtoolcache/CodeQL /usr/local/share/powershell /usr/share/miniconda \
+            /usr/local/julia* /opt/az /usr/share/az_* /usr/local/share/chromium /opt/microsoft || true
+          sudo docker image prune -af >/dev/null 2>&1 || true
+          df -h /
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -102,6 +114,13 @@ jobs:
           chmod 755 "$J"/lib*.so
           ls -l "$J"
           for f in libopencode.so libocld.so libocstdcpp.so libocgcc.so; do test -s "$J/$f" || { echo "::error::missing $f"; exit 1; }; done
+          rm -rf /tmp/oc
+          # Never strip these: the opencode binary carries its app inside the ELF, and stripping can drop it.
+          G=android/app/build.gradle.kts
+          test -f "$G" || { echo "::error::no $G"; exit 1; }
+          printf '\nandroid {\n    packaging {\n        jniLibs {\n            keepDebugSymbols += setOf("**/libopencode.so", "**/libocld.so", "**/libocstdcpp.so", "**/libocgcc.so")\n        }\n    }\n}\n' >> "$G"
+          tail -8 "$G"
+          df -h /
 
       # The SubMac launcher icon is GENERATED, never tracked: android/ is gitignored and flutter
       # create stamps the default Flutter logo, so this step is the only thing that replaces it.
