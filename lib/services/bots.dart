@@ -1811,9 +1811,8 @@ class Bots extends ChangeNotifier {
 
   static const Map<String, dynamic> _onPhone = {
     'type': 'boolean',
-    'description': 'true when the job needs tools only this phone has: building or publishing a site, email or connected apps, '
-        'the browser, files, documents, pictures, code, texts or calls. The phone then wakes itself and does it locally. '
-        'false (or leave out) for research and writing, which can run in the cloud while the phone is off.',
+    'description': 'true if the job needs phone-only tools (sites, email, apps, browser, files, code, calls): the phone wakes and runs it. '
+        'Leave out for research and writing (can run in the cloud).',
   };
 
   static final List<Map<String, dynamic>> definitions = [
