@@ -72,7 +72,9 @@ class TextToolCalls {
   static dynamic _value(String v) {
     if (v == 'true') return true;
     if (v == 'false') return false;
-    if (RegExp(r'^-?\d+(\.\d+)?$').hasMatch(v)) return num.parse(v);
+    // A number only when it reads back the same: a phone number, a code or an id with a leading zero ("0612345678",
+    // "007") or more digits than a double holds kept its value as text, never a different number.
+    if (RegExp(r'^-?(0|[1-9]\d{0,14})(\.\d+)?$').hasMatch(v)) return num.parse(v);
     if ((v.startsWith('{') && v.endsWith('}')) || (v.startsWith('[') && v.endsWith(']'))) {
       try {
         return jsonDecode(v);

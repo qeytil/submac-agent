@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'code_runner.dart';
 import 'tools.dart';
 
@@ -107,8 +109,40 @@ class ForgedTools {
     return out;
   }
 
+  /// The action of a tool_make call as [_make] reads it ("Save", " list " and the rest count the same).
+  static String actionOf(Map<String, dynamic> a) => '${a['action'] ?? 'save'}'.trim().toLowerCase();
+
+  /// The code of a tool_make call that will run as a shell command (its test run), or null. Read exactly as [_make]
+  /// reads it, so "Shell" or an action other than list/remove can never test-run a shell command without the
+  /// approval run_shell would need.
+  static String? makeShellCode(Map<String, dynamic> a) {
+    final act = actionOf(a);
+    if (act == 'list' || act == 'remove') return null;
+    return '${a['language'] ?? ''}'.trim().toLowerCase() == 'shell' ? '${a['code'] ?? ''}' : null;
+  }
+
+  /// Why [n] cannot be used for a new tool, or null. The agent's own tool of that name is not a clash: saving it again
+  /// is how a broken tool gets fixed (a new version).
+  static String? nameClash(String n, Set<String> taken) {
+    if (byName(n) != null) return null;
+    if (taken.contains(n) || taken.contains('$prefix$n')) return 'Error: "$n" is already a tool you have. Pick another name.';
+    return null;
+  }
+
+  /// Whether a test run's output is a failure (an error, a failed run, a non-zero or timed-out exit).
+  static bool testFailed(String out) =>
+      out.startsWith('Error') ||
+      RegExp(r'^(error|result: failed|exit_code: (-|[1-9]))', multiLine: true).hasMatch(out) ||
+      out.contains('Traceback (most recent call last)');
+
+  @visibleForTesting
+  static set toolsForTest(List<ForgedTool> t) {
+    _tools = t;
+    _loaded = true;
+  }
+
   static Future<String> _make(Map<String, dynamic> a, Set<String> taken) async {
-    final action = '${a['action'] ?? 'save'}';
+    final action = actionOf(a);
     if (action == 'list') {
       if (_tools.isEmpty) return 'You have made no tools yet.';
       return [for (final t in _tools) '$prefix${t.name} (${t.language}, used ${t.uses}×): ${t.description}'].join('\n');
@@ -122,7 +156,8 @@ class ForgedTools {
       _tools.removeWhere((t) => t.name == n);
       return 'Removed $prefix$n.';
     }
-    if (taken.contains(n) || taken.contains('$prefix$n')) return 'Error: "$n" is already a tool you have. Pick another name.';
+    final clash = nameClash(n, taken);
+    if (clash != null) return clash;
     final lang = '${a['language'] ?? ''}'.trim().toLowerCase();
     if (!const {'python', 'javascript', 'shell'}.contains(lang)) return 'Error: language must be python, javascript or shell.';
     final code = '${a['code'] ?? ''}';
@@ -130,13 +165,11 @@ class ForgedTools {
     final desc = '${a['description'] ?? ''}'.trim();
     if (desc.isEmpty) return 'Error: give a description (what it does and when to use it).';
     final params = a['params'] is Map ? Map<String, dynamic>.from(a['params'] as Map) : <String, dynamic>{};
-    final req = [for (final e in (a['required'] as List? ?? const [])) '$e'];
+    final req = [for (final e in (a['required'] is List ? a['required'] as List : const [])) '$e'];
     final t = ForgedTool(name: n, description: desc, language: lang, code: code, params: params, required: req);
     final testArgs = a['test_args'] is Map ? Map<String, dynamic>.from(a['test_args'] as Map) : <String, dynamic>{};
     final test = await run(t, testArgs);
-    final failed = test.startsWith('Error') || RegExp(r'^(error|exit_code: [1-9])', multiLine: true).hasMatch(test) ||
-        test.contains('Traceback (most recent call last)');
-    if (failed) {
+    if (testFailed(test)) {
       return 'Not saved: the test run failed. Fix the code and call tool_make again.\n--- test output ---\n$test';
     }
     final old = byName(n);
@@ -197,14 +230,28 @@ class ForgedTool {
   int version;
   DateTime updated;
 
-  Map<String, dynamic> definition() => {
-        'type': 'function',
-        'function': {
-          'name': '${ForgedTools.prefix}$name',
-          'description': '(your own tool) $description',
-          'parameters': {'type': 'object', 'properties': params, 'required': required},
-        },
-      };
+  /// Its definition for the model. Every own tool rides along on every request, so a schema the provider refuses
+  /// (a parameter written as `"city": "string"`, a required name that is no parameter) would fail every step of every
+  /// later task: each parameter is made a schema object and required keeps only real parameters.
+  Map<String, dynamic> definition() {
+    final props = <String, dynamic>{
+      for (final e in params.entries)
+        e.key: e.value is Map
+            ? Map<String, dynamic>.from(e.value as Map)
+            : <String, dynamic>{'type': const {'string', 'number', 'integer', 'boolean', 'array', 'object'}.contains('${e.value}') ? '${e.value}' : 'string'},
+    };
+    for (final p in props.values) {
+      if (p is Map && p['type'] == 'array' && p['items'] == null) p['items'] = {'type': 'string'};
+    }
+    return {
+      'type': 'function',
+      'function': {
+        'name': '${ForgedTools.prefix}$name',
+        'description': '(your own tool) $description',
+        'parameters': {'type': 'object', 'properties': props, 'required': [for (final r in required) if (props.containsKey(r)) r]},
+      },
+    };
+  }
 
   Map<String, dynamic> toJson() => {
         'name': name, 'description': description, 'language': language, 'code': code, 'params': params, 'required': required,
@@ -217,7 +264,7 @@ class ForgedTool {
         language: '${j['language'] ?? 'python'}',
         code: '${j['code'] ?? ''}',
         params: j['params'] is Map ? Map<String, dynamic>.from(j['params'] as Map) : const {},
-        required: [for (final e in (j['required'] as List? ?? const [])) '$e'],
+        required: [for (final e in (j['required'] is List ? j['required'] as List : const [])) '$e'],
         uses: (j['uses'] as num?)?.toInt() ?? 0,
         version: (j['version'] as num?)?.toInt() ?? 1,
         updated: DateTime.tryParse('${j['updated'] ?? ''}'),

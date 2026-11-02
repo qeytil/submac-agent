@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -137,6 +138,9 @@ class AgentTools {
     return '$ws/$path';
   }
 
+  /// read_file reads files up to this size (it loads the file whole).
+  static const maxReadBytes = 20 * 1024 * 1024;
+
   /// fetch_url returns one page of text at a time, so a long page never floods the chat.
   static const fetchChars = 8000;
 
@@ -191,14 +195,26 @@ class AgentTools {
     return html.length > 5000 && text.length < 400;
   }
 
+  /// fetch_url keeps at most this much of a body (a link to a video or a disk image was downloaded whole into memory).
+  static const maxFetchBytes = 25 * 1024 * 1024;
+
   static Future<String> fetchUrl(String url, int offset) async {
-    final resp = await http.get(Uri.parse(url), headers: {
-      'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
-      'Accept-Language': 'en,*;q=0.5',
-    }).timeout(const Duration(seconds: 30));
+    final client = http.Client();
+    final http.StreamedResponse resp;
+    final Uint8List b;
+    try {
+      final req = http.Request('GET', Uri.parse(url))
+        ..headers.addAll({
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
+          'Accept-Language': 'en,*;q=0.5',
+        });
+      resp = await client.send(req).timeout(const Duration(seconds: 30));
+      b = Uint8List.fromList(await readCapped(resp.stream, maxBytes: maxFetchBytes, total: const Duration(seconds: 45)));
+    } finally {
+      client.close();
+    }
     final ct = resp.headers['content-type'] ?? '';
     // Documents behind a link (PDF, Word, Excel, PowerPoint) are read, not dumped as bytes.
-    final b = resp.bodyBytes;
     final path = Uri.tryParse(url)?.path ?? url;
     if (resp.statusCode == 200 && (ct.contains('application/pdf') || (b.length > 4 && b[0] == 0x25 && b[1] == 0x50 && b[2] == 0x44 && b[3] == 0x46))) {
       return 'HTTP 200 (PDF)\n${_part(DocTools.pdfText(b, maxChars: 200000), offset, fetchChars, 'this PDF')}';
@@ -231,6 +247,24 @@ class AgentTools {
     return 'HTTP ${resp.statusCode}\n${_part(text, offset, fetchChars, 'this page')}$hint';
   }
 
+  /// A response body read with limits (fetch_url, and submac.get inside code). Only the headers had a time limit, so a body that never ends (a live stream, a
+  /// server that keeps the line open) hung the program and grew in memory until the app was killed. The body stops at
+  /// [maxBytes], after [idle] with no data, or after [total]; what came so far is kept.
+  static Future<List<int>> readCapped(Stream<List<int>> stream,
+      {int maxBytes = 8 * 1024 * 1024, Duration idle = const Duration(seconds: 30), Duration total = const Duration(seconds: 90)}) async {
+    final out = BytesBuilder(copy: false);
+    final end = DateTime.now().add(total);
+    try {
+      await for (final chunk in stream.timeout(idle)) {
+        out.add(chunk.length > maxBytes - out.length ? chunk.sublist(0, maxBytes - out.length) : chunk);
+        if (out.length >= maxBytes || DateTime.now().isAfter(end)) break;
+      }
+    } on TimeoutException {
+      // Silent too long: keep what arrived.
+    }
+    return out.takeBytes();
+  }
+
   /// Lines [from]..[to] (1-based, inclusive) of [text], numbered, at most 400 lines and [maxOutput] characters, with
   /// a footer saying where to read on (core loop v3: read and edit big files by line, like Claude Code's Read).
   static String numberedLines(String text, int from, int? to) {
@@ -253,6 +287,20 @@ class AgentTools {
     return sb.toString();
   }
 
+  /// A whole number from a tool argument. Models often send numbers as strings ("120", "8000.0"); a plain `as num`
+  /// cast threw on those and the whole call failed with a type error instead of running.
+  static int? intArg(Object? v) {
+    if (v is num) return v.toInt();
+    if (v is String) {
+      final t = v.trim();
+      return int.tryParse(t) ?? double.tryParse(t)?.toInt();
+    }
+    return null;
+  }
+
+  /// A number from a tool argument, a number or a numeric string ([intArg]).
+  static double? numArg(Object? v) => v is num ? v.toDouble() : (v is String ? double.tryParse(v.trim()) : null);
+
   static String _truncate(String s) =>
       s.length > maxOutput ? '${s.substring(0, maxOutput)}\n…[truncated ${s.length - maxOutput} chars]' : s;
 
@@ -260,14 +308,21 @@ class AgentTools {
     try {
       switch (name) {
         case 'run_shell':
-          final t = (args['timeout_seconds'] as num?)?.toInt() ?? 60;
+          final t = intArg(args['timeout_seconds']) ?? 60;
           return await _shell((args['command'] ?? '').toString(), t.clamp(1, 300));
         case 'read_file':
           final f = File(await _resolve((args['path'] ?? '').toString()));
           if (!await f.exists()) return 'Error: file not found: ${f.path}';
-          final from = (args['start_line'] as num?)?.toInt();
-          if (from != null) return numberedLines(await f.readAsString(), from, (args['end_line'] as num?)?.toInt());
-          return _part(await f.readAsString(), (args['offset'] as num?)?.toInt() ?? 0, maxOutput, 'this file');
+          // The whole file is read into memory to show one part of it: a video or a backup of hundreds of MB was enough
+          // to get the app killed for memory.
+          final size = await f.length();
+          if (size > maxReadBytes) {
+            return 'Error: ${f.path} is ${(size / 1048576).toStringAsFixed(0)} MB, too big to read whole. Use run_shell '
+                '(head, tail, grep, wc) to look inside it, or read_pdf / read_document for documents.';
+          }
+          final from = intArg(args['start_line']);
+          if (from != null) return numberedLines(await f.readAsString(), from, intArg(args['end_line']));
+          return _part(await f.readAsString(), intArg(args['offset']) ?? 0, maxOutput, 'this file');
         case 'write_file':
           final f = File(await _resolve((args['path'] ?? '').toString()));
           await f.parent.create(recursive: true);
@@ -321,7 +376,7 @@ class AgentTools {
         case 'delete_file':
           return await _trash((args['path'] ?? '').toString());
         case 'fetch_url':
-          return await fetchUrl((args['url'] ?? '').toString(), (args['offset'] as num?)?.toInt() ?? 0);
+          return await fetchUrl((args['url'] ?? '').toString(), intArg(args['offset']) ?? 0);
         default:
           return 'Error: unknown tool "$name"';
       }

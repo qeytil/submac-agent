@@ -227,8 +227,8 @@ class CodeTools {
       return 'Error: say the language (python, javascript, typescript, sql, c, cpp, rust, go, csharp, dart, swift...).';
     }
     final stdin = '${a['stdin'] ?? ''}';
-    final args = [for (final e in (a['args'] as List? ?? const [])) '$e'];
-    final t = ((a['timeout_seconds'] as num?)?.toInt() ?? 60).clamp(5, 300).toInt();
+    final args = [if (a['args'] is List) for (final e in a['args'] as List) '$e'];
+    final t = (AgentTools.intArg(a['timeout_seconds']) ?? 60).clamp(5, 300).toInt();
     if (CodeRunner.remote.containsKey(lang)) {
       return CodeRunner.I.runRemote(lang, code, stdin: stdin, args: args, flags: _s(a, 'flags'));
     }
@@ -248,7 +248,7 @@ class CodeTools {
           }
         }
         final r = await CodeRunner.I.runPython(code, files: files, stdin: stdin, args: args,
-            packages: [for (final e in (a['packages'] as List? ?? const [])) '$e'], timeoutSec: t);
+            packages: [if (a['packages'] is List) for (final e in a['packages'] as List) '$e'], timeoutSec: t);
         final out = StringBuffer(CodeRunner.formatLocal(r));
         final back = r['files'] is Map ? Map<String, dynamic>.from(r['files'] as Map) : const <String, dynamic>{};
         if (back.isNotEmpty) {
@@ -318,7 +318,7 @@ class CodeTools {
     if (!await root.exists()) return 'Error: folder not found: ${root.path}';
     final act = _s(a, 'action');
     final q = '${a['query'] ?? ''}';
-    final max = ((a['max'] as num?)?.toInt() ?? 80).clamp(1, 400).toInt();
+    final max = (AgentTools.intArg(a['max']) ?? 80).clamp(1, 400).toInt();
     final glob = _s(a, 'glob');
     final gx = glob.isEmpty ? null : globRx(glob.contains('/') ? glob : '**$glob');
     final files = (await CodeGit.localFiles(root)).entries.where((e) => gx == null || gx.hasMatch(e.key) || gx.hasMatch('/${e.key}')).toList()
@@ -788,7 +788,7 @@ class CodeTools {
         return l.isEmpty ? 'None open.' : l.join('\n');
       case 'issue':
         if (repo == null) return need2('issue');
-        final n = (a['number'] as num?)?.toInt();
+        final n = AgentTools.intArg(a['number']);
         if (n == null) return 'Error: give number.';
         final (c, r) = await CodeGit.call('GET', '/repos/$repo/issues/$n');
         if (c != 200) return CodeGit.err(c, r);
@@ -802,7 +802,7 @@ class CodeTools {
         return 'Opened issue #${r['number']}: ${r['html_url']}';
       case 'comment':
         if (repo == null) return need2('comment');
-        final n = (a['number'] as num?)?.toInt();
+        final n = AgentTools.intArg(a['number']);
         if (n == null) return 'Error: give number.';
         final (c, r) = await CodeGit.call('POST', '/repos/$repo/issues/$n/comments', {'body': '${a['body'] ?? ''}'});
         if (c != 201) return CodeGit.err(c, r);

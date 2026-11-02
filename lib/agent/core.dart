@@ -116,6 +116,9 @@ class RunState {
   /// Reads started early (independent read-only calls of the same turn run together).
   final Map<String, Future<String>> early = {};
 
+  /// Every tool call id this run has used: a reply with an empty or repeated id gets a fresh one ([TurnMiddleware]).
+  final Set<String> callIds = {};
+
   /// Why the run stopped early (a cap, a budget), shown to the user; null when it ended normally.
   String? haltReason;
 
@@ -158,6 +161,11 @@ class ToolNames {
   /// The stub every run registers (never offered to the model; only reached through [resolve]).
   static const unknown = 'unknown_tool';
 
+  /// The stub that carries a call to a tool offered after the run started (an own tool made with tool_make, an app
+  /// connected mid-task). Genkit only runs tools registered when the run began, so such a call rides on this stub and
+  /// is unwrapped back to the real tool before the chat, the approval or the tool sees it ([unwrap]).
+  static const late = 'late_tool';
+
   /// Model replies in a row with only unknown tools before the run stops on its own (no endless re-sends).
   static const maxUnknownTurns = 3;
 
@@ -185,12 +193,39 @@ class ToolNames {
     return n;
   }
 
-  /// The call as the run can execute it: same call, cleaned name, or a call to [unknown] that names what was asked.
-  static ToolCall resolve(ToolCall c, Set<String> known) {
+  /// The call as the run can execute it: same call, cleaned name, a [late] call for a tool this turn offers that the
+  /// run did not have when it began ([offered]), or a call to [unknown] that names what was asked.
+  static ToolCall resolve(ToolCall c, Set<String> known, {Set<String> offered = const {}}) {
     if (known.contains(c.name)) return c;
     final n = clean(c.name);
-    if (n.isNotEmpty && n != unknown && known.contains(n)) return ToolCall(id: c.id, name: n, arguments: c.arguments, extra: c.extra);
+    if (n.isNotEmpty && n != unknown && n != late && known.contains(n)) {
+      return ToolCall(id: c.id, name: n, arguments: c.arguments, extra: c.extra);
+    }
+    if (n.isNotEmpty && n != unknown && n != late && offered.contains(n)) {
+      return ToolCall(id: c.id, name: late, arguments: jsonEncode({'tool': n, 'arguments': c.arguments}), extra: c.extra);
+    }
     return ToolCall(id: c.id, name: unknown, arguments: jsonEncode({'tool': n.isEmpty ? c.name : n}), extra: c.extra);
+  }
+
+  /// A [late] call as the real call it carries (same id); any other call as it is.
+  static ToolCall unwrap(ToolCall c) {
+    if (c.name != late) return c;
+    try {
+      final d = jsonDecode(c.arguments);
+      if (d is Map && d['tool'] is String) {
+        return ToolCall(id: c.id, name: d['tool'] as String, arguments: '${d['arguments'] ?? ''}', extra: c.extra);
+      }
+    } catch (_) {}
+    return c;
+  }
+
+  /// The arguments of an unwrapped call as a map, and whether they were broken (not a JSON object).
+  static (Map<String, dynamic>, bool) argsOf(ToolCall c) {
+    try {
+      final d = jsonDecode(c.arguments.trim().isEmpty ? '{}' : c.arguments);
+      if (d is Map) return (Map<String, dynamic>.from(d), false);
+    } catch (_) {}
+    return (<String, dynamic>{}, true);
   }
 
   /// What the model reads back for a call to a tool that does not exist.
@@ -304,7 +339,7 @@ typedef ToolExec = Future<String> Function(ToolCall call, Map<String, dynamic> a
 List<Tool<Map<String, dynamic>, String>> genkitTools(List<Map<String, dynamic>> defs, ToolExec exec) {
   final seen = <String>{};
   final out = <Tool<Map<String, dynamic>, String>>[];
-  for (final d in [...defs, _unknownDef]) {
+  for (final d in [...defs, _unknownDef, _lateDef]) {
     final f = (d['function'] as Map?) ?? d;
     final name = '${f['name'] ?? ''}';
     if (name.isEmpty || !seen.add(name)) continue;
@@ -339,6 +374,22 @@ final Map<String, dynamic> _unknownDef = {
       'type': 'object',
       'properties': {
         'tool': {'type': 'string'}
+      }
+    },
+  },
+};
+
+/// The stub that late tool calls ride on ([ToolNames.late]). [CommitMiddleware] unwraps and runs the real tool.
+final Map<String, dynamic> _lateDef = {
+  'type': 'function',
+  'function': {
+    'name': ToolNames.late,
+    'description': 'Not a real tool: calls to tools offered after the run started ride on it.',
+    'parameters': {
+      'type': 'object',
+      'properties': {
+        'tool': {'type': 'string'},
+        'arguments': {'type': 'string'},
       }
     },
   },
@@ -479,10 +530,29 @@ class TurnMiddleware extends GenerateMiddleware {
         changed = true;
       }
     }
+    // Each call needs its own id: results, early reads and approvals are matched by it. Two calls with the same (or an
+    // empty) id got each other's results.
+    if (r.calls.isNotEmpty) {
+      final fixed = <ToolCall>[];
+      for (var i = 0; i < r.calls.length; i++) {
+        final c = r.calls[i];
+        if (c.id.trim().isNotEmpty && state.callIds.add(c.id)) {
+          fixed.add(c);
+          continue;
+        }
+        var id = 'call_s${step}_$i';
+        while (!state.callIds.add(id)) {
+          id = '${id}x';
+        }
+        fixed.add(ToolCall(id: id, name: c.name, arguments: c.arguments, extra: c.extra));
+        changed = true;
+      }
+      r.calls = fixed;
+    }
     // CB-3: every name is one the run has before Genkit looks it up (an unknown name failed the whole run, and the
     // retry sent the same request again and again).
     if (known.isNotEmpty && r.calls.isNotEmpty) {
-      final mapped = [for (final c in r.calls) ToolNames.resolve(c, known)];
+      final mapped = [for (final c in r.calls) ToolNames.resolve(c, known, offered: names)];
       for (var i = 0; i < mapped.length; i++) {
         if (!identical(mapped[i], r.calls[i])) changed = true;
       }
@@ -584,6 +654,8 @@ class CommitMiddleware extends GenerateMiddleware {
     final resp = await next(request, ctx);
     if (resp.custom?['halt'] != null || resp.message == null) return resp;
     final r = replyOf(resp, step: state.step - 1);
+    // The chat keeps the real name of a tool offered after the run started, never the stub it rides on.
+    r.calls = [for (final c in r.calls) ToolNames.unwrap(c)];
     _last = r;
     // CB-2: a call cut by Stop is not this turn's reply; committing it replaced the streamed words with nothing.
     if (resp.finishReason == FinishReason.aborted) {
@@ -610,13 +682,19 @@ class CommitMiddleware extends GenerateMiddleware {
   @override
   Future<ToolResult> tool(ToolRequestPart request, ActionFnArg<void, dynamic, void> ctx,
       Future<ToolResult> Function(ToolRequestPart, ActionFnArg<void, dynamic, void>) next) async {
-    final call = Wire.partToCall(request);
-    final args = Wire.argsOf(request);
+    var call = Wire.partToCall(request);
+    var args = Wire.argsOf(request);
+    var broken = Wire.isBroken(request);
+    if (call.name == ToolNames.late) {
+      // A tool offered after the run started: the real call, its arguments and its approval, as for any other tool.
+      call = ToolNames.unwrap(call);
+      (args, broken) = ToolNames.argsOf(call);
+    }
     String out;
     if (call.name == ToolNames.unknown) {
       // CB-3: a tool that does not exist; the model reads that and goes on (no approval, nothing runs).
       out = ToolNames.unknownText(args['tool']);
-    } else if (Wire.isBroken(request) && (_last == null || _last!.calls.any((c) => c.id == call.id))) {
+    } else if (broken && (_last == null || _last!.calls.any((c) => c.id == call.id))) {
       out = hooks.brokenText(_last ?? Reply(text: '', calls: const []));
     } else {
       final resumed = request.metadata?['resumed'];
@@ -762,16 +840,19 @@ class AgentCore {
             final tr = p.toolRequestPart;
             final data = tr?.metadata?['interrupt'];
             if (tr == null || data == null) continue;
-            final call = Wire.partToCall(tr);
-            final args = Wire.argsOf(tr);
+            final lateCall = tr.toolRequest.name == ToolNames.late;
+            final call = ToolNames.unwrap(Wire.partToCall(tr));
+            final args = lateCall ? ToolNames.argsOf(call).$1 : Wire.argsOf(tr);
             final ans = await hooks.answer(call, args, data is Map ? Map<String, dynamic>.from(data) : {'ask': data});
             if (hooks.cancelled) return RunResult(RunEnd.cancelled, reply: last);
             if (ans.ok) {
               final meta = Map<String, dynamic>.from(tr.metadata ?? const {})
                 ..remove('interrupt')
                 ..['resumed'] = {'approved': true, 'note': ans.note, if (data is Map) ...Map<String, dynamic>.from(data)};
-              if (ans.args != null) meta[Wire.argsKey] = jsonEncode(ans.args);
-              r.add(ToolRequestPart(toolRequest: ToolRequest(ref: tr.toolRequest.ref, name: tr.toolRequest.name, input: ans.args ?? args), metadata: meta));
+              // A late call goes back on its stub, carrying the approved arguments.
+              final input = lateCall ? {'tool': call.name, 'arguments': jsonEncode(ans.args ?? args)} : (ans.args ?? args);
+              if (ans.args != null || lateCall) meta[Wire.argsKey] = jsonEncode(input);
+              r.add(ToolRequestPart(toolRequest: ToolRequest(ref: tr.toolRequest.ref, name: tr.toolRequest.name, input: input), metadata: meta));
             } else {
               a.add(InterruptResponse(tr, ans.text));
               await log.toolEnd(call, ans.text);

@@ -86,23 +86,23 @@ class WebTools {
     try {
       switch (name) {
         case 'web_search':
-          final n = ((a['max_results'] as num?)?.toInt() ?? 6).clamp(1, 10);
+          final n = (AgentTools.intArg(a['max_results']) ?? 6).clamp(1, 10);
           return await webSearch((a['query'] ?? '').toString(), n);
         case 'web_research':
           return await research((a['question'] ?? '').toString(),
-              extra: [for (final q in (a['queries'] as List? ?? const [])) '$q'],
-              sources: ((a['sources'] as num?)?.toInt() ?? 5).clamp(1, 8));
+              extra: [if (a['queries'] is List) for (final q in a['queries'] as List) '$q' else if (a['queries'] is String) '${a['queries']}'],
+              sources: (AgentTools.intArg(a['sources']) ?? 5).clamp(1, 8));
         case 'get_weather':
           return await weather((a['place'] ?? '').toString());
         case 'wikipedia':
           return await wikipedia((a['query'] ?? '').toString(), (a['lang'] ?? 'en').toString());
         case 'currency_convert':
-          return await currency((a['amount'] as num?)?.toDouble() ?? 1, (a['from'] ?? 'USD').toString(),
+          return await currency(AgentTools.numArg(a['amount']) ?? 1, (a['from'] ?? 'USD').toString(),
               (a['to'] ?? 'EUR').toString());
         case 'find_place':
-          return await places((a['query'] ?? '').toString(), ((a['limit'] as num?)?.toInt() ?? 5).clamp(1, 10));
+          return await places((a['query'] ?? '').toString(), (AgentTools.intArg(a['limit']) ?? 5).clamp(1, 10));
         case 'read_rss':
-          return await rss((a['url'] ?? '').toString(), ((a['limit'] as num?)?.toInt() ?? 10).clamp(1, 30));
+          return await rss((a['url'] ?? '').toString(), (AgentTools.intArg(a['limit']) ?? 10).clamp(1, 30));
         case 'youtube_transcript':
           return await youtube((a['url'] ?? '').toString(), (a['lang'] ?? 'en').toString());
       }
@@ -185,7 +185,12 @@ class WebTools {
       .replaceAll('&lt;', '<')
       .replaceAll('&gt;', '>')
       .replaceAll('&nbsp;', ' ')
-      .replaceAllMapped(RegExp(r'&#(\d+);'), (m) => String.fromCharCode(int.parse(m[1]!)));
+      // A code point out of range (or too many digits) is left as written: it threw, and the whole engine's results
+      // were dropped for one odd title.
+      .replaceAllMapped(RegExp(r'&#(\d{1,7});'), (m) {
+        final c = int.parse(m[1]!);
+        return c > 0 && c <= 0x10FFFF && (c < 0xD800 || c > 0xDFFF) ? String.fromCharCode(c) : m[0]!;
+      });
 
   static Future<List<Map<String, String>>> _ddgHtml(String q, int n) async {
     final r = await http.post(Uri.parse('https://html.duckduckgo.com/html/'),

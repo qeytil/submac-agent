@@ -791,9 +791,7 @@ extension AppStateTools on AppState {
     }
     if (CodeTools.names.contains(name)) return CodeTools.riskFor(name, args);
     // An own tool in shell (or the test run of one being made) is a shell command: the same approval as run_shell.
-    final forgedShell = name == ForgedTools.make
-        ? ('${args['language'] ?? ''}' == 'shell' && '${args['action'] ?? 'save'}' == 'save' ? '${args['code'] ?? ''}' : null)
-        : ForgedTools.shellCodeOf(name);
+    final forgedShell = name == ForgedTools.make ? ForgedTools.makeShellCode(args) : ForgedTools.shellCodeOf(name);
     if (forgedShell != null) return AgentTools.riskFor('run_shell', {'command': forgedShell});
     return AgentTools.riskFor(name, args);
   }

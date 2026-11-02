@@ -230,8 +230,9 @@ class CodeRunner {
         };
         final req = http.Request(method, url)..headers.addAll(headers);
         if (p['body'] != null) req.body = p['body'] is String ? p['body'] as String : jsonEncode(p['body']);
-        final res = await http.Response.fromStream(await req.send().timeout(const Duration(seconds: 40)));
-        final text = utf8.decode(res.bodyBytes, allowMalformed: true);
+        final res = await req.send().timeout(const Duration(seconds: 40));
+        final body = await AgentTools.readCapped(res.stream);
+        final text = utf8.decode(body, allowMalformed: true);
         return {
           'status': res.statusCode,
           'headers': res.headers,
@@ -239,7 +240,7 @@ class CodeRunner {
           'url': '${res.request?.url ?? url}',
         };
       case 'search':
-        final r = await WebTools.webSearch('${p['q'] ?? ''}', ((p['n'] as num?)?.toInt() ?? 6).clamp(1, 10));
+        final r = await WebTools.webSearch('${p['q'] ?? ''}', (AgentTools.intArg(p['n']) ?? 6).clamp(1, 10));
         try {
           return {'results': (jsonDecode(r) as Map)['results'] ?? []};
         } catch (_) {
@@ -253,7 +254,7 @@ class CodeRunner {
           return {'error': r};
         }
       case 'read':
-        final r = await AgentTools.fetchUrl('${p['url'] ?? ''}', ((p['offset'] as num?)?.toInt() ?? 0));
+        final r = await AgentTools.fetchUrl('${p['url'] ?? ''}', (AgentTools.intArg(p['offset']) ?? 0));
         return {'text': r};
     }
     return {'error': 'unknown submac call "$op" (get, post, search, research, read)'};

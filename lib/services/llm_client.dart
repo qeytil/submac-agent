@@ -245,10 +245,14 @@ class LlmClient {
             if (existing == null) {
               final nm = (fn['name'] ?? '') as String;
               if (nm.isNotEmpty) onToolStart?.call(nm);
+              // A provider that leaves the id empty (or sends a number), or the arguments as an object, used to throw here
+              // and the step failed as "The connection dropped". An empty id gets a unique one so results never mix up.
+              final id = tc['id'] == null || '${tc['id']}'.trim().isEmpty ? 'call_${DateTime.now().microsecondsSinceEpoch}_$idx' : '${tc['id']}';
+              final args = fn['arguments'];
               calls[idx] = ToolCall(
-                id: (tc['id'] ?? 'call_$idx') as String,
-                name: (fn['name'] ?? '') as String,
-                arguments: (fn['arguments'] ?? '') as String,
+                id: id,
+                name: '${fn['name'] ?? ''}',
+                arguments: args == null ? '' : (args is String ? args : jsonEncode(args)),
                 extra: mergeExtra(null, tc['extra_content']),
               );
             } else {
