@@ -42,4 +42,13 @@ void main() {
     expect(r.text, '');
     expect(r.done, isFalse);
   });
+
+  test('a model error or a retry shows on screen and an error ends the wait', () {
+    final r = OpenCodeReply('s1');
+    expect(r.apply('{"type":"session.status","properties":{"sessionID":"s1","status":{"type":"retry","attempt":2,"message":"Unable to connect"}}}'), isTrue);
+    expect(r.text, contains('Unable to connect'));
+    expect(r.apply('{"type":"session.error","properties":{"sessionID":"s1","error":{"name":"APIError","data":{"message":"Unauthorized"}}}}'), isTrue);
+    expect(r.text, contains('Unauthorized'));
+    expect(r.done, isTrue);
+  });
 }

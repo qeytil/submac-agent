@@ -64,6 +64,12 @@ object OpenCode {
         env["OPENCODE_CONFIG"] = cfg.path
         env["OPENCODE_SERVER_PASSWORD"] = pass
         env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
+        // Android has no /etc/resolv.conf, so musl cannot resolve names: all outbound traffic goes through the
+        // app's own proxy, which resolves with Android's resolver (LocalProxy).
+        val proxy = "http://127.0.0.1:${LocalProxy.start()}"
+        for (k in listOf("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY")) env[k] = proxy
+        env["NO_PROXY"] = "127.0.0.1,localhost"
+        env["no_proxy"] = "127.0.0.1,localhost"
         synchronized(log) { log.setLength(0) }
         val p = pb.start()
         proc = p

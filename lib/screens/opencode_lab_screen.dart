@@ -70,6 +70,20 @@ class OpenCodeReply {
       case 'session.idle':
         if (props['sessionID'] == session) done = true;
         return false;
+      case 'session.error':
+        if (props['sessionID'] != null && props['sessionID'] != session) return false;
+        final err = props['error'];
+        final msg = err is Map ? '${(err['data'] as Map?)?['message'] ?? err['name'] ?? err}' : '$err';
+        if (!_parts.containsKey('error')) _order.add('error');
+        _parts['error'] = '[error: $msg]';
+        done = true;
+        return true;
+      case 'session.status':
+        final st = props['status'];
+        if (props['sessionID'] != session || st is! Map || st['type'] != 'retry') return false;
+        if (!_parts.containsKey('retry')) _order.add('retry');
+        _parts['retry'] = '[retry ${st['attempt'] ?? ''}: ${st['message'] ?? ''}]';
+        return true;
     }
     return false;
   }
