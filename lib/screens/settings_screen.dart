@@ -29,6 +29,7 @@ import 'home_screen.dart' show TodayUsage;
 import 'inbox_screen.dart' show enterInviteCode;
 import 'logins_screen.dart';
 import 'memory_screen.dart';
+import 'opencode_lab_screen.dart';
 import 'system_screens.dart';
 import '../ui/tokens.dart';
 
@@ -483,6 +484,11 @@ class _PrivacyPage extends StatelessWidget {
         ),
         ListTile(title: Text(tr('About you')), onTap: () => _push(context, const CustomInstructionsScreen())),
         ListTile(title: Text(tr('Saved logins')), onTap: () => _push(context, const LoginsScreen())),
+        if (Platform.isAndroid)
+          ListTile(
+              title: const Text('opencode test'),
+              subtitle: const Text('Run the opencode engine on this phone'),
+              onTap: () => _push(context, const OpenCodeLabScreen())),
       ]),
       _Group([
         ListTile(title: Text(tr('Archived chats')), onTap: () => _push(context, const ArchivedChatsScreen())),

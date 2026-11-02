@@ -134,6 +134,31 @@ class MainActivity : FlutterActivity() {
         ch.setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
+                    // opencode on the phone (test screen, 2026-11-02).
+                    "ocStart" -> {
+                        val base = call.argument<String>("baseUrl") ?: ""
+                        val token = call.argument<String>("token") ?: ""
+                        val pass = call.argument<String>("password") ?: ""
+                        val want = num(call.argument<Any>("port"), 4096).toInt()
+                        val main = android.os.Handler(mainLooper)
+                        Thread {
+                            try {
+                                val port = OpenCode.start(applicationContext, base, token, pass, want)
+                                val health = OpenCode.waitHealthy(60000)
+                                main.post {
+                                    result.success(mapOf("ok" to (health != null), "port" to port, "health" to health, "log" to OpenCode.lastLog()))
+                                }
+                            } catch (e: Throwable) {
+                                main.post { result.success(mapOf("ok" to false, "error" to e.toString(), "log" to OpenCode.lastLog())) }
+                            }
+                        }.start()
+                    }
+                    "ocStop" -> {
+                        OpenCode.stop()
+                        result.success(true)
+                    }
+                    "ocStatus" -> result.success(mapOf("installed" to OpenCode.installed(applicationContext), "running" to OpenCode.running(),
+                        "port" to OpenCode.port, "log" to OpenCode.lastLog()))
                     "takeShared" -> {
                         val p = pending
                         pending = null

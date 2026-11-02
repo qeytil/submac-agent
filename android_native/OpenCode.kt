@@ -1,0 +1,143 @@
+package com.submac.agent
+
+import android.content.Context
+import android.util.Log
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+
+/**
+ * opencode on the phone (owner, 2026-11-02: "replace the agent with opencode, on the phone, we are on a free budget").
+ *
+ * The opencode server (linux-arm64-musl build) ships inside the APK as native libs, so Android extracts them to
+ * nativeLibraryDir, the one place an app may execute files from (W^X, targetSdk 29+):
+ *   libocld.so       musl's dynamic loader (ld-musl-aarch64.so.1). It is the program we start.
+ *   libopencode.so   the opencode binary, loaded by libocld.so.
+ *   libocstdcpp.so   libstdc++.so.6        libocgcc.so   libgcc_s.so.1
+ * The binary asks for its libraries by soname, so filesDir/oc/lib holds symlinks with those names pointing at the
+ * extracted files. musl treats libc.musl-aarch64.so.1 as itself. Everything opencode writes (config, sessions,
+ * temp files) lives under filesDir/oc. It listens on 127.0.0.1 only, behind a password.
+ */
+object OpenCode {
+    private const val TAG = "SubMacOpenCode"
+    @Volatile private var proc: Process? = null
+    @Volatile var port: Int = 0
+        private set
+    @Volatile var password: String = ""
+        private set
+    private val log = StringBuilder()
+
+    fun installed(ctx: Context): Boolean = File(ctx.applicationInfo.nativeLibraryDir, "libopencode.so").exists()
+
+    fun running(): Boolean = proc?.isAlive == true
+
+    fun lastLog(): String = synchronized(log) { log.toString().takeLast(4000) }
+
+    /** Starts the server (or returns the running one). [baseUrl] is the OpenAI-compatible model endpoint (our
+     *  ai-chat function) and [token] the signed-in user's access token. Returns the port. */
+    @Synchronized
+    fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int): Int {
+        if (running()) return port
+        val lib = File(ctx.applicationInfo.nativeLibraryDir)
+        val ld = File(lib, "libocld.so")
+        val bin = File(lib, "libopencode.so")
+        if (!ld.exists() || !bin.exists()) throw IllegalStateException("opencode is not in this build (no ${bin.name} in ${lib.path})")
+        val root = File(ctx.filesDir, "oc").apply { mkdirs() }
+        val links = File(root, "lib").apply { mkdirs() }
+        link(File(lib, "libocstdcpp.so"), File(links, "libstdc++.so.6"))
+        link(File(lib, "libocgcc.so"), File(links, "libgcc_s.so.1"))
+        val work = File(root, "work").apply { mkdirs() }
+        val tmp = File(root, "tmp").apply { mkdirs() }
+        val cfg = File(root, "opencode.json")
+        cfg.writeText(config(baseUrl, token))
+        val pb = ProcessBuilder(ld.path, "--library-path", links.path, bin.path, "serve", "--hostname", "127.0.0.1", "--port", "$wantPort")
+        pb.directory(work)
+        pb.redirectErrorStream(true)
+        val env = pb.environment()
+        env["HOME"] = root.path
+        env["XDG_DATA_HOME"] = File(root, "data").path
+        env["XDG_CONFIG_HOME"] = File(root, "config").path
+        env["XDG_CACHE_HOME"] = File(root, "cache").path
+        env["XDG_STATE_HOME"] = File(root, "state").path
+        env["TMPDIR"] = tmp.path
+        env["SHELL"] = "/system/bin/sh"
+        env["OPENCODE_CONFIG"] = cfg.path
+        env["OPENCODE_SERVER_PASSWORD"] = pass
+        env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
+        synchronized(log) { log.setLength(0) }
+        val p = pb.start()
+        proc = p
+        port = wantPort
+        password = pass
+        Thread {
+            try {
+                p.inputStream.bufferedReader().forEachLine { line ->
+                    Log.i(TAG, line)
+                    synchronized(log) {
+                        log.append(line).append('\n')
+                        if (log.length > 20000) log.delete(0, log.length - 12000)
+                    }
+                }
+            } catch (_: Throwable) {}
+            val code = try { p.waitFor() } catch (_: Throwable) { -1 }
+            synchronized(log) { log.append("[opencode exited: $code]\n") }
+        }.apply { isDaemon = true }.start()
+        return wantPort
+    }
+
+    /** Waits up to [ms] for /global/health; returns its body, or null. */
+    fun waitHealthy(ms: Long): String? {
+        val end = System.currentTimeMillis() + ms
+        while (System.currentTimeMillis() < end) {
+            if (!running()) return null
+            try {
+                val c = URL("http://127.0.0.1:$port/global/health").openConnection() as HttpURLConnection
+                c.connectTimeout = 800
+                c.readTimeout = 1500
+                val auth = android.util.Base64.encodeToString("opencode:$password".toByteArray(), android.util.Base64.NO_WRAP)
+                c.setRequestProperty("Authorization", "Basic $auth")
+                if (c.responseCode == 200) return c.inputStream.bufferedReader().readText()
+            } catch (_: Throwable) {}
+            Thread.sleep(400)
+        }
+        return null
+    }
+
+    @Synchronized
+    fun stop() {
+        proc?.destroy()
+        proc = null
+    }
+
+    private fun link(target: File, name: File) {
+        try {
+            if (name.exists() || isLink(name)) name.delete()
+            android.system.Os.symlink(target.path, name.path)
+        } catch (e: Throwable) {
+            Log.w(TAG, "symlink ${name.name}: $e")
+        }
+    }
+
+    private fun isLink(f: File): Boolean = try { android.system.Os.lstat(f.path); true } catch (_: Throwable) { false }
+
+    private fun q(s: String) = org.json.JSONObject.quote(s)
+
+    /** One provider: SubMac's own model gateway, which speaks the OpenAI chat API. */
+    private fun config(baseUrl: String, token: String): String = """
+{
+  "${'$'}schema": "https://opencode.ai/config.json",
+  "autoupdate": false,
+  "share": "disabled",
+  "provider": {
+    "submac": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "SubMac",
+      "options": { "baseURL": ${q(baseUrl)}, "apiKey": ${q(token)}, "headers": { "x-submac-source": "opencode" } },
+      "models": { "submac": { "name": "SubMac", "tool_call": true } }
+    }
+  },
+  "model": "submac/submac",
+  "small_model": "submac/submac"
+}
+""".trimIndent()
+}
