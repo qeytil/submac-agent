@@ -79,14 +79,25 @@ jobs:
           J=android/app/src/main/jniLibs/arm64-v8a; mkdir -p "$J" /tmp/oc && cd /tmp/oc
           curl -fsSL -o oc.tgz "https://github.com/anomalyco/opencode/releases/download/v$OC/opencode-linux-arm64-musl.tar.gz"
           tar xzf oc.tgz
-          IDX=$(curl -fsSL "https://dl-cdn.alpinelinux.org/alpine/$ALP/main/aarch64/")
-          for pkg in $(echo "$IDX" | grep -oE '"(musl-1[^"]*|libgcc-[^"]*|libstdc\+\+-1[^"]*)\.apk"' | tr -d '"' | grep -v -- '-dev-' | sort -u); do
-            curl -fsSL "https://dl-cdn.alpinelinux.org/alpine/$ALP/main/aarch64/$pkg" | tar xz 2>/dev/null || true
+          # Pinned Alpine packages (musl's loader, libgcc, libstdc++); if a revision is gone, find the current one.
+          base="https://dl-cdn.alpinelinux.org/alpine/$ALP/main/aarch64"
+          IDX=$(curl -fsSL "$base/")
+          for want in musl-1.2.5-r13 libgcc-14.2.0-r6 libstdc++-14.2.0-r6; do
+            name="$want.apk"
+            if ! curl -fsSL -o pkg.apk "$base/$(echo "$name" | sed 's/+/%2B/g')"; then
+              stem="${want%%-[0-9]*}"
+              name=$(python3 -c "import re,sys;s=sys.stdin.read();m=sorted(set(re.findall(r'(?:href=\")(%s-[0-9][^\"/]*\\.apk)'%re.escape(sys.argv[1]),s.replace('%2B','+'))));print(m[-1] if m else '')" "$stem" <<< "$IDX")
+              test -n "$name" || { echo "::error::no Alpine package for $stem"; exit 1; }
+              curl -fsSL -o pkg.apk "$base/$(echo "$name" | sed 's/+/%2B/g')"
+            fi
+            echo "package $name"
+            tar xzf pkg.apk 2>/dev/null || true
           done
+          ls -l lib usr/lib
           cd -
           cp /tmp/oc/opencode "$J/libopencode.so"
           cp /tmp/oc/lib/ld-musl-aarch64.so.1 "$J/libocld.so"
-          cp "$(readlink -f /tmp/oc/usr/lib/libstdc++.so.6)" "$J/libocstdcpp.so"
+          cp -L "$(ls /tmp/oc/usr/lib/libstdc++.so.6* | head -1)" "$J/libocstdcpp.so"
           cp /tmp/oc/usr/lib/libgcc_s.so.1 "$J/libocgcc.so"
           chmod 755 "$J"/lib*.so
           ls -l "$J"

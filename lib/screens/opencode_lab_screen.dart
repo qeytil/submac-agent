@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import '../config.dart';
 import '../services/cloud.dart';
+import '../ui/i18n.dart';
 
 /// opencode on the phone: the test screen (owner, 2026-11-02). Starts the bundled opencode server, checks
 /// /global/health, opens a session and streams the reply to one prompt from the server's event stream (/event).
@@ -216,15 +217,15 @@ class _OpenCodeLabScreenState extends State<OpenCodeLabScreen> {
           Text(_status, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 12),
           Wrap(spacing: 8, children: [
-            FilledButton(onPressed: _busy ? null : _start, child: const Text('Start')),
+            FilledButton(onPressed: _busy ? null : _start, child: Text(tr('Start'))),
             OutlinedButton(onPressed: _busy || _port == 0 ? null : _send, child: const Text('Send prompt')),
-            TextButton(onPressed: _busy ? null : _stop, child: const Text('Stop')),
+            TextButton(onPressed: _busy ? null : _stop, child: Text(tr('Stop'))),
           ]),
           const SizedBox(height: 12),
           TextField(controller: _prompt, minLines: 2, maxLines: 5, decoration: const InputDecoration(labelText: 'Prompt')),
           const SizedBox(height: 16),
           if (_reply.isNotEmpty) ...[
-            Text('Reply', style: Theme.of(context).textTheme.labelLarge),
+            Text(tr('Reply'), style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: 4),
             SelectableText(_reply),
             const SizedBox(height: 16),
