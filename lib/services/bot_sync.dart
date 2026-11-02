@@ -187,11 +187,11 @@ class BotSync {
     final now = DateTime.now();
     return [
       for (final r in b.routines)
-        if (!b.needsPhone(r.instruction, r.kind))
+        if (!b.needsPhone(r.instruction, r.kind, local: r.local))
           {'id': r.id, 'type': 'routine', 'time': r.time, 'days': r.days, 'kind': r.kind, 'do': r.instruction,
             if (r.next(now) != null) 'next': r.next(now)!.toUtc().toIso8601String()},
       for (final f in b.followups)
-        if (!b.needsPhone(f.instruction, f.kind))
+        if (!b.needsPhone(f.instruction, f.kind, local: f.local))
           {'id': f.id, 'type': 'followup', 'at': f.at.toUtc().toIso8601String(), 'kind': f.kind, 'do': f.instruction},
       if (b.effectiveHeartbeat > 0)
         {'id': 'hb', 'type': 'heartbeat', 'every_hours': b.effectiveHeartbeat,
@@ -488,9 +488,9 @@ class BotSync {
     }
     if (job == 'hb') return b.effectiveHeartbeat > 0;
     final r = b.routines.where((x) => x.id == job).firstOrNull;
-    if (r != null) return !b.needsPhone(r.instruction, r.kind);
+    if (r != null) return !b.needsPhone(r.instruction, r.kind, local: r.local);
     final f = b.followups.where((x) => x.id == job).firstOrNull;
-    if (f != null) return !b.needsPhone(f.instruction, f.kind);
+    if (f != null) return !b.needsPhone(f.instruction, f.kind, local: f.local);
     return false;
   }
 

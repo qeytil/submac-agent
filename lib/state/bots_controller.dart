@@ -357,7 +357,7 @@ extension AppStateBots on AppState {
   Future<void> _wakeLater(Bot b, String instruction, String kind) async {
     if (kind == 'chat' || Bots.hasPendingFollowup(b, instruction, kind)) return;
     b.followups.add(BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', DateTime.now().add(const Duration(minutes: 15)),
-        instruction.isEmpty ? Bots.heartbeat : instruction, kind));
+        instruction.isEmpty ? Bots.heartbeat : instruction, kind, local: true));
     await Bots.I.save();
     await Bots.I.arm(b);
   }
@@ -408,7 +408,7 @@ extension AppStateBots on AppState {
       await _dropWakeTurn(b.convId);
       if (!instruction.startsWith('(retry) ')) {
         b.followups.add(BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', DateTime.now().add(const Duration(minutes: 10)),
-            '(retry) ${instruction.isEmpty ? Bots.heartbeat : instruction}', kind));
+            '(retry) ${instruction.isEmpty ? Bots.heartbeat : instruction}', kind, local: true));
         await Bots.I.save();
         await Bots.I.arm(b);
       }

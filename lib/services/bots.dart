@@ -26,8 +26,11 @@ import 'trust.dart';
 const botWakeMark = '\u2063wake\u2063';
 
 class BotRoutine {
-  BotRoutine({required this.id, required this.time, this.days = 'daily', this.kind = 'work', required this.instruction});
+  BotRoutine({required this.id, required this.time, this.days = 'daily', this.kind = 'work', required this.instruction, this.local = false});
   final String id;
+  /// Runs on this phone (its own alarm wakes SubMac), never in the cloud: the job needs tools only the phone has
+  /// (sites, email and apps, the browser, files, code, the phone itself). Owner 2026-11-02.
+  bool local;
   /// 'HH:MM' in the phone's local time.
   String time;
   /// daily | weekdays | weekends | mon,wed,fri (three-letter names)
@@ -36,9 +39,10 @@ class BotRoutine {
   String kind;
   String instruction;
 
-  Map<String, dynamic> toJson() => {'id': id, 'time': time, 'days': days, 'kind': kind, 'do': instruction};
-  static BotRoutine fromJson(Map<String, dynamic> j) =>
-      BotRoutine(id: '${j['id']}', time: '${j['time'] ?? '09:00'}', days: '${j['days'] ?? 'daily'}', kind: '${j['kind'] ?? 'work'}', instruction: '${j['do'] ?? ''}');
+  Map<String, dynamic> toJson() => {'id': id, 'time': time, 'days': days, 'kind': kind, 'do': instruction, if (local) 'local': true};
+  static BotRoutine fromJson(Map<String, dynamic> j) => BotRoutine(
+      id: '${j['id']}', time: '${j['time'] ?? '09:00'}', days: '${j['days'] ?? 'daily'}', kind: '${j['kind'] ?? 'work'}', instruction: '${j['do'] ?? ''}',
+      local: j['local'] == true);
 
   static const _names = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -113,15 +117,18 @@ class HeldWake {
 }
 
 class BotFollowup {
-  BotFollowup(this.id, this.at, this.instruction, this.kind);
+  BotFollowup(this.id, this.at, this.instruction, this.kind, {this.local = false});
   final String id;
   final DateTime at;
   final String instruction;
   final String kind;
+  /// Runs on this phone, never in the cloud (see [BotRoutine.local]).
+  final bool local;
   // UTC with its Z: a time written without a zone means another moment once the phone changes zone (SYNC-8).
-  Map<String, dynamic> toJson() => {'id': id, 'at': at.toUtc().toIso8601String(), 'do': instruction, 'kind': kind};
+  Map<String, dynamic> toJson() => {'id': id, 'at': at.toUtc().toIso8601String(), 'do': instruction, 'kind': kind, if (local) 'local': true};
   static BotFollowup fromJson(Map<String, dynamic> j) =>
-      BotFollowup('${j['id']}', DateTime.tryParse('${j['at']}')?.toLocal() ?? DateTime.now(), '${j['do'] ?? ''}', '${j['kind'] ?? 'work'}');
+      BotFollowup('${j['id']}', DateTime.tryParse('${j['at']}')?.toLocal() ?? DateTime.now(), '${j['do'] ?? ''}', '${j['kind'] ?? 'work'}',
+          local: j['local'] == true);
 }
 
 /// "When a notification from WhatsApp mentions 'invoice', do X."
@@ -275,12 +282,23 @@ class Bot {
       r'\b(sms|texts?|text messages?|notifications?|whatsapp|screen|contacts?|phone|call|calls|calling|ring|gallery|camera|photos?|clipboard|battery)\b',
       caseSensitive: false);
 
-  /// Does this job need the phone itself (a call, texts, notifications, the screen...)? Those never run in the cloud.
-  bool needsPhone(String instruction, String kind) =>
-      kind == 'call' || (!powersOff.contains('phone') && _phoneWords.hasMatch(instruction));
+  /// Work the cloud runner cannot do (it has only the web, memory, desk and knowledge): building or publishing a site
+  /// or page, email and connected apps, the browser, files and documents, pictures, code, money. Owner 2026-11-02:
+  /// "build a landing page every hour and send the link to email X" runs on the phone, by itself, no cloud needed.
+  static final _localWords = RegExp(
+      r'\b(build|built|create|design|publish|deploy|landing|website|web ?site|web ?page|app|email|e-mail|gmail|inbox|tweet|'
+      r'upload|download|file|files|pdf|docx?|document|spreadsheet|slides?|excel|image|picture|logo|video|audio|code|script|browser|'
+      r'sign ?in|log ?in|order|buy|pay|calendar|notion|google drive|slack|telegram|github|canva|shopify|wordpress)\b',
+      caseSensitive: false);
+
+  /// Does this job need this phone (a call, texts, the screen) or a tool only the phone has? Those never run in the
+  /// cloud: the phone's own alarm wakes SubMac and the bot works locally. [local] is the bot's own choice when it
+  /// made the job.
+  bool needsPhone(String instruction, String kind, {bool local = false}) =>
+      local || kind == 'call' || (!powersOff.contains('phone') && _phoneWords.hasMatch(instruction)) || _localWords.hasMatch(instruction);
 
   /// None of its routines needs the phone, so by default it keeps working in the cloud.
-  bool get cloudFit => routines.every((r) => !needsPhone(r.instruction, r.kind));
+  bool get cloudFit => routines.every((r) => !needsPhone(r.instruction, r.kind, local: r.local));
 
   /// It keeps working in the cloud (jobs that need the phone always stay on the phone).
   bool get cloudOn => cloudChoice ?? cloudFit;
@@ -1791,6 +1809,13 @@ class Bots extends ChangeNotifier {
         },
       };
 
+  static const Map<String, dynamic> _onPhone = {
+    'type': 'boolean',
+    'description': 'true when the job needs tools only this phone has: building or publishing a site, email or connected apps, '
+        'the browser, files, documents, pictures, code, texts or calls. The phone then wakes itself and does it locally. '
+        'false (or leave out) for research and writing, which can run in the cloud while the phone is off.',
+  };
+
   static final List<Map<String, dynamic>> definitions = [
     _fn('bot_remember', 'Save something to your long-term memory about this user or their work (or forget a line).', {
       'fact': {'type': 'string'},
@@ -1804,13 +1829,16 @@ class Bots extends ChangeNotifier {
       'note': {'type': 'string'},
     }, ['action']),
     _fn('bot_followup', 'Come back later on your own: at that time you are woken, do the work, and message the result.', {
+      'on_phone': _onPhone,
       'in_minutes': {'type': 'integer', 'description': 'For "in 30 minutes" / "in 2 hours": minutes from now (exact; use instead of when).'},
       'when': {'type': 'string', 'description': 'Local date and time, e.g. 2026-10-18T09:00.'},
       'instruction': {'type': 'string'},
       'kind': {'type': 'string', 'enum': ['work', 'message', 'call'], 'description': 'call = ring the user then.'},
     }, ['instruction']),
-    _fn('bot_routine', 'Add, change or remove a recurring routine (a daily brief, a weekly report, a lesson call).', {
+    _fn('bot_routine', 'Add, change or remove a recurring routine at a time of day (a daily brief, a weekly report, a lesson call). '
+        'For every hour or every few hours use schedule_task with repeat hourly or every_3_hours.', {
       'action': {'type': 'string', 'enum': ['add', 'remove', 'list']},
+      'on_phone': _onPhone,
       'id': {'type': 'string'},
       'time': {'type': 'string', 'description': 'HH:MM local time.'},
       'days': {'type': 'string', 'description': 'daily, weekdays, weekends, or names like mon,wed,fri.'},
@@ -1927,7 +1955,8 @@ class Bots extends ChangeNotifier {
         final at = mins != null && mins > 0 ? clock().add(Duration(minutes: mins)) : DateTime.tryParse(s('when').replaceAll(' ', 'T'));
         if (at == null) return 'Error: give in_minutes, or "when" like 2026-10-18T09:00.';
         if (s('instruction').isEmpty) return 'Error: say what to do then.';
-        final f = BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', at, s('instruction'), s('kind').isEmpty ? 'work' : s('kind'));
+        final f = BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', at, s('instruction'), s('kind').isEmpty ? 'work' : s('kind'),
+            local: a['on_phone'] == true || '${a['on_phone']}' == 'true');
         b.followups.add(f);
         while (b.followups.length > 30) {
           b.followups.removeAt(0);
@@ -1947,7 +1976,8 @@ class Bots extends ChangeNotifier {
               ..time = s('time')
               ..days = s('days').isEmpty ? 'daily' : s('days')
               ..kind = s('kind').isEmpty ? 'work' : s('kind')
-              ..instruction = s('instruction');
+              ..instruction = s('instruction')
+              ..local = a['on_phone'] == true || '${a['on_phone']}' == 'true';
             if (existing == null) b.routines.add(r);
             await save();
             await arm(b);

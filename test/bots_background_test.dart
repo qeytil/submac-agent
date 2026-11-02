@@ -70,4 +70,34 @@ void main() {
     final src = File('lib/state/bots_controller.dart').readAsStringSync();
     expect(src, contains('never ask the user to say "start" or "go"'));
   });
+
+  group('local or cloud: a job runs where its tools are (owner 2026-11-02)', () {
+    final b = Bot(id: 'lc1', name: 'Rank', role: 'SEO', persona: '');
+    test('building a page and emailing the link runs on the phone', () {
+      expect(b.needsPhone('Build a landing page every hour and send the link to ali@example.com', 'work'), isTrue);
+    });
+    test('research and writing may run in the cloud', () {
+      expect(b.needsPhone('Check the news about Somalia and summarise the top three stories', 'message'), isFalse);
+    });
+    test('the bot\'s own on_phone choice wins', () {
+      expect(b.needsPhone('Check the prices', 'work', local: true), isTrue);
+    });
+    test('the choice is kept', () {
+      final r = BotRoutine(id: 'r1', time: '09:00', instruction: 'x', local: true);
+      expect(BotRoutine.fromJson(r.toJson()).local, isTrue);
+      final f = BotFollowup('f1', DateTime(2026, 11, 2, 9), 'x', 'work', local: true);
+      expect(BotFollowup.fromJson(f.toJson()).local, isTrue);
+      expect(BotFollowup.fromJson(BotFollowup('f2', DateTime(2026), 'x', 'work').toJson()).local, isFalse);
+    });
+    test('routine and follow-up tools offer on_phone', () {
+      for (final n in ['bot_routine', 'bot_followup']) {
+        final d = Bots.definitions.firstWhere((x) => (x['function'] as Map)['name'] == n)['function'] as Map;
+        expect(((d['parameters'] as Map)['properties'] as Map).containsKey('on_phone'), isTrue, reason: n);
+      }
+    });
+    test('a phone-run job is never sent to the cloud', () {
+      b.routines.add(BotRoutine(id: 'r9', time: '10:00', instruction: 'Publish the weekly page', local: false));
+      expect(b.cloudFit, isFalse);
+    });
+  });
 }
