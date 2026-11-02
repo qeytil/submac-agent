@@ -373,10 +373,11 @@ extension AppStateBots on AppState {
     final mem = b.memory.reversed.take(8).toList().reversed.map((m) => '- ${cut(m, 160)}').join('\n');
     final prompt = 'You decide if ${b.name} (${b.role.isEmpty ? 'assistant' : b.role}) should do work for the user right now.\n'
         'Job: ${cut(b.mission.isEmpty ? '(none)' : b.mission, 300)}\nInstructions: ${cut(b.instructions.trim().isEmpty ? '(none)' : b.instructions.trim(), 400)}\n'
-        'Working on:\n${open.isEmpty ? 'none' : open}\nPromised follow-ups:\n${ups.isEmpty ? 'none' : ups}\n'
+        'Working on:\n${open.isEmpty ? 'none' : open}\nPromised follow-ups (each runs by itself at its time; never do one early):\n${ups.isEmpty ? 'none' : ups}\n'
         'Lately:\n${recent.isEmpty ? 'none' : recent}\nSome memory:\n${mem.isEmpty ? 'none' : mem}\n'
         'Now (local time): ${DateTime.now().toIso8601String().substring(0, 16).replaceFirst('T', ' ')}\n\n'
-        'Is there something genuinely useful to do now (progress on open work, a promise, a deadline, news on what it tracks)? Never busywork. '
+        'Is there something genuinely useful to do now (progress on open work, a deadline, news on what it tracks)? A follow-up that is not '
+        'due yet is not a reason: it wakes the bot by itself. Never busywork. '
         'Reply exactly NO, or YES: <the one thing, in one line>.';
     try {
       final t = await (LlmClient()..background = true)

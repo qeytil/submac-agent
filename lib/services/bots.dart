@@ -1809,6 +1809,13 @@ class Bots extends ChangeNotifier {
         },
       };
 
+  /// The answer to a "when" that is already gone: the real time, and the exact way to say "in N minutes".
+  static String pastTimeError(String when, DateTime now) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return 'Error: $when has already passed. It is ${now.year}-${two(now.month)}-${two(now.day)} ${two(now.hour)}:${two(now.minute)} now '
+        '(local). Nothing was scheduled. For "in N minutes" pass in_minutes; otherwise give a time after now.';
+  }
+
   static const Map<String, dynamic> _onPhone = {
     'type': 'boolean',
     'description': 'true if the job needs phone-only tools (sites, email, apps, browser, files, code, calls): the phone wakes and runs it. '
@@ -1953,6 +1960,8 @@ class Bots extends ChangeNotifier {
         final mins = double.tryParse(s('in_minutes'))?.round();
         final at = mins != null && mins > 0 ? clock().add(Duration(minutes: mins)) : DateTime.tryParse(s('when').replaceAll(' ', 'T'));
         if (at == null) return 'Error: give in_minutes, or "when" like 2026-10-18T09:00.';
+        // A time already gone used to fire within 20 seconds, so "in 30 minutes" ran at once. Refuse it and say the real time.
+        if (mins == null && at.isBefore(clock().add(const Duration(seconds: 30)))) return Bots.pastTimeError(s('when'), clock());
         if (s('instruction').isEmpty) return 'Error: say what to do then.';
         final f = BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', at, s('instruction'), s('kind').isEmpty ? 'work' : s('kind'),
             local: a['on_phone'] == true || '${a['on_phone']}' == 'true');

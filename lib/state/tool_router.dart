@@ -401,7 +401,7 @@ extension AppStateTools on AppState {
     // A bot's own schedule: the bot wakes for it and does the work itself (not a separate SubMac chat).
     if (name == 'schedule_task' && Bots.I.byConv(convId) != null) {
       return Scheduler.I.add('${args['task'] ?? ''}', '${args['when'] ?? ''}', '${args['repeat'] ?? 'none'}',
-          watch: args['watch'] == true, bot: Bots.I.byConv(convId)!.id);
+          watch: args['watch'] == true, bot: Bots.I.byConv(convId)!.id, inMinutes: int.tryParse('${args['in_minutes'] ?? ''}'));
     }
     if (SystemTools.names.contains(name)) return SystemTools.execute(this, name, args);
     if (SetupTools.names.contains(name)) return SetupTools.execute(this, name, args);

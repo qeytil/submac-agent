@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_state.dart';
+import 'bots.dart';
 import 'live_session.dart';
 import 'system_bridge.dart';
 import 'wake_word.dart';
@@ -174,6 +175,7 @@ class SystemTools {
       {
         'task': _s('What to do, written as a complete instruction'),
         'when': _s('Local date and time to run first, ISO format like 2026-10-15T07:00'),
+        'in_minutes': <String, dynamic>{'type': 'integer', 'description': 'For "in N minutes": minutes from now (instead of when)'},
         'repeat': _s('none, hourly, every_3_hours, daily, weekdays or weekly',
             ['none', 'hourly', 'every_3_hours', 'daily', 'weekdays', 'weekly']),
         'watch': {
@@ -182,7 +184,7 @@ class SystemTools {
               '(a price drops, a job is posted, a reply arrives, results are out). Defaults to every 3 hours.'
         },
       },
-      ['task', 'when'],
+      ['task'],
     ),
     _fn('list_scheduled', 'List the scheduled tasks with their ids and next run time.', {}),
     _fn('cancel_scheduled', 'Cancel a scheduled task by id.', {'id': _s('Task id from list_scheduled')}, ['id']),
@@ -421,7 +423,8 @@ class SystemTools {
           final st = await Permission.notification.status;
           if (!st.isGranted && !st.isPermanentlyDenied) await Permission.notification.request();
         } catch (_) {}
-        return Scheduler.I.add('${a['task'] ?? ''}', '${a['when'] ?? ''}', '${a['repeat'] ?? 'none'}', watch: a['watch'] == true);
+        return Scheduler.I.add('${a['task'] ?? ''}', '${a['when'] ?? ''}', '${a['repeat'] ?? 'none'}',
+            watch: a['watch'] == true, inMinutes: int.tryParse('${a['in_minutes'] ?? ''}'));
       case 'list_scheduled':
         return Scheduler.I.describe();
       case 'cancel_scheduled':
@@ -708,12 +711,15 @@ class Scheduler extends ChangeNotifier {
     await _save();
   }
 
-  Future<String> add(String task, String when, String repeat, {bool watch = false, String bot = ''}) async {
+  Future<String> add(String task, String when, String repeat, {bool watch = false, String bot = '', int? inMinutes}) async {
     if (task.trim().isEmpty) return 'Error: say what the task should do.';
     if (_uid.isEmpty) return 'Error: sign in first; scheduled tasks belong to your account.';
-    final at = DateTime.tryParse(when.trim().replaceAll(' ', 'T'));
-    if (at == null) return 'Error: "when" must be a date and time like 2026-10-15T07:00.';
-    if (at.isBefore(DateTime.now()) && repeat == 'none') return 'Error: that time has already passed.';
+    // "In N minutes" is counted here, from the real clock: the model's own idea of "now" can be off.
+    final at = inMinutes != null && inMinutes > 0
+        ? DateTime.now().add(Duration(minutes: inMinutes))
+        : DateTime.tryParse(when.trim().replaceAll(' ', 'T'));
+    if (at == null) return 'Error: give in_minutes, or "when" as a date and time like 2026-10-15T07:00.';
+    if (at.isBefore(DateTime.now()) && repeat == 'none') return Bots.pastTimeError(when, DateTime.now());
     var first = at;
     if (watch && repeat == 'none') repeat = 'every_3_hours';
     final t = ScheduledTask('s${DateTime.now().millisecondsSinceEpoch}', task.trim(), first, repeat, watch: watch, uid: _uid, bot: bot);

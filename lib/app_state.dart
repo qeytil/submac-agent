@@ -831,12 +831,21 @@ class AppState extends ChangeNotifier {
       r"you (forgot|missed|got)|actually\b|again\b|instead\b|why did you|please fix|fix (it|this)|incorrect)",
       caseSensitive: false);
 
-  /// The time, to the hour. It goes at the END of the prompt, so the long part before it stays byte-identical
-  /// from step to step and providers can reuse their prompt cache.
-  static String _nowLine() {
-    final n = DateTime.now();
-    final h = DateTime(n.year, n.month, n.day, n.hour);
-    return 'Now: about ${h.toIso8601String().substring(0, 13).replaceFirst('T', ' ')}:00 (phone\'s local time, rounded to the hour).';
+  /// The exact time, to the minute, with the weekday and zone. It goes at the END of the prompt, so the long part before
+  /// it stays byte-identical from step to step and providers can reuse their prompt cache. It used to be rounded to the
+  /// hour, and the model then scheduled "in 30 minutes" at 12:56 for 12:30: the time had "passed", so the job ran at once
+  /// and the bot said the wait was over (owner, 2026-11-02).
+  static String _nowLine([DateTime? at]) => nowLineFor(at ?? DateTime.now());
+
+  /// [_nowLine] for a given moment (tested).
+  static String nowLineFor(DateTime n) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final o = n.timeZoneOffset;
+    final sign = o.isNegative ? '-' : '+';
+    final oh = o.inMinutes.abs() ~/ 60, om = o.inMinutes.abs() % 60;
+    String two(int v) => v.toString().padLeft(2, '0');
+    return 'Now: ${days[n.weekday - 1]} ${n.year}-${two(n.month)}-${two(n.day)} ${two(n.hour)}:${two(n.minute)} '
+        '(phone\'s local time, UTC$sign${two(oh)}:${two(om)}).';
   }
 
   /// The full card and diagram reference. Sent only once a chat asks for something visual (compare, plan, chart,

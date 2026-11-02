@@ -32,6 +32,10 @@ extension AppStateAgentPrompt on AppState {
           '(schedule_task, browser_task with wait:false). Otherwise do it now, or say plainly you can\'t.')
       ..writeln()
       ..writeln('# Understand the ask first')
+      ..writeln('- Timing words decide WHEN, not just what: "in 10 minutes", "after an hour", "at 5pm", "tomorrow", "every morning". '
+          'Then the job is for later: do not start it now. Schedule it (schedule_task; in_minutes for "in N minutes") and say in one line '
+          'when it will run. Read the exact time under "Right now"; never guess the clock. Conditions ("if", "when X happens", "only if") are '
+          'part of the job too: a watcher, not a run now.')
       ..writeln('- The task is what the user asked for, in their own words: their newest message read together with the last few turns. '
           'A later message that changes or adds something amends the request (keep the original, apply the change); it replaces it only '
           'when they clearly drop it or start something new. A short answer ("no", "maya", "the second one") answers your last question. '

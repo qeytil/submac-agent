@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:agent/app_state.dart';
+import 'package:agent/services/bot_manner.dart';
 import 'package:agent/services/bot_sync.dart';
 import 'package:agent/services/bots.dart';
 import 'package:agent/services/system_tools.dart';
@@ -98,6 +100,31 @@ void main() {
     test('a phone-run job is never sent to the cloud', () {
       b.routines.add(BotRoutine(id: 'r9', time: '10:00', instruction: 'Publish the weekly page', local: false));
       expect(b.cloudFit, isFalse);
+    });
+  });
+
+  group('time: later means later (owner 2026-11-02)', () {
+    test('the prompt clock is exact to the minute, with weekday and zone', () {
+      final l = AppState.nowLineFor(DateTime(2026, 11, 2, 12, 56));
+      expect(l, contains('Monday 2026-11-02 12:56'));
+      expect(l, contains('UTC'));
+      expect(l, isNot(contains('rounded')));
+    });
+    test('a time already gone is refused with the real time', () {
+      final e = Bots.pastTimeError('2026-11-02T12:30', DateTime(2026, 11, 2, 12, 56));
+      expect(e, startsWith('Error:'));
+      expect(e, contains('12:56'));
+      expect(e, contains('in_minutes'));
+    });
+    test('every bot reads WHEN as well as what', () {
+      expect(BotManner.block, contains('do not start the work now'));
+      expect(BotManner.block, contains('in_minutes'));
+    });
+    test('schedule_task takes in_minutes and no longer requires when', () {
+      final d = SystemTools.scheduleTools.first['function'] as Map;
+      final params = d['parameters'] as Map;
+      expect((params['properties'] as Map).containsKey('in_minutes'), isTrue);
+      expect(params['required'], ['task']);
     });
   });
 }
