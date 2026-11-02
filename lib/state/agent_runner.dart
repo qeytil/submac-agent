@@ -7,6 +7,42 @@
 part of '../app_state.dart';
 
 extension AppStateAgentRunner on AppState {
+  // Lives as long as the app: one listener for every chat.
+  // ignore: cancel_subscriptions
+  static StreamSubscription<Map<String, dynamic>>? _ocAskSub;
+
+  /// Which chat an MCP call belongs to: SubMac's tool name -> the chat whose opencode turn is calling it now (the MCP
+  /// request itself does not say which session it came from).
+  static final Map<String, String> _mcpConv = {};
+
+  /// SubMac's tools offered to opencode through SubMac's MCP server. Layer 1 (owner, 2026-11-02): memory and the
+  /// everyday helpers; the browser, the phone and Live come in the next layers. Each call runs through SubMac's own
+  /// gate, so a risky one shows SubMac's approval card first.
+  List<Map<String, dynamic>> _mcpTools() => [
+        if (memoryEnabled) ...MemoryStore.definitions,
+        ...LifeTools.definitions,
+      ];
+
+  /// Gives the engine SubMac's MCP server, and turns opencode's permission and question requests into the ask card.
+  void _ocWire(OpenCodeEngine oc) {
+    oc.mcp ??= SubMacMcp(
+      tools: _mcpTools,
+      call: (name, args) => runToolWithApproval(name, args, convId: _mcpConv[name] ?? currentId),
+    );
+    if (_ocAskSub != null) return;
+    final asks = OpenCodeAsks(
+      ask: (conv, title, prompt, options) async {
+        final r = await askUser(UserAsk(
+            kind: 'text', convId: conv.isEmpty ? (currentId ?? '') : conv, title: title, prompt: prompt, options: options));
+        return r?['answer'];
+      },
+      permit: oc.replyPermission,
+      answer: oc.replyQuestion,
+      convOf: oc.convOf,
+    );
+    _ocAskSub = oc.events.listen((e) => unawaited(asks.handle(e).catchError((Object _) => false)));
+  }
+
   /// Runs one opencode turn for the newest user message of [convId]. [side] and [chain] are kept for the callers
   /// (bots, calls): opencode queues a message sent while a reply is still being written, so both run the same way.
   Future<void> _runAgent(String convId, {bool side = false, int chain = 0}) async {
@@ -42,6 +78,7 @@ extension AppStateAgentRunner on AppState {
       run.show(RunPhase.starting, RunStatus.starting);
       _notify();
       final oc = OpenCodeEngine.I;
+      _ocWire(oc);
       await oc.ensure();
       final session = await oc.sessionFor(convId, title: run.title);
       run.onStop = () => unawaited(oc.abort(session));
@@ -68,23 +105,26 @@ extension AppStateAgentRunner on AppState {
             }
             m.content = p.text;
           } else {
+            // SubMac's own tools come back from opencode as submac_<name>: shown under their own name.
+            final tool = p.tool.startsWith('submac_') ? p.tool.substring(7) : p.tool;
+            if (tool != p.tool && !p.finished) _mcpConv[tool] = convId;
             var m = shown[p.id];
             if (m == null) {
               m = ChatMessage(
                 id: _uuid.v4(),
                 role: 'assistant',
-                toolCalls: [ToolCall(id: p.callId, name: p.tool, arguments: jsonEncode(p.input))],
+                toolCalls: [ToolCall(id: p.callId, name: tool, arguments: jsonEncode(p.input))],
               );
               shown[p.id] = m;
               list.add(m);
               run.wrote.add(m.id);
-              run.trail.add(RunStep(p.title ?? stepLabel(p.tool, p.input)));
+              run.trail.add(RunStep(p.title ?? stepLabel(tool, p.input)));
             } else {
-              m.toolCalls = [ToolCall(id: p.callId, name: p.tool, arguments: jsonEncode(p.input))];
+              m.toolCalls = [ToolCall(id: p.callId, name: tool, arguments: jsonEncode(p.input))];
             }
             if (p.finished && !shown.containsKey('${p.id}:out')) {
               final out = ChatMessage(
-                  id: _uuid.v4(), role: 'tool', toolCallId: p.callId, name: p.tool, content: _clip(p.output ?? ''));
+                  id: _uuid.v4(), role: 'tool', toolCallId: p.callId, name: tool, content: _clip(p.output ?? ''));
               shown['${p.id}:out'] = out;
               list.add(out);
               run.wrote.add(out.id);
@@ -101,7 +141,7 @@ extension AppStateAgentRunner on AppState {
         if (turn.retry != null && turn.retry!.isNotEmpty) {
           run.show(RunPhase.retrying, turn.retry!);
         } else if (last != null && last.kind == 'tool' && !last.finished) {
-          run.show(RunPhase.tool, last.title ?? stepLabel(last.tool, last.input));
+          run.show(RunPhase.tool, last.title ?? stepLabel(last.tool.replaceFirst('submac_', ''), last.input));
         } else if (turn.reasoning) {
           run.show(RunPhase.thinking, RunStatus.thinking);
         } else if (last != null && last.kind == 'text') {
