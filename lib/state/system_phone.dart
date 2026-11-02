@@ -110,6 +110,16 @@ extension AppStateSystem on AppState {
       TaskBubble.I.stopAll();
     };
     Scheduler.I.runTask = (t) async {
+      // A bot's scheduled task: the bot wakes in its own chat, works on its own, and notifies with the result.
+      final bot = t.bot.isEmpty ? null : Bots.I.byId(t.bot);
+      if (bot != null && bot.active) {
+        final ins = t.watch
+            ? '${t.task}\nCheck now and report only what is new or changed since your last check (see your journal and memory). '
+                'Nothing important new: reply with only [no reply].'
+            : t.task;
+        await _botWake(bot, 'your scheduled task${t.repeat == 'none' ? '' : ' (${t.repeat})'}', ins, t.watch ? 'work' : 'message');
+        return;
+      }
       const quiet = '\n\n[Scheduled run: the user is not watching]\n'
           'Do the task fully on your own: no say, no questions, no confirmations you can avoid. '
           'Your final reply is ONE plain line, under 100 characters, that gives the result itself, the way it should read in the '

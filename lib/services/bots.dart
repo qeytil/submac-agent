@@ -1803,11 +1803,12 @@ class Bots extends ChangeNotifier {
       'status': {'type': 'string', 'enum': ['todo', 'doing', 'waiting', 'done']},
       'note': {'type': 'string'},
     }, ['action']),
-    _fn('bot_followup', 'Come back later on your own: at that time you are woken with this instruction.', {
+    _fn('bot_followup', 'Come back later on your own: at that time you are woken, do the work, and message the result.', {
+      'in_minutes': {'type': 'integer', 'description': 'For "in 30 minutes" / "in 2 hours": minutes from now (exact; use instead of when).'},
       'when': {'type': 'string', 'description': 'Local date and time, e.g. 2026-10-18T09:00.'},
       'instruction': {'type': 'string'},
       'kind': {'type': 'string', 'enum': ['work', 'message', 'call'], 'description': 'call = ring the user then.'},
-    }, ['when', 'instruction']),
+    }, ['instruction']),
     _fn('bot_routine', 'Add, change or remove a recurring routine (a daily brief, a weekly report, a lesson call).', {
       'action': {'type': 'string', 'enum': ['add', 'remove', 'list']},
       'id': {'type': 'string'},
@@ -1920,8 +1921,11 @@ class Bots extends ChangeNotifier {
             return open.isEmpty ? 'Desk is clear.' : open.map((t) => '[${t.id}] (${t.status}) ${t.text}').join('\n');
         }
       case 'bot_followup':
-        final at = DateTime.tryParse(s('when').replaceAll(' ', 'T'));
-        if (at == null) return 'Error: "when" must look like 2026-10-18T09:00.';
+        // A relative time is counted here, from the real clock: the model's own "now" can be off (it set 11:30 for
+        // "in 30 minutes" at 11:11, and the work came 19 minutes early).
+        final mins = double.tryParse(s('in_minutes'))?.round();
+        final at = mins != null && mins > 0 ? clock().add(Duration(minutes: mins)) : DateTime.tryParse(s('when').replaceAll(' ', 'T'));
+        if (at == null) return 'Error: give in_minutes, or "when" like 2026-10-18T09:00.';
         if (s('instruction').isEmpty) return 'Error: say what to do then.';
         final f = BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', at, s('instruction'), s('kind').isEmpty ? 'work' : s('kind'));
         b.followups.add(f);

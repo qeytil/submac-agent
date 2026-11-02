@@ -398,6 +398,11 @@ extension AppStateTools on AppState {
           'not the web page. For the page, steer it with browser_task_reply. Only if the user asked you to use another app on '
           'their phone: repeat this call with "outside_browser": true.';
     }
+    // A bot's own schedule: the bot wakes for it and does the work itself (not a separate SubMac chat).
+    if (name == 'schedule_task' && Bots.I.byConv(convId) != null) {
+      return Scheduler.I.add('${args['task'] ?? ''}', '${args['when'] ?? ''}', '${args['repeat'] ?? 'none'}',
+          watch: args['watch'] == true, bot: Bots.I.byConv(convId)!.id);
+    }
     if (SystemTools.names.contains(name)) return SystemTools.execute(this, name, args);
     if (SetupTools.names.contains(name)) return SetupTools.execute(this, name, args);
     if (MediaCoder.names.contains(name)) return MediaCoder.execute(name, args);

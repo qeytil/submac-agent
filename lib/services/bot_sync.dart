@@ -93,6 +93,35 @@ class BotSync {
   /// [id] is the same on every phone for the same cloud entry, so the chat gets it once.
   Future<void> Function(Bot b, String text, String id)? postToChat;
 
+  /// A job the cloud could not do itself (it needs an app, the browser, the phone or an approval) and handed over:
+  /// the phone runs the whole job now and tells the user the result (owner 2026-11-02: a bot does its scheduled work
+  /// and notifies; it never leaves the user a "starting…" message to chase).
+  void Function(Bot b, String instruction, String kind, String needs)? onHandoff;
+
+  /// The handed-over jobs in a bot row's run_state that this phone has not taken yet; marks them taken.
+  List<({String id, String instruction, String kind, String needs})> takeHandoffs(String botId, Map? runState) {
+    final h = runState?['handoff'];
+    if (h is! Map || h.isEmpty) return const [];
+    final s = _bs(botId);
+    final taken = ((s['ho'] ??= <dynamic>[]) as List);
+    final out = <({String id, String instruction, String kind, String needs})>[];
+    for (final e in h.entries) {
+      final id = '${e.key}';
+      final v = e.value;
+      if (taken.contains(id) || v is! Map) continue;
+      final at = DateTime.tryParse('${v['at'] ?? ''}');
+      taken.add(id);
+      // Older than a day: too late to be useful now.
+      if (at != null && DateTime.now().toUtc().difference(at.toUtc()) > const Duration(hours: 24)) continue;
+      final ins = '${v['do'] ?? ''}'.trim();
+      out.add((id: id, instruction: ins, kind: '${v['kind'] ?? 'work'}', needs: '${v['needs'] ?? ''}'));
+    }
+    while (taken.length > 100) {
+      taken.removeAt(0);
+    }
+    return out;
+  }
+
   /// A message id made from a journal entry (UUID shaped).
   static String chatIdFor(String botId, String itemId) {
     final h = _h('bot-journal|$botId|$itemId');
@@ -612,6 +641,11 @@ class BotSync {
       // What the cloud did (part B): follow-ups it already ran, when it last worked.
       if (b != null) {
         final done = ((r['run_state'] as Map?)?['done'] as Map?) ?? const {};
+        final handed = takeHandoffs(b.id, r['run_state'] as Map?);
+        if (handed.isNotEmpty) touched = true;
+        for (final x in handed) {
+          onHandoff?.call(b, x.instruction, x.kind, x.needs);
+        }
         final before = b.followups.length;
         b.followups.removeWhere((f) => done.containsKey(f.id));
         final last = DateTime.tryParse('${r['last_run_at'] ?? ''}')?.toLocal();

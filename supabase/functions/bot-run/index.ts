@@ -23,7 +23,7 @@ const db = createClient(SB_URL, SERVICE, { auth: { persistSession: false } });
 const MAX_BOTS = 10;          // per invocation
 const CONCURRENCY = 3;        // bots worked at the same time
 const MAX_JOBS_PER_BOT = 3;   // per invocation; the rest wait for the next round
-const MAX_STEPS = 6;          // model steps per job
+const MAX_STEPS = 8;          // model steps per job (web reading takes a few)
 const JOB_TOKEN_CAP = 60_000; // prompt + reply tokens per job
 // Timing (PLAN.md 1.3): per model call 40 s (ai-chat ends non-streamed calls at 38 s for this runner), per job 120 s,
 // no new jobs after 60 s of a round, and nothing past 140 s of the round (edge wall clock is 150 s).
@@ -176,6 +176,8 @@ type Ctx = {
   uid: string; botId: string; secret: string; name: string; setup: any; knowledge: any[]; off: number;
   memory: { id: string; t: string }[]; desk: Map<string, any>; journal: { at: string; kind: string; text: string }[];
   wrote: { memory: number; desk: number; journal: number }; handed: boolean;
+  /** The job being worked, and what hand_to_phone left for the phone to do (owner 2026-11-02: bots must finish work). */
+  job?: { id: string; do: string; kind: string }; handoff?: { needs: string; why: string };
   /** Deadline of the job being worked (ms): min(job start + 120 s, round start + 140 s). */
   until: number;
 };
@@ -224,9 +226,12 @@ function stablePrompt(ctx: Ctx): string {
     "- What the user reads: the outcome first, then only the details that matter (short list if needed). Plain words in the owner's language " +
     "(Somali, Arabic, English...); never mention tools, steps or systems; no filler, no emoji.",
     "", "# Working in the cloud (now)",
-    "The owner's phone may be off. Here you have only bot_remember, bot_desk, knowledge_search / knowledge_read and hand_to_phone: " +
-    "no web, browser, apps, phone, files, calls or texts, and no new routines or follow-ups.",
-    "- If the job needs any of those (or an approval), call hand_to_phone once with what it needs and why; the phone does that part when it is back. Do what you can without it.",
+    "The owner's phone may be off. Here you have web_search and fetch_url (the web: search, read pages and APIs), bot_remember, " +
+    "bot_desk, knowledge_search / knowledge_read and hand_to_phone. No browser, apps, phone, files, calls or texts, and no new routines or follow-ups.",
+    "- Do the job now, fully, with these tools: research, check the site, read the sources, then report the result itself.",
+    "- Never send a message that only says you are starting, have queued something, or will report later. Message with the result, or stay @silent.",
+    "- Only if the job truly needs the phone, an app, a browser or an approval: call hand_to_phone once with what and why, and end with @silent; " +
+    "the phone does the job itself and tells the user the result.",
     "", "# How you finish",
     "Write what the user should see (if anything), then ONE tag alone on the very last line:",
     "@silent = nothing worth telling",
@@ -285,9 +290,115 @@ const TOOLS = [
     parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } } },
   { type: "function", function: { name: "knowledge_read", description: "Read one knowledge piece by id (from offset).",
     parameters: { type: "object", properties: { id: { type: "string" }, offset: { type: "integer" } }, required: ["id"] } } },
-  { type: "function", function: { name: "hand_to_phone", description: "This job needs the web, an app or the phone, which the cloud does not have. Say what and why; the phone does that part later.",
-    parameters: { type: "object", properties: { needs: { type: "string", description: "web | app: <name> | phone: <what>" }, why: { type: "string" } }, required: ["needs"] } } },
+  { type: "function", function: { name: "web_search", description: "Search the web. Returns titles, links and snippets; then read the best with fetch_url.",
+    parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } } },
+  { type: "function", function: { name: "fetch_url", description: "Read a web page or API URL as plain text (offset reads further).",
+    parameters: { type: "object", properties: { url: { type: "string" }, offset: { type: "integer" } }, required: ["url"] } } },
+  { type: "function", function: { name: "hand_to_phone", description: "This job needs an app, a browser, the phone or an approval, which the cloud does not have. Say what and why; the phone then does the whole job and reports.",
+    parameters: { type: "object", properties: { needs: { type: "string", description: "app: <name> | browser | phone: <what> | approval" }, why: { type: "string" } }, required: ["needs"] } } },
 ];
+
+// ---------------------------------------------------------------- the web (owner 2026-11-02: a bot's background work
+// needs the web; without it every real job was "handed to the phone" and never done)
+const UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36";
+const decodeHtml = (s: string) => s.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&lt;/g, "<")
+  .replace(/&gt;/g, ">").replace(/&nbsp;/g, " ").replace(/&#(\d+);/g, (m, n) => { const c = Number(n); return c > 0 && c < 0x110000 ? String.fromCodePoint(c) : m; });
+const stripTags = (h: string) => decodeHtml(h.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+
+async function getText(url: string, ms = 15_000, init: RequestInit = {}): Promise<{ status: number; text: string; type: string }> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { ...init, signal: ctl.signal, redirect: "follow", headers: { "user-agent": UA, "accept-language": "en,*;q=0.5", ...(init.headers ?? {}) } });
+    const reader = r.body?.getReader();
+    let text = "", size = 0;
+    const dec = new TextDecoder();
+    while (reader) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      text += dec.decode(value, { stream: true });
+      if (size > 3_000_000) { try { await reader.cancel(); } catch { /* */ } break; }
+    }
+    return { status: r.status, text, type: r.headers.get("content-type") ?? "" };
+  } finally { clearTimeout(timer); }
+}
+
+export function parseBing(s: string, n: number): { title: string; url: string; snippet: string }[] {
+  const out: { title: string; url: string; snippet: string }[] = [];
+  for (const blk of s.split('<li class="b_algo"').slice(1)) {
+    if (out.length >= n) break;
+    const m = /<a[^>]*href="([^"]+)"[^>]*>(?:(?!<\/a>)[\s\S])*?<h2[^>]*>([\s\S]*?)<\/h2>/.exec(blk) ?? /<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/.exec(blk);
+    if (!m) continue;
+    let url = decodeHtml(m[1]);
+    const ck = /[?&]u=a1([^&]+)/.exec(url);
+    if (url.includes("/ck/a?") && ck) { try { url = atob(ck[1].replace(/-/g, "+").replace(/_/g, "/")); } catch { /* keep */ } }
+    if (!url.startsWith("http") || url.includes("bing.com/")) continue;
+    const sn = /<p[^>]*>([\s\S]*?)<\/p>/.exec(blk);
+    out.push({ title: stripTags(m[2]), url, snippet: sn ? stripTags(sn[1]) : "" });
+  }
+  return out;
+}
+
+export function parseDdg(s: string, n: number): { title: string; url: string; snippet: string }[] {
+  const out: { title: string; url: string; snippet: string }[] = [];
+  const links = [...s.matchAll(/<a[^>]*class=["']result__a["'][^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/g)];
+  const snips = [...s.matchAll(/class=["']result__snippet["'][^>]*>([\s\S]*?)<\/(?:a|div|td)>/g)];
+  for (let i = 0; i < links.length && out.length < n; i++) {
+    let href = decodeHtml(links[i][1]);
+    const u = /uddg=([^&]+)/.exec(href);
+    if (u) href = decodeURIComponent(u[1]);
+    if (href.startsWith("//")) href = "https:" + href;
+    if (href.includes("duckduckgo.com/y.js")) continue;
+    out.push({ title: stripTags(links[i][2]), url: href, snippet: snips[i] ? stripTags(snips[i][1]) : "" });
+  }
+  return out;
+}
+
+async function webSearch(q: string): Promise<string> {
+  const query = q.trim();
+  if (!query) return "Error: empty query";
+  const brave = Deno.env.get("BRAVE_SEARCH_KEY") ?? "";
+  const tries: [string, () => Promise<{ title: string; url: string; snippet: string }[]>][] = [];
+  if (brave) tries.push(["Brave", async () => {
+    const r = await getText(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`, 12_000, { headers: { "X-Subscription-Token": brave, accept: "application/json" } });
+    const j = JSON.parse(r.text);
+    return (j?.web?.results ?? []).map((x: any) => ({ title: str(x.title), url: str(x.url), snippet: stripTags(str(x.description)) }));
+  }]);
+  tries.push(["Bing", async () => parseBing((await getText(`https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en&count=10`, 12_000)).text, 8)]);
+  tries.push(["DuckDuckGo", async () => parseDdg((await getText("https://html.duckduckgo.com/html/", 12_000, { method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" }, body: `q=${encodeURIComponent(query)}&kl=wt-wt` })).text, 8)]);
+  for (const [, f] of tries) {
+    try {
+      const r = await f();
+      if (r.length) return r.slice(0, 8).map((x, i) => `${i + 1}. ${cut(x.title, 140)}\n${x.url}\n${cut(x.snippet, 300)}`).join("\n\n");
+    } catch { /* next engine */ }
+  }
+  return "Error: web search found nothing just now. Read a site you know with fetch_url instead.";
+}
+
+export function htmlToText(html: string): string {
+  const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+  const body = html.replace(/<(script|style|noscript|svg|head)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<(br|\/p|\/div|\/li|\/h[1-6]|\/tr)[^>]*>/gi, "\n").replace(/<[^>]+>/g, " ");
+  const text = decodeHtml(body).split("\n").map((l) => l.replace(/[ \t]+/g, " ").trim()).filter(Boolean).join("\n");
+  return (title ? "Title: " + stripTags(title[1]) + "\n" : "") + text;
+}
+
+async function fetchUrl(url: string, offset: number): Promise<string> {
+  let u: URL;
+  try { u = new URL(url); } catch { return "Error: not a valid URL."; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return "Error: only http(s) links.";
+  // Never the project's own internals or private networks from the server.
+  if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)/.test(u.hostname) || u.hostname.endsWith(".supabase.co") || u.hostname.endsWith(".internal")) {
+    return "Error: that address cannot be read from here.";
+  }
+  const r = await getText(u.toString(), 15_000);
+  const text = /html/i.test(r.type) || /^\s*</.test(r.text) ? htmlToText(r.text) : r.text;
+  const off = Math.max(0, offset | 0);
+  const part = text.slice(off, off + 7000);
+  return `HTTP ${r.status}${off ? ` (from ${off} of ${text.length})` : ""}\n${part}${off + part.length < text.length ? `\n…[${text.length - off - part.length} more characters: offset ${off + part.length}]` : ""}`;
+}
 
 async function journal(ctx: Ctx, kind: string, text: string, chat = ""): Promise<string> {
   const id = rid("cl");
@@ -361,12 +472,15 @@ async function runTool(ctx: Ctx, name: string, args: any): Promise<string> {
       const part = text.slice(off, off + 6000);
       return `${str(k.title)} (${off}-${off + part.length} of ${text.length}):\n${part}`;
     }
+    if (name === "web_search") return await webSearch(str(args?.query));
+    if (name === "fetch_url") return await fetchUrl(str(args?.url), Number(args?.offset ?? 0) || 0);
     if (name === "hand_to_phone") {
-      if (ctx.handed) return "Already noted for the phone.";
+      if (ctx.handed) return "Already handed to the phone.";
       ctx.handed = true;
       const needs = cut(str(args?.needs).trim() || "the phone", 120), why = cut(str(args?.why).trim(), 400);
-      await journal(ctx, "note", `Waiting for the phone: needs ${needs}${why ? ". " + why : ""}`);
-      return "Noted. The phone will do that part when it is back. Finish what you can without it.";
+      ctx.handoff = { needs, why };
+      await journal(ctx, "note", `Handed to the phone: needs ${needs}${why ? ". " + why : ""}`);
+      return "Handed over. The phone will do this whole job and tell the user the result. End now with @silent.";
     }
     return "Unknown tool.";
   } catch (e) {
@@ -567,6 +681,7 @@ async function runBot(row: any, secret: string, cap: number, t0: number): Promis
           instruction = chk.what; reason = "your regular check-in (you decided this is worth doing now)";
         } else reason = d.type === "routine" ? `routine (${str(d.job.time)} ${str(d.job.days)})` : "a follow-up you set";
         const kind = str(d.job.kind || "work");
+        ctx.handed = false; ctx.handoff = undefined; ctx.job = { id, do: instruction, kind };
         const w = await work(ctx, instruction, reason, kind, budgetLeft - tokens);
         tokens += w.tokens; steps += w.steps; tok.n += tokens;
         if (!w.ok) { results.push(...(await failed(ctx, state, d, w.code ?? "error", tokens))); continue; }
@@ -574,6 +689,14 @@ async function runBot(row: any, secret: string, cap: number, t0: number): Promis
         delete state.retry?.[id];
         const quiet = quietAt(Date.now(), ctx.off, Number(ctx.setup.qf ?? 22), Number(ctx.setup.qt ?? 7));
         let out = parseOutcome(w.reply);
+        // Handed to the phone: the phone runs the job and messages the result, so the cloud never sends a "starting"
+        // or "I will report back" message the user then has to chase (owner 2026-11-02).
+        if (ctx.handoff) {
+          state.handoff ??= {};
+          state.handoff[id] = { do: cut(instruction, 2000), kind, needs: ctx.handoff.needs, why: ctx.handoff.why, at: iso(Date.now()) };
+          results.push({ id, type: d.type, outcome: "handoff", tokens, steps });
+          continue;
+        }
         if (kind === "message" && out.kind === "silent" && out.text) out = { kind: "message", text: out.text };
         if (out.kind === "message" && quiet) out = { kind: "note", text: out.text };
         const label = d.type === "heartbeat" ? "Check-in" : d.type === "routine" ? `Routine ${str(d.job.time)}` : "Follow-up";
@@ -596,6 +719,7 @@ async function runBot(row: any, secret: string, cap: number, t0: number): Promis
     // Done bookkeeping: prune follow-up marks the phone has had a week to see; keep the rest small.
     const ids = new Set((Array.isArray(row.schedule) ? row.schedule : []).map((j: any) => str(j?.id)));
     for (const [k, v] of Object.entries(state.done ?? {})) if (!ids.has(k) && Date.now() - Date.parse(str(v)) > 7 * DAY_MS) delete state.done[k];
+    for (const [k, v] of Object.entries(state.handoff ?? {})) if (Date.now() - Date.parse(str((v as any)?.at)) > 2 * DAY_MS) delete state.handoff[k];
     const sigs = Object.keys(state.seen ?? {});
     for (const k of sigs) if (!ids.has(k.split("|")[0])) delete state.seen[k];
     if (results.some((r) => r.outcome === "retry")) leftover = true;

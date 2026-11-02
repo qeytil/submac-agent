@@ -282,6 +282,8 @@ extension AppStateBots on AppState {
       };
       task = '$botWakeMark[Woken: $reason. ${now.toIso8601String().substring(0, 16).replaceFirst('T', ' ')}]\n$what\n\n'
           'You are working in the background: the user is not watching. Work fully on your own, no questions unless essential. '
+          'Do the whole job now and deliver the result itself: never a message that you are starting, have queued something, or '
+          'will report later, and never ask the user to say "start" or "go".\n'
           'Save what you learn (bot_remember) and keep your desk current (bot_desk).\n'
           'When done, write what the user should see, then put ONE tag alone on the very last line. Nothing worth telling: '
           'reply with only [no reply] (most check-ins end like this; staying quiet is fine).\n'

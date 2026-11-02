@@ -183,6 +183,12 @@ extension AppStateSettings on AppState {
     if (mcpServers.isNotEmpty) unawaited(refreshMcpTools());
     // Bots are kept in the account too: a new phone gets them back here, and later changes go up by themselves.
     BotSync.I.postToChat = _cloudBotMessage;
+    // The cloud handed a job over (it needs the phone): run it here now, in the background, and notify the result.
+    BotSync.I.onHandoff = (b, instruction, kind, needs) {
+      if (!b.active) return;
+      unawaited(_botWake(b, 'handed over from the cloud${needs.isEmpty ? '' : ' (it needs $needs)'}',
+          instruction.isEmpty ? Bots.heartbeat : instruction, kind == 'call' ? 'call' : (kind == 'message' ? 'message' : 'work')));
+    };
     // "From SubMac": team messages sent "in chat" also appear in the SubMac team chat (edits and deletes follow).
     Inbox.I.onChatItems = _mirrorTeamMessages;
     unawaited(Inbox.I.refresh());

@@ -552,16 +552,20 @@ class ScheduledTask {
   String convId;
   /// The account (signed-in user id) this task belongs to. Empty only for tasks saved before v1.13.77.
   String uid;
+  /// The bot that scheduled it (from its own chat): the bot itself wakes, does the work and notifies, instead of
+  /// SubMac running it in a separate "Scheduled:" chat (owner 2026-11-02: "the bot should be a bot").
+  String bot;
   ScheduledTask(this.id, this.task, this.next, this.repeat,
-      {this.watch = false, this.last = '', this.convId = '', this.uid = ''});
+      {this.watch = false, this.last = '', this.convId = '', this.uid = '', this.bot = ''});
 
   Map<String, dynamic> toJson() => {
         'id': id, 'task': task, 'next': next.toIso8601String(), 'repeat': repeat, 'watch': watch, 'last': last,
-        'conv': convId, 'uid': uid,
+        'conv': convId, 'uid': uid, if (bot.isNotEmpty) 'bot': bot,
       };
   static ScheduledTask fromJson(Map<String, dynamic> j) =>
       ScheduledTask('${j['id']}', '${j['task']}', DateTime.parse('${j['next']}'), '${j['repeat'] ?? 'none'}',
-          watch: j['watch'] == true, last: '${j['last'] ?? ''}', convId: '${j['conv'] ?? ''}', uid: '${j['uid'] ?? ''}');
+          watch: j['watch'] == true, last: '${j['last'] ?? ''}', convId: '${j['conv'] ?? ''}', uid: '${j['uid'] ?? ''}',
+          bot: '${j['bot'] ?? ''}');
 
   DateTime? following() {
     switch (repeat) {
@@ -704,7 +708,7 @@ class Scheduler extends ChangeNotifier {
     await _save();
   }
 
-  Future<String> add(String task, String when, String repeat, {bool watch = false}) async {
+  Future<String> add(String task, String when, String repeat, {bool watch = false, String bot = ''}) async {
     if (task.trim().isEmpty) return 'Error: say what the task should do.';
     if (_uid.isEmpty) return 'Error: sign in first; scheduled tasks belong to your account.';
     final at = DateTime.tryParse(when.trim().replaceAll(' ', 'T'));
@@ -712,7 +716,7 @@ class Scheduler extends ChangeNotifier {
     if (at.isBefore(DateTime.now()) && repeat == 'none') return 'Error: that time has already passed.';
     var first = at;
     if (watch && repeat == 'none') repeat = 'every_3_hours';
-    final t = ScheduledTask('s${DateTime.now().millisecondsSinceEpoch}', task.trim(), first, repeat, watch: watch, uid: _uid);
+    final t = ScheduledTask('s${DateTime.now().millisecondsSinceEpoch}', task.trim(), first, repeat, watch: watch, uid: _uid, bot: bot);
     while (t.next.isBefore(DateTime.now())) {
       final f = t.following();
       if (f == null) break;
@@ -722,7 +726,7 @@ class Scheduler extends ChangeNotifier {
     await _arm(t.id, t.next);
     await _save();
     return 'Scheduled (${t.id}): "${t.task}" at ${_fmt(t.next)}${repeat == 'none' ? '' : ', repeating $repeat'}. '
-        '${watch ? 'It is a watcher: SubMac checks each time and only notifies when something new turns up.' : 'SubMac will run it and send a notification.'}';
+        '${watch ? 'It is a watcher: it is checked each time and notifies only when something new turns up.' : bot.isNotEmpty ? 'You will be woken then to do it yourself and message the result.' : 'SubMac will run it and send a notification.'}';
   }
 
   Future<String> cancel(String id) async {
