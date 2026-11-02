@@ -21,6 +21,13 @@ object LocalProxy {
     @Volatile private var server: ServerSocket? = null
     val port: Int get() = server?.localPort ?: 0
 
+    /** Where the engine's model calls go (the ai-chat function) and the signed-in user's access token. The engine
+     *  calls http://127.0.0.1:<port>/__submac/... ; this proxy sends it on over TLS with a fresh token, so an hour-old
+     *  token in the engine's config never matters (the app pushes a new one before each prompt). */
+    @Volatile var upstream: String = ""
+    @Volatile var token: String = ""
+    const val PREFIX = "/__submac"
+
     @Synchronized
     fun start(): Int {
         server?.let { if (!it.isClosed) return it.localPort }
@@ -59,6 +66,8 @@ object LocalProxy {
                 up = Socket()
                 up.connect(InetSocketAddress(host, port), 15000)
                 c.getOutputStream().apply { write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray()); flush() }
+            } else if (target.startsWith(PREFIX)) {
+                up = forward(method, target.substring(PREFIX.length), parts[2], lines.drop(1)) ?: return c.close()
             } else {
                 // Plain http with an absolute URI: http://host[:port]/path
                 val u = java.net.URI(target)
@@ -87,6 +96,34 @@ object LocalProxy {
             closeQuietly(c)
             up?.let { closeQuietly(it) }
         }
+    }
+
+    /** Opens a TLS connection to [upstream] and sends the request head with its path, Host and Authorization
+     *  rewritten. One request per connection (Connection: close), so a kept-alive second request is never piped
+     *  through un-rewritten. */
+    private fun forward(method: String, rest: String, ver: String, headers: List<String>): Socket? {
+        if (upstream.isEmpty()) return null
+        val u = java.net.URI(upstream)
+        val host = u.host ?: return null
+        val port = if (u.port > 0) u.port else 443
+        val path = (u.rawPath ?: "").trimEnd('/') + rest
+        val s = javax.net.ssl.SSLSocketFactory.getDefault().createSocket() as javax.net.ssl.SSLSocket
+        s.connect(InetSocketAddress(host, port), 15000)
+        s.startHandshake()
+        val sb = StringBuilder("$method $path $ver\r\n")
+        sb.append("Host: $host\r\n")
+        if (token.isNotEmpty()) sb.append("Authorization: Bearer $token\r\n")
+        sb.append("Connection: close\r\n")
+        for (l in headers) {
+            if (l.isEmpty()) continue
+            val k = l.substringBefore(':').trim()
+            if (k.equals("Host", true) || k.equals("Authorization", true) || k.equals("Connection", true) ||
+                k.equals("Keep-Alive", true) || k.startsWith("Proxy-", true)) continue
+            sb.append(l).append("\r\n")
+        }
+        sb.append("\r\n")
+        s.getOutputStream().apply { write(sb.toString().toByteArray(Charsets.ISO_8859_1)); flush() }
+        return s
     }
 
     private fun hostPort(s: String, def: Int): Pair<String, Int> {

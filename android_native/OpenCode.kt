@@ -36,7 +36,7 @@ object OpenCode {
     /** Starts the server (or returns the running one). [baseUrl] is the OpenAI-compatible model endpoint (our
      *  ai-chat function) and [token] the signed-in user's access token. Returns the port. */
     @Synchronized
-    fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int): Int {
+    fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int, cwd: String? = null): Int {
         if (running()) return port
         val lib = File(ctx.applicationInfo.nativeLibraryDir)
         val ld = File(lib, "libocld.so")
@@ -46,10 +46,13 @@ object OpenCode {
         val links = File(root, "lib").apply { mkdirs() }
         link(File(lib, "libocstdcpp.so"), File(links, "libstdc++.so.6"))
         link(File(lib, "libocgcc.so"), File(links, "libgcc_s.so.1"))
-        val work = File(root, "work").apply { mkdirs() }
+        val work = (if (cwd.isNullOrEmpty()) File(root, "work") else File(cwd)).apply { mkdirs() }
         val tmp = File(root, "tmp").apply { mkdirs() }
+        val proxyPort = LocalProxy.start()
+        if (baseUrl.isNotEmpty()) LocalProxy.upstream = baseUrl
+        if (token.isNotEmpty()) LocalProxy.token = token
         val cfg = File(root, "opencode.json")
-        cfg.writeText(config(baseUrl, token))
+        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}"))
         val pb = ProcessBuilder(ld.path, "--library-path", links.path, bin.path, "serve", "--hostname", "127.0.0.1", "--port", "$wantPort")
         pb.directory(work)
         pb.redirectErrorStream(true)
@@ -66,7 +69,7 @@ object OpenCode {
         env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
         // Android has no /etc/resolv.conf, so musl cannot resolve names: all outbound traffic goes through the
         // app's own proxy, which resolves with Android's resolver (LocalProxy).
-        val proxy = "http://127.0.0.1:${LocalProxy.start()}"
+        val proxy = "http://127.0.0.1:$proxyPort"
         for (k in listOf("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY")) env[k] = proxy
         env["NO_PROXY"] = "127.0.0.1,localhost"
         env["no_proxy"] = "127.0.0.1,localhost"
@@ -128,8 +131,10 @@ object OpenCode {
 
     private fun q(s: String) = org.json.JSONObject.quote(s)
 
-    /** One provider: SubMac's own model gateway, which speaks the OpenAI chat API. */
-    private fun config(baseUrl: String, token: String): String = """
+    /** One provider: SubMac's own model gateway, which speaks the OpenAI chat API, reached through LocalProxy (which adds
+     *  the token). Every permission is allowed: the chat has no approval card for opencode yet, and an "ask" would
+     *  leave the reply waiting forever. The engine runs inside the app's own sandbox. */
+    private fun config(baseUrl: String): String = """
 {
   "${'$'}schema": "https://opencode.ai/config.json",
   "autoupdate": false,
@@ -138,12 +143,13 @@ object OpenCode {
     "submac": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "SubMac",
-      "options": { "baseURL": ${q(baseUrl)}, "apiKey": ${q(token)}, "headers": { "x-submac-source": "opencode" } },
+      "options": { "baseURL": ${q(baseUrl)}, "apiKey": "via-proxy", "headers": { "x-submac-source": "opencode" } },
       "models": { "submac": { "name": "SubMac", "tool_call": true } }
     }
   },
   "model": "submac/submac",
-  "small_model": "submac/submac"
+  "small_model": "submac/submac",
+  "permission": { "edit": "allow", "bash": "allow", "webfetch": "allow", "external_directory": "allow", "doom_loop": "allow" }
 }
 """.trimIndent()
 }

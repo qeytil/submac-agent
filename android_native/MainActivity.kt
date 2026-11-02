@@ -140,10 +140,11 @@ class MainActivity : FlutterActivity() {
                         val token = call.argument<String>("token") ?: ""
                         val pass = call.argument<String>("password") ?: ""
                         val want = num(call.argument<Any>("port"), 4096).toInt()
+                        val cwd = call.argument<String>("cwd")
                         val main = android.os.Handler(mainLooper)
                         Thread {
                             try {
-                                val port = OpenCode.start(applicationContext, base, token, pass, want)
+                                val port = OpenCode.start(applicationContext, base, token, pass, want, cwd)
                                 val health = OpenCode.waitHealthy(60000)
                                 main.post {
                                     result.success(mapOf("ok" to (health != null), "port" to port, "health" to health, "log" to OpenCode.lastLog()))
@@ -152,6 +153,11 @@ class MainActivity : FlutterActivity() {
                                 main.post { result.success(mapOf("ok" to false, "error" to e.toString(), "log" to OpenCode.lastLog())) }
                             }
                         }.start()
+                    }
+                    "ocToken" -> {
+                        call.argument<String>("baseUrl")?.let { if (it.isNotEmpty()) LocalProxy.upstream = it }
+                        call.argument<String>("token")?.let { if (it.isNotEmpty()) LocalProxy.token = it }
+                        result.success(true)
                     }
                     "ocStop" -> {
                         OpenCode.stop()

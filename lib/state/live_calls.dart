@@ -120,7 +120,6 @@ extension AppStateLive on AppState {
         if (!agentEnabled) {
           return 'Not started: actions are off in Settings ("Let it take action"). Nothing is running. Tell the user plainly.';
         }
-        if (a['show_browser'] == true) _liveWantsWindow = true;
         _lastLiveTaskConv = null;
         final r = await startBackgroundTask(task, fromLive: true);
         final conv = _lastLiveTaskConv;
@@ -158,13 +157,11 @@ extension AppStateLive on AppState {
         return 'Passed on. The task continues.';
       case 'browser_show':
         if (!BrowserAgent.I.active) {
-          _liveWantsWindow = true;
           return 'The browser is not open yet. It will show as soon as the task opens a page.';
         }
         BrowserAgent.I.openWindow(big: a['full_screen'] == true);
         return 'Showing the browser.';
       case 'browser_hide':
-        _liveWantsWindow = false;
         BrowserAgent.I.hideWindow();
         return 'Hidden. The task keeps working.';
     }
@@ -274,30 +271,6 @@ extension AppStateLive on AppState {
     }
   }
 
-  void _liveTaskFinished(String convId, List<ChatMessage> list, bool cancelled) {
-    if (!_liveTaskConvs.contains(convId)) return;
-    if (runs.any((r) => r.convId == convId && !r.side)) return;
-    final cb = onLiveTaskNews;
-    if (cancelled) {
-      final t = liveTasks.finish(convId, status: 'stopped');
-      cb?.call('[Task update] Task ${t?.id ?? ''} was stopped.');
-      return;
-    }
-    var text = '';
-    for (final m in list.reversed) {
-      if (m.role == 'assistant' && m.content.trim().isNotEmpty) {
-        text = m.content.trim();
-        break;
-      }
-      if (m.role == 'user') break;
-    }
-    text = text.replaceAll(RegExp(r'```[\s\S]*?```'), ' (details are in the chat) ');
-    if (text.length > 1500) text = '${text.substring(0, 1500)}…';
-    final failed = list.isNotEmpty && list.last.error != null;
-    final t = liveTasks.finish(convId, status: failed ? 'failed' : 'done', result: text.length > 400 ? '${text.substring(0, 400)}…' : text);
-    cb?.call('[Task update] Task ${t?.id ?? ''} ${failed ? 'failed' : 'finished'}. '
-        'Result: ${text.isEmpty ? 'no summary given; the details are in the chat.' : text}');
-  }
 
   /// Saves Live turns as the call goes, so ending the call never waits.
   /// Writes the turns before index [upTo] that are not saved yet.

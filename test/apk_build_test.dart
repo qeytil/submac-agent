@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:agent/app_state.dart';
-import 'package:agent/models.dart';
 import 'package:agent/services/apk_build.dart';
 import 'package:agent/services/bots.dart';
 import 'package:agent/services/code_git.dart';
@@ -87,18 +86,7 @@ void main() {
       expect(HouseRules.vendorWords.hasMatch(ApkBuild.rule), isFalse);
     });
 
-    test('main agent: whole toolbox has the coding line, scoped still has the rule', () {
-      final all = app.systemPromptForTest();
-      expect(all, contains(ApkBuild.marker));
-      expect(all, contains(ApkBuild.codingLine));
-      expect(app.systemPromptForTest(allOpen: false), contains(ApkBuild.marker));
-    });
 
-    test('quick replies and Live calls', () {
-      final list = [ChatMessage(id: 'u', role: 'user', content: 'can you build an apk?')];
-      expect('${app.quickPayloadForTest('none', list).first['content']}', contains(ApkBuild.marker));
-      expect(app.livePromptForTest(), contains(ApkBuild.marker));
-    });
 
     test('bots: stable and quick prompts, the Coder and teams', () {
       expect(Bots.I.stablePromptOf(bot), contains(ApkBuild.marker));
@@ -117,20 +105,6 @@ void main() {
       expect(denials(pack), isEmpty);
     });
 
-    test('nothing the app sends says a remote APK build is impossible', () {
-      for (final t in [
-        app.systemPromptForTest(),
-        Bots.I.stablePromptOf(BotTemplates.coder),
-        ApkBuild.bodyOf(ApkBuild.skillId)!,
-        ApkBuild.bodyOf(ApkBuild.skillIdSo)!,
-        for (final c in apkCases) ApkBuild.noteFor(c.text),
-      ]) {
-        expect(denials(t), isEmpty, reason: denials(t).join('\n'));
-      }
-      // The checker itself catches a denial.
-      expect(denials('Sorry, building an APK is impossible without Android Studio.'), isNotEmpty);
-      expect(denials('You need Android Studio to make an APK.'), isNotEmpty);
-    });
   });
 
   group('eval: English and Somali APK requests', () {

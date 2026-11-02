@@ -790,19 +790,6 @@ extension AppStateBots on AppState {
     }
   }
 
-  /// What started a bot's run, in a few words, for its trace.
-  String _traceWhy(String convId, String lastUser) {
-    if (!lastUser.startsWith(botWakeMark)) return 'You: $lastUser';
-    final office = _officeCtx[convId];
-    if (office != null) {
-      final now = lastUser.indexOf('# Now');
-      return 'Team: ${now >= 0 ? lastUser.substring(now + 5).trim() : 'work'}';
-    }
-    final i = lastUser.indexOf('Do this now:');
-    final kind = _botWakeConvs[convId] ?? 'work';
-    final label = switch (kind) { 'call' => 'Call', 'message' => 'Message', _ => 'Work' };
-    return '$label: ${i >= 0 ? lastUser.substring(i + 12).trim() : 'heartbeat check'}';
-  }
 
   /// Why a bot's latest wake failed, if it did: offline | busy | credit (allowance used up) | other | ''.
   String _wakeFailure(String convId) {

@@ -4,9 +4,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'agent/core.dart';
-import 'agent/reply_schema.dart';
-import 'services/error_copy.dart';
 import 'services/choices.dart';
 import 'agent/run_journal.dart';
 import 'package:flutter/services.dart';
@@ -25,13 +22,16 @@ import 'services/code_tools.dart';
 import 'services/forged_tools.dart';
 import 'services/mcp_oauth.dart';
 import 'services/media_coder.dart';
-import 'services/media_store.dart';
 import 'services/ai_keys.dart';
 import 'services/ai_models.dart';
 import 'services/setup_tools.dart';
 import 'services/projects.dart';
 import 'services/cloud.dart';
 import 'services/llm_client.dart';
+import 'agent/core.dart';
+import 'services/agent_loop.dart';
+import 'services/quick_lane.dart';
+import 'services/opencode.dart';
 import 'services/usage_accounting.dart';
 import 'services/local_store.dart';
 import 'services/repo.dart';
@@ -52,7 +52,6 @@ import 'services/browser_agent.dart';
 import 'services/browser_jobs.dart';
 import 'services/browser/skill_sync.dart';
 import 'services/bot_package.dart';
-import 'services/bot_ask.dart';
 import 'services/bots.dart';
 import 'services/bot_powers.dart';
 import 'services/bot_sync.dart';
@@ -63,13 +62,8 @@ import 'services/somali.dart';
 import 'services/calm.dart';
 import 'services/skills_catalog.dart';
 import 'services/connector_catalog.dart';
-import 'services/tool_output_clean.dart';
 import 'services/run_status.dart';
 export 'services/run_status.dart' show RunPhase, RunStatus;
-import 'ui/i18n.dart' show tr;
-import 'services/apk_build.dart';
-import 'services/design_skills.dart';
-import 'services/site_check.dart';
 import 'services/live_controller.dart';
 import 'services/push.dart';
 import 'services/system_bridge.dart';
@@ -81,7 +75,6 @@ import 'services/whatsapp.dart';
 import 'services/telegram_bridge.dart';
 import 'services/doc_maker.dart';
 import 'services/life_tools.dart';
-import 'services/quick_lane.dart';
 import 'services/offices.dart';
 import 'services/bot_status.dart';
 import 'services/bot_manner.dart';
@@ -91,24 +84,18 @@ import 'widgets/composer.dart' show Composer;
 import 'services/roles.dart';
 import 'services/full_access.dart';
 import 'services/trust.dart';
-import 'services/context_window.dart';
 import 'services/image_once.dart';
 import 'services/photo_prep.dart';
-import 'services/vision_follow_up.dart';
 import 'services/send_gate.dart';
 import 'services/session_rules.dart';
 import 'services/stream_policy.dart';
 import 'services/search_budget.dart';
-import 'services/answer_inline.dart';
 import 'services/sites.dart';
 import 'services/tool_scope.dart';
-import 'services/agent_loop.dart';
 import 'services/constraints.dart';
 import 'services/house_rules.dart';
 import 'services/outbound_guard.dart';
-import 'widgets/chat_logic.dart' show dropRepeatPageCards;
 
-part 'state/agent_prompt.dart';
 part 'state/agent_runner.dart';
 part 'state/agent_stream.dart';
 part 'state/bots_controller.dart';
@@ -276,7 +263,6 @@ class AppState extends ChangeNotifier {
     for (final d in liveTaskTools) '${(d['function'] as Map)['name']}'
   };
 
-  bool _liveWantsWindow = false;
 
   /// Tasks Live really started (ids T1, T2...), with their status and result.
   final liveTasks = LiveTasks();
@@ -423,9 +409,6 @@ class AppState extends ChangeNotifier {
   /// A killed run's resume note, by chat: the next task in that chat (the resumed one) starts with it.
   final Map<String, String> _resumeNotes = {};
 
-  /// Journals already picked up in this process, so a run is never resumed twice.
-  final Set<String> _resumedRuns = {};
-  bool _resumingRuns = false;
 
   /// Chats a background task is being started in right now (between "is it free?" and the run starting).
   final Set<String> _bgStarting = {};
@@ -500,8 +483,6 @@ class AppState extends ChangeNotifier {
   /// Each picture goes to the model once; later steps get a one-line note (PLAN 1.4).
   final ImageOnce _imagesOnce = ImageOnce();
 
-  /// CB-23: the picture keys the request being built carries again (a follow-up about the latest photo).
-  Set<String> _visionAgain = const {};
 
   /// How long each finished task worked, by the id of its final reply ("Worked for 1m 12s"). This session only.
   final Map<String, Duration> workedFor = {};
@@ -576,14 +557,6 @@ class AppState extends ChangeNotifier {
     },
   };
 
-  static String _todoText(AgentRun run) {
-    if (run.todo.isEmpty) return 'No checklist yet.';
-    final sb = StringBuffer();
-    for (var i = 0; i < run.todo.length; i++) {
-      sb.writeln('${i + 1}. [${run.todoDone.contains(i) ? 'x' : ' '}] ${run.todo[i]}');
-    }
-    return sb.toString().trimRight();
-  }
 
   static final Map<String, dynamic> askUserTool = {
     'type': 'function',
@@ -816,20 +789,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ---------- conversations ----------
-  Uint8List? _phoneShot;
-  String? _phoneShotCall;
 
   /// The project a new chat will join when it starts (set by "New chat" inside a project).
   String? newChatProject;
 
-  // ---------- bots learn from their work ----------
-  final Map<String, DateTime> _lessonAt = {};
 
-  static final _correction = RegExp(
-      r"^\s*(no\b|nope|wrong|not (that|what|right)|that'?s (not|wrong|incorrect)|i (said|asked|meant|told you)|don'?t\b|stop\b|"
-      r"you (forgot|missed|got)|actually\b|again\b|instead\b|why did you|please fix|fix (it|this)|incorrect)",
-      caseSensitive: false);
 
   /// The exact time, to the minute, with the weekday and zone. It goes at the END of the prompt, so the long part before
   /// it stays byte-identical from step to step and providers can reuse their prompt cache. It used to be rounded to the
@@ -848,65 +812,17 @@ class AppState extends ChangeNotifier {
         '(phone\'s local time, UTC$sign${two(oh)}:${two(om)}).';
   }
 
-  /// The full card and diagram reference. Sent only once a chat asks for something visual (compare, plan, chart,
-  /// maths, a page...), since most replies are plain text. Static text, so it caches with the rest of the prefix.
-  static const _richCards = '# More cards (use only the one that fits)\n'
-      '- ```links  JSON [{"title":"...","url":"https://...","note":"short role","image":"optional https image"}]: 1-3 pages the user will act on. Never a list of sources.\n'
-      '- ```table: add a "Photo" column (cells like ![name](https://real-image-url)) when the look matters (products, hotels, places); name first, photo second, price its own column. '
-      'Every link is the item\'s OWN page (one per row), never a search results page: open the item first if you only have a results page.\n'
-      '- Maths: LaTeX, \$x^2+1\$ inline or \$\$...\$\$ on its own line. Never raw LaTeX in code blocks.\n'
-      '- ```graph  JSON {"title":"...","caption":"one line","plots":[{"expr":"y = x^3 - 3x","tex":"y = x^3 - 3x"}],"x":[-4,4],"y":[-4,4],"params":{"a":[1,0,5]}}: '
-      'a live plot. expr: "y = ...", implicit "x^2 + y^2 = 25", polar "r = 4cos(4theta)", parametric "x = cos(t), y = sin(t)" with "t":[0,6.283]. Letters in params become sliders.\n'
-      '- ```list  JSON {"title":"...","items":[{"title":"...","text":"one or two lines","wiki":"Exact English Wikipedia title","url":"optional","ask":"optional follow-up"}]}: 3-6 ideas or places, each with a free Wikipedia picture.\n'
-      '- ```sections  JSON {"title":"...","sections":[{"title":"...","graph":{"plots":["y = x^2"]},"text":"short markdown"}]}: lettered sub-cards to teach or compare cases.\n'
-      '- ```diagram  JSON {"type":"...","title":"...","note":"optional", ...}. Types: roadmap/timeline "items":[{"when","title","text","status":"done|now|next"}]; '
-      'steps/flow "items":[{"title","text"}]; cycle "items",[...],"center"; tree "root":{"title","children":[...]}; bars/donut/line/columns "items":[{"label","value"}] (columns may use "series"+"values"); '
-      'lines/area "labels",[...],"series":[{"name","values"}]; quadrant "axes":{"x","y"},"quadrants":[4 labels],"items":[{"title","x","y"}] (0-1); stats "items":[{"value","label","delta","trend"}]; '
-      'funnel/pyramid "items":[{"title","value"}]; versus "left"/"right":{"title","points"}; gauge "value","min","max","label","unit","target"; rings "items":[{"label","value"}]; '
-      'scatter "axes","items":[{"x","y","label"}]; heatmap "rows","cols","values"; radar "axes","series","max"; waterfall "items":[{"label","value","total"}]; '
-      'canvas "width","height","shapes":[rect/circle/line/text/path] with colour tokens accent, ink, muted, wash, paper, bubble, border, brass, slate. '
-      'Mark what matters with "highlight":true. 3-7 items, a few words per label, real numbers only. Never ASCII art.\n'
-      '- ```visual  raw SVG markup (<svg xmlns viewBox ...>...</svg>, inline colours only, no scripts or external images): a crisp 2D drawing that words, photos and charts cannot be — '
-      'an architecture sketch or floor plan, a logo, a poster or artwork, an icon or illustration, a product mockup, a labelled scene. '
-      'Perfect timing: the visual arrives in the same reply as the words it explains, exactly when the answer needs the picture — never several messages later, never on its own, never two visuals for one idea. '
-      'Keep it small (about 20-120 lines), draw clean simple shapes, and close every tag: a drawing that does not parse shows a quiet tile. '
-      'Artwork and architecture can also be made as files: write_file the .svg into the workspace and end with its ```file card (it renders in chat too). '
-      'A presentation the user asked for (or 5+ parts of one topic) is make_document kind "slides": agree the outline first, one idea per slide, then build it.\n'
-      '- ```order  JSON {"merchant","items":[{"name","qty","price","image"}],"breakdown":[{"label","amount"}],"total","payment","ornament","action":"Place order"} for a cart, booking or bill.\n'
-      '- ```page  a complete HTML document (inline CSS, mobile-first, no external scripts) for a small one-screen thing that fits easily in one reply: a flyer, invoice, CV, menu or a simple shop. Add a ```qr  JSON {"data":"https://wa.me/...","title":"..."} for a WhatsApp order link. '
-      'Anything bigger (a multi-section website, a web app, a game, several pages) is built as files, never in chat: settle the details first, then todo, then a folder sites/<short-name>/ with index.html and its styles, scripts and pictures, '
-      'each written with write_file in parts of about 150 lines (append_file for the rest), small fixes with edit_file; check the folder with code_check and fix what it finds, and ALWAYS end with a ```file block holding the full absolute path of index.html as the tool returned it '
-      '(never a relative path, never the path in text, never "open it in a browser": the card has Open and Publish). '
-      '${DesignSkills.promptRule} '
-      'Its card has Publish: a free 7-day SubMac link (no sign-up) or the user\'s own Vercel (stays online, own domain there). When they want it online, tell them to tap Publish; never invent a link. When you change a page, keep its <title> the same so Publish updates the same address. Only if the site must store data (forms, sign-ups, bookings): say in one line that Supabase keeps that data free in their own account, then connect_app Supabase.\n'
-      '- ```photos  same JSON as images, as a grid. ```plan  JSON {"title","steps":[...]}. ```receipt  JSON {"title","detail","undo"} after an action that can be undone.';
 
   // ---------- auto-compaction ----------
   /// A compaction marker: a quiet 'system' row holding the summary. Its name carries the id of the last
   /// message it covers ("compact:<id>"), so the summary is never recomputed and survives a restart.
   static bool isCompactMark(ChatMessage m) => m.role == 'system' && (m.name ?? '').startsWith('compact:');
 
-  static int _msgChars(ChatMessage m) =>
-      m.content.length + (m.toolCalls?.fold<int>(0, (a, c) => a + c.arguments.length + c.name.length) ?? 0);
 
-  final Set<String> _compacting = {};
 
-  /// How often each chat was compacted (a running task recites the request after one, core loop v3).
-  final Map<String, int> _compactsDone = {};
-  int _compactCount(String convId) => _compactsDone[convId] ?? 0;
 
-  /// History budget (Plan 7): a chat's messages after its summary are folded once they pass this many tokens,
-  /// right after a reply (so nobody waits), keeping the newest [_historyKeep] tokens whole. Before, a chat could
-  /// re-send up to ~36k tokens of history on every step.
-  // Core loop v3: a heavy task's earlier work is its working memory. 14k/5k folded a multi-file job into 300 words
-  // after every reply (harness audit #4); the window is 128k and more.
-  static const _historyBudget = 48000;
-  static const _historyKeep = 16000;
 
-  static const _keepWholeResults = 10;
 
-  /// An older tool result: its first ~500 characters, enough to remember what it said.
-  static String _shrinkResult(String v) => ResultClip.old(v);
 
   /// An older wake prompt in a bot's chat, cut to what it asked for (the team snapshot before "# Now" is dropped).
   static String shrinkWake(String t) {
@@ -919,32 +835,9 @@ class AppState extends ChangeNotifier {
     return '$head\n$body\n(older work request, shortened)';
   }
 
-  static Map<String, dynamic> _safeCall(Map<String, dynamic> j) {
-    final fn = j['function'];
-    if (fn is! Map) return j;
-    final args = '${fn['arguments'] ?? ''}';
-    var ok = false;
-    try {
-      ok = jsonDecode(args.trim().isEmpty ? '{}' : args) is Map;
-    } catch (_) {}
-    if (ok && args.trim().isNotEmpty) return j;
-    return {...j, 'function': {...fn, 'arguments': '{}'}};
-  }
 
-  /// How much of an attached PDF or text file goes into the prompt; the rest is readable with a tool.
-  static const _attachChars = 12000;
 
-  /// Streams one reply, staying inside the provider's limits, retrying calmly on
-  /// "too many requests", and switching to the next provider when one fails.
-  // ---------- speed ----------
-  /// A one-time skill note was added to this reply: it needs the full toolbox.
-  bool _skillNoteUsed = false;
 
-  /// "yes", "ok", "do it" after the assistant spoke usually answers an offer: it needs tools, not small talk.
-  /// A reply that ends on a promise of more work ("Next I'll add the cart page."), without doing it.
-  static final _promisesMore = RegExp(
-      r"\b(next,? i(['’]| wi)ll|now i(['’]| wi)ll|i(['’]| wi)ll now|let me now|i(['’]| a)m going to|i will (now )?(create|add|write|build|make|start|continue|implement|finish))\b",
-      caseSensitive: false);
   static String _tailOf(String s) => s.length > 300 ? s.substring(s.length - 300) : s;
 
   // ---------- long horizon ----------
@@ -973,21 +866,6 @@ class AppState extends ChangeNotifier {
     return 'Paused after $steps steps: the last ones did not move the task on. Send "continue" with any hint, or a different approach.';
   }
 
-  /// Tools that make or change the user's work (files, code, projects): progress for checkpoints.
-  static bool _writesWork(String name, Map<String, dynamic> a) {
-    const always = {'write_file', 'append_file', 'edit_file', 'make_document', 'save_file', 'data_sheet', 'code_media'};
-    if (always.contains(name)) return true;
-    final act = '${a['action'] ?? ''}';
-    return switch (name) {
-      'code_diff' => act == 'apply',
-      'code_project' => act == 'new' || act == 'unzip',
-      'code_git' => act == 'push' || act == 'publish' || act == 'clone' || act == 'pull',
-      'code_build' => act == 'start',
-      'code_run' => '${a['dir'] ?? ''}'.isNotEmpty,
-      'sites' || 'projects' => act.isNotEmpty && act != 'list',
-      _ => false,
-    };
-  }
 
   /// Unfinished-work signs in code or text (pure; unit tested).
   static final unfinished = RegExp(
@@ -1016,13 +894,7 @@ class AppState extends ChangeNotifier {
 
   /// Test hooks for the prompt and safety tests (no network, no state change).
   @visibleForTesting
-  String systemPromptForTest({bool allOpen = true}) => _systemPrompt(allOpen: allOpen);
-  @visibleForTesting
-  List<Map<String, dynamic>> quickPayloadForTest(String convId, List<ChatMessage> list) => _quickPayload(convId, list);
-  @visibleForTesting
   String livePromptForTest() => _liveBasePrompt(null);
-  @visibleForTesting
-  List<Map<String, dynamic>> payloadForTest(List<ChatMessage> list, {String? convId}) => _payload(list, convId: convId);
   /// The step built last for [convId] got its answer (what the runner does after a model call).
   @visibleForTesting
   void imagesSentForTest(String convId) => _imagesOnce.commit(convId);
@@ -1048,9 +920,6 @@ class AppState extends ChangeNotifier {
     return t.endsWith('?') || RegExp(r'\?\s*(\n|$)').hasMatch(_tailOf(t)) || t.contains('```choices') || t.contains('```confirm');
   }
 
-  static final _affirmative = RegExp(
-      r'^(yes|yeah|yep|yup|ok(ay)?|k|sure|go( ahead)?|do it|please|pls|continue|proceed|haa|haye|waa hagaag|hagaag|na\x27am|نعم|oui|si|ndiyo|confirm|approved?)\b',
-      caseSensitive: false);
 
   /// Tool groups open in each chat (only ever grow, so the prompt prefix stays stable turn to turn).
   final Map<String, Set<String>> _convGroups = {};
@@ -1099,7 +968,6 @@ class AppState extends ChangeNotifier {
   /// A tool result that means the step did not work (shown as "didn't work" in the step list).
   static bool stepFailed(String r) => ToolRecovery.stepFailed(r);
 
-  DateTime _bgLineAt = DateTime(2000);
 
   /// One line for several read-only steps running together (English).
   static String groupLabel(List<ToolCall> calls) {
@@ -1120,15 +988,6 @@ class AppState extends ChangeNotifier {
 
 }
 
-/// One agent run: a full task, or a quick side reply while a task works.
-/// One visible step of a task, in plain words ("Searching the web"), for the live step list.
-/// The shared step-list row of reads running together, closed when the last of them returns.
-class _GroupRow {
-  _GroupRow(this.row, this.left);
-  final RunStep row;
-  int left;
-  bool anyOk = false;
-}
 
 class RunStep {
   RunStep(this.label);

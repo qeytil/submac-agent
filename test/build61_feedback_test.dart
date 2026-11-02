@@ -71,13 +71,6 @@ void main() {
   });
 
   group('the prompt asks for real choices', () {
-    test('ask_user and the choices card ask for 3-5 specific answers and never "Other"', () {
-      final d = jsonEncode(AppState.askUserTool);
-      expect(d, contains(Choices.askFor));
-      expect(d, contains('Never add \\"Other\\"'));
-      final sys = app.systemPromptForTest();
-      expect(sys, contains('${Choices.askFor} specific answers'));
-    });
   });
 
   group('choices card status', () {
@@ -115,14 +108,6 @@ void main() {
   });
 
   group('cost of one message', () {
-    test('a side reply uses the small prompt', () {
-      final l = [ChatMessage(id: 'u1', role: 'user', content: 'How is it going?')];
-      final small = jsonEncode(app.quickPayloadForTest('none', l)).length ~/ 4;
-      final full = jsonEncode(app.payloadForTest(l)).length ~/ 4;
-      // ignore: avoid_print
-      print('side reply prompt: about $small tokens now, $full tokens with the full agent prompt');
-      expect(small, lessThan(full ~/ 2));
-    });
   });
 
   group('sky', () {

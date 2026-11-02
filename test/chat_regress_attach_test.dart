@@ -10,7 +10,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:agent/app_state.dart';
 import 'package:agent/models.dart';
 import 'package:agent/services/attach_limits.dart';
 import 'package:agent/services/cloud.dart';
@@ -71,47 +70,13 @@ MockClient sse({Map<String, String> headers = const {}}) => MockClient.streaming
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late AppState app;
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
-    app = AppState();
   });
   setUp(ContextWindow.reset);
 
   group('CB-23 a follow-up about a photo still carries it', () {
-    test('the 1st follow-up after a photo carries a smaller copy; the photo turn\'s later steps get the note', () {
-      const conv = 'c-cb23-a';
-      final pic = photo(w: 3000, h: 2000);
-      final list = [user('m1', 'what is this?', image: pic)];
-      expect(imagesIn(app.payloadForTest(list, convId: conv)), hasLength(1), reason: 'step 1 carries the photo');
-      app.imagesSentForTest(conv);
-      // A later step of the same turn: the note (PLAN 1.4 stays).
-      final step2 = app.payloadForTest(list, convId: conv);
-      expect(imagesIn(step2), isEmpty);
-      expect(jsonEncode(step2), contains('was shown to you earlier'));
-      // The follow-up turn: the photo goes along again, shrunk.
-      list.addAll([reply('a1', 'A red square.'), user('m2', 'what colour is it exactly?')]);
-      final follow = imagesIn(app.payloadForTest(list, convId: conv));
-      expect(follow, hasLength(1), reason: 'a text-only follow-up was routed to a route with no vision (CB-23)');
-      final copy = img.decodeJpg(base64Decode(follow.single.split(',').last))!;
-      expect(copy.width, VisionFollowUp.edge);
-      expect(copy.height, 683);
-    });
 
-    test('for 3 turns after the photo, then only when the user refers to it', () {
-      const conv = 'c-cb23-b';
-      final list = [user('p1', 'look', image: photo())];
-      app.payloadForTest(list, convId: conv);
-      app.imagesSentForTest(conv);
-      for (var t = 1; t <= 3; t++) {
-        list.addAll([reply('r$t', 'ok'), user('u$t', 'and then? $t')]);
-        expect(imagesIn(app.payloadForTest(list, convId: conv)), hasLength(1), reason: 'turn $t');
-      }
-      list.addAll([reply('r4', 'ok'), user('u4', 'thanks, now the weather')]);
-      expect(imagesIn(app.payloadForTest(list, convId: conv)), isEmpty, reason: 'turn 4, not about the photo');
-      list.addAll([reply('r5', 'sunny'), user('u5', 'back to the photo: what brand is it?')]);
-      expect(imagesIn(app.payloadForTest(list, convId: conv)), hasLength(1), reason: 'refers to the photo');
-    });
 
     test('words that refer to a picture, in English, Somali and Arabic', () {
       expect(VisionFollowUp.refersToImage('what is in the picture?'), isTrue);

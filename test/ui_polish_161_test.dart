@@ -292,14 +292,6 @@ void main() {
       expect(find.textContaining('Checking Friday flights'), findsOneWidget);
     });
 
-    test('the agent is told to work quietly and narrate only when asked', () {
-      final src = File('lib/state/agent_prompt.dart').readAsStringSync();
-      expect(src, contains('PromptQuiet.workQuietly'));
-      expect(src, isNot(contains('Feel live')));
-      expect(PromptQuiet.workQuietly, contains('Do not narrate'));
-      expect(PromptQuiet.workQuietly, contains('show steps'));
-      expect(PromptQuiet.sayRule, contains('Never for progress'));
-    });
 
     test('the live line only opens the checklist and step list when steps were asked for', () {
       final src = File('lib/widgets/composer.dart').readAsStringSync();

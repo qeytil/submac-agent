@@ -1,50 +1,22 @@
-// Tool scoping, the resilient model stream, step rows and labels.
+// Tool scoping, the resilient model stream, step rows and labels. Kept for the in-app browser worker, team runs and
+// the old tools (they move to opencode next); the chat itself runs on opencode (agent_runner.dart).
 // Split out of app_state.dart (no behaviour change). Fields stay on AppState.
 part of '../app_state.dart';
 
 extension AppStateAgentStream on AppState {
-  /// Opens the tool groups the newest message points at. For a wake, only the job part counts (the team snapshot
-  /// above it mentions everything).
-  void _scopeFor(String convId, List<ChatMessage> list, String text) {
-    var t = text;
-    if (t.startsWith(botWakeMark)) {
-      final now = t.indexOf('\n# Now\n');
-      if (now >= 0) t = t.substring(now + 7);
-      final doIt = t.indexOf('Do this now:');
-      if (doIt >= 0) t = t.substring(doIt);
-      final cut = t.indexOf('You are working in the background');
-      if (cut > 0) t = t.substring(0, cut);
+  /// The latest summary and the messages after its cut, or null when the chat was never compacted.
+  (String, List<ChatMessage>)? _compactCut(List<ChatMessage> list) {
+    for (var i = list.length - 1; i >= 0; i--) {
+      final m = list[i];
+      if (!AppState.isCompactMark(m)) continue;
+      final upto = m.name!.substring('compact:'.length);
+      var at = list.indexWhere((e) => e.id == upto);
+      if (at < 0) at = i; // the covered message was removed since: cut at the marker itself
+      return (m.content, [for (final e in list.sublist(at + 1)) if (!AppState.isCompactMark(e)) e]);
     }
-    ChatMessage? lu;
-    for (final m in list.reversed) {
-      if (m.role == 'user') {
-        lu = m;
-        break;
-      }
-    }
-    final appNames = <String>[
-      for (final e in ConnectorCatalog.connected.keys) ConnectorCatalog.byId(e)?.name ?? e,
-      for (final s in mcpServers.where((e) => e.enabled)) s.name,
-    ];
-    final g = _convGroups[convId] ??= <String>{};
-    g.addAll(ToolScope.hinted(t, attachments: lu?.attachments.isNotEmpty ?? false, appNames: appNames));
-    // A task whose words point at no group (something new we never wrote a hint for) still gets the general
-    // workbench: the web and the files. A novel task must never start with every capability closed, waiting
-    // for the model to think of more_tools (Claude Code rule, 2026-10-31). Groups only grow, so this is once.
-    // Core loop v3: the workbench is always there for real work, whatever else the words pointed at: the web, the
-    // files and the code runner (Python), so any task can be composed from primitives (harness audit #1). A phone task
-    // used to open `phone` alone and have no way to write the report it was asked for.
-    if (!QuickLane.isSmallTalk(t)) g.addAll(const {ToolScope.browser, ToolScope.files, ToolScope.code});
-    if (deepResearch) g.add(ToolScope.browser);
-    if (_skillNoteUsed || _liveTaskConvs.contains(convId)) g.addAll(ToolScope.groups);
-    // The Business adviser always has its books, documents and charts at hand.
-    final bot = Bots.I.byConv(convId);
-    if (bot != null && BotTemplates.isBusiness(bot)) g.addAll(const {ToolScope.business, ToolScope.files, ToolScope.media});
-    // The Health adviser always has the family health book, reminders and files at hand.
-    if (bot != null && BotTemplates.isHealth(bot)) g.addAll(const {ToolScope.health, ToolScope.schedule, ToolScope.files, ToolScope.media});
-    // The Coder always has its whole workbench: code, files, connected apps (GitHub) and the browser to test sites.
-    if (bot != null && BotTemplates.isCoder(bot)) g.addAll(const {ToolScope.code, ToolScope.files, ToolScope.apps, ToolScope.browser});
+    return null;
   }
+
 
   /// The tools for this chat: the core set, the groups it opened, and more_tools for the rest.
   List<Map<String, dynamic>> _scopedTools(String convId) {
@@ -65,15 +37,6 @@ extension AppStateAgentStream on AppState {
         AppState._moreToolsDef,
       ];
 
-  /// The last [n] or so messages, starting at a user message so tool calls keep their results.
-  List<ChatMessage> _tail(List<ChatMessage> list, int n) {
-    if (list.length <= n) return list;
-    var i = list.length - n;
-    while (i > 0 && list[i].role != 'user') {
-      i--;
-    }
-    return list.sublist(i);
-  }
 
   /// CB-45: the `x-submac-source` of a run's model call. A bot's own wake (or an office job) is bot work; what the
   /// owner types to a bot is `bot-chat`, billed to the owner's chat bucket, never the bots' share.
@@ -100,7 +63,6 @@ extension AppStateAgentStream on AppState {
     required List<Map<String, dynamic>> payload,
     required List<Map<String, dynamic>>? tools,
     required ChatMessage asst,
-    String lane = QuickLane.full,
     String? effort,
     /// CB-24: [asst] still shows a dropped call's words; the first new word replaces them (this text stays before it).
     String? redoFrom,
@@ -212,20 +174,7 @@ extension AppStateAgentStream on AppState {
     }
   }
 
-  /// With SubMac in the background, the ongoing notification follows the task ("Searching the web") instead of a
-  /// fixed line, at most every 4 seconds (silent channel, no sound or vibration).
-  void _bgLine(AgentRun run) {
-    if (appVisible || run.side || _botWakeConvs.containsKey(run.convId)) return;
-    final now = DateTime.now();
-    if (now.difference(_bgLineAt) < const Duration(seconds: 4)) return;
-    _bgLineAt = now;
-    unawaited(SystemBridge.I.keepAlive(true, text: run.statusText));
-  }
 
-  void _addStep(AgentRun run, RunStep row) {
-    run.trail.add(row);
-    if (run.trail.length > 80) run.trail.removeAt(0);
-  }
 
   /// The plain label for a step (used by the folded step list under a finished task).
   String stepLabel(String name, Map<String, dynamic> args) => _toolLabel(name, args);
