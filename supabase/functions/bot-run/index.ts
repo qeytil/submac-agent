@@ -691,9 +691,11 @@ async function runBot(row: any, secret: string, cap: number, t0: number): Promis
         let out = parseOutcome(w.reply);
         // Handed to the phone: the phone runs the job and messages the result, so the cloud never sends a "starting"
         // or "I will report back" message the user then has to chase (owner 2026-11-02).
-        if (ctx.handoff) {
+        // A tool sets ctx.handoff inside the model loop; TypeScript cannot see that and narrows it to null here.
+        const handoff = (ctx as Ctx).handoff;
+        if (handoff) {
           state.handoff ??= {};
-          state.handoff[id] = { do: cut(instruction, 2000), kind, needs: ctx.handoff.needs, why: ctx.handoff.why, at: iso(Date.now()) };
+          state.handoff[id] = { do: cut(instruction, 2000), kind, needs: handoff.needs, why: handoff.why, at: iso(Date.now()) };
           results.push({ id, type: d.type, outcome: "handoff", tokens, steps });
           continue;
         }
