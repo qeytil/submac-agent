@@ -2,7 +2,7 @@
 // Run: deno test supabase/functions/ai-chat/router_test.ts
 import { assert, assertEquals, assertMatch } from "jsr:@std/assert@1";
 import {
-  budgetFrom, type Budget, type ChatRun, type Deps, type Done, effortBody, GEMINI_SKIP_SIGNATURE, localCooldown, orderRoutes, type Route, runChat, type RouterSnap,
+  budgetFrom, type Budget, type ChatRun, type Deps, type Done, effortBody, thinkingExtra, GEMINI_SKIP_SIGNATURE, localCooldown, orderRoutes, type Route, runChat, type RouterSnap,
   withThoughtSignatures,
 } from "./router.ts";
 
@@ -410,4 +410,23 @@ test("CB-15 swap-back: no probe while the preferred route rests or before 15 min
   assertEquals(homes, [["H", "F", false, "hard"]]);
   assertEquals(reports.length, 0, "a failed probe never counts against the pointer's route");
   assertEquals(homeProbe([H, F], { current_route_id: "F", since: old, rest: {} }, "H", 15 * 60_000), null, "local cooldown stops re-probing in this isolate");
+});
+
+test("thinking goes in the dialect the host reads", () => {
+  const nim = (model: string) => route("A", 1, { model, provider: "NVIDIA NIM", base_url: "https://integrate.api.nvidia.com/v1" });
+  const or = (model: string, extra_body: Record<string, unknown> | null = null) => route("A", 1, { model, provider: "OpenRouter", base_url: "https://openrouter.ai/api/v1", extra_body });
+  // NIM ignores reasoning_effort: Nemotron reads chat_template_kwargs
+  assertEquals(thinkingExtra(nim("nvidia/nemotron-3-ultra-550b-a55b"), "low"), { chat_template_kwargs: { enable_thinking: false } });
+  assertEquals(thinkingExtra(nim("nvidia/nemotron-3-ultra-550b-a55b"), "normal"), { chat_template_kwargs: { enable_thinking: true, medium_effort: true } });
+  assertEquals(thinkingExtra(nim("nvidia/nemotron-3-ultra-550b-a55b"), "high"), { chat_template_kwargs: { enable_thinking: true } });
+  assertEquals(thinkingExtra(nim("nvidia/nemotron-3-super-120b-a12b"), "low"), { chat_template_kwargs: { enable_thinking: true, low_effort: true } });
+  assertEquals(thinkingExtra(nim("nvidia/nemotron-3-super-120b-a12b"), "high"), { chat_template_kwargs: { enable_thinking: true } });
+  assertEquals(thinkingExtra(nim("nvidia/nemotron-3-ultra-550b-a55b"), null), {});
+  // OpenRouter: the unified reasoning object, never both shapes
+  assertEquals(thinkingExtra(or("nvidia/nemotron-3-ultra-550b-a55b:free"), "high"), { reasoning: { effort: "high" } });
+  assertEquals(thinkingExtra(or("x", { reasoning_effort: "low" }), null), { reasoning: { effort: "low" } });
+  // everyone else: reasoning_effort, as before
+  assertEquals(thinkingExtra(route("A", 1, { model: "gpt-oss:120b", extra_body: { reasoning_effort: "high" } }), "normal"), { reasoning_effort: "medium" });
+  assertEquals(thinkingExtra(route("A", 1, { model: "gpt-oss:120b", extra_body: { reasoning_effort: "high" } }), null), { reasoning_effort: "high" });
+  assertEquals(thinkingExtra(route("A", 1, { model: "agnes-3.0-flash" }), "high"), {});
 });

@@ -218,6 +218,48 @@ export function effortBody(r: Route, e: Effort | null): Record<string, unknown> 
   return { reasoning_effort: e === "normal" ? "medium" : e };
 }
 
+/** Where a route's thinking switch lives. Most OpenAI-compatible hosts take `reasoning_effort`; two do not:
+ *  - OpenRouter: the unified `reasoning: {effort}` (sending both shapes is a 400).
+ *  - NVIDIA NIM (Nemotron 3): the API ignores `reasoning_effort` (only NVIDIA's code snippets translate it) and reads
+ *    `chat_template_kwargs`. Thinking is ON at full depth by default, which is why "low" steps on Nemotron still thought
+ *    for 25 s and timed out. Ultra takes none/medium/high, Super none/low/high (docs.api.nvidia.com, 2026-11-02). */
+export type ThinkDialect = "openrouter" | "nim-nemotron" | "openai";
+export function thinkDialect(r: Pick<Route, "provider" | "base_url" | "model">): ThinkDialect {
+  const host = `${r.provider ?? ""} ${r.base_url ?? ""}`.toLowerCase();
+  if (host.includes("openrouter")) return "openrouter";
+  if ((host.includes("nvidia") || host.includes("integrate.api")) && /nemotron/i.test(r.model)) return "nim-nemotron";
+  return "openai";
+}
+/** The route's extra body with its thinking set for this effort, in the dialect its host reads. With no effort hint the
+ *  route's own setting is kept, translated. */
+export function thinkingExtra(r: Route, e: Effort | null): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(r.extra_body ?? {}) };
+  const own = typeof out.reasoning_effort === "string" ? String(out.reasoning_effort) : null;
+  const level = e ? (e === "normal" ? "medium" : e) : own;
+  const dialect = thinkDialect(r);
+  if (dialect === "openai") {
+    if (e && takesEffort(r)) out.reasoning_effort = level;
+    return out;
+  }
+  delete out.reasoning_effort;
+  if (!level) return out;
+  if (dialect === "openrouter") {
+    const prev = out.reasoning && typeof out.reasoning === "object" ? out.reasoning as Record<string, unknown> : {};
+    out.reasoning = { ...prev, effort: level };
+    return out;
+  }
+  // NIM Nemotron
+  const kw: Record<string, unknown> = { ...(out.chat_template_kwargs as Record<string, unknown> ?? {}) };
+  delete kw.low_effort; delete kw.medium_effort;
+  const ultra = /ultra/i.test(r.model), superish = /super/i.test(r.model);
+  if (level === "none" || level === "minimal" || (level === "low" && !superish)) kw.enable_thinking = false;
+  else if (level === "low" || (level === "medium" && superish)) { kw.enable_thinking = true; kw.low_effort = true; }
+  else if (level === "medium" && ultra) { kw.enable_thinking = true; kw.medium_effort = true; }
+  else kw.enable_thinking = true;
+  out.chat_template_kwargs = kw;
+  return out;
+}
+
 // ---------------------------------------------------------------- the attempt engine
 export type Outcome = "hard" | "fb_timeout";
 /** "request": 400/422 (or a 404 that is not a missing model) - a problem with this request, never reported. */

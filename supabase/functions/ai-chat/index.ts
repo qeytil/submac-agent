@@ -16,7 +16,7 @@
 // functions are not in the database yet, billing quietly falls back to the old daily allowance (logged once).
 
 import {
-  budgetFrom, cooldownFor, type Done, type Effort, effortBody, effortOf, type ErrCode, FRIENDLY, keysInOrder, localCooldown,
+  budgetFrom, cooldownFor, type Done, type Effort, effortOf, thinkingExtra, type ErrCode, FRIENDLY, keysInOrder, localCooldown,
   clampOut, providerOutCap, retryAfterSecs, type Route, type RouterSnap, runChat, snapFrom, withThoughtSignatures,
 } from "./router.ts";
 import { billSource, BOT_SOURCES, chatLane, EAT_MS, eatDay, entFromGate, missingFn, nextEatMidnight, resetsAtHeader } from "./billing_gate.ts";
@@ -1151,7 +1151,7 @@ function makePlan(cfg: Config, body: any, state: string, bx?: BillPlan, effort: 
 
 function payloadFor(p: Plan, r: Route, s: Record<string, any> = {}) {
   return {
-    ...p.passthrough, ...(r.extra_body ?? {}), ...effortBody(r, p.effort), model: r.model, messages: withThoughtSignatures(p.messages, r),
+    ...p.passthrough, ...thinkingExtra(r, p.effort), model: r.model, messages: withThoughtSignatures(p.messages, r),
     max_tokens: clampOut(p.roomOf(r), providerOutCap(r, s), routeCap.get(r.route_id)), stream: p.stream,
     ...(p.stream ? { stream_options: { include_usage: true } } : {}),
   };
