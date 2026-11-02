@@ -21,7 +21,33 @@ extension AppStateAgentRunner on AppState {
   List<Map<String, dynamic>> _mcpTools() => [
         if (memoryEnabled) ...MemoryStore.definitions,
         ...LifeTools.definitions,
+        // The app, its outputs, apps and connectors (owner, 2026-11-02). Browser, phone and Live come with layers 2-4.
+        SystemTools.settingsTool,
+        AppState.projectsTool,
+        AppState.sitesTool,
+        ...DocTools.definitions,
+        ...DocMaker.definitions,
+        ...MediaCoder.definitions,
+        if (hasImageModel) AgentTools.imageTool,
+        AppState.connectAppTool,
+        ...ConnectorCatalog.definitions(),
+        ConnectorCatalog.apiCallTool,
+        ..._mcpToolDefs(),
       ];
+
+  /// SubMac's layer on top of opencode's own prompt for this turn (SubMacStyle).
+  String _ocLayer() => SubMacStyle.layer(
+        apps: [
+          for (final e in ConnectorCatalog.connected.keys) ConnectorCatalog.byId(e)?.name ?? e,
+          for (final c in ConnectorCatalog.custom) c['name'] ?? 'App',
+          for (final s in mcpServers.where((e) => e.enabled)) s.name,
+        ],
+        language: replyLanguage,
+        aboutYou: aboutYou,
+        howToRespond: howToRespond,
+        memory: memoryEnabled ? memory.promptSection() : '',
+        imageModel: hasImageModel,
+      );
 
   /// Gives the engine SubMac's MCP server, and turns opencode's permission and question requests into the ask card.
   void _ocWire(OpenCodeEngine oc) {
@@ -157,7 +183,7 @@ extension AppStateAgentRunner on AppState {
       try {
         run.show(RunPhase.waiting, RunStatus.waiting);
         _notify();
-        await oc.prompt(session, await _partsFor(lastUser));
+        await oc.prompt(session, await _partsFor(lastUser), system: _ocLayer());
         while (!done.isCompleted && !run.cancelled) {
           await Future.any([done.future, Future<void>.delayed(const Duration(seconds: 1))]);
         }

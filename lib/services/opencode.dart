@@ -188,11 +188,13 @@ class OpenCodeEngine {
     return id;
   }
 
-  /// Sends one user message; the reply arrives on [events].
-  Future<void> prompt(String session, List<Map<String, dynamic>> parts) async {
+  /// Sends one user message; the reply arrives on [events]. [system] is appended after opencode's own system prompt
+  /// for this turn (SubMac's layer: its name, the chat's cards, the app; see SubMacStyle).
+  Future<void> prompt(String session, List<Map<String, dynamic>> parts, {String? system}) async {
     await _pushToken();
     final r = await _client.post(_u('/session/$session/prompt_async'),
-        headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode({'parts': parts}));
+        headers: {..._auth, 'content-type': 'application/json'},
+        body: jsonEncode({'parts': parts, if (system != null && system.isNotEmpty) 'system': system}));
     if (r.statusCode >= 300) throw OpenCodeError('Prompt: HTTP ${r.statusCode} ${r.body}');
   }
 

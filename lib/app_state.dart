@@ -33,6 +33,7 @@ import 'services/agent_loop.dart';
 import 'services/quick_lane.dart';
 import 'services/opencode.dart';
 import 'services/submac_mcp.dart';
+import 'services/submac_style.dart';
 import 'services/usage_accounting.dart';
 import 'services/local_store.dart';
 import 'services/repo.dart';
