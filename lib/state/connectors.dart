@@ -64,44 +64,6 @@ extension AppStateConnectors on AppState {
     }
   }
 
-  /// The agent adds an MCP server the user described in chat (address, and a key or token when it needs one). It is
-  /// saved like one added in Apps, so it shows there and every chat, bot and call can use it. No key: SubMac checks
-  /// whether the server wants a sign-in and opens it.
-  Future<String> addMcpServerFromChat(Map<String, dynamic> a) async {
-    final url = '${a['url'] ?? ''}'.trim();
-    final u = Uri.tryParse(url);
-    if (u == null || !(u.isScheme('https') || u.isScheme('http')) || u.host.isEmpty) {
-      return 'Error: url must be the server\'s full http(s) address.';
-    }
-    final name = '${a['name'] ?? ''}'.trim().isEmpty ? u.host : '${a['name']}'.trim();
-    final token = '${a['token'] ?? ''}'.trim();
-    final header = '${a['header'] ?? ''}'.trim();
-    final extra = a['headers'] is Map ? Map<String, dynamic>.from(a['headers'] as Map) : const <String, dynamic>{};
-    if (token.isEmpty && extra.isEmpty) {
-      final err = await connectMcpUrl(url, name: name);
-      if (err != null) return 'Error: $err';
-    } else {
-      final s = mcpServers.where((e) => e.url == url).firstOrNull ?? McpServerConfig(id: _uuid.v4(), name: name, url: url);
-      s.name = name;
-      for (final e in extra.entries) {
-        s.headers[e.key] = '${e.value}';
-      }
-      if (token.isNotEmpty) {
-        final h = header.isEmpty ? 'Authorization' : header;
-        s.headers[h] = h.toLowerCase() == 'authorization' && !token.contains(' ') ? 'Bearer $token' : token;
-      }
-      s.enabled = true;
-      await upsertMcpServer(s);
-    }
-    await (_mcpRefreshing ?? refreshMcpTools()).timeout(const Duration(seconds: 30), onTimeout: () {});
-    final s = mcpServers.where((e) => e.url == url).firstOrNull;
-    final n = s == null ? 0 : mcpTools.where((t) => t.server.id == s.id).length;
-    final st = s == null ? '' : (mcpStatus[s.id] ?? '');
-    if (n == 0) return 'Error: $name was saved in Apps but did not answer with any tools ($st). Check the address and key.';
-    return '$name is connected ($n tools) and saved in the user\'s Apps. Its tools work now through submac_apps_list_tools '
-        'and submac_apps_run_tool; from the next message they also show as their own tools.';
-  }
-
   Future<void> deleteMcpServer(String id) async {
     mcpServers.removeWhere((e) => e.id == id);
     mcpTools.removeWhere((t) => t.server.id == id);
@@ -112,7 +74,7 @@ extension AppStateConnectors on AppState {
   }
 
   List<Map<String, dynamic>> _mcpToolDefs() {
-    if (mcpTools.isEmpty && !mcpServers.any((s) => s.enabled)) return const [];
+    if (mcpTools.isEmpty) return const [];
     final defs = <Map<String, dynamic>>[];
     if (mcpTools.length <= AppState._directMcpLimit) {
       defs.addAll(mcpTools.map((t) => t.toDefinition()));

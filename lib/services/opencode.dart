@@ -8,8 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import 'cloud.dart';
-import 'submac_mcp.dart';
-import 'submac_style.dart';
 import 'tools.dart';
 
 /// The opencode engine on the phone (owner, 2026-11-02): SubMac's chat runs on opencode, unchanged (its own prompts,
@@ -31,12 +29,6 @@ class OpenCodeEngine {
   final _events = StreamController<Map<String, dynamic>>.broadcast();
   StreamSubscription<String>? _sse;
   Map<String, String>? _sessions;
-
-  /// SubMac's own tools, offered to opencode as an MCP server (set by the app before the first prompt).
-  SubMacMcp? mcp;
-
-  /// The MCP server's state as opencode last reported it (connected | failed | ...), for the status line.
-  String mcpStatus = '';
 
   /// Every event from the engine, decoded (`{type, properties}`).
   Stream<Map<String, dynamic>> get events => _events.stream;
@@ -69,8 +61,6 @@ class OpenCodeEngine {
       'port': 4096 + r.nextInt(2000),
       // opencode works in SubMac's own workspace, so its files show in the Files screen.
       'cwd': await AgentTools.workspaceDir(),
-      // SubMac's chat cards and app guide as opencode skills: listed by name, loaded only when opencode wants them.
-      'skills': SubMacStyle.skills,
     });
     final m = res is Map ? res : const {};
     if (m['ok'] != true) {
@@ -80,78 +70,6 @@ class OpenCodeEngine {
     await _sse?.cancel();
     _sse = null;
     await _listen();
-    await _addMcp();
-  }
-
-  /// Registers SubMac's MCP server with the engine. The long timeout covers a call that waits on the user's OK or
-  /// a browser task (opencode's default of 60 s cut such calls off: "MCP error -32001: Request timed out").
-  Future<void> _addMcp() async {
-    final s = mcp;
-    if (s == null) return;
-    final sig = _sigOf(s);
-    try {
-      await s.start();
-      final r = await _client.post(_u('/mcp'),
-          headers: {..._auth, 'content-type': 'application/json'},
-          body: jsonEncode({
-            'name': s.name,
-            'config': {
-              'type': 'remote',
-              'url': s.url,
-              'headers': {'Authorization': 'Bearer ${s.token}'},
-              'oauth': false,
-              'timeout': mcpTimeoutMs,
-            },
-          }));
-      final j = r.statusCode == 200 ? jsonDecode(r.body) : null;
-      final st = j is Map ? j[s.name] : null;
-      if (r.statusCode == 200) _mcpSig = sig;
-      mcpStatus = st is Map ? '${st['status']}${st['error'] == null ? '' : ': ${st['error']}'}' : 'HTTP ${r.statusCode}';
-    } catch (e) {
-      mcpStatus = 'failed: $e';
-    }
-  }
-
-  static const mcpTimeoutMs = 30 * 60 * 1000;
-
-  /// The tool names opencode was last given. opencode lists an MCP server's tools once, when it is added, and only
-  /// lists again on a tools/list_changed notification (SubMac's server has no stream to send one). So when SubMac's
-  /// tools change (an app connected or signed out, its tools loaded, the image model turned on), the server is added
-  /// again before the next prompt, which makes opencode list it afresh.
-  String _mcpSig = '';
-  static String _sigOf(SubMacMcp s) => (s.listed().map((t) => '${t['name']}').toList()..sort()).join(',');
-
-  /// Re-adds SubMac's MCP server when its tool list changed since opencode last listed it. Call between turns only:
-  /// re-adding replaces opencode's client, which would cut off a call in flight.
-  Future<void> syncMcp() async {
-    final s = mcp;
-    if (s == null || _port == 0) return;
-    if (_sigOf(s) == _mcpSig) return;
-    await _addMcp();
-  }
-
-  /// The SubMac chat a session belongs to, or null.
-  String? convOf(String session) {
-    for (final e in (_sessions ?? const <String, String>{}).entries) {
-      if (e.value == session) return e.key;
-    }
-    return null;
-  }
-
-  /// Answers a permission request: once | always | reject.
-  Future<void> replyPermission(String id, String reply) async {
-    await _client.post(_u('/permission/$id/reply'),
-        headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode({'reply': reply}));
-  }
-
-  /// Answers a question request (one list of chosen labels per question), or rejects it when [answers] is null.
-  Future<void> replyQuestion(String id, List<List<String>>? answers) async {
-    if (answers == null) {
-      await _client.post(_u('/question/$id/reject'), headers: _auth);
-      return;
-    }
-    await _client.post(_u('/question/$id/reply'),
-        headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode({'answers': answers}));
   }
 
   /// The proxy adds the user's access token to every model call; refreshed before each prompt.
@@ -209,13 +127,11 @@ class OpenCodeEngine {
     return id;
   }
 
-  /// Sends one user message; the reply arrives on [events]. [system] is appended after opencode's own system prompt
-  /// for this turn (SubMac's name only; see SubMacStyle).
-  Future<void> prompt(String session, List<Map<String, dynamic>> parts, {String? system}) async {
+  /// Sends one user message; the reply arrives on [events].
+  Future<void> prompt(String session, List<Map<String, dynamic>> parts) async {
     await _pushToken();
     final r = await _client.post(_u('/session/$session/prompt_async'),
-        headers: {..._auth, 'content-type': 'application/json'},
-        body: jsonEncode({'parts': parts, if (system != null && system.isNotEmpty) 'system': system}));
+        headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode({'parts': parts}));
     if (r.statusCode >= 300) throw OpenCodeError('Prompt: HTTP ${r.statusCode} ${r.body}');
   }
 
@@ -359,77 +275,4 @@ class OcPart {
   Map<String, dynamic> input = const {};
   String? output;
   bool get finished => status == 'completed' || status == 'error';
-}
-
-/// opencode's permission and question requests as SubMac asks (the card above the composer): a command to run asks
-/// "Run this command?" with Allow · Always allow · Deny; a question from opencode's question tool shows its choices.
-/// The answer goes back to the engine, which then carries on (or stops that step on Deny). Pure, so it is tested
-/// without the engine or the app.
-class OpenCodeAsks {
-  OpenCodeAsks({required this.ask, required this.permit, required this.answer, required this.convOf});
-
-  /// Shows one ask in [convId]'s chat; the chosen option or typed answer, or null when the user skipped it.
-  final Future<String?> Function(String convId, String title, String prompt, List<String> options) ask;
-  final Future<void> Function(String id, String reply) permit;
-  final Future<void> Function(String id, List<List<String>>? answers) answer;
-  final String? Function(String session) convOf;
-
-  static const allow = 'Allow';
-  static const always = 'Always allow';
-  static const deny = 'Deny';
-  final _seen = <String>{};
-
-  /// Handles one engine event; returns true when it was a request this handled.
-  Future<bool> handle(Map<String, dynamic> e) async {
-    final p = e['properties'];
-    if (p is! Map) return false;
-    final type = e['type'];
-    if (type != 'permission.asked' && type != 'question.asked') return false;
-    final id = '${p['id'] ?? ''}';
-    if (id.isEmpty || !_seen.add(id)) return false;
-    final conv = convOf('${p['sessionID'] ?? ''}') ?? '';
-    if (type == 'permission.asked') {
-      final (title, prompt) = permissionText('${p['permission'] ?? ''}', p['patterns'], p['metadata']);
-      final a = await ask(conv, title, prompt, const [allow, always, deny]);
-      await permit(id, a == allow ? 'once' : (a == always ? 'always' : 'reject'));
-      return true;
-    }
-    final qs = p['questions'] is List ? p['questions'] as List : const [];
-    final answers = <List<String>>[];
-    for (final q in qs) {
-      if (q is! Map) continue;
-      final opts = [
-        for (final o in (q['options'] is List ? q['options'] as List : const []))
-          if (o is Map && '${o['label'] ?? ''}'.trim().isNotEmpty) '${o['label']}'.trim(),
-      ];
-      final a = await ask(conv, '${q['question'] ?? q['header'] ?? ''}'.trim(), '', opts);
-      if (a == null) {
-        await answer(id, null);
-        return true;
-      }
-      answers.add(q['multiple'] == true ? a.split(RegExp(r'\s*,\s*')).where((s) => s.isNotEmpty).toList() : [a]);
-    }
-    await answer(id, answers);
-    return true;
-  }
-
-  /// The card's title and detail for one permission (bash, edit, webfetch, external_directory, doom_loop, ...).
-  static (String, String) permissionText(String perm, dynamic patterns, dynamic metadata) {
-    final pats = patterns is List ? patterns.map((e) => '$e').where((e) => e.isNotEmpty).toList() : const <String>[];
-    final meta = metadata is Map ? metadata : const {};
-    final what = pats.join('\n');
-    switch (perm) {
-      case 'bash':
-        return ('Run this command?', '${meta['command'] ?? what}');
-      case 'edit':
-        return ('Change this file?', '${meta['filepath'] ?? what}');
-      case 'webfetch':
-        return ('Open this web page?', '${meta['url'] ?? what}');
-      case 'external_directory':
-        return ('Use files outside the workspace?', what);
-      case 'doom_loop':
-        return ('It keeps repeating the same step. Let it go on?', what);
-    }
-    return ('Allow $perm?', what);
-  }
 }

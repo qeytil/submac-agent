@@ -141,12 +141,10 @@ class MainActivity : FlutterActivity() {
                         val pass = call.argument<String>("password") ?: ""
                         val want = num(call.argument<Any>("port"), 4096).toInt()
                         val cwd = call.argument<String>("cwd")
-                        val skills = (call.argument<Map<String, Any?>>("skills") ?: emptyMap())
-                            .mapNotNull { (k, v) -> (v as? String)?.let { k to it } }.toMap()
                         val main = android.os.Handler(mainLooper)
                         Thread {
                             try {
-                                val port = OpenCode.start(applicationContext, base, token, pass, want, cwd, skills)
+                                val port = OpenCode.start(applicationContext, base, token, pass, want, cwd)
                                 val health = OpenCode.waitHealthy(60000)
                                 main.post {
                                     result.success(mapOf("ok" to (health != null), "port" to port, "health" to health, "log" to OpenCode.lastLog()))

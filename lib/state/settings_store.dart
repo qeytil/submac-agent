@@ -181,8 +181,6 @@ extension AppStateSettings on AppState {
     Cloud.usage.addListener(_usageNotice);
     unawaited(memory.sync().then((_) => _notify()));
     if (mcpServers.isNotEmpty) unawaited(refreshMcpTools());
-    // The agent's engine starts with the app, so the first message does not wait for it (owner, 2026-11-02).
-    unawaited(warmAgent());
     // Bots are kept in the account too: a new phone gets them back here, and later changes go up by themselves.
     BotSync.I.postToChat = _cloudBotMessage;
     // The cloud handed a job over (it needs the phone): run it here now, in the background, and notify the result.
