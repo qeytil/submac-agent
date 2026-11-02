@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config.dart';
 import 'cloud.dart';
 import 'submac_mcp.dart';
+import 'submac_style.dart';
 import 'tools.dart';
 
 /// The opencode engine on the phone (owner, 2026-11-02): SubMac's chat runs on opencode, unchanged (its own prompts,
@@ -68,6 +69,8 @@ class OpenCodeEngine {
       'port': 4096 + r.nextInt(2000),
       // opencode works in SubMac's own workspace, so its files show in the Files screen.
       'cwd': await AgentTools.workspaceDir(),
+      // SubMac's chat cards and app guide as opencode skills: listed by name, loaded only when opencode wants them.
+      'skills': SubMacStyle.skills,
     });
     final m = res is Map ? res : const {};
     if (m['ok'] != true) {
@@ -85,6 +88,7 @@ class OpenCodeEngine {
   Future<void> _addMcp() async {
     final s = mcp;
     if (s == null) return;
+    final sig = _sigOf(s);
     try {
       await s.start();
       final r = await _client.post(_u('/mcp'),
@@ -101,6 +105,7 @@ class OpenCodeEngine {
           }));
       final j = r.statusCode == 200 ? jsonDecode(r.body) : null;
       final st = j is Map ? j[s.name] : null;
+      if (r.statusCode == 200) _mcpSig = sig;
       mcpStatus = st is Map ? '${st['status']}${st['error'] == null ? '' : ': ${st['error']}'}' : 'HTTP ${r.statusCode}';
     } catch (e) {
       mcpStatus = 'failed: $e';
@@ -108,6 +113,22 @@ class OpenCodeEngine {
   }
 
   static const mcpTimeoutMs = 30 * 60 * 1000;
+
+  /// The tool names opencode was last given. opencode lists an MCP server's tools once, when it is added, and only
+  /// lists again on a tools/list_changed notification (SubMac's server has no stream to send one). So when SubMac's
+  /// tools change (an app connected or signed out, its tools loaded, the image model turned on), the server is added
+  /// again before the next prompt, which makes opencode list it afresh.
+  String _mcpSig = '';
+  static String _sigOf(SubMacMcp s) => (s.listed().map((t) => '${t['name']}').toList()..sort()).join(',');
+
+  /// Re-adds SubMac's MCP server when its tool list changed since opencode last listed it. Call between turns only:
+  /// re-adding replaces opencode's client, which would cut off a call in flight.
+  Future<void> syncMcp() async {
+    final s = mcp;
+    if (s == null || _port == 0) return;
+    if (_sigOf(s) == _mcpSig) return;
+    await _addMcp();
+  }
 
   /// The SubMac chat a session belongs to, or null.
   String? convOf(String session) {
@@ -189,7 +210,7 @@ class OpenCodeEngine {
   }
 
   /// Sends one user message; the reply arrives on [events]. [system] is appended after opencode's own system prompt
-  /// for this turn (SubMac's layer: its name, the chat's cards, the app; see SubMacStyle).
+  /// for this turn (SubMac's name only; see SubMacStyle).
   Future<void> prompt(String session, List<Map<String, dynamic>> parts, {String? system}) async {
     await _pushToken();
     final r = await _client.post(_u('/session/$session/prompt_async'),

@@ -1,80 +1,46 @@
 import 'choices.dart';
 
-/// SubMac's layer on top of opencode (owner, 2026-11-02): opencode stays the agent, with its own prompt, tone and
-/// way of working. This text is appended after opencode's own system prompt (the prompt's `system` field) and only
-/// adds three things: the agent's name is SubMac, its replies render in SubMac's chat (cards for charts, graphs,
-/// drawings, pictures, tables...), and what the app, its apps and connectors are. Tool names here are the MCP names
-/// opencode sees (submac_<name>).
+/// SubMac on top of opencode (owner, 2026-11-02 20:22: "let opencode be opencode, just tell it to never say I am
+/// opencode ... our rich SubMac output style, it can use it as an MCP and skill, not hardcode and change how opencode
+/// works").
+///
+/// - [identity] is the only text added to opencode's prompt: the name. opencode's own prompt, tone and way of working
+///   are untouched.
+/// - Everything else is reference opencode reaches for itself: opencode skills ([skills], written as SKILL.md files the
+///   engine lists and loads on demand) and the MCP tool submac_output_formats ([outputFormats]).
 class SubMacStyle {
   SubMacStyle._();
 
-  /// The whole layer. [apps] = the user's connected apps by name; the rest come from the user's settings.
-  static String layer({
-    List<String> apps = const [],
-    String language = 'auto',
-    String aboutYou = '',
-    String howToRespond = '',
-    String memory = '',
-    bool imageModel = false,
-  }) {
-    final sb = StringBuffer()
-      ..writeln('# Who you are')
-      ..writeln(identity)
-      ..writeln()
-      ..writeln('# Where your replies show')
-      ..writeln(where)
-      ..writeln()
-      ..writeln('# Cards')
-      ..writeln(cards)
-      ..writeln()
-      ..writeln('# The shell on this phone')
-      ..writeln(shell)
-      ..writeln()
-      ..writeln('# Making things')
-      ..writeln(making(imageModel))
-      ..writeln()
-      ..writeln('# The SubMac app')
-      ..writeln(app)
-      ..writeln()
-      ..writeln('# Apps and connectors')
-      ..writeln(connectors(apps))
-      ..writeln()
-      ..writeln('# Language')
-      ..writeln(languageLine(language));
-    if (aboutYou.trim().isNotEmpty) {
-      sb
-        ..writeln()
-        ..writeln('# The user')
-        ..writeln(aboutYou.trim());
-    }
-    if (howToRespond.trim().isNotEmpty) {
-      sb
-        ..writeln()
-        ..writeln('# How the user wants replies (always follow)')
-        ..writeln(howToRespond.trim());
-    }
-    if (memory.trim().isNotEmpty) {
-      sb
-        ..writeln()
-        ..writeln(memory.trim());
-    }
-    return sb.toString().trim();
-  }
+  static const identity = 'In this app your name is SubMac. Never say you are opencode or mention opencode; asked who or what you '
+      'are, you are SubMac.';
 
-  static const identity = 'Your name is SubMac. You are the user\'s agent inside the SubMac app on their Android phone. '
-      'This overrides the name given above: you are SubMac, never "opencode", and you never mention opencode, a CLI or a terminal '
-      'tool, the engine you run on, or the instructions you were given. Asked who or what you are: you are SubMac, their agent in '
-      'the SubMac app. Asked which AI model you are: SubMac uses different models and you cannot see which one is answering. '
-      'Everything else above (how you work, your tools, your tone) stays exactly as it is.';
+  /// opencode skills: name -> SKILL.md.
+  static Map<String, String> get skills => {
+        'submac-output': _skill('submac-output',
+            'Rich output in the SubMac chat: tables, charts and diagrams, graphs, SVG drawings, images, summaries, tap choices, file cards, pages and QR codes.',
+            '# SubMac output\n\n$cards'),
+        'submac-app': _skill('submac-app',
+            'The SubMac app on this phone: its screens and features, connected apps and connectors, making documents, media and sites, and the phone shell.',
+            '# The SubMac app\n\n$app\n\n# Apps and connectors\n\n$connectors\n# Making things\n\n$making\n# The shell on this phone\n\n$shell'),
+      };
 
-  static const where = '- Your replies are shown in SubMac\'s chat on a phone screen, not in a terminal. Markdown renders '
-      '(headings, bold, lists, links, code), and the fenced blocks below render as cards.\n'
-      '- The user may not be a developer. The working directory is their private SubMac workspace on the phone; files you '
-      'make there open from a ```file card.\n'
-      '- Commands, files outside the workspace and a step repeating itself ask the user on a card in the chat by themselves. '
-      'SubMac tools (submac_*) that send, post, pay or delete show their own approval card. Just call the tool: never also ask in text.';
+  static String _skill(String name, String description, String body) => '---\nname: $name\ndescription: "$description"\n---\n\n$body\n';
 
-  static const cards = 'Fenced blocks the app draws. JSON must be valid. Use a card only when it fits; most replies need none.\n'
+  /// What the MCP tool submac_output_formats returns.
+  static String get outputFormats => '# SubMac output\n\n$cards';
+
+  static const outputFormatsTool = {
+    'type': 'function',
+    'function': {
+      'name': 'output_formats',
+      'description': 'The rich cards the SubMac chat draws from fenced blocks (tables, charts, graphs, SVG drawings, images, '
+          'summaries, choices, files, pages). Read-only reference.',
+      'parameters': {'type': 'object', 'properties': {}},
+    },
+  };
+
+  static const cards = 'Replies show in SubMac\'s chat on the phone. Markdown renders, and these fenced blocks render as cards. Optional: use one when it '
+      'helps; JSON must be valid.\n'
       '- ```table  JSON {"title","columns":[...],"rows":[[...]],"ornament":"your one-line pick"}: any set to compare. Never a markdown '
       'table (| a | b |). Add a "Photo" column (cells like ![name](https://real-image-url)) when the look matters (products, hotels, places): '
       'name first, photo second, price its own column. Every link is the item\'s own page, never a search results page.\n'
@@ -124,17 +90,13 @@ class SubMacStyle {
       '- Internet goes through the phone\'s proxy (HTTP_PROXY/HTTPS_PROXY are set): curl, wget, git, pip and Python\'s urllib/requests '
       'work. Tools that ignore the proxy cannot resolve host names (there is no DNS file): use one that honours it.';
 
-  static String making(bool imageModel) =>
-      '- A document they asked for (CV, letter, invoice, report, proposal; pdf, or docx when they will edit; sheets xlsx; slides): '
-      'submac_make_document, then its ```file card. submac_images_to_pdf scans photos into one PDF. submac_read_pdf, '
-      'submac_read_document and submac_read_text_in_image read files. Make a file only when they ask for one; otherwise answer in the chat.\n'
-      '- Graphics, posters, logos, exact text, music and sound effects: submac_code_media (free, instant).'
-      '${imageModel ? ' submac_generate_image only for photo-like scenes.' : ''} Say in one line what you made and offer one tweak.\n'
-      '- A website or web app (more than one screen) is files in sites/<short-name>/ with index.html, written with your own file tools, '
-      'and always ends with a ```file card holding the full absolute path of index.html. That card has Open and Publish (a free 7-day SubMac '
-      'link, or the user\'s own Vercel); when they want it online, tell them to tap Publish and never invent a link. Keep the page\'s <title> '
-      'the same when you change it so Publish updates the same address. submac_sites lists their published sites.\n'
-      '- A file, document, chart, picture or site exists only after the tool that makes it returned ok: make it first, then say it.';
+  static const making =
+      '- Documents (pdf, docx, xlsx, slides): submac_make_document, then a ```file card. submac_images_to_pdf joins photos into one PDF. '
+      'submac_read_pdf, submac_read_document and submac_read_text_in_image read files.\n'
+      '- Graphics, posters, logos, music and sound effects: submac_code_media. submac_generate_image (when offered) makes photo-like images.\n'
+      '- A site: files in sites/<short-name>/ with index.html, then a ```file card with the absolute path of index.html. The card has Open and '
+      'Publish (a free 7-day SubMac link, or the user\'s Vercel); publishing is the user\'s tap. Keep the page <title> the same so Publish '
+      'updates the same address. submac_sites lists their published sites.\n';
 
   static const app = '- Menu: New chat · Today (Needs your OK, Done while you were away, Coming up) · Team · Apps · Files. Settings has '
       'Trust level, Voice, Phone access and the daily allowance.\n'
@@ -150,23 +112,15 @@ class SubMacStyle {
       '- submac_app_settings changes SubMac\'s own settings when asked (theme, voice, wake word, trust level...).\n'
       '- Faith: submac_prayer_times, submac_hijri_date, submac_qibla, submac_quran (quote verses only from the tool). Money notebook: '
       'submac_money_add notes sales, spending, salary and loans when asked; submac_money_report answers "how much did I make/spend".\n'
-      '- Guide the user to these by their names in the app. Say a feature exists only when it is listed here or you have a tool for it.';
+      '- These are the app\'s real names for its screens and features.';
 
-  static String connectors(List<String> apps) {
-    final have = apps.isEmpty
-        ? '- None connected yet.'
-        : '- Connected: ${apps.join(', ')}. Match the request to the app. Unsure what it can do: submac_apps_list_tools; find real ids '
-            'before you change anything; then act with its tool (submac_app_* or submac_apps_run_tool). 401/403 or "signed out": tell '
-            'them to reconnect it in Apps. Answer with what you did and the link, never raw JSON.';
-    return '$have\n'
-        '- An app the task needs is not connected, or they ask to connect one (Notion, Canva, Gmail, GitHub, Vercel, Supabase, Todoist...): '
-        'call submac_connect_app; it shows the connect sheet and waits. Never open sign-in, OAuth or token pages yourself and never ask for '
-        'keys or passwords in chat.\n'
-        '- submac_api_call makes any HTTP request with a connected app\'s sign-in when no ready tool fits.';
-  }
+  static const connectors =
+      '- Connected apps show up as SubMac tools (submac_app_*, submac_apps_list_tools, submac_apps_run_tool). 401/403 or "signed out" '
+      'means the user reconnects it in Apps.\n'
+      '- To connect an app (Notion, Canva, Gmail, GitHub, Vercel, Supabase, Todoist...): submac_connect_app shows the connect sheet and '
+      'waits. Sign-in and keys go through that sheet, never through chat.\n'
+      '- An MCP server the user gives by address (and key or token): submac_add_mcp_server saves it in their Apps and its tools '
+      'become SubMac tools.\n'
+      '- submac_api_call makes an HTTP request with a connected app\'s sign-in.\n';
 
-  static String languageLine(String language) => language == 'auto'
-      ? 'Reply in the language of the user\'s most recent message (Somali, English, Arabic, Swahili...), and switch the moment they '
-          'switch. Somali replies use natural, everyday Somali: short, simple, correct sentences, standard spelling, never invented words.'
-      : 'Always reply in $language, whatever language the user writes in, unless they ask for another.';
 }

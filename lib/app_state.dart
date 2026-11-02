@@ -602,6 +602,28 @@ class AppState extends ChangeNotifier {
     },
   };
 
+  /// Adds an MCP server the user gives in chat (address, plus a key or token when it needs one).
+  static final Map<String, dynamic> addMcpServerTool = {
+    'type': 'function',
+    'function': {
+      'name': 'add_mcp_server',
+      'description': 'Connect an MCP server to SubMac from its address (and its key or token, when the user gives one). It is saved '
+          'in the user\'s Apps, and its tools become SubMac tools. Without a key, SubMac opens the server\'s own sign-in if it has one. '
+          'This is how to add MCP servers here; the engine\'s own config file is managed by the app.',
+      'parameters': {
+        'type': 'object',
+        'properties': {
+          'name': {'type': 'string', 'description': 'Short name, e.g. "Linear".'},
+          'url': {'type': 'string', 'description': 'The MCP endpoint, e.g. https://mcp.example.com/mcp'},
+          'token': {'type': 'string', 'description': 'API key or token, if given. Sent as "Authorization: Bearer <token>" unless header is set.'},
+          'header': {'type': 'string', 'description': 'Header name for the token when the server wants another one, e.g. "x-api-key".'},
+          'headers': {'type': 'object', 'description': 'Any other headers the server needs.'},
+        },
+        'required': ['url'],
+      },
+    },
+  };
+
   /// The user's published sites: list them, or take one offline when they ask.
   static final Map<String, dynamic> sitesTool = {
     'type': 'function',

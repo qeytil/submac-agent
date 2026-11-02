@@ -36,7 +36,8 @@ object OpenCode {
     /** Starts the server (or returns the running one). [baseUrl] is the OpenAI-compatible model endpoint (our
      *  ai-chat function) and [token] the signed-in user's access token. Returns the port. */
     @Synchronized
-    fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int, cwd: String? = null): Int {
+    fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int, cwd: String? = null,
+              skills: Map<String, String> = emptyMap()): Int {
         if (running()) return port
         val lib = File(ctx.applicationInfo.nativeLibraryDir)
         val ld = File(lib, "libocld.so")
@@ -51,8 +52,15 @@ object OpenCode {
         val proxyPort = LocalProxy.start()
         if (baseUrl.isNotEmpty()) LocalProxy.upstream = baseUrl
         if (token.isNotEmpty()) LocalProxy.token = token
+        // SubMac's skills (the chat's cards, the app guide): opencode lists them and loads one when it wants it.
+        val skillDir = File(root, "skills")
+        skillDir.deleteRecursively()
+        for ((name, body) in skills) {
+            if (!Regex("[a-z0-9-]{1,64}").matches(name)) continue
+            File(skillDir, name).apply { mkdirs() }.resolve("SKILL.md").writeText(body)
+        }
         val cfg = File(root, "opencode.json")
-        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}"))
+        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillDir.path))
         val pb = ProcessBuilder(ld.path, "--library-path", links.path, bin.path, "serve", "--hostname", "127.0.0.1", "--port", "$wantPort")
         pb.directory(work)
         pb.redirectErrorStream(true)
@@ -215,7 +223,7 @@ object OpenCode {
      *  touching files outside the workspace and a step repeating itself ask first, on SubMac's ask card in the chat
      *  (OpenCodeAsks). SubMac's own tools come through SubMac's MCP server (registered by the app after start) and ask
      *  through SubMac's own approval card. */
-    private fun config(baseUrl: String): String = """
+    private fun config(baseUrl: String, skills: String): String = """
 {
   "${'$'}schema": "https://opencode.ai/config.json",
   "autoupdate": false,
@@ -230,6 +238,7 @@ object OpenCode {
   },
   "model": "submac/submac",
   "small_model": "submac/submac",
+  "skills": { "paths": [${q(skills)}] },
   "permission": { "edit": "allow", "bash": "ask", "webfetch": "allow", "external_directory": "ask", "doom_loop": "ask", "question": "allow" }
 }
 """.trimIndent()

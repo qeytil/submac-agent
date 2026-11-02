@@ -33,27 +33,38 @@ extension AppStateAgentRunner on AppState {
         ...ConnectorCatalog.definitions(),
         ConnectorCatalog.apiCallTool,
         ..._mcpToolDefs(),
+        SubMacStyle.outputFormatsTool,
+        AppState.addMcpServerTool,
       ];
 
-  /// SubMac's layer on top of opencode's own prompt for this turn (SubMacStyle).
-  String _ocLayer() => SubMacStyle.layer(
-        apps: [
-          for (final e in ConnectorCatalog.connected.keys) ConnectorCatalog.byId(e)?.name ?? e,
-          for (final c in ConnectorCatalog.custom) c['name'] ?? 'App',
-          for (final s in mcpServers.where((e) => e.enabled)) s.name,
-        ],
-        language: replyLanguage,
-        aboutYou: aboutYou,
-        howToRespond: howToRespond,
-        memory: memoryEnabled ? memory.promptSection() : '',
-        imageModel: hasImageModel,
-      );
+  /// The only text added to opencode's own prompt: the name SubMac (owner, 2026-11-02 20:22). The chat's cards and the
+  /// app guide are opencode skills and an MCP tool it reaches for itself (SubMacStyle).
+  String _ocLayer() => SubMacStyle.identity;
+
+  /// Starts opencode in the background at launch (after sign-in), so the first message does not wait for the engine.
+  /// Once the connected apps' tools have loaded, opencode is given the fresh list. Failures stay quiet: the first
+  /// message starts the engine again and shows any error there.
+  Future<void> warmAgent() async {
+    try {
+      final oc = OpenCodeEngine.I;
+      _ocWire(oc);
+      await oc.ensure();
+      await ensureMcpTools().catchError((Object _) {});
+      await oc.syncMcp();
+    } catch (e) {
+      debugPrint('opencode warm start: $e');
+    }
+  }
 
   /// Gives the engine SubMac's MCP server, and turns opencode's permission and question requests into the ask card.
   void _ocWire(OpenCodeEngine oc) {
     oc.mcp ??= SubMacMcp(
       tools: _mcpTools,
-      call: (name, args) => runToolWithApproval(name, args, convId: _mcpConv[name] ?? currentId),
+      call: (name, args) async => switch (name) {
+        'output_formats' => SubMacStyle.outputFormats,
+        'add_mcp_server' => addMcpServerFromChat(args),
+        _ => runToolWithApproval(name, args, convId: _mcpConv[name] ?? currentId),
+      },
     );
     if (_ocAskSub != null) return;
     final asks = OpenCodeAsks(
@@ -183,6 +194,9 @@ extension AppStateAgentRunner on AppState {
       try {
         run.show(RunPhase.waiting, RunStatus.waiting);
         _notify();
+        // SubMac's tools may have changed since opencode listed them (an app connected, its tools loaded).
+        await ensureMcpTools().catchError((Object _) {});
+        await oc.syncMcp().catchError((Object _) {});
         await oc.prompt(session, await _partsFor(lastUser), system: _ocLayer());
         while (!done.isCompleted && !run.cancelled) {
           await Future.any([done.future, Future<void>.delayed(const Duration(seconds: 1))]);
