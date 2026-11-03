@@ -21,7 +21,8 @@ class SubMacGateway {
     'type': 'function',
     'function': {
       'name': findName,
-      'description': 'Find SubMac app tools on this phone (connected apps and their actions, the user\'s MCP servers, '
+      'description': 'Find SubMac app tools on this phone (the built-in browser for websites, phone control of other apps, '
+          'alarms, SMS, contacts, calendar, WhatsApp, connected apps and their actions, the user\'s MCP servers, '
           'connectors, memory, reading and making documents and media, the app\'s settings, projects and pages). '
           'Returns matching tools with their parameters; run one with run_tool. An empty query lists every tool by name.',
       'parameters': {
@@ -120,7 +121,7 @@ class SubMacGateway {
   /// until it loads it.
   static const skill = '''---
 name: submac
-description: "SubMac app tools on this phone: connected apps (Gmail, Calendar, GitHub...), the user's MCP servers, connectors, memory, reading PDFs/Word/photos, making documents and media, the app's settings, projects and pages. Load when a task needs the phone's apps or the user's accounts."
+description: "SubMac app tools on this phone: a real browser for websites (sign in, forms, shopping, booking), control of the phone and its other apps (tap, type, scroll, alarms, SMS, contacts, calendar, WhatsApp), connected apps (Gmail, Calendar, GitHub...), the user's MCP servers, connectors, memory, reading PDFs/Word/photos, making documents and media, the app's settings, projects and pages. Load when a task needs the phone's apps or the user's accounts."
 ---
 
 # SubMac app tools
@@ -131,6 +132,8 @@ You run inside the SubMac app on the user's phone. Beyond your own tools, the ap
 2. `submac_run_tool` with `name` and `arguments`.
 
 What is there:
+- Websites: `browser_task` hands a whole job (sign in, fill forms, book, shop, research across pages) to SubMac's browser agent, which shows the user a live card and returns its report. Give the full goal with every detail. `wait:false` runs several jobs at once; then `browser_task_wait`. Use it whenever a page needs clicks, typing or a sign-in; your own webfetch is fine for reading a public page.
+- The phone and its other apps: `phone_screen` reads what is on screen (numbered elements), then `phone_tap`, `phone_type`, `phone_scroll`, `phone_gesture`, `phone_nav`, `phone_wait`. Read the screen again after each change. Direct tools are faster when they exist: `set_alarm`, `set_timer`, `open_app`, SMS, contacts, calendar, WhatsApp. Phone control needs the user to switch it on; if a tool says it is off, tell them how.
 - Connected apps and their actions: `apps_list_tools` lists an app's actions, `apps_run_tool` runs one. `connect_app` connects a new one.
 - The user's own MCP servers: their tools are listed by find_tools. `add_mcp_server` adds a server from a URL (and key).
 - Connectors and their APIs.

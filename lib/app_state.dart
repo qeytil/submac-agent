@@ -22,6 +22,7 @@ import 'services/code_tools.dart';
 import 'services/forged_tools.dart';
 import 'services/mcp_oauth.dart';
 import 'services/mcp_routes.dart';
+import 'services/screen_lease.dart';
 import 'services/media_coder.dart';
 import 'services/ai_keys.dart';
 import 'services/ai_models.dart';

@@ -431,7 +431,12 @@ extension AppStateTools on AppState {
           // A scheduled task has nobody to answer a check-in, so its browser work runs unattended.
           unattended: _scheduledConvs.contains(id), parentCancelled: () {
         final r = runs.where((r) => r.convId == convId && !r.side).firstOrNull;
-        return r == null || r.cancelled;
+        // A team member's turn has no chat run: its job lives as long as the turn.
+        if (r == null) {
+          final team = AppStateAgentRunner.teamLive[convId];
+          return team == null || team();
+        }
+        return r.cancelled;
       });
     }
     if (BrowserAgent.names.contains(name)) {

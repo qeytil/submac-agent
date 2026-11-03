@@ -14,6 +14,13 @@ extension AppStateAgentRunner on AppState {
   /// Which chat (or team member) an MCP call belongs to, matched on the tool and its arguments (see McpRoutes).
   static final McpRoutes _routes = McpRoutes();
 
+  /// One driver of the phone's screen at a time among chats, bots and team members.
+  static final ScreenLease screen = ScreenLease();
+
+  /// Chats whose bot is working in a team turn right now (no chat run of their own), with that turn's stop check, so
+  /// its browser jobs live as long as the turn does.
+  static final Map<String, bool Function()> teamLive = {};
+
   /// The lead of a team job hands parts to members with team_assign: its handler, by the lead's route key.
   static final Map<String, Future<String> Function(String member, String ask)> _teamAssign = {};
 
@@ -23,8 +30,17 @@ extension AppStateAgentRunner on AppState {
   List<Map<String, dynamic>> _mcpTools() => [
         if (memoryEnabled) ...MemoryStore.definitions,
         ...LifeTools.definitions,
-        // The app, its outputs, apps and connectors (owner, 2026-11-02). Browser, phone and Live come with layers 2-4.
+        // The app, its outputs, apps and connectors (owner, 2026-11-02).
         SystemTools.settingsTool,
+        // Layer 2 and 3 (owner, 2026-11-03): the browser agent for websites, and control of the phone and its apps.
+        // Behind "Let it take action", as in the old chat.
+        if (agentEnabled) ...[
+          ...BrowserJobs.definitions,
+          for (final d in SystemTools.definitions())
+            if ((d['function'] as Map)['name'] != 'app_settings') d,
+          ...PhoneTools.definitions,
+          WhatsAppTools.definition,
+        ],
         AppState.projectsTool,
         AppState.sitesTool,
         ...DocTools.definitions,
@@ -259,6 +275,7 @@ extension AppStateAgentRunner on AppState {
         run.wrote.add(err.id);
       }
     } finally {
+      screen.release(convId);
       runs.remove(run);
       if (!run.finished.isCompleted) run.finished.complete();
       _notify();
@@ -273,6 +290,11 @@ extension AppStateAgentRunner on AppState {
   /// Runs a SubMac tool for the chat [conv] its call came from. A team member's part runs under the route key
   /// `team:<team>:<bot>`: its own bot tools act on that bot, and team_assign reaches the lead's job.
   Future<String> _runRouted(String name, Map<String, dynamic> args, String? conv) async {
+    if (ScreenLease.drives(name)) {
+      final who = conv ?? currentId ?? '';
+      final busy = screen.take(who, label: _screenLabel(who));
+      if (busy != null) return busy;
+    }
     if (conv != null && conv.startsWith('team:')) {
       final bot = Bots.I.byId(conv.split(':').last);
       if (name == TeamRun.assignName) {
@@ -291,6 +313,11 @@ extension AppStateAgentRunner on AppState {
     if (name == TeamRun.assignName) return 'Error: team_assign works only while you lead a team job.';
     if (name == TeamRun.taskName) return _teamTask(Bots.I.byConv(conv), args);
     return runToolWithApproval(name, args, convId: conv ?? currentId);
+  }
+
+  String _screenLabel(String who) {
+    if (who.startsWith('team:')) return Bots.I.byId(who.split(':').last)?.name ?? 'a team member';
+    return Bots.I.byConv(who)?.name ?? 'SubMac';
   }
 
   /// team_task: a team's lead gives its team a job (from a routine, a follow-up, or the owner asking in its chat).
@@ -322,6 +349,10 @@ extension AppStateAgentRunner on AppState {
     final session = await oc.newSession(title: '${b.name}: ${_shortTitle(task)}', conv: b.convId.isEmpty ? currentId : b.convId);
     final turn = OpenCodeTurn(session);
     if (assign != null) _teamAssign[key] = assign;
+    final home = b.convId;
+    var over = false;
+    bool live() => over || (stopped?.call() ?? false);
+    if (home.isNotEmpty) teamLive[home] = live;
     final sub = oc.events.listen((e) {
       if (turn.apply(e)) {
         for (final p in turn.parts.values) {
@@ -357,7 +388,10 @@ extension AppStateAgentRunner on AppState {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       }
     } finally {
+      over = true;
+      screen.release(key);
       await sub.cancel();
+      if (home.isNotEmpty && identical(teamLive[home], live)) teamLive.remove(home);
       if (assign != null && identical(_teamAssign[key], assign)) _teamAssign.remove(key);
       if (turn.tokens > 0) {
         b.addTokens(turn.tokens);
