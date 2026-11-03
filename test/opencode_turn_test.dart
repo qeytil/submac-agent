@@ -37,6 +37,24 @@ void main() {
     expect(t.parts.keys, ['p1', 'p2']);
   });
 
+  test('thinking streams as its own part and closes when the answer starts', () {
+    final t = OpenCodeTurn('s1');
+    t.apply(ev('message.updated', {'info': {'id': 'a1', 'sessionID': 's1', 'role': 'assistant'}}));
+    t.apply(ev('message.part.updated', {'part': {'id': 'r1', 'sessionID': 's1', 'messageID': 'a1', 'type': 'reasoning', 'text': ''}}));
+    t.apply(ev('message.part.delta', {'sessionID': 's1', 'messageID': 'a1', 'partID': 'r1', 'field': 'text', 'delta': 'Let me '}));
+    t.apply(ev('message.part.delta', {'sessionID': 's1', 'messageID': 'a1', 'partID': 'r1', 'field': 'text', 'delta': 'think.'}));
+    expect(t.parts['r1']!.kind, 'reasoning');
+    expect(t.parts['r1']!.text, 'Let me think.');
+    expect(t.reasoning, isTrue);
+    expect(t.parts['r1']!.finished, isFalse);
+    t.apply(ev('message.part.delta', {'sessionID': 's1', 'messageID': 'a1', 'partID': 't1', 'field': 'text', 'delta': 'x'}));
+    expect(t.parts['t1']!.kind, 'reasoning'); // a delta for an unseen part while thinking is thinking
+    t.apply(ev('message.part.updated', {'part': {'id': 'p1', 'sessionID': 's1', 'messageID': 'a1', 'type': 'text', 'text': 'Answer'}}));
+    expect(t.reasoning, isFalse);
+    expect(t.parts['r1']!.finished, isTrue);
+    expect(t.parts['p1']!.text, 'Answer');
+  });
+
   test('an error ends the turn with its message; a stop is not an error', () {
     final t = OpenCodeTurn('s1');
     t.apply(ev('session.error', {'sessionID': 's1', 'error': {'name': 'MessageAbortedError', 'data': {}}}));

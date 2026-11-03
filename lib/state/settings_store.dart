@@ -25,8 +25,8 @@ extension AppStateSettings on AppState {
     _notify();
   }
 
-  /// The step list under a finished task is always folded (the old "show steps" setting is gone).
-  bool get showSteps => false;
+  /// Every step opencode takes shows in the chat as it happens, like opencode's desktop chat (owner, 2026-11-03).
+  bool get showSteps => true;
 
   /// Making a picture is a separate capability switched on from the server, not a model the user picks.
   bool get hasImageModel => Cloud.features.value.image;
@@ -181,6 +181,8 @@ extension AppStateSettings on AppState {
     Cloud.usage.addListener(_usageNotice);
     unawaited(memory.sync().then((_) => _notify()));
     if (mcpServers.isNotEmpty) unawaited(refreshMcpTools());
+    // The agent's engine starts with the app, so the first message does not wait for it (owner, 2026-11-02).
+    unawaited(warmAgent());
     // Bots are kept in the account too: a new phone gets them back here, and later changes go up by themselves.
     BotSync.I.postToChat = _cloudBotMessage;
     // The cloud handed a job over (it needs the phone): run it here now, in the background, and notify the result.

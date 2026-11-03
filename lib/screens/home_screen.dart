@@ -830,7 +830,7 @@ class _ChatListState extends State<ChatList> {
     final itemCount = history + (hasBlock ? 1 : 0);
     // The reply is being written right now (its words are on screen): the task line says so.
     final lastMsg = visible.isEmpty ? null : visible.last;
-    final writing = lastMsg != null && lastMsg.role == 'assistant' && lastMsg.streaming && lastMsg.content.trim().isNotEmpty &&
+    final writing = lastMsg != null && lastMsg.role == 'assistant' && lastMsg.name != 'reasoning' && lastMsg.streaming && lastMsg.content.trim().isNotEmpty &&
         (lastMsg.toolCalls?.isEmpty ?? true) && (state.showSteps || near(lastIndex, -1)?.toolCalls?.isNotEmpty != true);
 
     // The user just sent something: bring the newest message into view. Something else arrived while
@@ -867,7 +867,7 @@ class _ChatListState extends State<ChatList> {
       final midTask = prev?.role == 'assistant' && (prev?.toolCalls?.isNotEmpty ?? false);
       // The final answer of a task carries its steps, folded ("Worked for 1m 12s · 5 steps"). In the current
       // turn the fold sits at the top of the reply instead (where the task line was), so nothing jumps.
-      final finalAnswer = (m.toolCalls?.isEmpty ?? true) && m.content.trim().isNotEmpty && !nextIsAssistant;
+      final finalAnswer = m.name != 'reasoning' && (m.toolCalls?.isEmpty ?? true) && m.content.trim().isNotEmpty && !nextIsAssistant;
       // The steps behind a final answer are not shown in the chat any more; they wait in the answer's
       // long-press sheet ("How I did it").
       final work = finalAnswer && !state.showSteps && !m.streaming ? stepsBefore(visible, idx, toolResults, state.stepLabel) : const <StepLine>[];
@@ -904,7 +904,7 @@ class _ChatListState extends State<ChatList> {
       final userFirst = turn.isNotEmpty && turn.first.role == 'user';
       final replies = userFirst ? turn.skip(1).toList() : turn;
       // Text of the reply is on screen (not just steps): a plain answer then takes over from the line.
-      final answerShowing = replies.any((m) => m.role == 'assistant' && (m.toolCalls?.isEmpty ?? true) && m.content.trim().isNotEmpty);
+      final answerShowing = replies.any((m) => m.role == 'assistant' && m.name != 'reasoning' && (m.toolCalls?.isEmpty ?? true) && m.content.trim().isNotEmpty);
       // Only the live activity line sits at the top of the reply. When the task ends it folds away softly
       // (the steps it took moved into the answer's long-press sheet), so a turn never shows two lines.
       final Widget head = live

@@ -367,6 +367,7 @@ class AssistantMessageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (message.name == 'reasoning') return ThinkingBlock(message: message);
     final p = Palette.of(context);
     final calls = message.toolCalls ?? const <ToolCall>[];
     // Steps, plans and narration stay out of the chat (owner 2026-10-24) unless the user asked for them.
@@ -956,6 +957,14 @@ class _ToolCallCardState extends State<ToolCallCard> {
         return 'GET ${a['url'] ?? ''}';
       case 'web_search':
         return 'search "${a['query'] ?? ''}"';
+      case 'bash':
+        return '\$ ${a['command'] ?? ''}';
+      case 'read':
+      case 'write':
+      case 'edit':
+        return '${widget.call.name} ${a['filePath'] ?? a['path'] ?? ''}';
+      case 'webfetch':
+        return 'GET ${a['url'] ?? ''}';
       default:
         return '${widget.call.name} ${widget.call.arguments}';
     }
@@ -970,7 +979,7 @@ class _ToolCallCardState extends State<ToolCallCard> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final done = widget.result != null;
-    final label = AgentTools.describe(widget.call.name, _args, done: done);
+    final label = ocStepLabel(widget.call.name, _args) ?? AgentTools.describe(widget.call.name, _args, done: done);
     final res = widget.result?.content ?? '';
     final image = res.startsWith('IMAGE_SAVED ') ? res.substring(12).split('\n').first.trim() : null;
     return Padding(
@@ -1144,6 +1153,112 @@ class _CalmErrorCardState extends State<_CalmErrorCard> {
           Transform.translate(
             offset: Offset(Directionality.of(context) == TextDirection.rtl ? 10 : -10, 0),
             child: Wrap(children: actions),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// opencode's own tools, labelled the way opencode's desktop chat labels them (owner, 2026-11-03). Null for others.
+String? ocStepLabel(String name, Map<String, dynamic> a) {
+  String file() {
+    final f = '${a['filePath'] ?? a['path'] ?? ''}';
+    final i = f.lastIndexOf('/');
+    return i >= 0 && i < f.length - 1 ? f.substring(i + 1) : f;
+  }
+
+  switch (name) {
+    case 'bash':
+      final d = '${a['description'] ?? ''}'.trim();
+      final c = '${a['command'] ?? ''}'.trim();
+      return d.isNotEmpty ? d : '\$ $c';
+    case 'read':
+      return 'Read ${file()}';
+    case 'write':
+      return 'Write ${file()}';
+    case 'edit':
+    case 'multiedit':
+    case 'patch':
+      return 'Edit ${file()}';
+    case 'list':
+      return 'List ${a['path'] ?? '.'}';
+    case 'glob':
+      return 'Glob "${a['pattern'] ?? ''}"';
+    case 'grep':
+      return 'Grep "${a['pattern'] ?? ''}"';
+    case 'webfetch':
+      return 'Fetch ${a['url'] ?? ''}';
+    case 'websearch':
+      return 'Search "${a['query'] ?? ''}"';
+    case 'todowrite':
+    case 'todoread':
+      return 'To-dos';
+    case 'task':
+      return 'Task: ${a['description'] ?? ''}';
+    case 'skill':
+      return 'Skill ${a['name'] ?? ''}';
+    case 'question':
+      return 'Question';
+  }
+  return null;
+}
+
+/// opencode's thinking, as its desktop chat shows it: a muted "Thinking" block that streams open while it is being
+/// written and folds to one line once a step or the answer follows. Tap to open or close.
+class ThinkingBlock extends StatefulWidget {
+  const ThinkingBlock({super.key, required this.message});
+  final ChatMessage message;
+
+  @override
+  State<ThinkingBlock> createState() => _ThinkingBlockState();
+}
+
+class _ThinkingBlockState extends State<ThinkingBlock> {
+  bool? _open;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final live = widget.message.streaming;
+    final open = _open ?? live;
+    final text = widget.message.content.trim();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _open = !open),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(live ? 'Thinking…' : 'Thinking',
+                        style: TextStyle(color: p.muted, fontSize: AppText.body, fontStyle: FontStyle.italic)),
+                  ),
+                  Text(open ? 'Hide' : 'Show', style: TextStyle(color: p.muted, fontSize: AppText.micro)),
+                ],
+              ),
+            ),
+          ),
+          SubFold(
+            open: open,
+            alignment: Alignment.topCenter,
+            child: Container(
+              margin: const EdgeInsetsDirectional.only(start: 2, bottom: 6),
+              padding: const EdgeInsetsDirectional.only(start: 10),
+              decoration: BoxDecoration(border: BorderDirectional(start: BorderSide(color: p.muted.withValues(alpha: 0.35), width: 2))),
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: SingleChildScrollView(
+                reverse: live,
+                child: SelectableText(text,
+                    style: TextStyle(color: p.muted, fontSize: AppText.body - 1, fontStyle: FontStyle.italic, height: 1.45)),
+              ),
+            ),
           ),
         ],
       ),

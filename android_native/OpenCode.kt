@@ -132,8 +132,10 @@ object OpenCode {
     private fun q(s: String) = org.json.JSONObject.quote(s)
 
     /** One provider: SubMac's own model gateway, which speaks the OpenAI chat API, reached through LocalProxy (which adds
-     *  the token). Every permission is allowed: the chat has no approval card for opencode yet, and an "ask" would
-     *  leave the reply waiting forever. The engine runs inside the app's own sandbox. */
+     *  the token). Permissions: reading, editing files in the workspace and fetching pages go ahead; running a command,
+     *  touching files outside the workspace and a step repeating itself ask first, on SubMac's ask card in the chat
+     *  (OpenCodeAsks). SubMac's own tools come through SubMac's MCP server (registered by the app after start) and ask
+     *  through SubMac's own approval card. */
     private fun config(baseUrl: String): String = """
 {
   "${'$'}schema": "https://opencode.ai/config.json",
@@ -149,7 +151,7 @@ object OpenCode {
   },
   "model": "submac/submac",
   "small_model": "submac/submac",
-  "permission": { "edit": "allow", "bash": "allow", "webfetch": "allow", "external_directory": "allow", "doom_loop": "allow" }
+  "permission": { "edit": "allow", "bash": "ask", "webfetch": "allow", "external_directory": "ask", "doom_loop": "ask", "question": "allow" }
 }
 """.trimIndent()
 }
