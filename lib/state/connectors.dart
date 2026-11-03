@@ -24,7 +24,60 @@ extension AppStateConnectors on AppState {
 
   /// Connects a ready-made app: open ones straight away, the rest by signing in in the browser.
   /// Returns null when connected, or a plain sentence saying what went wrong.
-  Future<String?> connectMcpPreset(McpPreset pr) => connectMcpUrl(pr.url, name: pr.name, key: pr.id, signIn: pr.signIn);
+  Future<String?> connectMcpPreset(McpPreset pr, {String? key}) =>
+      pr.needsKey ? connectMcpKey(pr, key ?? '') : connectMcpUrl(pr.url, name: pr.name, key: pr.id, signIn: pr.signIn);
+
+  /// An app connected with a key the user pasted. It is saved only when the app answers with its tools; otherwise
+  /// the app's real answer comes back and nothing half-connected stays in Apps.
+  Future<String?> connectMcpKey(McpPreset pr, String key) async {
+    final k = key.trim();
+    if (k.isEmpty) return 'Paste your ${pr.name} key first.';
+    if (mcpSigningIn.contains(pr.id)) return null;
+    mcpSigningIn.add(pr.id);
+    mcpConnectError.remove(pr.id);
+    _notify();
+    try {
+      final existing = mcpServers.where((e) => e.url == pr.url).firstOrNull;
+      final s = McpServerConfig(id: existing?.id ?? _uuid.v4(), name: pr.name, url: pr.url, headers: {pr.keyHeader!: k});
+      McpClient.reset(s.id);
+      List<McpTool> tools;
+      try {
+        tools = await McpClient(s).listTools().timeout(const Duration(seconds: 30));
+      } catch (e) {
+        final raw = '$e'.replaceFirst('Exception: ', '');
+        final msg = RegExp(r'HTTP 40[13]').hasMatch(raw)
+            ? '${pr.name} did not accept that key. Check it and paste it again.'
+            : Calm.short(raw, app: pr.name);
+        mcpConnectError[pr.id] = msg;
+        return msg;
+      }
+      if (tools.isEmpty) {
+        final msg = '${pr.name} answered but offered no tools. Check the key.';
+        mcpConnectError[pr.id] = msg;
+        return msg;
+      }
+      if (existing != null) {
+        existing
+          ..headers = s.headers
+          ..enabled = true;
+        McpClient.reset(existing.id);
+        await upsertMcpServer(existing);
+      } else {
+        await upsertMcpServer(s);
+      }
+      // Earlier failed tries at the same app (other addresses, no tools) go, so Apps shows one working entry.
+      for (final o in [...mcpServers]) {
+        if (o.url != pr.url && o.name.toLowerCase() == pr.name.toLowerCase() && !mcpTools.any((t) => t.server.id == o.id)) {
+          await deleteMcpServer(o.id);
+        }
+      }
+      await (_mcpRefreshing ?? refreshMcpTools()).timeout(const Duration(seconds: 30), onTimeout: () {});
+      return null;
+    } finally {
+      mcpSigningIn.remove(pr.id);
+      _notify();
+    }
+  }
 
   Future<String?> connectMcpUrl(String url, {required String name, String? key, bool? signIn}) async {
     final k = key ?? url;
@@ -68,15 +121,18 @@ extension AppStateConnectors on AppState {
   /// saved like one added in Apps, so it shows there and every chat, bot and call can use it. No key: SubMac checks
   /// whether the server wants a sign-in and opens it.
   Future<String> addMcpServerFromChat(Map<String, dynamic> a) async {
-    final url = '${a['url'] ?? ''}'.trim();
+    final token = '${a['token'] ?? ''}'.trim();
+    final known = McpKnown.fix('${a['url'] ?? ''}'.trim(), token, '${a['header'] ?? ''}'.trim());
+    final url = known.url;
+    final header = known.header;
     final u = Uri.tryParse(url);
     if (u == null || !(u.isScheme('https') || u.isScheme('http')) || u.host.isEmpty) {
       return 'Error: url must be the server\'s full http(s) address.';
     }
     final name = '${a['name'] ?? ''}'.trim().isEmpty ? u.host : '${a['name']}'.trim();
-    final token = '${a['token'] ?? ''}'.trim();
-    final header = '${a['header'] ?? ''}'.trim();
     final extra = a['headers'] is Map ? Map<String, dynamic>.from(a['headers'] as Map) : const <String, dynamic>{};
+    final before = mcpServers.where((e) => e.url == url).firstOrNull;
+    final beforeJson = before?.toJson();
     if (token.isEmpty && extra.isEmpty) {
       final err = await connectMcpUrl(url, name: name);
       if (err != null) return 'Error: $err';
@@ -97,9 +153,32 @@ extension AppStateConnectors on AppState {
     final s = mcpServers.where((e) => e.url == url).firstOrNull;
     final n = s == null ? 0 : mcpTools.where((t) => t.server.id == s.id).length;
     final st = s == null ? '' : (mcpStatus[s.id] ?? '');
-    if (n == 0) return 'Error: $name was saved in Apps but did not answer with any tools ($st). Check the address and key.';
-    return '$name is connected ($n tools) and saved in the user\'s Apps. Its tools work now through submac_apps_list_tools '
-        'and submac_apps_run_tool; from the next message they also show as their own tools.';
+    if (n == 0) {
+      // Nothing half-connected stays behind (2026-11-03: failed tries left "Composio · 0 tools" entries in Apps).
+      if (s != null) {
+        if (beforeJson == null) {
+          await deleteMcpServer(s.id);
+        } else {
+          final old = McpServerConfig.fromJson(beforeJson);
+          s
+            ..name = old.name
+            ..headers = old.headers
+            ..enabled = old.enabled;
+          McpClient.reset(s.id);
+          await upsertMcpServer(s);
+        }
+      }
+      return 'Error: $name did not connect: it answered "$st" at $url. Nothing was saved. Do not tell the user it is '
+          'connected. Check the address and the key with the user; do not guess other addresses.';
+    }
+    // Earlier failed tries at the same app under other addresses go, so Apps shows one working entry.
+    for (final o in [...mcpServers]) {
+      if (o.id != s!.id && o.name.toLowerCase() == name.toLowerCase() && !mcpTools.any((t) => t.server.id == o.id)) {
+        await deleteMcpServer(o.id);
+      }
+    }
+    return '$name is connected ($n tools) and saved in the user\'s Apps. Its tools work now: look them up with find_tools '
+        '(or apps_list_tools with app "$name") and run them with run_tool.';
   }
 
   Future<void> deleteMcpServer(String id) async {
@@ -111,10 +190,11 @@ extension AppStateConnectors on AppState {
     _notify();
   }
 
-  List<Map<String, dynamic>> _mcpToolDefs() {
+  /// [all]: every app tool (for opencode, which looks tools up with find_tools instead of being sent each schema).
+  List<Map<String, dynamic>> _mcpToolDefs({bool all = false}) {
     if (mcpTools.isEmpty && !mcpServers.any((s) => s.enabled)) return const [];
     final defs = <Map<String, dynamic>>[];
-    if (mcpTools.length <= AppState._directMcpLimit) {
+    if (all || mcpTools.length <= AppState._directMcpLimit) {
       defs.addAll(mcpTools.map((t) => t.toDefinition()));
     } else {
       // A fair share per app, read/search tools first (they unlock everything else).

@@ -41,7 +41,8 @@ void main() {
 
   test('opencode is offered the browser agent and phone control (behind "Let it take action")', () {
     final src = File('lib/state/agent_runner.dart').readAsStringSync();
-    final tools = src.substring(src.indexOf('_mcpTools() => ['), src.indexOf('String _ocLayer'));
+    // The app's tool list is _ocAppTools since the bots leak audit (2026-11-03); _mcpTools scopes it per caller.
+    final tools = src.substring(src.indexOf('_ocAppTools() => ['), src.indexOf('String _ocLayer'));
     expect(tools, contains('if (agentEnabled) ...['));
     expect(tools, contains('...BrowserJobs.definitions'));
     expect(tools, contains('...PhoneTools.definitions'));

@@ -115,10 +115,38 @@ jobs:
           ls -l "$J"
           for f in libopencode.so libocld.so libocstdcpp.so libocgcc.so; do test -s "$J/$f" || { echo "::error::missing $f"; exit 1; }; done
           rm -rf /tmp/oc
+          # Programs opencode's own tools run on the phone (owner, 2026-11-03: "make every opencode tool work"). Android
+          # has neither: glob/grep/skill failed with "ripgrep execution failed" (opencode downloads a glibc rg into its
+          # data dir, which Android may not execute) and bash with "curl: inaccessible or not found". Static aarch64
+          # builds, pinned with sha256; OpenCode.kt links them into filesDir/oc/bin as rg / curl / opencode on PATH.
+          mkdir -p /tmp/ocx && cd /tmp/ocx
+          RG_URL=https://github.com/microsoft/ripgrep-prebuilt/releases/download/v15.0.1/ripgrep-v15.0.1-aarch64-unknown-linux-musl.tar.gz
+          RG_SHA=dd3738a4b6e8df0fb3bc3edc5af352c4c39e0d97ad118a23e5176bdc5d48ba08
+          CURL_URL=https://github.com/stunnel/static-curl/releases/download/8.23.0-1/curl-linux-aarch64-musl-8.23.0-1.tar.xz
+          CURL_SHA=e20f26e5b87c1883608f286f86bdabf39d3b8556e8a8e75dfe205e14bd206199
+          curl -fsSL -o rg.tgz "$RG_URL"; echo "$RG_SHA  rg.tgz" | sha256sum -c -
+          curl -fsSL -o curl.txz "$CURL_URL"; echo "$CURL_SHA  curl.txz" | sha256sum -c -
+          tar xzf rg.tgz; tar xJf curl.txz
+          # ocexec: the `opencode` command for the bash tool. opencode is dynamic musl and only starts through libocld.so,
+          # and a wrapper script cannot run (Android executes nothing written to app data), so it is a tiny static program.
+          sudo apt-get update -qq && sudo apt-get install -y -qq gcc-aarch64-linux-gnu >/dev/null
+          aarch64-linux-gnu-gcc -static -Os -s -o ocexec "$GITHUB_WORKSPACE/android_native/ocexec.c"
+          cd -
+          cp "$(find /tmp/ocx -type f -name rg | head -1)" "$J/libocrg.so"
+          cp "$(find /tmp/ocx -type f -name curl | head -1)" "$J/liboccurl.so"
+          cp /tmp/ocx/ocexec "$J/libocexec.so"
+          chmod 755 "$J/libocrg.so" "$J/liboccurl.so" "$J/libocexec.so"
+          for f in libocrg.so liboccurl.so libocexec.so; do
+            file "$J/$f" | tee /dev/stderr | grep -q 'ARM aarch64.*static' || { echo "::error::$f is not a static aarch64 binary"; exit 1; }
+          done
+          # Size check: rg ~5 MB, curl ~10 MB, ocexec well under 1 MB; a tiny rg/curl means a bad download.
+          test "$(stat -c%s "$J/libocrg.so")" -gt 1000000 && test "$(stat -c%s "$J/liboccurl.so")" -gt 1000000 \
+            || { echo "::error::rg or curl too small"; exit 1; }
+          rm -rf /tmp/ocx
           # Never strip these: the opencode binary carries its app inside the ELF, and stripping can drop it.
           G=android/app/build.gradle.kts
           test -f "$G" || { echo "::error::no $G"; exit 1; }
-          printf '\nandroid {\n    packaging {\n        jniLibs {\n            keepDebugSymbols += setOf("**/libopencode.so", "**/libocld.so", "**/libocstdcpp.so", "**/libocgcc.so")\n        }\n    }\n}\n' >> "$G"
+          printf '\nandroid {\n    packaging {\n        jniLibs {\n            keepDebugSymbols += setOf("**/libopencode.so", "**/libocld.so", "**/libocstdcpp.so", "**/libocgcc.so", "**/libocrg.so", "**/liboccurl.so", "**/libocexec.so")\n        }\n    }\n}\n' >> "$G"
           tail -8 "$G"
           df -h /
 

@@ -278,7 +278,9 @@ void main() {
     });
 
     // Owner, 2026-11-03: every opencode step and the words around it show, like opencode desktop (showSteps is always on).
-    testWidgets('a line written before a step shows, as in opencode desktop', (t) async {
+    // Owner 2026-11-03 (14:24): quiet again. A line before a step folds into the turn's activity view (Notes); it shows
+    // inline only when steps were asked for.
+    testWidgets('a line written before a step stays out of the chat unless steps were asked for', (t) async {
       final m = ChatMessage(
         id: 'n',
         role: 'assistant',
@@ -286,7 +288,7 @@ void main() {
         toolCalls: [ToolCall(id: 's1', name: 'web_search', arguments: '{"query":"flights"}')],
       );
       await t.pumpWidget(_host(AssistantMessageView(message: m, toolResults: const {}, showActions: false, isLast: false), still: true));
-      expect(find.textContaining('Checking Friday flights'), findsOneWidget);
+      expect(find.textContaining('Checking Friday flights'), findsNothing);
       await t.pumpWidget(_host(
           AssistantMessageView(key: const ValueKey('asked'), message: m, toolResults: const {}, showActions: false, isLast: false, stepsAsked: true),
           still: true));
@@ -294,10 +296,10 @@ void main() {
     });
 
 
-    test('the live line only opens the checklist and step list when steps were asked for', () {
+    test('the live line opens to the categorized activity; the old step list only when steps were asked for', () {
       final src = File('lib/widgets/composer.dart').readAsStringSync();
       expect(src, contains('widget.showSteps && t != null && t.todo.isNotEmpty'));
-      expect(src, contains('final canOpen = widget.showSteps &&'));
+      expect(src, contains('final canOpen = hasActivity || (widget.showSteps && trail.isNotEmpty);'));
     });
   });
 }

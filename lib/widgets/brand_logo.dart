@@ -106,7 +106,7 @@ class BrandLogo extends StatelessWidget {
   };
 
   /// Apps drawn from their own picture.
-  static const pictures = <String>{'alphavantage', 'amplitude', 'apify', 'apollo', 'attio', 'axiom', 'brightdata', 'canva', 'close', 'coingecko', 'consensus', 'context7', 'dataforseo', 'deepwiki', 'dice', 'exa', 'fireflies', 'folk', 'frameio', 'freshdesk', 'gitguardian', 'globalping', 'granola', 'honeycomb', 'hunter', 'invideo', 'jam', 'jina', 'jotform', 'kajabi', 'kiwi', 'klaviyo', 'krisp', 'lovable', 'mem', 'mercury', 'monday', 'mslearn', 'mux', 'newsapi', 'otter', 'parallel', 'pcloud', 'peek', 'pipedream', 'pipedrive', 'productboard', 'ramp', 'recurly', 'sendgrid', 'serper', 'shipstation', 'spline', 'supermemory', 'tavily', 'twilio', 'vanta', 'workable', 'yahoo', 'zenrows'};
+  static const pictures = <String>{'alphavantage', 'amplitude', 'apify', 'apollo', 'attio', 'axiom', 'brightdata', 'canva', 'close', 'coingecko', 'composio', 'consensus', 'context7', 'dataforseo', 'deepwiki', 'dice', 'exa', 'fireflies', 'folk', 'frameio', 'freshdesk', 'gitguardian', 'globalping', 'granola', 'honeycomb', 'hunter', 'invideo', 'jam', 'jina', 'jotform', 'kajabi', 'kiwi', 'klaviyo', 'krisp', 'lovable', 'mem', 'mercury', 'monday', 'mslearn', 'mux', 'newsapi', 'otter', 'parallel', 'pcloud', 'peek', 'pipedream', 'pipedrive', 'productboard', 'ramp', 'recurly', 'sendgrid', 'serper', 'shipstation', 'spline', 'supermemory', 'tavily', 'twilio', 'vanta', 'workable', 'yahoo', 'zenrows'};
 
   /// Full-colour vector marks (drawn as they are).
   static const colourMarks = <String>{'slack'};

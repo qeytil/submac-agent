@@ -12,7 +12,7 @@ import 'mcp_client.dart';
 
 /// A ready-made app the user connects by signing in (no keys, no developer setup).
 class McpPreset {
-  const McpPreset(this.id, this.name, this.url, this.blurb, this.category, {this.signIn = true});
+  const McpPreset(this.id, this.name, this.url, this.blurb, this.category, {this.signIn = true, this.keyHeader, this.keyHint = '', this.keyHelp = ''});
   final String id;
   final String name;
   final String url;
@@ -20,6 +20,15 @@ class McpPreset {
   final String category;
   /// false = works straight away, nothing to sign in to.
   final bool signIn;
+
+  /// Set for an app connected with a key the user pastes (no sign-in page): the header the key is sent in.
+  final String? keyHeader;
+
+  /// What the key looks like (e.g. "ck_..."), and where to find it.
+  final String keyHint;
+  final String keyHelp;
+
+  bool get needsKey => keyHeader != null;
 }
 
 /// Sign-in for MCP servers (OAuth 2.1: discovery, dynamic client registration, PKCE).
@@ -27,6 +36,13 @@ class McpPreset {
 /// has to be registered with any company and no keys are ever typed.
 class McpOAuth {
   static const presets = <McpPreset>[
+    // Composio Connect: one key, the user's own Composio apps (owner, 2026-11-03: "add it as app, so I just put the key").
+    McpPreset('composio', 'Composio', 'https://connect.composio.dev/mcp', 'Gmail, GitHub, Slack and 1,000+ apps from your Composio account',
+        'Everything',
+        signIn: false,
+        keyHeader: 'x-consumer-api-key',
+        keyHint: 'ck_…',
+        keyHelp: 'Copy it from dashboard.composio.dev, under Connect, then AI clients.'),
     McpPreset('zapier', 'Zapier', 'https://mcp.zapier.com/api/mcp/mcp', 'Gmail, Sheets, Calendar, Slack and 8,000 more apps', 'Everything'),
     McpPreset('notion', 'Notion', 'https://mcp.notion.com/mcp', 'Read and write your pages and databases', 'Work'),
     McpPreset('canva', 'Canva', 'https://mcp.canva.com/mcp', 'Find, create and edit your designs', 'Create'),

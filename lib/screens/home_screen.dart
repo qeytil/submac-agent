@@ -34,6 +34,8 @@ import '../widgets/sub_icon.dart';
 import '../widgets/motion.dart';
 import '../widgets/bot_face.dart';
 import '../widgets/chat/activity.dart';
+import '../widgets/chat/activity_groups.dart';
+import '../widgets/chat/activity_panel.dart';
 import '../widgets/chat/edge_fade.dart';
 import '../widgets/chat/entrance.dart';
 import '../widgets/chat/typing_text.dart';
@@ -793,6 +795,11 @@ class _ChatListState extends State<ChatList> {
     // Steps, plans and narration stay hidden (owner 2026-10-24) unless the user asked for them in that turn.
     final stepsAsked = <String>{};
     var askedNow = false;
+    // The quiet activity view (owner 2026-11-03): each turn's thinking and notes fold away; a finished turn shows its
+    // work as one line at the place its work began, opening to categorized sections.
+    final folded = <String>{};
+    final foldAt = <String, (ActivityGroups, String?)>{}; // first work message -> the turn's groups, its answer's id
+    var turnGroups = ActivityGroups.of(const []);
     {
       final seg = <ChatMessage>[];
       var asked = false;
@@ -802,6 +809,19 @@ class _ChatListState extends State<ChatList> {
         for (final m in seg) {
           pagePlans[m.id] = plan;
           if (asked) stepsAsked.add(m.id);
+        }
+        final g = ActivityGroups.of(seg);
+        turnGroups = g;
+        if (!asked && !g.isEmpty) {
+          String? first;
+          for (var i = 0; i < seg.length; i++) {
+            final work = ActivityGroups.folds(seg, i) || (seg[i].toolCalls?.isNotEmpty ?? false);
+            if (ActivityGroups.folds(seg, i)) folded.add(seg[i].id);
+            if (work) first ??= seg[i].id;
+          }
+          final answer = seg.lastWhere((m) => m.role == 'assistant' && m.name != 'reasoning' && (m.toolCalls?.isEmpty ?? true) && m.content.trim().isNotEmpty,
+              orElse: () => seg.last);
+          if (first != null) foldAt[first] = (g, answer.id);
         }
         seg.clear();
       }
@@ -853,9 +873,7 @@ class _ChatListState extends State<ChatList> {
     // Chat content reads a touch smaller than the rest of the app: calm and roomy, not shouty.
     final mq = MediaQuery.of(context);
 
-    Widget assistant(int idx, {bool inTurn = false}) {
-      final m = visible[idx];
-      if (m.name == 'submac_team') return TeamMessageCard(key: ValueKey(m.id), message: m);
+    Widget assistantView(ChatMessage m, int idx, {bool inTurn = false}) {
       // A reply held on screen while the work is still checked is progress, not the answer: while the task runs only
       // the status line shows (the checked final reply replaces it), unless the user asked to see the steps.
       if (!state.showSteps && !stepsAsked.contains(m.id) && working.any((r) => identical(r.heldReply, m))) {
@@ -888,6 +906,22 @@ class _ChatListState extends State<ChatList> {
       );
     }
 
+    Widget assistant(int idx, {bool inTurn = false}) {
+      final m = visible[idx];
+      if (m.name == 'submac_team') return TeamMessageCard(key: ValueKey(m.id), message: m);
+      final quiet = !state.showSteps && !stepsAsked.contains(m.id);
+      // The finished turn's work, as one line where it began (the live turn has the working line instead).
+      final fold = quiet && !(inTurn && live) ? foldAt[m.id] : null;
+      if (fold != null) {
+        return Column(key: ValueKey('fold-${m.id}'), crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          ActivityFold(groups: fold.$1, results: toolResults, worked: fold.$2 == null ? null : state.workedFor[fold.$2]),
+          if (!folded.contains(m.id)) assistantView(m, idx, inTurn: inTurn),
+        ]);
+      }
+      if (quiet && folded.contains(m.id)) return SizedBox.shrink(key: ValueKey(m.id));
+      return assistantView(m, idx, inTurn: inTurn);
+    }
+
     /// The live approval ask (owner, 2026-10-31): a thin card under the newest message of this chat —
     /// never a modal sheet. An ask from another chat waits there, not here.
     Widget confirmSlot() {
@@ -915,6 +949,8 @@ class _ChatListState extends State<ChatList> {
               answerShowing: answerShowing,
               writing: writing,
               showSteps: showStepsNow,
+              activity: showStepsNow ? null : turnGroups,
+              results: toolResults,
             )
           : const SizedBox(key: ValueKey('turn-none'), width: double.infinity);
       // The turn takes only its own height: the list is reversed, so it sits at the bottom, in view. (It used to

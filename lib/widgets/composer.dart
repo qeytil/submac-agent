@@ -30,6 +30,8 @@ import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 import '../screens/skills_screen.dart';
 import 'chat/activity.dart';
+import 'chat/activity_groups.dart';
+import 'chat/activity_panel.dart';
 import 'chat/edge_fade.dart';
 
 class Composer extends StatefulWidget {
@@ -814,8 +816,13 @@ const turnMarkSize = 22.0;
 /// A plain reply with no steps hands over to the answer: once the answer has been streaming for a moment
 /// with no step taken, the line folds away and the text takes its place.
 class WorkingLine extends StatefulWidget {
-  const WorkingLine({super.key, this.run, this.more = 0, this.answerShowing = false, this.writing = false, this.showSteps = false});
+  const WorkingLine(
+      {super.key, this.run, this.more = 0, this.answerShowing = false, this.writing = false, this.showSteps = false, this.activity, this.results = const {}});
   final AgentRun? run;
+
+  /// This turn's work so far (thinking, tools, notes): the line opens to it, in categorized sections (owner 2026-11-03).
+  final ActivityGroups? activity;
+  final Map<String, ChatMessage> results;
 
   /// The user asked to see the steps: the task's checklist and its step list can open under the line. Otherwise
   /// (owner 2026-10-24) the line is one quiet status, updating in place, and nothing else.
@@ -946,7 +953,9 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
         final status = WorkingLine.lineFor(t, writing: widget.writing, more: widget.more);
         final el = _elapsed();
         final trail = t?.trail ?? const <RunStep>[];
-        final canOpen = widget.showSteps && trail.isNotEmpty;
+        final act = widget.activity;
+        final hasActivity = act != null && !act.isEmpty;
+        final canOpen = hasActivity || (widget.showSteps && trail.isNotEmpty);
         final kind = WorkingLine.kindOf(t);
         final row = SizedBox(
           height: turnHeadHeight,
@@ -972,6 +981,12 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
                 padding: const EdgeInsetsDirectional.only(start: 8, end: 4),
                 child: Text(el, style: TextStyle(color: p.muted, fontSize: AppText.micro, fontFeatures: const [FontFeature.tabularFigures()])),
               ),
+            if (canOpen)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _open = !_open),
+                child: ActivityChevron(open: _open),
+              ),
           ]),
         );
         return Padding(
@@ -990,7 +1005,12 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
               child: SubSize(
                 duration: SubMotion.quick,
                 alignment: AlignmentDirectional.topStart,
-                child: Padding(
+                child: hasActivity
+                    ? Padding(
+                        padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),
+                        child: ActivityPanel(groups: act, results: widget.results),
+                      )
+                    : Padding(
                       padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         // What the task has done so far, newest last, with how long each step took.

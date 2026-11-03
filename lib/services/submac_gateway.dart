@@ -57,7 +57,8 @@ class SubMacGateway {
 
   /// The tool a run_tool call names, and its arguments (for showing the step and routing it to its chat).
   static (String, Map<String, dynamic>) inner(Map<String, dynamic> args) {
-    final a = args['arguments'];
+    // Models also send the arguments as "parameters" (seen 2026-11-03 in a bot's office wake): read either.
+    final a = args['arguments'] ?? args['parameters'];
     Map<String, dynamic> m = const {};
     if (a is Map) {
       m = Map<String, dynamic>.from(a);
@@ -67,12 +68,18 @@ class SubMacGateway {
         if (d is Map) m = Map<String, dynamic>.from(d);
       } catch (_) {}
     }
-    return ('${args['name'] ?? ''}'.trim(), m);
+    return (bare('${args['name'] ?? ''}'.trim()), m);
   }
+
+  /// A tool name without the MCP wrapper's prefix models often add ("submac_run_tool", "submac_apps_list_tools").
+  /// Used both where a call is noted for routing and where it runs, so the two always agree (a prefix stripped on one
+  /// side only made the route miss and the call fall back to whatever chat was open: bots leak, 2026-11-03).
+  static String bare(String name) => name.startsWith('submac_') ? name.substring(7) : name;
 
   Future<String> call(String name, Map<String, dynamic> args) async {
     if (name == findName) return find('${args['query'] ?? ''}');
     if (name == runName) {
+      // inner() already drops the MCP wrapper's prefix models often add (see bare).
       final (tool, a) = inner(args);
       if (tool.isEmpty) return 'Error: name is required. Use find_tools to see the tools.';
       if (tool == findName || tool == runName) return 'Error: $tool is not a SubMac app tool.';
@@ -135,7 +142,7 @@ What is there:
 - Websites: `browser_task` hands a whole job (sign in, fill forms, book, shop, research across pages) to SubMac's browser agent, which shows the user a live card and returns its report. Give the full goal with every detail. `wait:false` runs several jobs at once; then `browser_task_wait`. Use it whenever a page needs clicks, typing or a sign-in; your own webfetch is fine for reading a public page.
 - The phone and its other apps: `phone_screen` reads what is on screen (numbered elements), then `phone_tap`, `phone_type`, `phone_scroll`, `phone_gesture`, `phone_nav`, `phone_wait`. Read the screen again after each change. Direct tools are faster when they exist: `set_alarm`, `set_timer`, `open_app`, SMS, contacts, calendar, WhatsApp. Phone control needs the user to switch it on; if a tool says it is off, tell them how.
 - Connected apps and their actions: `apps_list_tools` lists an app's actions, `apps_run_tool` runs one. `connect_app` connects a new one.
-- The user's own MCP servers: their tools are listed by find_tools. `add_mcp_server` adds a server from a URL (and key).
+- The user's own MCP servers: their tools are listed by find_tools. `add_mcp_server` adds a server from a URL (and key). For Composio, pass the user's key as `token`; the app knows the address. Never say a server connected unless add_mcp_server said so.
 - Connectors and their APIs.
 - Memory: remember, forget, list_memories.
 - Reading: PDFs, Word documents, text in photos.

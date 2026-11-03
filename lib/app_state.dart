@@ -21,6 +21,7 @@ import 'services/code_git.dart';
 import 'services/code_tools.dart';
 import 'services/forged_tools.dart';
 import 'services/mcp_oauth.dart';
+import 'services/mcp_known.dart';
 import 'services/mcp_routes.dart';
 import 'services/screen_lease.dart';
 import 'services/media_coder.dart';
@@ -34,6 +35,7 @@ import 'agent/core.dart';
 import 'services/agent_loop.dart';
 import 'services/quick_lane.dart';
 import 'services/opencode.dart';
+import 'services/oc_scope.dart';
 import 'services/submac_gateway.dart';
 import 'services/submac_mcp.dart';
 import 'services/submac_style.dart';
@@ -612,7 +614,8 @@ class AppState extends ChangeNotifier {
       'name': 'add_mcp_server',
       'description': 'Connect an MCP server to SubMac from its address (and its key or token, when the user gives one). It is saved '
           'in the user\'s Apps, and its tools become SubMac tools. Without a key, SubMac opens the server\'s own sign-in if it has one. '
-          'This is how to add MCP servers here; the engine\'s own config file is managed by the app.',
+          'This is how to add MCP servers here; the engine\'s own config file is managed by the app. Composio: pass the user\'s '
+          'key as token (ck_... or ak_...); SubMac knows its address. If it fails, report the error; never say it connected.',
       'parameters': {
         'type': 'object',
         'properties': {

@@ -14,6 +14,8 @@ import java.net.URL
  *   libocld.so       musl's dynamic loader (ld-musl-aarch64.so.1). It is the program we start.
  *   libopencode.so   the opencode binary, loaded by libocld.so.
  *   libocstdcpp.so   libstdc++.so.6        libocgcc.so   libgcc_s.so.1
+ *   libocrg.so / liboccurl.so / libocexec.so   static rg, curl and the `opencode` launcher for opencode's tools,
+ *                    linked as filesDir/oc/bin/{rg,curl,opencode} and put first on PATH (2026-11-03).
  * The binary asks for its libraries by soname, so filesDir/oc/lib holds symlinks with those names pointing at the
  * extracted files. musl treats libc.musl-aarch64.so.1 as itself. Everything opencode writes (config, sessions,
  * temp files) lives under filesDir/oc. It listens on 127.0.0.1 only, behind a password.
@@ -47,6 +49,18 @@ object OpenCode {
         val links = File(root, "lib").apply { mkdirs() }
         link(File(lib, "libocstdcpp.so"), File(links, "libstdc++.so.6"))
         link(File(lib, "libocgcc.so"), File(links, "libgcc_s.so.1"))
+        // Programs opencode's tools call by name (owner, 2026-11-03: "make every opencode tool work on the phone").
+        // Android has no rg or curl: glob/grep/skill failed with "ripgrep execution failed" (opencode looks for rg on
+        // PATH, else downloads one into its data dir, which Android will not execute), and bash with "curl: inaccessible
+        // or not found". The APK ships static builds as lib*.so; Android only executes files in nativeLibraryDir, so
+        // filesDir/oc/bin holds symlinks into it (exec through a symlink runs the target there) and goes first on PATH.
+        // `opencode` points at libocexec.so, which re-runs libocld.so with libopencode.so (see ocexec.c): a wrapper
+        // script would not run, since Android executes nothing written to app data.
+        val binDir = File(root, "bin").apply { mkdirs() }
+        for ((name, so) in listOf("rg" to "libocrg.so", "curl" to "liboccurl.so", "opencode" to "libocexec.so")) {
+            val target = File(lib, so)
+            if (target.exists()) link(target, File(binDir, name)) else Log.w(TAG, "no $so in this build: $name unavailable")
+        }
         val work = (if (cwd.isNullOrEmpty()) File(root, "work") else File(cwd)).apply { mkdirs() }
         val tmp = File(root, "tmp").apply { mkdirs() }
         val proxyPort = LocalProxy.start()
@@ -72,6 +86,11 @@ object OpenCode {
         env["XDG_STATE_HOME"] = File(root, "state").path
         env["TMPDIR"] = tmp.path
         env["SHELL"] = "/system/bin/sh"
+        // bin first so opencode (Bun.which("rg")) and every bash-tool command find rg, curl and opencode; the system
+        // dirs stay after it. SUBMAC_OC_LIB tells ocexec where the soname links are (same as --library-path below).
+        val sysPath = env["PATH"].takeUnless { it.isNullOrEmpty() } ?: "/system/bin:/system/xbin:/vendor/bin"
+        env["PATH"] = binDir.path + ":" + sysPath
+        env["SUBMAC_OC_LIB"] = links.path
         env["OPENCODE_CONFIG"] = cfg.path
         env["OPENCODE_SERVER_PASSWORD"] = pass
         env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"

@@ -367,11 +367,12 @@ class AssistantMessageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (message.name == 'reasoning') return ThinkingBlock(message: message);
     final p = Palette.of(context);
     final calls = message.toolCalls ?? const <ToolCall>[];
     // Steps, plans and narration stay out of the chat (owner 2026-10-24) unless the user asked for them.
     final steps = context.select<AppState, bool>((s) => s.showSteps) || stepsAsked;
+    // Thinking lives in the turn's activity view (owner 2026-11-03), in the chat only when steps were asked for.
+    if (message.name == 'reasoning') return steps ? ThinkingBlock(message: message) : const SizedBox.shrink();
     final busy = context.select<AppState, bool>((s) => s.busy);
     // Without a turn plan (a lone message), the message's own page writes are planned and the chat's busy state
     // stands in for the turn's.

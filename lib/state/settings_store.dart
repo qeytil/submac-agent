@@ -25,8 +25,10 @@ extension AppStateSettings on AppState {
     _notify();
   }
 
-  /// Every step opencode takes shows in the chat as it happens, like opencode's desktop chat (owner, 2026-11-03).
-  bool get showSteps => true;
+  /// The chat stays quiet: one working line while SubMac works, and the turn's work (thinking, tools, notes) folded
+  /// into categorized sections the user opens (owner, 2026-11-03, replacing "show every step" from earlier that day).
+  /// Saying "show steps" in a message still shows that turn's steps in full.
+  bool get showSteps => false;
 
   /// Making a picture is a separate capability switched on from the server, not a model the user picks.
   bool get hasImageModel => Cloud.features.value.image;

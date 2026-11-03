@@ -8,6 +8,7 @@ import '../services/connector_catalog.dart';
 import '../services/mcp_oauth.dart';
 import '../theme.dart';
 import 'browser_card.dart' show BrowserLiveCardAsks;
+import 'app_key_dialog.dart';
 import 'brand_logo.dart';
 import 'chat_extras.dart';
 import '../ui/tokens.dart';
@@ -427,11 +428,16 @@ class _ConnectAppSheetState extends State<_ConnectAppSheet> {
     final pr = _preset;
     final d = _def;
     if (pr != null) {
+      String? key;
+      if (pr.needsKey) {
+        key = await askAppKey(context, pr);
+        if (key == null || !mounted) return;
+      }
       setState(() {
         _busy = true;
         _error = null;
       });
-      final err = await state.connectMcpPreset(pr);
+      final err = await state.connectMcpPreset(pr, key: key);
       if (!mounted) return;
       if (err == null) {
         Navigator.pop(context, {'ok': 'true'});
@@ -470,7 +476,9 @@ class _ConnectAppSheetState extends State<_ConnectAppSheet> {
         const SizedBox(height: 6),
         Text(
             pr != null
-                ? (pr.signIn
+                ? (pr.needsKey
+                    ? 'You paste your $name key. It stays encrypted on this phone, and you can disconnect any time in Apps.'
+                    : pr.signIn
                     ? 'You sign in on $name\'s own page. SubMac never sees your password, and you can disconnect any time in Apps.'
                     : 'Nothing to sign in to. You can turn it off any time in Apps.')
                 : 'You paste a key from $name. It stays encrypted on this phone, and you can disconnect any time in Apps.',
