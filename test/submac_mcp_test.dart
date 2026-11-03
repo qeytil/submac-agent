@@ -155,6 +155,22 @@ void main() {
           },
         };
 
+    test('Autopilot allows a permission once without a card', () async {
+      final a = OpenCodeAsks(
+        ask: (conv, title, prompt, options) async {
+          shown.add((conv, title, prompt, options));
+          return null;
+        },
+        permit: (id, reply) async => permits.add((id, reply)),
+        answer: (id, ans) async => answers.add((id, ans)),
+        convOf: (s) => 'chat-1',
+        autopilot: () => true,
+      );
+      expect(await a.handle(perm('per_auto')), true);
+      expect(shown, isEmpty);
+      expect(permits, [('per_auto', 'once')]);
+    });
+
     test('a command asks in its chat; Allow, Always allow and Deny map to once, always and reject', () async {
       final a = make();
       next = OpenCodeAsks.allow;

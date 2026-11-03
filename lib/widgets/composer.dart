@@ -18,6 +18,7 @@ import 'browser_card.dart';
 import '../models.dart';
 import '../screens/live_screen.dart';
 import '../services/attach_limits.dart';
+import '../services/full_access.dart';
 import '../services/doc_tools.dart';
 import '../theme.dart';
 import 'chat_extras.dart';
@@ -604,10 +605,66 @@ class _ComposerState extends State<Composer> {
                   ),
                 ],
               ),
+              // Ask or Autopilot (owner, 2026-11-03): a tiny switch under the field. Autopilot answers approval cards
+              // and opencode's permission asks by itself; money and SubMac's own settings still ask.
+              const Padding(
+                padding: EdgeInsetsDirectional.only(top: Space.x2),
+                child: Align(alignment: AlignmentDirectional.centerStart, child: PermissionPill()),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Ask · Autopilot, under the composer: two quiet words in one frosted pill, the chosen one inked.
+class PermissionPill extends StatelessWidget {
+  const PermissionPill({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return ListenableBuilder(
+      listenable: FullAccess.I,
+      builder: (context, _) {
+        final auto = FullAccess.I.on;
+        Widget seg(String label, bool on, bool value) => Semantics(
+              button: true,
+              selected: on,
+              label: label,
+              child: InkWell(
+                key: ValueKey('perm-$label'),
+                borderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
+                onTap: on ? null : () => FullAccess.I.set(value),
+                child: AnimatedContainer(
+                  duration: LuxMotion.quick,
+                  curve: LuxMotion.ease,
+                  height: 24,
+                  padding: const EdgeInsets.symmetric(horizontal: Space.x3),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: on ? (value ? p.accentWash : p.bubble) : Colors.transparent,
+                    borderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
+                  ),
+                  child: Text(label,
+                      style: AppText.metaStyle.copyWith(
+                          fontSize: 12, color: on ? (value ? p.accent : p.text) : p.muted, fontWeight: on ? FontWeight.w600 : FontWeight.w500)),
+                ),
+              ),
+            );
+        return FrostedSurface(
+          radius: Radii.pill,
+          child: Padding(
+            padding: const EdgeInsets.all(2),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              seg(tr('Ask'), !auto, false),
+              seg(tr('Autopilot'), auto, true),
+            ]),
+          ),
+        );
+      },
     );
   }
 }

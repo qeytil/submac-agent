@@ -374,7 +374,11 @@ class OcPart {
 /// The answer goes back to the engine, which then carries on (or stops that step on Deny). Pure, so it is tested
 /// without the engine or the app.
 class OpenCodeAsks {
-  OpenCodeAsks({required this.ask, required this.permit, required this.answer, required this.convOf});
+  OpenCodeAsks({required this.ask, required this.permit, required this.answer, required this.convOf, this.autopilot});
+
+  /// Autopilot (the composer's Ask · Autopilot switch): a permission is allowed once without asking. Questions from
+  /// opencode's question tool still ask, since only the user can answer them.
+  final bool Function()? autopilot;
 
   /// Shows one ask in [convId]'s chat; the chosen option or typed answer, or null when the user skipped it.
   final Future<String?> Function(String convId, String title, String prompt, List<String> options) ask;
@@ -397,6 +401,10 @@ class OpenCodeAsks {
     if (id.isEmpty || !_seen.add(id)) return false;
     final conv = convOf('${p['sessionID'] ?? ''}') ?? '';
     if (type == 'permission.asked') {
+      if (autopilot?.call() == true) {
+        await permit(id, 'once');
+        return true;
+      }
       final (title, prompt) = permissionText('${p['permission'] ?? ''}', p['patterns'], p['metadata']);
       final a = await ask(conv, title, prompt, const [allow, always, deny]);
       await permit(id, a == allow ? 'once' : (a == always ? 'always' : 'reject'));

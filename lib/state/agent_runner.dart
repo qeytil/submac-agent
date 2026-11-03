@@ -75,6 +75,7 @@ extension AppStateAgentRunner on AppState {
       permit: oc.replyPermission,
       answer: oc.replyQuestion,
       convOf: oc.convOf,
+      autopilot: () => FullAccess.I.on,
     );
     _ocAskSub = oc.events.listen((e) => unawaited(asks.handle(e).catchError((Object _) => false)));
   }
