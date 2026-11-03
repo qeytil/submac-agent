@@ -277,7 +277,8 @@ void main() {
       }
     });
 
-    testWidgets('a line written before a step is hidden; it shows when the user asked for the steps', (t) async {
+    // Owner, 2026-11-03: every opencode step and the words around it show, like opencode desktop (showSteps is always on).
+    testWidgets('a line written before a step shows, as in opencode desktop', (t) async {
       final m = ChatMessage(
         id: 'n',
         role: 'assistant',
@@ -285,7 +286,7 @@ void main() {
         toolCalls: [ToolCall(id: 's1', name: 'web_search', arguments: '{"query":"flights"}')],
       );
       await t.pumpWidget(_host(AssistantMessageView(message: m, toolResults: const {}, showActions: false, isLast: false), still: true));
-      expect(find.textContaining('Checking Friday flights'), findsNothing);
+      expect(find.textContaining('Checking Friday flights'), findsOneWidget);
       await t.pumpWidget(_host(
           AssistantMessageView(key: const ValueKey('asked'), message: m, toolResults: const {}, showActions: false, isLast: false, stepsAsked: true),
           still: true));

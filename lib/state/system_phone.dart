@@ -77,13 +77,19 @@ extension AppStateSystem on AppState {
     Bots.I.ring = _botRing;
     Bots.I.consult = _botConsult;
     Bots.I.makeTeam = _botMakeTeam;
-    // Teams run on the Genkit agent core; members get their own tools and ask the owner through approval interrupts.
+    Bots.I.teamsOf = (b) => [
+          for (final o in Offices.I.offices)
+            if (o.chiefId == b.id)
+              '- You lead "${o.name}"${o.goal.isEmpty ? '' : ' (goal: ${o.goal})'}. Give it a job with submac_run_tool name "team_task", '
+                  'arguments {"team": "${o.name}", "task": "..."}; for regular team work, make a bot_routine whose instruction says to do that.'
+            else if (o.members.contains(b.id))
+              '- You are in "${o.name}", led by ${Bots.I.byId(o.chiefId)?.name ?? 'its lead'}. Team folder: ${TeamRun.folderOf(o)}/.',
+        ].join('\n');
+    // Teams run on opencode (owner, 2026-11-03): every member's part and the lead's work are opencode turns with the
+    // bot's own brief and tools; one-answer calls (who speaks, the plan, the combined answer) are one plain model call.
     TeamRun.I
-      ..llm = _teamLlm
-      ..toolsFor = _memberTools
-      ..runTool = _memberTool
-      ..approvalFor = _memberApproval
-      ..answer = _memberAnswer
+      ..ocTurn = teamTurn
+      ..ask = _teamAsk
       // CB-62: a team holds the phone awake while it works; letting go never cuts other work still running.
       ..keepAlive = (on, {String text = ''}) async {
         if (on) {

@@ -624,70 +624,24 @@ extension AppStateBots on AppState {
         'work');
   }
 
-  /// One expert answer from another bot (no tools), for bot_ask.
-  /// One answer for a team run (TeamRun): the owner is watching, so it is not background work.
-  /// The wire under team agent runs (TeamRun on the Genkit core): one model call for a member, tools allowed, on the
-  /// bots' background lane.
-  Future<LlmResult> _teamLlm(Bot b, Turn t, {int maxTokens = 1500}) async {
+  /// One plain answer for a team (who speaks, the plan, the combined answer): one model call on the bots' lane,
+  /// counted toward the bot's own budget (estimated from the text, about 4 characters a token).
+  Future<String> _teamAsk(Bot b, String system, String user, {int maxTokens = 1500}) async {
     final route = submacRef;
-    await RateLimiter.acquire(route.provider, RateLimiter.estimateTokens(t.payload, t.tools), local, onWait: (_) {}, cancelled: () => false);
-    final client = LlmClient()
-      ..background = true
-      ..chatId = b.convId.isEmpty ? null : b.convId;
-    final r = await client.streamChat(
-      provider: route.provider,
-      model: route.model,
-      messages: t.payload,
-      tools: AppState._capTools(t.tools),
-      maxTokens: maxTokens,
-      source: 'office',
-      onDelta: (_) {},
-    );
-    final units = UsageUnits.ofResult(r); // CB-20: billing units, as the server counts them
-    if (units > 0) b.addTokens(units);
+    await RateLimiter.acquire(route.provider, (system.length + user.length) ~/ 4 + maxTokens, local, onWait: (_) {}, cancelled: () => false);
+    final t = await (LlmClient()
+          ..background = true
+          ..chatId = b.convId.isEmpty ? null : b.convId)
+        .complete(source: 'office', maxTokens: maxTokens, provider: route.provider, model: route.model, messages: [
+      {'role': 'system', 'content': system},
+      {'role': 'user', 'content': user},
+    ]);
+    b.addTokens((system.length + user.length + t.length) ~/ 4);
     unawaited(Bots.I.save());
-    return r;
+    return t;
   }
 
-  /// A member's tools for its part of a team job: the everyday core set of its own chat (its powers and apps apply at
-  /// run time). A bot without a chat of its own answers from what it knows.
-  List<Map<String, dynamic>> _memberTools(Bot b) {
-    if (b.convId.isEmpty) return const [];
-    return [
-      for (final t in _lightTools(b.convId))
-        if (!const {'more_tools', 'ask_user', 'say', 'todo'}.contains(Wire.toolName(t)) && !Offices.names.contains(Wire.toolName(t))) t,
-    ];
-  }
-
-  Future<Map<String, dynamic>?> _memberApproval(Bot b, ToolCall c, Map<String, dynamic> args) async {
-    final g = await toolGate(c.name, args, b.convId);
-    _memberGates[c.id] = g;
-    return g.ask == null ? null : g.toInterrupt(c.name);
-  }
-
-  Future<ToolApproval> _memberAnswer(Bot b, ToolCall c, Map<String, dynamic> args, Map<String, dynamic> data) async {
-    final g = _memberGates[c.id] ?? await toolGate(c.name, args, b.convId);
-    _memberGates[c.id] = g;
-    if (g.ask == null) return ToolApproval.yes(args: args);
-    final ok = await presentApproval(g, c.name, args, b.convId);
-    return ok ? ToolApproval.yes(args: approvedArgs(g, c.name, args)) : ToolApproval.no(g.refusal);
-  }
-
-  Future<String> _memberTool(Bot b, ToolCall c, Map<String, dynamic> args, {Object? approved}) async {
-    var g = _memberGates.remove(c.id);
-    if (g == null || (g.ask != null && approved == null)) {
-      g = await toolGate(c.name, args, b.convId);
-      if (g.ask != null && approved == null && !await presentApproval(g, c.name, args, b.convId)) return g.refusal;
-    }
-    if (g.blocked != null) return g.blocked!;
-    try {
-      final out = await runGated(g, c.name, args, callId: c.id, convId: b.convId);
-      return out.trim().isEmpty ? 'Done (the tool returned nothing to show).' : out;
-    } catch (e) {
-      return 'Error in ${c.name}: $e';
-    }
-  }
-
+  /// One expert answer from another bot (no tools), for bot_ask.
   Future<String> _botConsult(Bot asker, Bot expert, String question) async {
     final route = submacRef;
     try {

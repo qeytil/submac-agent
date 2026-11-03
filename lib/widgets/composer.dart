@@ -649,8 +649,8 @@ class PermissionPill extends StatelessWidget {
                     borderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
                   ),
                   child: Text(label,
-                      style: AppText.metaStyle.copyWith(
-                          fontSize: 12, color: on ? (value ? p.accent : p.text) : p.muted, fontWeight: on ? FontWeight.w600 : FontWeight.w500)),
+                      style: AppText.microStyle.copyWith(
+                          color: on ? p.text : p.muted, fontWeight: on ? FontWeight.w600 : FontWeight.w500)),
                 ),
               ),
             );

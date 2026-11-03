@@ -21,6 +21,7 @@ import 'services/code_git.dart';
 import 'services/code_tools.dart';
 import 'services/forged_tools.dart';
 import 'services/mcp_oauth.dart';
+import 'services/mcp_routes.dart';
 import 'services/media_coder.dart';
 import 'services/ai_keys.dart';
 import 'services/ai_models.dart';
@@ -952,8 +953,6 @@ class AppState extends ChangeNotifier {
   /// Chats whose current task opened the whole toolbox with more_tools (cleared when the task ends).
   final Set<String> _allToolsNow = {};
 
-  /// Approval gates of team members' calls, by call id (asked through a Genkit interrupt, then run).
-  final Map<String, ToolGate> _memberGates = {};
 
   static const _lightNames = {
     'skill_search', 'skill_use',

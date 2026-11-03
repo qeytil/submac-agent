@@ -704,7 +704,7 @@ class _WorkSummaryState extends State<WorkSummary> {
     final head = w != null ? 'Worked for ${dur(w)} · $n ${n == 1 ? 'step' : 'steps'}' : '$n ${n == 1 ? 'step' : 'steps'}';
     final col = Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Radii.sm),
         onTap: () {
           setState(() => _open = !_open);
         },
@@ -988,7 +988,7 @@ class _ToolCallCardState extends State<ToolCallCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(Radii.sm),
             onTap: () {
               setState(() => _open = !_open);
             },
@@ -1230,7 +1230,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(Radii.sm),
             onTap: () => setState(() => _open = !open),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),

@@ -1646,6 +1646,9 @@ class Bots extends ChangeNotifier {
   /// What a bot's opencode turn gets after opencode's own prompt (owner, 2026-11-03: bots on opencode, "better, smart
   /// and powerful"). opencode stays the engine with its own tools; this says who the bot is, what it knows and owns,
   /// and how its own SubMac tools are called (through submac_run_tool, no lookup needed).
+  /// The teams a bot is in, for its brief (set by the app): one line per team, empty when none.
+  String Function(Bot b)? teamsOf;
+
   String opencodeBriefOf(Bot b) {
     final own = [
       for (final d in definitionsFor(b))
@@ -1655,10 +1658,16 @@ class Bots extends ChangeNotifier {
             '# Your tools\n'
             'You have opencode\'s own tools (files, shell, web fetch, to-dos) plus SubMac\'s app tools. Your own bot tools are SubMac tools: '
             'call them directly with submac_run_tool (name + arguments); no need to look them up:\n$own\n'
+            '${_teamsBrief(b)}'
             'Anything else in the app (connected apps, documents, memory, settings): submac_find_tools first.\n'
             'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'
             'Your name is ${b.name}. Never say you are opencode, an AI model or SubMac; you are ${b.name}.'
         .trim();
+  }
+
+  String _teamsBrief(Bot b) {
+    final t = (teamsOf?.call(b) ?? '').trim();
+    return t.isEmpty ? '' : '\n# Your teams\n$t\n';
   }
 
   /// The bot's own working folder inside SubMac's workspace.

@@ -11,9 +11,11 @@ extension AppStateAgentRunner on AppState {
   // ignore: cancel_subscriptions
   static StreamSubscription<Map<String, dynamic>>? _ocAskSub;
 
-  /// Which chat an MCP call belongs to: SubMac's tool name -> the chat whose opencode turn is calling it now (the MCP
-  /// request itself does not say which session it came from).
-  static final Map<String, String> _mcpConv = {};
+  /// Which chat (or team member) an MCP call belongs to, matched on the tool and its arguments (see McpRoutes).
+  static final McpRoutes _routes = McpRoutes();
+
+  /// The lead of a team job hands parts to members with team_assign: its handler, by the lead's route key.
+  static final Map<String, Future<String> Function(String member, String ask)> _teamAssign = {};
 
   /// SubMac's tools offered to opencode through SubMac's MCP server. Layer 1 (owner, 2026-11-02): memory and the
   /// everyday helpers; the browser, the phone and Live come in the next layers. Each call runs through SubMac's own
@@ -37,6 +39,9 @@ extension AppStateAgentRunner on AppState {
         // A bot's own tools (memory, desk, follow-ups, routines, watches, asking a colleague): they work in a bot's
         // chat only, and its brief names them so it calls them without a lookup.
         ...Bots.definitions,
+        // A team's lead hands parts to members (during a team job) and gives its team a job (from a routine).
+        TeamRun.assignTool,
+        TeamRun.taskTool,
       ];
 
   /// The only text added to opencode's own prompt: the name SubMac (owner, 2026-11-03). A bot's chat gets the bot's
@@ -66,9 +71,10 @@ extension AppStateAgentRunner on AppState {
     // Two MCP tools only (find, run); the full SubMac set is looked up when a task needs it (SubMacGateway).
     final gate = SubMacGateway(
       tools: _mcpTools,
-      run: (name, args) async => switch (name) {
-        'add_mcp_server' => addMcpServerFromChat(args),
-        _ => runToolWithApproval(name, args, convId: _mcpConv[name] ?? currentId),
+      run: (name, args) async {
+        if (name == 'add_mcp_server') return addMcpServerFromChat(args);
+        final conv = await _routes.take(name, args);
+        return _runRouted(name, args, conv);
       },
     );
     oc.mcp ??= SubMacMcp(tools: () => SubMacGateway.definitions, call: gate.call);
@@ -163,7 +169,7 @@ extension AppStateAgentRunner on AppState {
                 input = a;
               }
             }
-            if (tool != p.tool && !p.finished) _mcpConv[tool] = convId;
+            if (tool != p.tool && p.status == 'running') _routes.note(tool, input, convId, part: p.id);
             var m = shown[p.id];
             if (m == null) {
               m = ChatMessage(
@@ -222,6 +228,12 @@ extension AppStateAgentRunner on AppState {
         }
       } finally {
         await sub.cancel();
+        // A bot's opencode work counts toward its own daily budget.
+        final bot = Bots.I.byConv(convId);
+        if (bot != null && turn.tokens > 0) {
+          bot.addTokens(turn.tokens);
+          unawaited(Bots.I.save());
+        }
       }
       for (final m in shown.values) {
         m.streaming = false;
@@ -256,6 +268,106 @@ extension AppStateAgentRunner on AppState {
       final newest = list.lastWhere((m) => m.role == 'user', orElse: () => list.first);
       if (newest.role == 'user' && newest.id != sentId) unawaited(_runAgent(convId, chain: chain + 1));
     }
+  }
+
+  /// Runs a SubMac tool for the chat [conv] its call came from. A team member's part runs under the route key
+  /// `team:<team>:<bot>`: its own bot tools act on that bot, and team_assign reaches the lead's job.
+  Future<String> _runRouted(String name, Map<String, dynamic> args, String? conv) async {
+    if (conv != null && conv.startsWith('team:')) {
+      final bot = Bots.I.byId(conv.split(':').last);
+      if (name == TeamRun.assignName) {
+        final h = _teamAssign[conv];
+        if (h == null) return 'Error: team_assign works only while you lead a team job.';
+        return h('${args['member'] ?? ''}', '${args['ask'] ?? ''}');
+      }
+      if (name == TeamRun.taskName) return _teamTask(bot, args);
+      final home = (bot == null || bot.convId.isEmpty) ? null : bot.convId;
+      if (Bots.names.contains(name)) {
+        if (home == null) return 'Error: ${bot?.name ?? 'this member'} has no chat of its own for that tool.';
+        return Bots.I.execute(name, args, home);
+      }
+      return runToolWithApproval(name, args, convId: home ?? currentId);
+    }
+    if (name == TeamRun.assignName) return 'Error: team_assign works only while you lead a team job.';
+    if (name == TeamRun.taskName) return _teamTask(Bots.I.byConv(conv), args);
+    return runToolWithApproval(name, args, convId: conv ?? currentId);
+  }
+
+  /// team_task: a team's lead gives its team a job (from a routine, a follow-up, or the owner asking in its chat).
+  Future<String> _teamTask(Bot? lead, Map<String, dynamic> args) async {
+    if (lead == null) return 'Error: team_task works only for a bot that leads a team.';
+    final name = '${args['team'] ?? ''}'.trim().toLowerCase();
+    final task = '${args['task'] ?? ''}'.trim();
+    if (task.isEmpty) return 'Error: give the task.';
+    final led = Offices.I.offices.where((o) => o.chiefId == lead.id).toList();
+    final o = led.where((o) => o.name.toLowerCase() == name).firstOrNull ?? (led.length == 1 && name.isEmpty ? led.first : null);
+    if (o == null) {
+      return led.isEmpty
+          ? 'Error: ${lead.name} leads no team.'
+          : 'Error: no team named "$name". Teams ${lead.name} leads: ${led.map((o) => o.name).join(', ')}.';
+    }
+    return TeamRun.I.startJob(o, task);
+  }
+
+  /// One opencode turn for a team member or lead, in a fresh session that is deleted afterwards (nothing piles up,
+  /// and no member sees another's session). [key] routes its SubMac tool calls (`team:<team>:<bot>`); [assign] is the
+  /// lead's hand-off. Returns the answer text; throws when the turn failed.
+  Future<String> teamTurn(Bot b, String key, String system, String task,
+      {bool Function()? stopped, Future<String> Function(String member, String ask)? assign, int maxSteps = 40}) async {
+    final oc = OpenCodeEngine.I;
+    _ocWire(oc);
+    await oc.ensure();
+    await ensureMcpTools().catchError((Object _) {});
+    await oc.syncMcp().catchError((Object _) {});
+    final session = await oc.newSession(title: '${b.name}: ${_shortTitle(task)}', conv: b.convId.isEmpty ? currentId : b.convId);
+    final turn = OpenCodeTurn(session);
+    if (assign != null) _teamAssign[key] = assign;
+    final sub = oc.events.listen((e) {
+      if (turn.apply(e)) {
+        for (final p in turn.parts.values) {
+          if (p.kind != 'tool' || p.status != 'running' || !p.tool.startsWith('submac_')) continue;
+          final (n, a) = SubMacGateway.inner(p.input);
+          if (p.tool == 'submac_${SubMacGateway.runName}' && n.isNotEmpty) _routes.note(n, a, key, part: p.id);
+        }
+      }
+    });
+    var aborted = false;
+    try {
+      await oc.prompt(session, [{'type': 'text', 'text': task}], system: system);
+      final from = DateTime.now();
+      final until = from.add(const Duration(minutes: 30));
+      while (true) {
+        if (turn.error != null) break;
+        // Idle with nothing written in the first seconds may be the state before the prompt started: keep waiting.
+        if (turn.done && (turn.parts.isNotEmpty || DateTime.now().difference(from) > const Duration(seconds: 8))) break;
+        if (stopped?.call() ?? false) {
+          aborted = true;
+          await oc.abort(session);
+          break;
+        }
+        // The step cap: a member that keeps going stops here and keeps what it wrote so far.
+        if (turn.parts.values.where((p) => p.kind == 'tool').length > maxSteps) {
+          await oc.abort(session);
+          break;
+        }
+        if (DateTime.now().isAfter(until)) {
+          await oc.abort(session);
+          throw OpenCodeError('${b.name} ran out of time (30 min).');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }
+    } finally {
+      await sub.cancel();
+      if (assign != null && identical(_teamAssign[key], assign)) _teamAssign.remove(key);
+      if (turn.tokens > 0) {
+        b.addTokens(turn.tokens);
+        unawaited(Bots.I.save());
+      }
+      unawaited(oc.dropSession(session));
+    }
+    if (aborted) return '';
+    if (turn.error != null && turn.answer.isEmpty) throw OpenCodeError(turn.error!);
+    return turn.answer;
   }
 
   /// The user's message as opencode parts: its words, then each attachment (a file on the phone as a file part, a

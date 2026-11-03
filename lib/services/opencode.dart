@@ -132,6 +132,8 @@ class OpenCodeEngine {
 
   /// The SubMac chat a session belongs to, or null.
   String? convOf(String session) {
+    final side = _side[session];
+    if (side != null) return side;
     for (final e in (_sessions ?? const <String, String>{}).entries) {
       if (e.value == session) return e.key;
     }
@@ -209,6 +211,30 @@ class OpenCodeEngine {
     return id;
   }
 
+  /// A fresh session that belongs to no chat (a team member's part). Delete it with [dropSession] when done, so
+  /// sessions never pile up on the phone.
+  /// [conv]: the chat its permission and question cards show in (a team member's own chat), so a member's ask never
+  /// lands in whatever chat happens to be open.
+  Future<String> newSession({String? title, String? conv}) async {
+    final r = await _client.post(_u('/session'),
+        headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode({if (title != null) 'title': title}));
+    if (r.statusCode != 200) throw OpenCodeError('New session: HTTP ${r.statusCode} ${r.body}');
+    final id = '${jsonDecode(r.body)['id']}';
+    if (conv != null && conv.isNotEmpty) _side[id] = conv;
+    return id;
+  }
+
+  /// Sessions made with [newSession] -> the chat their asks show in.
+  final Map<String, String> _side = {};
+
+  Future<void> dropSession(String id) async {
+    _side.remove(id);
+    if (_port == 0) return;
+    try {
+      await _client.delete(_u('/session/$id'), headers: _auth);
+    } catch (_) {}
+  }
+
   /// Sends one user message; the reply arrives on [events]. [system] is appended after opencode's own system prompt
   /// for this turn (SubMac's name only; see SubMacStyle).
   Future<void> prompt(String session, List<Map<String, dynamic>> parts, {String? system}) async {
@@ -261,6 +287,21 @@ class OpenCodeTurn {
   String? retry;
   bool reasoning = false;
 
+  /// Tokens the turn used (input + output + reasoning, per assistant message, latest count), so a bot's daily budget
+  /// counts opencode work too.
+  final _tokens = <String, int>{};
+  int get tokens => _tokens.values.fold(0, (a, b) => a + b);
+
+  /// The answer: the text written after the last step (or all text when there were no steps).
+  String get answer {
+    final list = parts.values.toList();
+    final lastTool = list.lastIndexWhere((p) => p.kind == 'tool');
+    final after = [for (final p in list.skip(lastTool + 1)) if (p.kind == 'text' && p.text.trim().isNotEmpty) p.text.trim()];
+    if (after.isNotEmpty) return after.join('\n\n');
+    final all = [for (final p in list) if (p.kind == 'text' && p.text.trim().isNotEmpty) p.text.trim()];
+    return all.isEmpty ? '' : all.last;
+  }
+
   /// Feeds one event; returns true when something visible changed.
   bool apply(Map<String, dynamic> j) {
     final props = j['properties'];
@@ -270,6 +311,11 @@ class OpenCodeTurn {
         final info = props['info'];
         if (info is Map && info['sessionID'] == session) {
           if (info['role'] == 'user') _userMsgs.add('${info['id']}');
+          final tk = info['tokens'];
+          if (info['role'] == 'assistant' && tk is Map) {
+            int n(Object? v) => v is num ? v.toInt() : 0;
+            _tokens['${info['id']}'] = n(tk['input']) + n(tk['output']) + n(tk['reasoning']);
+          }
           final err = info['error'];
           if (info['role'] == 'assistant' && err is Map && err['name'] != 'MessageAbortedError') {
             error = '${(err['data'] as Map?)?['message'] ?? err['name']}';
@@ -336,6 +382,8 @@ class OpenCodeTurn {
           done = true;
           return true;
         }
+        // Working again (an idle seen before the prompt started is not the end of this turn).
+        if (st['type'] == 'busy') done = false;
         retry = null;
         return false;
       case 'session.idle':
