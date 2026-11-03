@@ -56,13 +56,15 @@ extension AppStateAgentRunner on AppState {
 
   /// Gives the engine SubMac's MCP server, and turns opencode's permission and question requests into the ask card.
   void _ocWire(OpenCodeEngine oc) {
-    oc.mcp ??= SubMacMcp(
+    // Two MCP tools only (find, run); the full SubMac set is looked up when a task needs it (SubMacGateway).
+    final gate = SubMacGateway(
       tools: _mcpTools,
-      call: (name, args) async => switch (name) {
+      run: (name, args) async => switch (name) {
         'add_mcp_server' => addMcpServerFromChat(args),
         _ => runToolWithApproval(name, args, convId: _mcpConv[name] ?? currentId),
       },
     );
+    oc.mcp ??= SubMacMcp(tools: () => SubMacGateway.definitions, call: gate.call);
     if (_ocAskSub != null) return;
     final asks = OpenCodeAsks(
       ask: (conv, title, prompt, options) async {
@@ -143,21 +145,30 @@ extension AppStateAgentRunner on AppState {
             if (p.kind == 'reasoning' && p.finished) m.streaming = false;
           } else {
             // SubMac's own tools come back from opencode as submac_<name>: shown under their own name.
-            final tool = p.tool.startsWith('submac_') ? p.tool.substring(7) : p.tool;
+            var tool = p.tool.startsWith('submac_') ? p.tool.substring(7) : p.tool;
+            var input = p.input;
+            // A SubMac tool run through the gateway shows (and routes) as the tool itself.
+            if (tool != p.tool && tool == SubMacGateway.runName) {
+              final (n, a) = SubMacGateway.inner(p.input);
+              if (n.isNotEmpty) {
+                tool = n;
+                input = a;
+              }
+            }
             if (tool != p.tool && !p.finished) _mcpConv[tool] = convId;
             var m = shown[p.id];
             if (m == null) {
               m = ChatMessage(
                 id: _uuid.v4(),
                 role: 'assistant',
-                toolCalls: [ToolCall(id: p.callId, name: tool, arguments: jsonEncode(p.input))],
+                toolCalls: [ToolCall(id: p.callId, name: tool, arguments: jsonEncode(input))],
               );
               shown[p.id] = m;
               list.add(m);
               run.wrote.add(m.id);
-              run.trail.add(RunStep(p.title ?? stepLabel(tool, p.input)));
+              run.trail.add(RunStep(p.title ?? stepLabel(tool, input)));
             } else {
-              m.toolCalls = [ToolCall(id: p.callId, name: tool, arguments: jsonEncode(p.input))];
+              m.toolCalls = [ToolCall(id: p.callId, name: tool, arguments: jsonEncode(input))];
             }
             if (p.finished && !shown.containsKey('${p.id}:out')) {
               final out = ChatMessage(

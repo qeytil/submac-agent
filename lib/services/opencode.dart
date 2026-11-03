@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import 'cloud.dart';
+import 'submac_gateway.dart';
 import 'submac_mcp.dart';
 import 'tools.dart';
 
@@ -68,6 +69,8 @@ class OpenCodeEngine {
       'port': 4096 + r.nextInt(2000),
       // opencode works in SubMac's own workspace, so its files show in the Files screen.
       'cwd': await AgentTools.workspaceDir(),
+      // The `submac` skill: opencode sees its name and loads it when a task needs the phone's apps (owner, 2026-11-03).
+      'skills': const {'submac': SubMacGateway.skill},
     });
     final m = res is Map ? res : const {};
     if (m['ok'] != true) {
