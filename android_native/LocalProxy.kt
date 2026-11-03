@@ -101,11 +101,15 @@ object LocalProxy {
     /** Opens a TLS connection to [upstream] and sends the request head with its path, Host and Authorization
      *  rewritten. One request per connection (Connection: close), so a kept-alive second request is never piped
      *  through un-rewritten. */
-    private fun forward(method: String, rest: String, ver: String, headers: List<String>): Socket? {
+    private fun forward(method: String, rest0: String, ver: String, headers: List<String>): Socket? {
         if (upstream.isEmpty()) return null
         val u = java.net.URI(upstream)
         val host = u.host ?: return null
         val port = if (u.port > 0) u.port else 443
+        // The allowance lane rides in the path (owner 2026-11-03): /__submac/lane/<source>/... is a bot's or a team's
+        // background work, sent with x-submac-lane: background and that source. Any other call has the lane header
+        // removed, so a foreground (owner) call can never bill to the bots' share and a background one always does.
+        val (rest, laneSource) = laneOf(rest0)
         val path = (u.rawPath ?: "").trimEnd('/') + rest
         val s = javax.net.ssl.SSLSocketFactory.getDefault().createSocket() as javax.net.ssl.SSLSocket
         s.connect(InetSocketAddress(host, port), 15000)
@@ -114,16 +118,33 @@ object LocalProxy {
         sb.append("Host: $host\r\n")
         if (token.isNotEmpty()) sb.append("Authorization: Bearer $token\r\n")
         sb.append("Connection: close\r\n")
+        if (laneSource != null) {
+            sb.append("$LANE_HEADER: background\r\n")
+            sb.append("$SOURCE_HEADER: $laneSource\r\n")
+        }
         for (l in headers) {
             if (l.isEmpty()) continue
             val k = l.substringBefore(':').trim()
             if (k.equals("Host", true) || k.equals("Authorization", true) || k.equals("Connection", true) ||
                 k.equals("Keep-Alive", true) || k.startsWith("Proxy-", true)) continue
+            if (k.equals(LANE_HEADER, true)) continue
+            if (laneSource != null && k.equals(SOURCE_HEADER, true)) continue
             sb.append(l).append("\r\n")
         }
         sb.append("\r\n")
         s.getOutputStream().apply { write(sb.toString().toByteArray(Charsets.ISO_8859_1)); flush() }
         return s
+    }
+
+    const val LANE_HEADER = "x-submac-lane"
+    const val SOURCE_HEADER = "x-submac-source"
+    private val laneRe = Regex("^/lane/([a-z-]{1,20})(/.*)?$")
+
+    /** `/lane/<source>/rest` -> (`/rest`, source); anything else is (path, null): the foreground lane. */
+    fun laneOf(rest: String): Pair<String, String?> {
+        val m = laneRe.find(rest.substringBefore('?')) ?: return rest to null
+        val tail = rest.substring("/lane/".length + m.groupValues[1].length)
+        return (if (tail.isEmpty()) "/" else tail) to m.groupValues[1]
     }
 
     private fun hostPort(s: String, def: Int): Pair<String, Int> {

@@ -143,10 +143,15 @@ class MainActivity : FlutterActivity() {
                         val cwd = call.argument<String>("cwd")
                         val skills = (call.argument<Map<String, Any?>>("skills") ?: emptyMap())
                             .mapNotNull { (k, v) -> (v as? String)?.let { k to it } }.toMap()
+                        // One opencode provider per allowance lane (owner 2026-11-03, OcLane).
+                        val providers = (call.argument<List<Any?>>("providers") ?: emptyList()).mapNotNull { p ->
+                            (p as? Map<*, *>)?.entries?.mapNotNull { (k, v) -> if (k is String && v is String) k to v else null }?.toMap()
+                        }
+                        val models = (call.argument<List<Any?>>("models") ?: emptyList()).mapNotNull { it as? String }
                         val main = android.os.Handler(mainLooper)
                         Thread {
                             try {
-                                val port = OpenCode.start(applicationContext, base, token, pass, want, cwd, skills)
+                                val port = OpenCode.start(applicationContext, base, token, pass, want, cwd, skills, providers, models)
                                 val health = OpenCode.waitHealthy(60000)
                                 main.post {
                                     result.success(mapOf("ok" to (health != null), "port" to port, "health" to health, "log" to OpenCode.lastLog()))

@@ -275,12 +275,27 @@ extension AppStateAgentRunner on AppState {
         _notify();
       }
 
+      // The allowance lane and model of this turn (owner 2026-11-03, see OcLane): a bot's wake and office work bill
+      // to the bots' share (background lane); the owner's own chats, and the owner typing in a bot's chat, stay
+      // foreground. A bot's chat runs on the bot's own model setting.
+      final laneBot = Bots.I.byConv(convId);
+      final bg = _backgroundLane(convId);
+      final laneModel = OcLane.pick(background: bg, officeWork: bg && _officeCtx.containsKey(convId), botModel: laneBot?.model);
+      final guard = OcBgGuard(background: bg, budgetLeft: OcBgGuard.leftOf(laneBot?.tokenBudgetK ?? 0, laneBot?.tokensTodayNow ?? 0));
+      String? stopped;
       // This turn's session and the subagent sessions opencode starts under it: their SubMac calls route here.
       final family = {session};
       _ocLive.add(convId);
       final sub = oc.events.listen((e) {
         _routes.watch(e, convId, family);
         if (turn.apply(e)) sync();
+        // Background work stops when the bots' share is refused or the bot's own budget runs out (owner 2026-11-03).
+        final why = stopped == null ? guard.check(turn) : null;
+        if (why != null) {
+          stopped = why;
+          unawaited(oc.abort(session));
+          if (!done.isCompleted) done.complete();
+        }
         if ((turn.done || turn.error != null) && !done.isCompleted) done.complete();
       });
       try {
@@ -289,13 +304,16 @@ extension AppStateAgentRunner on AppState {
         // SubMac's tools may have changed since opencode listed them (an app connected, its tools loaded).
         await ensureMcpTools().catchError((Object _) {});
         await oc.syncMcp().catchError((Object _) {});
-        await oc.prompt(session, await _partsFor(lastUser), system: _ocLayer(convId));
+        await oc.prompt(session, await _partsFor(lastUser), system: _ocLayer(convId), model: laneModel);
         while (!done.isCompleted && !run.cancelled) {
           await Future.any([done.future, Future<void>.delayed(const Duration(seconds: 1))]);
         }
       } finally {
         await sub.cancel();
         _ocLive.remove(convId);
+        _ocBgStopped(stopped, turn, laneBot);
+        // The bots' share as the server now counts it, so the next wake knows whether to wait for tomorrow.
+        if (bg) unawaited(Cloud.refreshStatus());
         // A bot's opencode work counts toward its own daily budget.
         final bot = Bots.I.byConv(convId);
         if (bot != null && turn.tokens > 0) {
@@ -403,10 +421,19 @@ extension AppStateAgentRunner on AppState {
     await oc.ensure();
     await ensureMcpTools().catchError((Object _) {});
     await oc.syncMcp().catchError((Object _) {});
+    // Team work nobody is watching bills to the bots' share (owner 2026-11-03, see OcLane): when the share is used
+    // up today it waits for tomorrow, as the old team path did on ai-chat's background_paused.
+    if (Cloud.background.value.pausedNow) {
+      _notePaused(b);
+      throw OpenCodeError('${AppState.bgPausedText}.');
+    }
     // Its permission and question cards show in the member's own chat, or the team's chat when it has none: never the
     // chat that happens to be open (it used to fall back to currentId, the owner's chat; 2026-11-03).
     final session = await oc.newSession(title: '${b.name}: ${_shortTitle(task)}', conv: b.convId.isEmpty ? await _teamConv() : b.convId);
     final turn = OpenCodeTurn(session);
+    final laneModel = OcLane.pick(background: true, officeWork: true, botModel: b.model);
+    final guard = OcBgGuard(background: true, budgetLeft: OcBgGuard.leftOf(b.tokenBudgetK, b.tokensTodayNow));
+    String? why;
     if (assign != null) _teamAssign[key] = assign;
     final home = b.convId;
     var over = false;
@@ -420,10 +447,16 @@ extension AppStateAgentRunner on AppState {
     });
     var aborted = false;
     try {
-      await oc.prompt(session, [{'type': 'text', 'text': task}], system: system);
+      await oc.prompt(session, [{'type': 'text', 'text': task}], system: system, model: laneModel);
       final from = DateTime.now();
       final until = from.add(const Duration(minutes: 30));
       while (true) {
+        // The bots' share refused, or this bot's budget ran out: stop now (opencode would retry a 429 for 30 min).
+        why = guard.check(turn);
+        if (why != null) {
+          await oc.abort(session);
+          break;
+        }
         if (turn.error != null) break;
         // Idle with nothing written in the first seconds may be the state before the prompt started: keep waiting.
         if (turn.done && (turn.parts.isNotEmpty || DateTime.now().difference(from) > const Duration(seconds: 8))) break;
@@ -454,11 +487,31 @@ extension AppStateAgentRunner on AppState {
         b.addTokens(turn.tokens);
         unawaited(Bots.I.save());
       }
+      _ocBgStopped(why, turn, b);
+      unawaited(Cloud.refreshStatus());
       unawaited(oc.dropSession(session));
     }
+    if (why == OcBgGuard.paused) throw OpenCodeError(turn.error ?? '${AppState.bgPausedText}.');
     if (aborted) return '';
     if (turn.error != null && turn.answer.isEmpty) throw OpenCodeError(turn.error!);
     return turn.answer;
+  }
+
+  /// A background turn stopped by [OcBgGuard] (owner 2026-11-03). `paused`: the bots' share is used up today, so
+  /// later wakes wait for tomorrow (Cloud.markBackgroundPaused) and the turn ends on the allowance message (a wake's
+  /// outcome reads it as 'credit': one quiet note, no retry). `budget`: the bot's own budget ran out mid-turn; it
+  /// keeps what it wrote and notes it once.
+  void _ocBgStopped(String? why, OpenCodeTurn turn, Bot? b) {
+    if (why == OcBgGuard.paused) {
+      Cloud.markBackgroundPaused();
+      turn.error = '${AppState.bgPausedText}.';
+      if (b != null) _notePaused(b);
+    } else if (why == OcBgGuard.budget && b != null) {
+      if (!b.journal.any((e) => e.kind == 'budget' && DateTime.now().difference(e.at).inHours < 20)) {
+        b.log('budget', 'Stopped work: today\'s token budget is used up');
+        unawaited(Bots.I.save());
+      }
+    }
   }
 
   /// The user's message as opencode parts: its words, then each attachment (a file on the phone as a file part, a

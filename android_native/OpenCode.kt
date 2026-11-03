@@ -39,7 +39,8 @@ object OpenCode {
      *  ai-chat function) and [token] the signed-in user's access token. Returns the port. */
     @Synchronized
     fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int, cwd: String? = null,
-              skills: Map<String, String> = emptyMap()): Int {
+              skills: Map<String, String> = emptyMap(), providers: List<Map<String, String>> = emptyList(),
+              models: List<String> = emptyList()): Int {
         if (running()) return port
         val lib = File(ctx.applicationInfo.nativeLibraryDir)
         val ld = File(lib, "libocld.so")
@@ -74,7 +75,7 @@ object OpenCode {
             File(skillDir, name).apply { mkdirs() }.resolve("SKILL.md").writeText(body)
         }
         val cfg = File(root, "opencode.json")
-        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillDir.path))
+        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillDir.path, providers, models))
         val pb = ProcessBuilder(ld.path, "--library-path", links.path, bin.path, "serve", "--hostname", "127.0.0.1", "--port", "$wantPort")
         pb.directory(work)
         pb.redirectErrorStream(true)
@@ -156,30 +157,44 @@ object OpenCode {
 
     private fun isLink(f: File): Boolean = try { android.system.Os.lstat(f.path); true } catch (_: Throwable) { false }
 
-    private fun q(s: String) = org.json.JSONObject.quote(s)
-
-    /** One provider: SubMac's own model gateway, which speaks the OpenAI chat API, reached through LocalProxy (which adds
-     *  the token). Permissions: reading, editing files in the workspace and fetching pages go ahead; running a command,
+    /** SubMac's own model gateway, which speaks the OpenAI chat API, reached through LocalProxy (which adds the token).
+     *  One provider per allowance lane (owner 2026-11-03, OcLane in the app): `submac` is the user's own lane; each
+     *  background provider (`submac-bg`, `submac-office`) points at `/__submac/lane/<source>`, which LocalProxy sends on
+     *  with `x-submac-lane: background`, so the lane rides in each request's own path and never leaks between sessions.
+     *  The app names the provider in every prompt. No `small_model`: opencode then runs its small jobs (titles,
+     *  summaries) on the turn's own provider, so they bill to the same lane. With no list from the app, the one
+     *  foreground provider is written as before.
+     *  Permissions: reading, editing files in the workspace and fetching pages go ahead; running a command,
      *  touching files outside the workspace and a step repeating itself ask first, on SubMac's ask card in the chat
      *  (OpenCodeAsks). SubMac's own tools come through SubMac's MCP server (registered by the app after start) and ask
      *  through SubMac's own approval card. */
-    private fun config(baseUrl: String, skills: String): String = """
-{
-  "${'$'}schema": "https://opencode.ai/config.json",
-  "autoupdate": false,
-  "share": "disabled",
-  "provider": {
-    "submac": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "SubMac",
-      "options": { "baseURL": ${q(baseUrl)}, "apiKey": "via-proxy", "headers": { "x-submac-source": "opencode" } },
-      "models": { "submac": { "name": "SubMac", "tool_call": true } }
+    private fun config(baseUrl: String, skills: String, providers: List<Map<String, String>>, models: List<String>): String {
+        val list = providers.filter { Regex("[a-z0-9-]{1,32}").matches(it["id"] ?: "") }
+            .ifEmpty { listOf(mapOf("id" to "submac", "name" to "SubMac", "path" to "", "source" to "opencode")) }
+        val names = models.filter { Regex("[a-z0-9.-]{1,48}").matches(it) }.ifEmpty { listOf("submac") }
+        val prov = org.json.JSONObject()
+        for (p in list) {
+            val path = (p["path"] ?: "").let { if (it.isEmpty() || Regex("/lane/[a-z-]{1,20}").matches(it)) it else "" }
+            val ms = org.json.JSONObject()
+            for (m in names) ms.put(m, org.json.JSONObject().put("name", if (m == "submac") "SubMac" else m).put("tool_call", true))
+            prov.put(p.getValue("id"), org.json.JSONObject()
+                .put("npm", "@ai-sdk/openai-compatible")
+                .put("name", p["name"] ?: "SubMac")
+                .put("options", org.json.JSONObject()
+                    .put("baseURL", baseUrl + path)
+                    .put("apiKey", "via-proxy")
+                    .put("headers", org.json.JSONObject().put("x-submac-source", p["source"] ?: "opencode")))
+                .put("models", ms))
+        }
+        val root = org.json.JSONObject()
+            .put("\$schema", "https://opencode.ai/config.json")
+            .put("autoupdate", false)
+            .put("share", "disabled")
+            .put("provider", prov)
+            .put("model", "submac/submac")
+            .put("skills", org.json.JSONObject().put("paths", org.json.JSONArray().put(skills)))
+            .put("permission", org.json.JSONObject().put("edit", "allow").put("bash", "ask").put("webfetch", "allow")
+                .put("external_directory", "ask").put("doom_loop", "ask").put("question", "allow"))
+        return root.toString(2)
     }
-  },
-  "model": "submac/submac",
-  "small_model": "submac/submac",
-  "skills": { "paths": [${q(skills)}] },
-  "permission": { "edit": "allow", "bash": "ask", "webfetch": "allow", "external_directory": "ask", "doom_loop": "ask", "question": "allow" }
-}
-""".trimIndent()
 }

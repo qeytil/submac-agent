@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import 'cloud.dart';
+import 'oc_lanes.dart';
 import 'submac_gateway.dart';
 import 'submac_mcp.dart';
 import 'tools.dart';
@@ -71,6 +72,9 @@ class OpenCodeEngine {
       'cwd': await AgentTools.workspaceDir(),
       // The `submac` skill: opencode sees its name and loads it when a task needs the phone's apps (owner, 2026-11-03).
       'skills': const {'submac': SubMacGateway.skill},
+      // One provider per allowance lane, each on its own proxy path (owner 2026-11-03, see OcLane).
+      'providers': OcLane.providers(),
+      'models': OcLane.models,
     });
     final m = res is Map ? res : const {};
     if (m['ok'] != true) {
@@ -236,14 +240,22 @@ class OpenCodeEngine {
   }
 
   /// Sends one user message; the reply arrives on [events]. [system] is appended after opencode's own system prompt
-  /// for this turn (SubMac's name only; see SubMacStyle).
-  Future<void> prompt(String session, List<Map<String, dynamic>> parts, {String? system}) async {
+  /// for this turn (SubMac's name only; see SubMacStyle). [model] is the turn's provider and model (OcLane.pick): the
+  /// provider decides the allowance lane its model calls bill to (owner 2026-11-03).
+  Future<void> prompt(String session, List<Map<String, dynamic>> parts, {String? system, Map<String, String>? model}) async {
     await _pushToken();
     final r = await _client.post(_u('/session/$session/prompt_async'),
-        headers: {..._auth, 'content-type': 'application/json'},
-        body: jsonEncode({'parts': parts, if (system != null && system.isNotEmpty) 'system': system}));
+        headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode(promptBody(parts, system: system, model: model)));
     if (r.statusCode >= 300) throw OpenCodeError('Prompt: HTTP ${r.statusCode} ${r.body}');
   }
+
+  /// The body of one prompt (pure, for tests). The model is always named (owner 2026-11-03): without it opencode reuses
+  /// the session's last model, which would keep a bot's chat on the background lane after a wake.
+  static Map<String, dynamic> promptBody(List<Map<String, dynamic>> parts, {String? system, Map<String, String>? model}) => {
+        'parts': parts,
+        if (system != null && system.isNotEmpty) 'system': system,
+        'model': model ?? OcLane.pick(background: false),
+      };
 
   /// Stops the reply being written in [session].
   Future<void> abort(String session) async {
