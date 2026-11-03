@@ -34,10 +34,17 @@ extension AppStateAgentRunner on AppState {
         ConnectorCatalog.apiCallTool,
         ..._mcpToolDefs(),
         AppState.addMcpServerTool,
+        // A bot's own tools (memory, desk, follow-ups, routines, watches, asking a colleague): they work in a bot's
+        // chat only, and its brief names them so it calls them without a lookup.
+        ...Bots.definitions,
       ];
 
-  /// The only text added to opencode's own prompt: the name SubMac (owner, 2026-11-03).
-  String _ocLayer() => SubMacStyle.identity;
+  /// The only text added to opencode's own prompt: the name SubMac (owner, 2026-11-03). A bot's chat gets the bot's
+  /// own brief instead (who it is, what it knows and owns, its tools).
+  String _ocLayer([String? convId]) {
+    final b = Bots.I.byConv(convId);
+    return b == null ? SubMacStyle.identity : Bots.I.opencodeBriefOf(b);
+  }
 
   /// Starts opencode in the background at launch (after sign-in), so the first message does not wait for the engine.
   /// Once the connected apps' tools have loaded, opencode is given the fresh list. Failures stay quiet: the first
@@ -209,7 +216,7 @@ extension AppStateAgentRunner on AppState {
         // SubMac's tools may have changed since opencode listed them (an app connected, its tools loaded).
         await ensureMcpTools().catchError((Object _) {});
         await oc.syncMcp().catchError((Object _) {});
-        await oc.prompt(session, await _partsFor(lastUser), system: _ocLayer());
+        await oc.prompt(session, await _partsFor(lastUser), system: _ocLayer(convId));
         while (!done.isCompleted && !run.cancelled) {
           await Future.any([done.future, Future<void>.delayed(const Duration(seconds: 1))]);
         }

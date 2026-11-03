@@ -1643,6 +1643,27 @@ class Bots extends ChangeNotifier {
   /// The bot's whole text-chat prompt (identity, what it knows, its desk), for one-off calls like bot_ask.
   String chatPromptOf(Bot b) => '${stablePromptOf(b)}\n\n${memoryPromptOf(b)}\n\n${livePromptOf(b)}'.trim();
 
+  /// What a bot's opencode turn gets after opencode's own prompt (owner, 2026-11-03: bots on opencode, "better, smart
+  /// and powerful"). opencode stays the engine with its own tools; this says who the bot is, what it knows and owns,
+  /// and how its own SubMac tools are called (through submac_run_tool, no lookup needed).
+  String opencodeBriefOf(Bot b) {
+    final own = [
+      for (final d in definitionsFor(b))
+        '- ${(d['function'] as Map)['name']}: ${'${(d['function'] as Map)['description']}'.split('. ').first}',
+    ].join('\n');
+    return '${chatPromptOf(b)}\n\n'
+            '# Your tools\n'
+            'You have opencode\'s own tools (files, shell, web fetch, to-dos) plus SubMac\'s app tools. Your own bot tools are SubMac tools: '
+            'call them directly with submac_run_tool (name + arguments); no need to look them up:\n$own\n'
+            'Anything else in the app (connected apps, documents, memory, settings): submac_find_tools first.\n'
+            'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'
+            'Your name is ${b.name}. Never say you are opencode, an AI model or SubMac; you are ${b.name}.'
+        .trim();
+  }
+
+  /// The bot's own working folder inside SubMac's workspace.
+  static String botFolder(Bot b) => 'bots/${b.id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}';
+
   /// The identity text Live calls still use (kept as it was; calls are tuned separately).
   String _callStablePromptOf(Bot b) {
     final others = hired.where((o) => o != b).map((o) => '${o.name} (${o.role})').join(', ');
