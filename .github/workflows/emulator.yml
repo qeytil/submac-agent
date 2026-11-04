@@ -105,7 +105,26 @@ jobs:
           (cd "$OUT" && tar czf ../emu-out.tgz .)
           gh release create "$TAG" --prerelease --target "$GITHUB_SHA" --title "Emulator run ${{ github.run_number }} ($APK_TAG)" \
             --notes "Emulator smoke of $APK_TAG. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" || true
-          gh release upload "$TAG" "$OUT"/* emu-out.tgz --clobber
+          # One file at a time, skipping empty ones (an empty asset fails the whole upload).
+          for f in emu-out.tgz "$OUT"/*; do
+            [ -s "$f" ] || { echo "skip empty $f"; continue; }
+            gh release upload "$TAG" "$f" --clobber || echo "::warning::upload failed: $f"
+          done
+
+      # Also commit the results to branch emu-results/<run_number>: readable through the contents API
+      # (base64 JSON), which works where a binary release-asset download does not.
+      - name: Publish results to branch emu-results/${{ github.run_number }}
+        if: always()
+        run: |
+          test -d "$OUT" || exit 0
+          B="emu-results/${{ github.run_number }}"
+          D=$(mktemp -d); cp -r "$OUT"/. "$D"/
+          # keep the branch small: the full logcat goes to the release only
+          find "$D" -size +900k -name '*.txt' -exec sh -c 'tail -c 900000 "$1" > "$1.tail" && mv "$1.tail" "$1"' _ {} \;
+          cd "$D"; git init -q; git checkout -q -b "$B"
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A; git commit -qm "emulator results for run $GITHUB_RUN_ID ($APK_TAG)"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$B"
 
       - name: Screenshots captured?
         run: test -s "$OUT/01-launch.png" || { echo "::error::no launch screenshot (emulator did not boot or adb failed)"; exit 1; }
