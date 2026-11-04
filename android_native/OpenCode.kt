@@ -97,7 +97,7 @@ object OpenCode {
         env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
         // The user's own provider keys (BYOK, owner 2026-11-03): only in this process's environment, named by the
         // config as {env:SUBMAC_BYOK_<ID>}; never written to opencode.json or logged.
-        for ((k, v) in byokEnv) if (Regex("SUBMAC_BYOK_[A-Z0-9_]{1,40}").matches(k) && v.isNotEmpty) env[k] = v
+        for ((k, v) in byokEnv) if (Regex("SUBMAC_BYOK_[A-Z0-9_]{1,40}").matches(k) && v.isNotEmpty()) env[k] = v
         // Android has no /etc/resolv.conf, so musl cannot resolve names: all outbound traffic goes through the
         // app's own proxy, which resolves with Android's resolver (LocalProxy).
         val proxy = "http://127.0.0.1:$proxyPort"
@@ -192,7 +192,7 @@ object OpenCode {
         }
         // The user's own providers (BYOK, owner 2026-11-03), built by the app (ByokOpencode): only `byok-*` ids are
         // taken, so they can never replace a SubMac lane provider. Their packages are bundled in the binary.
-        if (byok.isNotEmpty) {
+        if (byok.isNotEmpty()) {
             try {
                 val extra = org.json.JSONObject(byok)
                 for (id in extra.keys()) {
