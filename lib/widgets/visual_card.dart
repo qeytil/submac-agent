@@ -7,6 +7,7 @@ import '../theme.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 import 'output_cards.dart' show cardShell;
+import '../screens/preview_screen.dart' show openPreview;
 
 /// The ```visual card (owner, 2026-10-31): the agent's own SVG drawing shown right in the chat — architecture
 /// and floor plans, artworks, posters, icons and mockups, any crisp 2D thing words and charts cannot be.
@@ -87,7 +88,7 @@ class _SvgFileCardState extends State<SvgFileCard> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final name = widget.path.split('/').last;
-    return cardShell(
+    final card = cardShell(
       context,
       kicker: tr('Visual'),
       collapse: false,
@@ -105,6 +106,12 @@ class _SvgFileCardState extends State<SvgFileCard> {
               )
             : _tile(context, name),
       ),
+    );
+    // A tap opens the drawing full screen, zoomable (owner 2026-11-04).
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _body == null ? null : () => openPreview(context, widget.path),
+      child: Semantics(image: true, label: '$name. Tap to view', child: card),
     );
   }
 

@@ -40,7 +40,7 @@ object OpenCode {
     @Synchronized
     fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int, cwd: String? = null,
               skills: Map<String, String> = emptyMap(), providers: List<Map<String, String>> = emptyList(),
-              models: List<String> = emptyList()): Int {
+              models: List<String> = emptyList(), byokProviders: String = "", byokEnv: Map<String, String> = emptyMap()): Int {
         if (running()) return port
         val lib = File(ctx.applicationInfo.nativeLibraryDir)
         val ld = File(lib, "libocld.so")
@@ -75,7 +75,7 @@ object OpenCode {
             File(skillDir, name).apply { mkdirs() }.resolve("SKILL.md").writeText(body)
         }
         val cfg = File(root, "opencode.json")
-        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillDir.path, providers, models))
+        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillDir.path, providers, models, byokProviders))
         val pb = ProcessBuilder(ld.path, "--library-path", links.path, bin.path, "serve", "--hostname", "127.0.0.1", "--port", "$wantPort")
         pb.directory(work)
         pb.redirectErrorStream(true)
@@ -95,6 +95,9 @@ object OpenCode {
         env["OPENCODE_CONFIG"] = cfg.path
         env["OPENCODE_SERVER_PASSWORD"] = pass
         env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
+        // The user's own provider keys (BYOK, owner 2026-11-03): only in this process's environment, named by the
+        // config as {env:SUBMAC_BYOK_<ID>}; never written to opencode.json or logged.
+        for ((k, v) in byokEnv) if (Regex("SUBMAC_BYOK_[A-Z0-9_]{1,40}").matches(k) && v.isNotEmpty) env[k] = v
         // Android has no /etc/resolv.conf, so musl cannot resolve names: all outbound traffic goes through the
         // app's own proxy, which resolves with Android's resolver (LocalProxy).
         val proxy = "http://127.0.0.1:$proxyPort"
@@ -168,7 +171,8 @@ object OpenCode {
      *  touching files outside the workspace and a step repeating itself ask first, on SubMac's ask card in the chat
      *  (OpenCodeAsks). SubMac's own tools come through SubMac's MCP server (registered by the app after start) and ask
      *  through SubMac's own approval card. */
-    private fun config(baseUrl: String, skills: String, providers: List<Map<String, String>>, models: List<String>): String {
+    private fun config(baseUrl: String, skills: String, providers: List<Map<String, String>>, models: List<String>,
+                       byok: String = ""): String {
         val list = providers.filter { Regex("[a-z0-9-]{1,32}").matches(it["id"] ?: "") }
             .ifEmpty { listOf(mapOf("id" to "submac", "name" to "SubMac", "path" to "", "source" to "opencode")) }
         val names = models.filter { Regex("[a-z0-9.-]{1,48}").matches(it) }.ifEmpty { listOf("submac") }
@@ -185,6 +189,18 @@ object OpenCode {
                     .put("apiKey", "via-proxy")
                     .put("headers", org.json.JSONObject().put("x-submac-source", p["source"] ?: "opencode")))
                 .put("models", ms))
+        }
+        // The user's own providers (BYOK, owner 2026-11-03), built by the app (ByokOpencode): only `byok-*` ids are
+        // taken, so they can never replace a SubMac lane provider. Their packages are bundled in the binary.
+        if (byok.isNotEmpty) {
+            try {
+                val extra = org.json.JSONObject(byok)
+                for (id in extra.keys()) {
+                    if (Regex("byok-[a-z0-9]{4,24}").matches(id)) prov.put(id, extra.getJSONObject(id))
+                }
+            } catch (e: Throwable) {
+                Log.w(TAG, "byok providers skipped: ${e.javaClass.simpleName}")
+            }
         }
         val root = org.json.JSONObject()
             .put("\$schema", "https://opencode.ai/config.json")

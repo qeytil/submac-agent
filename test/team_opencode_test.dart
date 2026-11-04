@@ -1,9 +1,11 @@
 // Teams on opencode (owner, 2026-11-03): the lead works in its own opencode turn and hands parts off with team_assign;
-// each member's part is its own opencode turn with its own brief; at most two members work at once; a lead's routine
+// each member's part is its own opencode turn with its own brief; every member works at once (no cap, owner 2026-11-04);
+// a lead's routine
 // starts a team job with team_task.
 
 import 'package:agent/services/bots.dart';
 import 'package:agent/services/offices.dart';
+import 'package:agent/services/team_key.dart';
 import 'package:agent/services/team_run.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -64,25 +66,27 @@ void main() {
       ..reset();
   });
 
-  test('the lead hands off with team_assign; members run in their own turns, two at a time; the lead answers', () async {
+  test('the lead hands off with team_assign; members run in their own turns, all at once; the lead answers', () async {
     final o = team();
     TeamRun.I.send(o, 'Find the three cheapest coffee suppliers in Hargeisa');
     await TeamRun.I.work;
     expect(turns.first.bot, 'Hodan');
-    expect(turns.first.key, 'team:${o.id}:tol');
+    expect(TeamKey.officeOf(turns.first.key), o.id);
+    expect(TeamKey.botOf(turns.first.key), 'tol');
     expect(turns.first.system, contains(TeamRun.assignName));
     expect(turns.first.system, contains('teams/${o.id}/'));
     expect(turns.first.system, contains('submac_run_tool'), reason: 'the lead gets its opencode brief');
     final members = turns.skip(1).toList();
     expect(members.map((t) => t.bot).toSet(), {'Nova', 'Amal', 'Omar'});
     for (final t in members) {
-      expect(t.key, 'team:${o.id}:${{'Nova': 'ton', 'Amal': 'toa', 'Omar': 'too'}[t.bot]}');
+      expect(TeamKey.officeOf(t.key), o.id);
+      expect(TeamKey.botOf(t.key), {'Nova': 'ton', 'Amal': 'toa', 'Omar': 'too'}[t.bot]);
       expect(t.system, contains('You are ${t.bot}'), reason: 'each member has its own brief');
       expect(t.system, isNot(contains('You are Hodan.')));
       expect(t.system, contains('# Team folder'));
     }
-    expect(peak, lessThanOrEqualTo(TeamRun.parallel));
-    expect(peak, 2, reason: 'independent parts run side by side');
+    expect(peak, 3, reason: 'independent parts all run side by side: no cap on members working at once');
+    expect(turns.map((t) => t.key).toSet().length, turns.length, reason: 'each piece of work has its own route key');
     final answer = o.posts.last;
     expect(answer.kind, 'answer');
     expect(answer.text, 'Final answer from the lead. 3 parts.');

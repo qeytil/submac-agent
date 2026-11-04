@@ -15,6 +15,7 @@ import 'house_rules.dart';
 import 'skill_library.dart';
 
 import 'system_bridge.dart';
+import 'team_key.dart';
 import 'full_access.dart';
 import 'trust.dart';
 
@@ -159,13 +160,19 @@ class DeskTask {
 }
 
 class JournalEntry {
-  JournalEntry(this.at, this.kind, this.text);
+  JournalEntry(this.at, this.kind, this.text, {this.team = false});
   final DateTime at;
   /// work | note | message | call | missed | learned
   final String kind;
   final String text;
-  Map<String, dynamic> toJson() => {'at': at.toUtc().toIso8601String(), 'k': kind, 't': text};
-  static JournalEntry fromJson(Map<String, dynamic> j) => JournalEntry(DateTime.tryParse('${j['at']}')?.toLocal() ?? DateTime.now(), '${j['k'] ?? 'note'}', '${j['t'] ?? ''}');
+
+  /// Written by team work (a team part, leading a job, an office job). The bot's private chat does not read these
+  /// into its brief, so team work never shows up in its 1:1 conversation (bots team audit, 2026-11-04).
+  final bool team;
+  Map<String, dynamic> toJson() => {'at': at.toUtc().toIso8601String(), 'k': kind, 't': text, if (team) 'tm': true};
+  static JournalEntry fromJson(Map<String, dynamic> j) => JournalEntry(
+      DateTime.tryParse('${j['at']}')?.toLocal() ?? DateTime.now(), '${j['k'] ?? 'note'}', '${j['t'] ?? ''}',
+      team: j['tm'] == true);
 }
 
 class Bot {
@@ -508,8 +515,8 @@ class Bot {
     return (callCap - callsToday).clamp(0, 99).toInt();
   }
 
-  void log(String kind, String text) {
-    journal.add(JournalEntry(DateTime.now(), kind, text.length > 300 ? '${text.substring(0, 300)}…' : text));
+  void log(String kind, String text, {bool team = false}) {
+    journal.add(JournalEntry(DateTime.now(), kind, text.length > 300 ? '${text.substring(0, 300)}…' : text, team: team));
     while (journal.length > 200) {
       journal.removeAt(0);
     }
@@ -672,9 +679,9 @@ class Bots extends ChangeNotifier {
   static bool requeueAfterRun({required bool finished, required String kind, required String status}) =>
       finished && kind == 'task' && status == 'doing';
 
-  /// May a wake take a bot's chat? Not while an office job holds it, another wake is marked on it, or a run is going.
-  static bool wakeMayClaim({required bool officeBusy, required bool hasMarker, required bool running}) =>
-      !officeBusy && !hasMarker && !running;
+  /// May a wake take a bot's chat? Not while another wake is marked on it, or a run is going in it.
+  /// Team work no longer runs in the bot's chat (it has its own sessions, side by side), so it never holds a wake off.
+  static bool wakeMayClaim({required bool hasMarker, required bool running}) => !hasMarker && !running;
 
   /// A follow-up for the same job is already waiting: a busy bot must not stack one per wake.
   static bool hasPendingFollowup(Bot b, String instruction, String kind) {
@@ -788,7 +795,13 @@ class Bots extends ChangeNotifier {
 
   bool _cloud(Bot b, String job) => cloudOwns?.call(b, job) ?? false;
   Bot? byId(String id) => bots.where((b) => b.id == id).firstOrNull;
-  Bot? byConv(String? convId) => convId == null || convId.isEmpty ? null : bots.where((b) => b.convId == convId).firstOrNull;
+  /// The bot of a chat, or of a piece of team work ([TeamKey]: team work runs under its own key, not the bot's
+  /// private chat, and still acts as that bot: its powers, apps, trust and own tools).
+  Bot? byConv(String? convId) {
+    if (convId == null || convId.isEmpty) return null;
+    if (TeamKey.isKey(convId)) return byId(TeamKey.botOf(convId));
+    return bots.where((b) => b.convId == convId).firstOrNull;
+  }
   bool isBotConv(String? convId) => byConv(convId) != null;
   Bot? byName(String name) {
     final n = name.trim().toLowerCase();
@@ -1641,7 +1654,9 @@ class Bots extends ChangeNotifier {
   }
 
   /// The bot's whole text-chat prompt (identity, what it knows, its desk), for one-off calls like bot_ask.
-  String chatPromptOf(Bot b) => '${stablePromptOf(b)}\n\n${memoryPromptOf(b)}\n\n${livePromptOf(b)}'.trim();
+  /// [team]: the prompt is for team work, so the journal's team lines are in it; the private chat's prompt leaves them
+  /// out (no team work in the 1:1 conversation).
+  String chatPromptOf(Bot b, {bool team = true}) => '${stablePromptOf(b)}\n\n${memoryPromptOf(b)}\n\n${livePromptOf(b, team: team)}'.trim();
 
   /// What a bot's opencode turn gets after opencode's own prompt (owner, 2026-11-03: bots on opencode, "better, smart
   /// and powerful"). opencode stays the engine with its own tools; this says who the bot is, what it knows and owns,
@@ -1649,12 +1664,14 @@ class Bots extends ChangeNotifier {
   /// The teams a bot is in, for its brief (set by the app): one line per team, empty when none.
   String Function(Bot b)? teamsOf;
 
-  String opencodeBriefOf(Bot b) {
+  /// The brief of a bot's opencode turn. [team]: false (default) for its private chat with the owner, whose brief
+  /// leaves out the team lines of its journal; true for its team work.
+  String opencodeBriefOf(Bot b, {bool team = false}) {
     final own = [
       for (final d in definitionsFor(b))
         '- ${(d['function'] as Map)['name']}: ${'${(d['function'] as Map)['description']}'.split('. ').first}',
     ].join('\n');
-    return '${chatPromptOf(b)}\n\n'
+    return '${chatPromptOf(b, team: team)}\n\n'
             '# Your tools\n'
             'You have opencode\'s own tools (files, shell, web fetch, to-dos) plus SubMac\'s app tools. Your own bot tools are SubMac tools: '
             'call them directly with submac_run_tool (name + arguments); no need to look them up:\n$own\n'
@@ -1781,7 +1798,7 @@ class Bots extends ChangeNotifier {
 
   String promptOf(Bot b) => '${_callStablePromptOf(b)}\n\n${livePromptOf(b)}'.trim();
 
-  String livePromptOf(Bot b) {
+  String livePromptOf(Bot b, {bool team = true}) {
     final sb = StringBuffer();
     final open = b.desk.where((t) => t.status != 'done').toList();
     sb.writeln('\n# Your desk');
@@ -1804,7 +1821,7 @@ class Bots extends ChangeNotifier {
         sb.writeln('- ${f.at.toIso8601String().substring(0, 16)}: ${f.instruction}');
       }
     }
-    final recent = b.journal.reversed.take(8).toList().reversed;
+    final recent = b.journal.reversed.where((j) => team || !j.team).take(8).toList().reversed;
     if (recent.isNotEmpty) {
       sb.writeln('\n# Lately');
       for (final j in recent) {

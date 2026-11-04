@@ -61,13 +61,24 @@ class AgentTools {
 
   static final Map<String, dynamic> imageTool = _fn(
       'generate_image',
-      'Create an image from a text description. Write a rich, specific prompt (subject, style, lighting, composition). '
-          'The image is shown to the user automatically and saved to their Library.',
+      'Create a photo-like picture or illustration from a text description with an image model. Write a rich, specific '
+          'prompt (subject, style, lighting, composition, any text to show). The picture is shown to the user in the chat '
+          'automatically and saved to their Library; do not repeat its path. For charts, diagrams, icons and anything with '
+          'exact shapes or text, write an .svg or .html file instead (it shows in the chat too).',
       {
         'prompt': {'type': 'string', 'description': 'Detailed description of the image.'},
         'aspect': {'type': 'string', 'enum': ['1:1', '3:4', '4:3', '9:16', '16:9'], 'description': 'Shape. Default 1:1.'},
       },
       ['prompt']);
+
+  /// Other ways to a visual, for when the picture model cannot make one.
+  static const imageOtherWays = 'Other ways that work now: write an .svg file (drawings, icons, charts, diagrams) or an .html '
+      'file (interactive charts, pages) in the workspace, or use code_media (a drawing, poster or animation by code); '
+      'the chat shows the file to the user when you name its path. If the user has their own image model, ai_call can use it.';
+
+  /// generate_image while SubMac's server has no picture model.
+  static const imageOffNote = 'Error: making photo-like pictures is not switched on in SubMac yet. $imageOtherWays '
+      'Tell the user in one line that photo-style pictures are not available yet, then make the visual another way.';
 
   static final Map<String, dynamic> videoTool = _fn(
       'generate_video',

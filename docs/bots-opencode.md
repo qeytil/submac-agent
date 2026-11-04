@@ -53,3 +53,8 @@ P5 rehearsal, lessons, sharing.
   bot_make / team_make for the Chief) are offered through the SubMac gateway and called with submac_run_tool.
 - Routines, follow-ups, watches, heartbeat, scheduled tasks and the @note / @message / @call outcome stay as they were
   and now drive full opencode turns.
+
+## 2026-11-04: private chat vs team work
+A bot's private chat with the owner is a normal 1:1 conversation (its own session, its own wakes and routines). Team
+and office work never runs there: it has its own sessions under a team key and posts only to the team chat. Bots run
+side by side with no cap (see docs/teams-opencode-plan.md, "Team audit").

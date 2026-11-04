@@ -148,10 +148,14 @@ class MainActivity : FlutterActivity() {
                             (p as? Map<*, *>)?.entries?.mapNotNull { (k, v) -> if (k is String && v is String) k to v else null }?.toMap()
                         }
                         val models = (call.argument<List<Any?>>("models") ?: emptyList()).mapNotNull { it as? String }
+                        // The user's own providers (BYOK, owner 2026-11-03): config JSON and their keys for the environment.
+                        val byok = call.argument<String>("byokProviders") ?: ""
+                        val byokEnv = (call.argument<Map<String, Any?>>("byokEnv") ?: emptyMap())
+                            .mapNotNull { (k, v) -> (v as? String)?.let { k to it } }.toMap()
                         val main = android.os.Handler(mainLooper)
                         Thread {
                             try {
-                                val port = OpenCode.start(applicationContext, base, token, pass, want, cwd, skills, providers, models)
+                                val port = OpenCode.start(applicationContext, base, token, pass, want, cwd, skills, providers, models, byok, byokEnv)
                                 val health = OpenCode.waitHealthy(60000)
                                 main.post {
                                     result.success(mapOf("ok" to (health != null), "port" to port, "health" to health, "log" to OpenCode.lastLog()))

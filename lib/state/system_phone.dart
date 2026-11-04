@@ -50,25 +50,19 @@ extension AppStateSystem on AppState {
       final r = await requestConnect('GitHub', why: why);
       return r.contains('is connected') || r.contains('already connected');
     };
-    Offices.I.currentJob = (id) {
-      final bot = Bots.I.byId(id);
-      if (bot == null || !_officeBusy.contains(id)) return null;
-      return _officeJobKind[bot.convId];
-    };
+    // The kind of the office job a bot does now, for callers that do not pass it (office_post passes its own).
+    Offices.I.currentJob = (id) => _officeJobs.values.where((j) => j.botId == id).firstOrNull?.kind;
     Offices.I.isWorking = (id) {
       if (_officeBusy.contains(id)) return true;
       final bot = Bots.I.byId(id);
       return bot != null && bot.convId.isNotEmpty && runs.any((r) => r.convId == bot.convId && !r.side);
     };
-    Offices.I.jobsRunning = (officeId) => _officeBusyIn.values.contains(officeId);
+    Offices.I.jobsRunning = (officeId) => _officeJobs.values.any((j) => j.officeId == officeId);
+    // Office jobs read Offices.stoppedSince as their stop check, so a stop reaches each of them at its next step.
+    // It no longer stops the runs in the members' private chats (those are the owner's own 1:1 conversations, which
+    // a team's "stop" used to cut off).
     Offices.I.stopRunning = (officeId) {
-      for (final id in [for (final e in _officeBusyIn.entries) if (e.value == officeId) e.key]) {
-        final bot = Bots.I.byId(id);
-        if (bot == null || bot.convId.isEmpty) continue;
-        for (final r in runs.where((r) => r.convId == bot.convId && !r.side).toList()) {
-          stopRun(r);
-        }
-      }
+      unawaited(Offices.I.expireForOffice(officeId));
     };
     Offices.I.notify = (o, bot, text) async {
       if (bot.quietNow()) return;

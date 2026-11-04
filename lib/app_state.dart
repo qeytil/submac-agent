@@ -23,12 +23,14 @@ import 'services/forged_tools.dart';
 import 'services/mcp_oauth.dart';
 import 'services/mcp_known.dart';
 import 'services/mcp_routes.dart';
+import 'services/team_key.dart';
 import 'services/screen_lease.dart';
 import 'services/media_coder.dart';
 import 'services/ai_keys.dart';
 import 'services/ai_models.dart';
 import 'services/setup_tools.dart';
 import 'services/projects.dart';
+import 'services/byok.dart';
 import 'services/cloud.dart';
 import 'services/llm_client.dart';
 import 'agent/core.dart';
@@ -38,6 +40,7 @@ import 'services/opencode.dart';
 import 'services/oc_lanes.dart';
 import 'services/oc_scope.dart';
 import 'services/submac_gateway.dart';
+import 'services/turn_visuals.dart';
 import 'services/submac_mcp.dart';
 import 'services/submac_style.dart';
 import 'services/usage_accounting.dart';
@@ -300,8 +303,6 @@ class AppState extends ChangeNotifier {
   /// (null = a new chat). Set only while a bot chat is open (see backFromBotChat).
   String? _backFromBot;
   bool _botOpenedOver = false;
-  /// The office job each bot chat is doing right now (reply | task | review | chief | digest | unblock).
-  final Map<String, String> _officeJobKind = {};
 
   /// Plan 2.2 office caps: most steps one piece of office work may take (a teammate's budget per task, the Chief's
   /// planning round). Answering the owner keeps the normal limit. Near the cap the bot is told to wrap up.
@@ -311,6 +312,14 @@ class AppState extends ChangeNotifier {
         'task' || 'unblock' => browsing ? 60 : 25,
         _ => 10, // chief, review, digest
       };
+
+  /// Why a piece of bot work failed, from its error text: credit (allowance used up) | offline | busy | other.
+  static String failureOf(String e) {
+    if (RegExp(r'allowance|done a lot today|refreshes tomorrow|resting until tomorrow', caseSensitive: false).hasMatch(e)) return 'credit';
+    if (RegExp(r"you're offline|connection dropped|took too long|network error|socketexception|failed host lookup|connection (refused|reset|closed)|timed? ?out|no internet", caseSensitive: false).hasMatch(e)) return 'offline';
+    if (RegExp(r"busy|couldn't reach its models|couldn't get an answer just now|lost the connection|short break|\b429\b|too many requests|\b50[234]\b|unavailable", caseSensitive: false).hasMatch(e)) return 'busy';
+    return 'other';
+  }
 
   /// One "paused" line a day in a bot's activity log when its share of the allowance is used.
   static const bgPausedText = 'Paused until tomorrow to save your daily allowance';
@@ -330,18 +339,14 @@ class AppState extends ChangeNotifier {
   final Set<String> _firstJob = {};
 
   // ---------- offices ----------
-  /// Bot chats doing office work right now, and for which office.
+  /// Office work running right now (its team key, see TeamKey) -> its office. Office work runs under its own key and
+  /// its own opencode session, never in the bot's private chat (bots team audit 2026-11-04).
   final Map<String, String> _officeCtx = {};
+  /// Office jobs running now, by team key. No cap on how many run at once, or on one bot doing two (owner
+  /// 2026-11-04: bots work natively and in parallel).
+  final Map<String, OfficeLiveJob> _officeJobs = {};
   /// Bots running an office job now.
-  final Set<String> _officeBusy = {};
-  /// The office each of those bots works for (CB-34: a team's "stop" reaches its members' reply jobs).
-  final Map<String, String> _officeBusyIn = {};
-  /// Office sessions the pump started that have not counted themselves in runsToday yet, by office: the daily limit
-  /// counts them too, so two jobs started in one pass never go one past it.
-  final Map<String, int> _officeStarting = {};
-  /// How many bots work at the same time (a phone, not a server).
-  static const _officeParallel = 2;
-  final Set<String> _limitNoted = {};
+  Set<String> get _officeBusy => {for (final j in _officeJobs.values) j.botId};
   /// The office the user is looking at (no notifications for it, unread stays 0).
   String? viewingOffice;
   /// Opens an office or the approvals inbox from a notification (the home screen listens).
@@ -1265,4 +1270,16 @@ class ToolGate {
         'detail': ask?.detail ?? '',
         'whatsapp': whatsapp,
       };
+}
+
+
+/// One office job running now (bots team audit 2026-11-04): who, for which team, what kind, and its live line.
+class OfficeLiveJob {
+  OfficeLiveJob({required this.botId, required this.officeId, required this.kind, this.taskId = ''}) : started = DateTime.now();
+  final String botId;
+  final String officeId;
+  final String kind;
+  final String taskId;
+  final DateTime started;
+  String status = 'Getting started';
 }

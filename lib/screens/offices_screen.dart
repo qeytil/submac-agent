@@ -1251,19 +1251,8 @@ class _PeopleTab extends StatelessWidget {
           saved();
         },
       ),
-      ChoiceRow(
-        label: 'Daily limit',
-        value: '${o.dailyLimit}',
-        options: const {'10': 'Light', '25': '25 a day', '40': '40 a day', '80': '80 a day', '200': 'Heavy'},
-        onChanged: (v) {
-          o.dailyLimit = int.parse(v);
-          saved();
-        },
-      ),
-      Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 10),
-        child: Text('Used today: ${o.runsToday} of ${o.dailyLimit}.', style: TextStyle(color: p.muted, fontSize: AppText.micro)),
-      ),
+      // No daily limit on a team's work any more (owner 2026-11-04: no limits on how much bots work); the bots' share
+      // of the allowance and each bot's own token budget still hold.
       if (o.brief.isNotEmpty || o.decisions.isNotEmpty) ...[
         const SizedBox(height: 8),
         const SectionHeader('Agreed'),

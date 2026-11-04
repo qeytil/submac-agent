@@ -325,7 +325,8 @@ class Office {
   bool digestCall;
   /// ask = risky actions wait for the owner's OK | trusted = they run
   String trust;
-  /// Most bot work sessions per day (protects the owner's credit).
+  /// Kept for older saved teams and the account copy only: no longer enforced (owner 2026-11-04, no per-day cap on
+  /// bot work; the bots' share and each bot's token budget still hold).
   int dailyLimit;
   /// The owner's standing rules: when to escalate, spend limits, tone, what never to do.
   String rules;
@@ -1140,15 +1141,6 @@ class Offices extends ChangeNotifier {
 
   /// The job a bot is doing right now (set by the app), so tools can tell a mention from other work.
   String? Function(String botId)? currentJob;
-  final Map<String, List<DateTime>> _mentions = {};
-
-  bool _mentionAllowed(Office o) {
-    final now = DateTime.now();
-    final l = _mentions.putIfAbsent(o.id, () => [])..removeWhere((t) => now.difference(t) > const Duration(hours: 1));
-    if (l.length >= 6) return false;
-    l.add(now);
-    return true;
-  }
 
   void enqueue(OfficeJob j) {
     // One waiting job per bot and task is enough.
@@ -1356,8 +1348,7 @@ class Offices extends ChangeNotifier {
     final now = DateTime.now();
     final sb = StringBuffer()
       ..writeln('# Right now')
-      ..writeln('${_when(now)} · ${switch (o.mode) { 'supervised' => 'supervised (new tasks from the lead wait for the owner\'s OK)', 'paused' => 'paused', 'manual' => 'on request: do only what the owner asked, add no extra tasks, and stop when it is done', _ => 'away mode (the team works on its own)' }}'
-          ' · ${o.runsLeft} work sessions left today');
+      ..writeln('${_when(now)} · ${switch (o.mode) { 'supervised' => 'supervised (new tasks from the lead wait for the owner\'s OK)', 'paused' => 'paused', 'manual' => 'on request: do only what the owner asked, add no extra tasks, and stop when it is done', _ => 'away mode (the team works on its own)' }}');
     final busy = [
       for (final id in o.members)
         if (o.tasks.where((t) => t.owner == id && t.status == 'doing').map((t) => t.title).firstOrNull case final d?) '${_botName(id)}: "$d"'
@@ -1518,7 +1509,8 @@ class Offices extends ChangeNotifier {
     }, ['id']),
   ];
 
-  Future<String> execute(String name, Map<String, dynamic> a, Office o, Bot b) async {
+  /// [job]: the office job this call is part of (reply | task | mention ...), when the caller knows it.
+  Future<String> execute(String name, Map<String, dynamic> a, Office o, Bot b, {String? job}) async {
     String s(String k) => '${a[k] ?? ''}'.trim();
     final isChief = b.id == o.chiefId;
     switch (name) {
@@ -1593,16 +1585,15 @@ class Offices extends ChangeNotifier {
       case 'office_post':
         if (s('text').isEmpty) return 'Error: nothing to post.';
         post(o, b.id, s('text'));
-        // A teammate's @mention wakes the other bot as a "mention": it counts toward the day's work sessions, runs on the
-        // bots' share of the allowance and has a small step budget. A bot answering a mention can't wake anyone else
-        // (that is how two bots used to talk to each other without end), and an office wakes at most 6 bots an hour this way.
+        // A teammate's @mention wakes the other bot as a "mention": it runs on the bots' share of the allowance and has
+        // a small step budget. A bot answering a mention can't wake anyone else (that is how two bots used to talk to
+        // each other without end). No hourly cap on mentions any more (owner 2026-11-04: no limits on bots working).
         var woke = 0;
-        if (currentJob?.call(b.id) != 'mention') {
+        if ((job ?? currentJob?.call(b.id)) != 'mention') {
           for (final m in RegExp(r'@([\w\u0600-\u06FF-]+)').allMatches(s('text'))) {
             final who = _member(o, m.group(1)!);
             if (who == null || who.id == b.id) continue;
             if (queue.any((j) => j.officeId == o.id && j.botId == who.id && j.kind == 'mention')) continue;
-            if (!_mentionAllowed(o)) break;
             enqueue(OfficeJob(officeId: o.id, botId: who.id, kind: 'mention', instruction: '${b.name} wrote to you in the office chat: "${s('text')}"'));
             woke++;
           }

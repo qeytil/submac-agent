@@ -53,7 +53,14 @@ class McpRoutes {
 
   /// The chat of an MCP call. The event may arrive a moment after the call, so this waits up to [wait] for it. Null:
   /// no matching part (the caller falls back to the open chat).
-  Future<String?> take(String tool, Map<String, dynamic> args, {Duration wait = const Duration(milliseconds: 1500)}) async {
+  ///
+  /// [fuzzy]: when no entry has the same arguments, take the only open entry of that tool. Only safe while one turn
+  /// runs: with several, that entry may be another turn's call whose own MCP request has not arrived yet, and taking
+  /// it would run this call as the other chat (bots team audit 2026-11-04).
+  ///
+  /// [orphan] (''): the call came from a session no running turn owns (see [watchOrphans]); the caller refuses it.
+  Future<String?> take(String tool, Map<String, dynamic> args,
+      {Duration wait = const Duration(milliseconds: 1500), bool fuzzy = true}) async {
     final key = keyOf(tool, args);
     final until = _clock().add(wait);
     while (true) {
@@ -64,6 +71,7 @@ class McpRoutes {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
     // Arguments that did not survive the trip byte for byte: the only open call of that tool, when there is one.
+    if (!fuzzy) return null;
     final same = _open.where((e) => e.tool == tool).toList();
     if (same.length == 1) {
       _open.remove(same.first);
@@ -98,9 +106,26 @@ class McpRoutes {
     if (tool == SubMacGateway.runName) {
       final (n, a) = SubMacGateway.inner(input);
       if (n.isNotEmpty) note(n, a, conv, part: '${p['id']}');
-    } else if (tool == SubMacGateway.findName && '${p['tool']}' != tool) {
+    } else if ((tool == SubMacGateway.findName || SubMacGateway.directNames.contains(tool)) && '${p['tool']}' != tool) {
       note(tool, input, conv, part: '${p['id']}');
     }
+  }
+
+  /// The route of a call that came from no running turn's session.
+  static const orphan = '';
+
+  /// Notes SubMac gateway calls made by sessions that no running turn owns ([owned] is false for them): a turn that
+  /// was stopped while opencode still finished a step, a deleted team session, the opencode test screen. They are
+  /// noted as [orphan], so their MCP call is refused instead of falling back to "the only turn running", which ran
+  /// it as that other chat (a leak). Call it before the turns' own [watch] for each event.
+  void watchOrphans(Map<String, dynamic> e, bool Function(String session) owned) {
+    if (e['type'] != 'message.part.updated') return;
+    final props = e['properties'];
+    final p = props is Map ? props['part'] : null;
+    if (p is! Map || p['type'] != 'tool') return;
+    final session = '${p['sessionID'] ?? ''}';
+    if (session.isEmpty || owned(session)) return;
+    watch(e, orphan, {session});
   }
 
   /// The SubMac chat of [session]: its own, or the nearest parent's ([parent]: child session -> parent, from

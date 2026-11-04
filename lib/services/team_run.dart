@@ -14,6 +14,7 @@ import 'no_reply.dart';
 import 'offices.dart';
 import 'quick_lane.dart';
 import 'system_bridge.dart';
+import 'team_key.dart';
 import 'tool_output_clean.dart';
 
 /// A team is a group chat, the Grok way (docs.x.ai/grok-bot/chat-and-collaboration; owner 2026-10-24, team intelligence):
@@ -63,9 +64,6 @@ class TeamRun extends ChangeNotifier {
   Future<String> Function(Bot b, String key, String system, String task,
       {bool Function()? stopped, Future<String> Function(String member, String ask)? assign})? ocTurn;
 
-  /// At most this many members work at the same time on the phone; the rest wait their turn.
-  static const parallel = 2;
-
   static const assignName = 'team_assign';
   static const taskName = 'team_task';
 
@@ -74,7 +72,7 @@ class TeamRun extends ChangeNotifier {
     'type': 'function',
     'function': {
       'name': assignName,
-      'description': 'Team lead only, during a team job: hand a member their part and wait for their result. Two parts that do not '
+      'description': 'Team lead only, during a team job: hand a member their part and wait for their result. Parts that do not '
           'depend on each other can be handed off at once and run side by side.',
       'parameters': {
         'type': 'object',
@@ -225,8 +223,10 @@ class TeamRun extends ChangeNotifier {
     for (final c in [...?_cores[officeId]]) {
       c.stop();
     }
-    // On opencode the members' turns are not in [_coreBots]: every member's waiting approval card goes.
-    for (final id in {...?_coreBots[officeId]?.keys, if (ocTurn != null) ...?Offices.I.byId(officeId)?.members}) {
+    // On opencode the members' turns are not in [_coreBots]. Their approval cards belong to the team (team work runs
+    // under its own key, never the member's private chat), so the team's waiting cards go.
+    if (ocTurn != null) unawaited(Offices.I.expireForOffice(officeId));
+    for (final id in {...?_coreBots[officeId]?.keys}) {
       final conv = Bots.I.byId(id)?.convId ?? '';
       if (conv.isNotEmpty) unawaited(Offices.I.expireFor(conv));
     }
@@ -694,24 +694,14 @@ class TeamRun extends ChangeNotifier {
     await _hold(o);
     final done = <({Bot bot, String text})>[];
     final handed = <Bot>{};
-    var working = 0;
     Future<String> doPart(Bot b, String ask) async {
       if (_stopped.contains(o.id)) return 'Stopped by the owner.';
       if (handed.contains(b)) return '${b.name} already did their part: ${_short(done.firstWhere((d) => d.bot == b, orElse: () => (bot: b, text: '')).text, 600)}';
       handed.add(b);
       Offices.I.post(o, lead.id, BotManner.handOff(b.name, ask, lang: plan.lang));
-      // At most [parallel] members at once on the phone; the others wait for a free place.
-      while (working >= parallel && !_stopped.contains(o.id)) {
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-      }
-      if (_stopped.contains(o.id)) return 'Stopped by the owner.';
-      working++;
-      final ({String note, String result}) r;
-      try {
-        r = await _part(o, lead, b, ask, plan, done);
-      } finally {
-        working--;
-      }
+      // No cap on how many members work at once (owner 2026-11-04): every hand-off starts now, each member in its own
+      // opencode session, side by side with the owner's chat and other bots.
+      final r = await _part(o, lead, b, ask, plan, [...done]);
       // CB-19: a part cut short by the owner's stop posts nothing (it used to say "I could not finish my part").
       if (_stopped.contains(o.id)) return 'Stopped by the owner.';
       done.add((bot: b, text: r.result));
@@ -729,7 +719,7 @@ class TeamRun extends ChangeNotifier {
       if (oc != null && plan.parts.isNotEmpty) {
         // On opencode: the lead works in its own session and hands parts off with team_assign (one tool, by name).
         final roster = [for (final p in plan.parts) '- ${p.bot.name} (${p.bot.role}): ${_short(p.ask, 300)}'].join('\n');
-        final sys = '${Bots.I.opencodeBriefOf(lead)}\n\n${BotManner.lead}\n\n# Lead the work\nYou lead the team "${o.name}". The owner '
+        final sys = '${Bots.I.opencodeBriefOf(lead, team: true)}\n\n${BotManner.lead}\n\n# Lead the work\nYou lead the team "${o.name}". The owner '
             'approved this plan for the task: "${plan.job}"${_ownerSaid(o)}\nPlanned parts:\n$roster\n'
             'Hand each part to its member with submac_run_tool name "$assignName", arguments {"member": "<name>", "ask": "<their part>"}. '
             'Parts that do not depend on each other can be handed off together; they run side by side. When a later part needs what '
@@ -737,7 +727,7 @@ class TeamRun extends ChangeNotifier {
             'answer for the owner: the result first, then what matters, then the next step if there is one. Credit a teammate by name '
             'only where it helps. Plain, calm words in the owner\'s language.${_folderNote(o, lead: true)}';
         try {
-          leadAnswer = (await oc(lead, 'team:${o.id}:${lead.id}', sys, 'Start the work.', stopped: () => _stopped.contains(o.id),
+          leadAnswer = (await oc(lead, TeamKey.of(o.id, lead.id, job: TeamKey.job()), sys, 'Start the work.', stopped: () => _stopped.contains(o.id),
                   assign: (member, a) async {
             final n = member.trim().toLowerCase();
             final p = plan.parts.where((p) => p.bot.name.toLowerCase() == n || p.bot.role.toLowerCase() == n).firstOrNull;
@@ -768,14 +758,10 @@ class TeamRun extends ChangeNotifier {
           leadAnswer = '';
         }
       }
-      // Parts the lead did not hand off still run, so the job always finishes.
-      var leftover = false;
-      for (final p in plan.parts) {
-        if (_stopped.contains(o.id)) break;
-        if (handed.contains(p.bot)) continue;
-        leftover = true;
-        await doPart(p.bot, p.ask);
-      }
+      // Parts the lead did not hand off still run, so the job always finishes: all of them at once.
+      final left = [for (final p in plan.parts) if (!handed.contains(p.bot)) p];
+      final leftover = left.isNotEmpty && !_stopped.contains(o.id);
+      if (leftover) await Future.wait([for (final p in left) doPart(p.bot, p.ask)]);
       if (_stopped.contains(o.id) || done.isEmpty) return;
       final answer = (!leftover && leadAnswer.isNotEmpty) ? leadAnswer : await _combine(lead, plan, done, o);
       if (_stopped.contains(o.id)) return;
@@ -784,7 +770,7 @@ class TeamRun extends ChangeNotifier {
       for (final d in done) {
         post.parts.add((from: d.bot.id, text: d.text));
       }
-      lead.log('work', 'Led ${o.name}: ${_short(plan.job, 80)}');
+      lead.log('work', 'Led ${o.name}: ${_short(plan.job, 80)}', team: true);
     } catch (e) {
       if (!_stopped.contains(o.id)) {
         Offices.I.post(o, 'system', BotManner.couldNotFinish(lang: plan.lang), kind: 'system');
@@ -834,13 +820,13 @@ class TeamRun extends ChangeNotifier {
           ? ''
           : '\n\nWhat teammates already reported:\n${[for (final d in before) '- ${d.bot.name}: ${_short(d.text, 600)}'].join('\n')}';
       final oc = ocTurn;
-      final sys = '${oc != null ? Bots.I.opencodeBriefOf(b) : promptOf(b)}\n\n${BotManner.member(lead.name)}\n\n# Your part\nYou are in the team "${o.name}", led by ${lead.name}. '
+      final sys = '${oc != null ? Bots.I.opencodeBriefOf(b, team: true) : promptOf(b)}\n\n${BotManner.member(lead.name)}\n\n# Your part\nYou are in the team "${o.name}", led by ${lead.name}. '
           'The owner asked the team: "${plan.job}"${_ownerSaid(o)}$notes\n\n${lead.name} gave you the part below. Do it well, then reply in two '
           'pieces: first one or two short sentences to ${lead.name} for the team chat (what you did and anything they should know; name a '
           'teammate if you build on their work), then a line with only ---, then your full result: concrete, no greeting, no questions back.';
       if (oc != null) {
-        final raw = (await oc(b, 'team:${o.id}:${b.id}', sys + _folderNote(o), part, stopped: () => _stopped.contains(o.id))).trim();
-        b.log('work', 'Team part for ${o.name}: ${_short(part, 60)}');
+        final raw = (await oc(b, TeamKey.of(o.id, b.id, job: TeamKey.job()), sys + _folderNote(o), part, stopped: () => _stopped.contains(o.id))).trim();
+        b.log('work', 'Team part for ${o.name}: ${_short(part, 60)}', team: true);
         return splitReport(raw, lang: plan.lang);
       }
       final tools = toolsFor?.call(b) ?? const <Map<String, dynamic>>[];
@@ -848,7 +834,7 @@ class TeamRun extends ChangeNotifier {
               tools: tools, maxTokens: 1500, stopped: () => _stopped.contains(o.id), office: o.id, summarizeOnHalt: true))
           .text
           .trim();
-      b.log('work', 'Team part for ${o.name}: ${_short(part, 60)}');
+      b.log('work', 'Team part for ${o.name}: ${_short(part, 60)}', team: true);
       return splitReport(raw, lang: plan.lang);
     } catch (e) {
       final f = BotManner.partFailed(lang: plan.lang);

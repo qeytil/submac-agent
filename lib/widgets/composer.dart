@@ -24,6 +24,7 @@ import '../theme.dart';
 import 'chat_extras.dart';
 import 'logo.dart';
 import 'message_view.dart';
+import 'model_picker.dart';
 import 'sub_icon.dart';
 import 'meeting_sheet.dart';
 import '../ui/tokens.dart';
@@ -609,9 +610,13 @@ class _ComposerState extends State<Composer> {
               ),
               // Ask or Autopilot (owner, 2026-11-03): a tiny switch under the field. Autopilot answers approval cards
               // and opencode's permission asks by itself; money and SubMac's own settings still ask.
+              // The chat's model (BYOK, owner 2026-11-03) sits beside it, only when the user has models of their own.
               const Padding(
                 padding: EdgeInsetsDirectional.only(top: Space.x2),
-                child: Align(alignment: AlignmentDirectional.centerStart, child: PermissionPill()),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Wrap(spacing: Space.x2, runSpacing: Space.x1, crossAxisAlignment: WrapCrossAlignment.center, children: [PermissionPill(), ModelPill()]),
+                ),
               ),
             ],
           ),

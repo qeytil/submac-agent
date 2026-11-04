@@ -23,7 +23,7 @@ class SubMacGateway {
       'name': findName,
       'description': 'Find SubMac app tools on this phone (the built-in browser for websites, phone control of other apps, '
           'alarms, SMS, contacts, calendar, WhatsApp, connected apps and their actions, the user\'s MCP servers, '
-          'connectors, memory, reading and making documents and media, the app\'s settings, projects and pages). '
+          'connectors, memory, reading and making documents, pictures and media, the app\'s settings, projects and pages). '
           'Returns matching tools with their parameters; run one with run_tool. An empty query lists every tool by name.',
       'parameters': {
         'type': 'object',
@@ -52,6 +52,19 @@ class SubMacGateway {
 
   static const definitions = [findTool, runTool];
 
+  /// SubMac tools offered to opencode by their own name as well (not only through run_tool), because a task needs them
+  /// without knowing to look (owner 2026-11-04: "no visual output ability, why?"). Each still runs only when the
+  /// calling chat's own tool list has it, and through the same gate as run_tool.
+  static const directNames = {'generate_image'};
+
+  /// The MCP tool list: find_tools, run_tool, and each direct tool [available] has right now (generate_image only
+  /// while SubMac's server can make pictures).
+  static List<Map<String, dynamic>> listing(List<Map<String, dynamic>> available) => [
+        ...definitions,
+        for (final t in available)
+          if (directNames.contains(_fn(t)['name'])) t,
+      ];
+
   static Map<String, dynamic> _fn(Map<String, dynamic> t) =>
       t['function'] is Map ? Map<String, dynamic>.from(t['function'] as Map) : t;
 
@@ -78,6 +91,11 @@ class SubMacGateway {
 
   Future<String> call(String name, Map<String, dynamic> args) async {
     if (name == findName) return find('${args['query'] ?? ''}');
+    if (directNames.contains(bare(name))) {
+      final n = bare(name);
+      if (!tools().any((t) => _fn(t)['name'] == n)) return 'Error: $n is not available here.';
+      return run(n, args);
+    }
     if (name == runName) {
       // inner() already drops the MCP wrapper's prefix models often add (see bare).
       final (tool, a) = inner(args);
@@ -128,7 +146,7 @@ class SubMacGateway {
   /// until it loads it.
   static const skill = '''---
 name: submac
-description: "SubMac app tools on this phone: a real browser for websites (sign in, forms, shopping, booking), control of the phone and its other apps (tap, type, scroll, alarms, SMS, contacts, calendar, WhatsApp), connected apps (Gmail, Calendar, GitHub...), the user's MCP servers, connectors, memory, reading PDFs/Word/photos, making documents and media, the app's settings, projects and pages. Load when a task needs the phone's apps or the user's accounts."
+description: "SubMac app tools on this phone: a real browser for websites (sign in, forms, shopping, booking), control of the phone and its other apps (tap, type, scroll, alarms, SMS, contacts, calendar, WhatsApp), connected apps (Gmail, Calendar, GitHub...), the user's MCP servers, connectors, memory, reading PDFs/Word/photos, making documents and media, pictures and how to show images, charts, drawings, pages and videos in the chat, the app's settings, projects and pages. Load when a task needs the phone's apps or the user's accounts, or a visual answer."
 ---
 
 # SubMac app tools
@@ -146,7 +164,8 @@ What is there:
 - Connectors and their APIs.
 - Memory: remember, forget, list_memories.
 - Reading: PDFs, Word documents, text in photos.
-- Making: documents, images to PDF, media conversions, images (when switched on).
+- Making: documents, images to PDF, media conversions.
+- Visuals: the chat shows pictures, drawings, charts, pages and videos. `generate_image` makes a photo-like picture (when it is listed). For charts, diagrams, icons, posters and anything with exact shapes or text, write the file yourself: an `.svg` (hand-written SVG), an `.html` page (inline SVG or a canvas/JS chart; it opens full screen), or a `.png` from a script when `python3` is on PATH. `code_media` draws a picture, poster or short animation from JavaScript. Then name the file's path in your answer, or put `![what it is](path)` on its own line: the chat draws it there and a tap opens it full screen. Never paste base64 into the answer.
 - The app: settings, projects, pages (sites).
 
 Risky actions ask the user on SubMac's approval card; wait for the result. If a tool fails, say so plainly; never say it worked.

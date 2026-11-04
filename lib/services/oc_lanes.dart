@@ -1,3 +1,4 @@
+import 'byok.dart';
 import 'cloud.dart';
 import 'opencode.dart';
 
@@ -44,8 +45,9 @@ class OcLane {
         for (final e in bgSources.entries) {'id': e.key, 'name': 'SubMac (${e.value})', 'path': '$lanePath${e.value}', 'source': e.value},
       ];
 
-  /// The model a bot's turn runs on: its own setting (`auto` or `providerId|model`) when that names one of SubMac's
-  /// chat models, else `submac`. SubMac Cloud is the only provider, so another provider id falls back too.
+  /// The SubMac model a bot's turn runs on: its own setting (`auto` or `providerId|model`) when that names one of
+  /// SubMac's chat models, else `submac`. A BYOK setting (`byok-…|model`) is resolved first by [pick]; here any other
+  /// provider id falls back to `submac`.
   static String modelFor(String? setting) {
     final s = (setting ?? '').trim();
     if (s.isEmpty || s == 'auto') return Cloud.submac;
@@ -58,10 +60,28 @@ class OcLane {
 
   /// The prompt's `model` for one turn. [background]: nobody is watching (a bot's wake, office or team work).
   /// [officeWork]: that background work is office/team work. [botModel]: the bot's model setting, null for the owner.
-  static Map<String, String> pick({required bool background, bool officeWork = false, String? botModel}) => {
-        'providerID': background ? (officeWork ? office : bot) : fg,
-        'modelID': botModel == null ? Cloud.submac : modelFor(botModel),
-      };
+  ///
+  /// BYOK (owner 2026-11-03, docs/byok.md): the owner's chats use the model chosen in Settings → Models
+  /// ([userModel], default the saved choice), a bot uses its own setting; when either names a usable model of the
+  /// user's own providers, the turn goes to that provider and model directly (`byok-…`), whatever the lane: lanes only
+  /// decide SubMac billing, and a BYOK call is never billed by SubMac. Anything unusable falls back to SubMac.
+  static Map<String, String> pick({required bool background, bool officeWork = false, String? botModel, String? userModel}) {
+    final own = byokFor(botModel ?? userModel ?? ByokStore.I.chatModel);
+    if (own != null) return own;
+    return {
+      'providerID': background ? (officeWork ? office : bot) : fg,
+      'modelID': botModel == null ? Cloud.submac : modelFor(botModel),
+    };
+  }
+
+  /// The prompt `model` of a BYOK setting, or null when it does not name a usable model of the user's providers.
+  static Map<String, String>? byokFor(String? setting, {ByokStore? store}) {
+    final pick = (store ?? ByokStore.I).resolve(setting);
+    return pick == null ? null : {'providerID': pick.provider.id, 'modelID': pick.model.id};
+  }
+
+  /// A turn on one of the user's own providers (not billed by SubMac, not stopped by the bots' share).
+  static bool isByok(Map<String, String>? model) => model != null && (model['providerID'] ?? '').startsWith(ByokProvider.prefix);
 
   static bool isBackground(Map<String, String>? model) => model != null && bgSources.containsKey(model['providerID']);
 
@@ -76,9 +96,12 @@ class OcLane {
 ///  - `paused`: ai-chat refused it for the bots' share (opencode would retry the 429 until the turn timed out).
 ///  - `budget`: the bot's own daily token budget ran out mid-turn ([budgetLeft] tokens were left when it started).
 class OcBgGuard {
-  OcBgGuard({required this.background, this.budgetLeft});
+  OcBgGuard({required this.background, this.budgetLeft, this.byok = false});
   final bool background;
   final int? budgetLeft;
+
+  /// The turn runs on the user's own provider (BYOK, owner 2026-11-03): SubMac's bots' share does not apply to it.
+  final bool byok;
 
   static const paused = 'paused', budget = 'budget';
 
@@ -91,7 +114,7 @@ class OcBgGuard {
 
   String? check(OpenCodeTurn t) {
     if (!background) return null;
-    if (OcLane.isPausedText(t.retry) || OcLane.isPausedText(t.error)) return paused;
+    if (!byok && (OcLane.isPausedText(t.retry) || OcLane.isPausedText(t.error))) return paused;
     final left = budgetLeft;
     if (left != null && t.tokens > 0 && t.tokens >= left) return budget;
     return null;

@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
+import 'byok.dart';
+import 'byok_opencode.dart';
 import 'cloud.dart';
 import 'oc_lanes.dart';
 import 'submac_gateway.dart';
@@ -45,23 +47,68 @@ class OpenCodeEngine {
   Map<String, String> get _auth => {'Authorization': 'Basic ${base64Encode(utf8.encode('opencode:$_pass'))}'};
   Uri _u(String path) => Uri.parse('http://127.0.0.1:$_port$path');
 
-  /// Starts the engine (once) and keeps the event stream open.
-  Future<void> ensure() async {
+  /// Whether any opencode turn is running now (set by the app). The engine is only restarted for new BYOK settings
+  /// while this is false, since a restart would cut a running turn off.
+  bool Function()? busy;
+
+  /// The BYOK setup the running engine was started with (owner 2026-11-03, docs/byok.md): its fingerprint and the
+  /// provider ids it knows.
+  String _byokSig = '';
+  Set<String> _byokIds = const {};
+
+  /// Starts the engine (once) and keeps the event stream open. When the user's own providers, models or active keys
+  /// changed since the engine started, it is restarted (between turns only): opencode reads its config at start.
+  ///
+  /// [turn]: the caller is about to run a turn. It is counted from the moment the engine is known to stay up (in the
+  /// same synchronous step as the restart check), so a second turn starting at the same time can never restart the
+  /// engine under it. Every `ensure(turn: true)` that returns must be paired with one [endTurn].
+  Future<void> ensure({bool turn = false}) async {
     if (_port != 0) {
       final st = await _ch.invokeMethod('ocStatus');
       if (st is Map && st['running'] == true) {
-        await _pushToken();
-        if (_sse == null) await _listen();
-        return;
+        final stale = ByokOpencode.signatureOf(ByokStore.I) != _byokSig;
+        if (!shouldRestart(stale: stale, turnsInFlight: _turns, appBusy: busy?.call() ?? false)) {
+          if (turn) _turns++;
+          try {
+            await _pushToken();
+            if (_sse == null) await _listen();
+          } catch (e) {
+            if (turn) _turns--;
+            rethrow;
+          }
+          return;
+        }
       }
       _port = 0;
     }
     await (_starting ??= _start().whenComplete(() => _starting = null));
+    if (turn) _turns++;
   }
+
+  /// Turns running on the engine now (owner chats, bot chats, team members, office jobs), each in its own session.
+  /// opencode's server runs sessions side by side; SubMac only has to keep from restarting the engine or re-adding
+  /// its MCP server under a turn that is working (bots team audit 2026-11-04: nothing here allows only one turn).
+  int _turns = 0;
+  int get turnsInFlight => _turns;
+
+  /// One turn started with `ensure(turn: true)` ended.
+  void endTurn() {
+    if (_turns > 0) _turns--;
+  }
+
+  /// Restart for new BYOK settings only when no turn is working (a restart would cut every running session off).
+  static bool shouldRestart({required bool stale, required int turnsInFlight, required bool appBusy}) =>
+      stale && turnsInFlight == 0 && !appBusy;
+
+  /// SubMac's MCP server may be re-added (to refresh its tool list) only when the caller's own turn is the only one:
+  /// re-adding replaces opencode's MCP client, which would cut a call another turn has in flight.
+  static bool mayResync(int turnsInFlight) => turnsInFlight <= 1;
 
   Future<void> _start() async {
     final r = Random.secure();
     _pass = List.generate(32, (_) => r.nextInt(16).toRadixString(16)).join();
+    final byok = ByokOpencode.providersOf(ByokStore.I);
+    final byokSig = ByokOpencode.signatureOf(ByokStore.I);
     // An engine started elsewhere (the opencode test screen) has another password: start our own.
     await _ch.invokeMethod('ocStop');
     await _pushToken();
@@ -75,12 +122,18 @@ class OpenCodeEngine {
       // One provider per allowance lane, each on its own proxy path (owner 2026-11-03, see OcLane).
       'providers': OcLane.providers(),
       'models': OcLane.models,
+      // The user's own providers (BYOK, owner 2026-11-03): opencode provider entries as JSON, and their active keys,
+      // which go only into the engine's environment (the config names them as {env:…}), never into a file.
+      'byokProviders': jsonEncode(byok),
+      'byokEnv': ByokOpencode.envOf(ByokStore.I),
     });
     final m = res is Map ? res : const {};
     if (m['ok'] != true) {
       throw OpenCodeError('The engine did not start: ${m['error'] ?? 'no answer in 60 s'}\n${m['log'] ?? ''}'.trim());
     }
     _port = (m['port'] as num).toInt();
+    _byokSig = byokSig;
+    _byokIds = byok.keys.toSet();
     await _sse?.cancel();
     _sse = null;
     await _listen();
@@ -131,6 +184,9 @@ class OpenCodeEngine {
     final s = mcp;
     if (s == null || _port == 0) return;
     if (_sigOf(s) == _mcpSig) return;
+    // Other turns are working side by side: the new tool list waits for a turn that runs alone. The gateway still
+    // finds and runs every current SubMac tool (find_tools / run_tool read the live list), so nothing is cut off.
+    if (!mayResync(_turns)) return;
     await _addMcp();
   }
 
@@ -243,6 +299,12 @@ class OpenCodeEngine {
   /// for this turn (SubMac's name only; see SubMacStyle). [model] is the turn's provider and model (OcLane.pick): the
   /// provider decides the allowance lane its model calls bill to (owner 2026-11-03).
   Future<void> prompt(String session, List<Map<String, dynamic>> parts, {String? system, Map<String, String>? model}) async {
+    // A BYOK model added while another task kept the engine busy is not in the running engine yet: say so plainly
+    // instead of opencode's "model not found".
+    final pid = model?['providerID'] ?? '';
+    if (pid.startsWith(ByokProvider.prefix) && !_byokIds.contains(pid)) {
+      throw OpenCodeError('Your new model settings apply as soon as the task that is running now finishes.');
+    }
     await _pushToken();
     final r = await _client.post(_u('/session/$session/prompt_async'),
         headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode(promptBody(parts, system: system, model: model)));
@@ -405,7 +467,9 @@ class OpenCodeTurn {
         }
         return false;
       case 'session.error':
-        if (props['sessionID'] != null && props['sessionID'] != session) return false;
+        // Only this turn's own session. An error naming no session is no turn's error: it used to end every turn
+        // running at that moment (the owner's chat and each bot's), which is a leak between chats.
+        if (props['sessionID'] != session) return false;
         final err = props['error'];
         if (err is Map && err['name'] == 'MessageAbortedError') return false;
         error = err is Map ? '${(err['data'] as Map?)?['message'] ?? err['name'] ?? err}' : '$err';

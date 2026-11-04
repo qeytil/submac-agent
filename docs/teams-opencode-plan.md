@@ -44,3 +44,37 @@ T1 member turns on opencode (1) · T2 team_assign + shared folder (2, 3) · T3 t
 - An early idle event could end a turn before it started; a busy event now resets it.
 - Stopping a team now also clears the members' waiting approval cards on opencode.
 - Design guard and a stale narration test fixed (composer pill and thinking block).
+
+## Team audit (2026-11-04, owner: team output only in the team chat, no leaks, no limits on bots working)
+
+Causes found:
+- Office jobs (a member answering the owner in the team chat, board tasks, reviews, the lead's rounds, digests,
+  mentions) ran as a wake inside the bot's private chat (`startBackgroundTask(reuseConvId: b.convId)`), in the same
+  opencode session as its 1:1 conversation. Every team reply, its steps and its result showed in both chats, the team's
+  prompt sat in the private session's context, and the private chat's history leaked into team work.
+- Team turns asked (permission and question cards), ran tools, browser jobs and screen steps as the member's private
+  chat (`convId: home`); a member with no chat fell back to the "SubMac team" chat. Unwaited browser results were posted
+  into the private chat. A team's "stop" stopped every run in its members' private chats.
+- The bot's private brief read its journal's team lines ("Team part for …", "Led …").
+- A `session.error` with no session id ended every opencode turn running at that moment.
+- A SubMac call with no route went to "the only turn running", also when it came from a session no turn owned (a
+  stopped turn finishing a step); with several turns, the arguments fallback could take another turn's entry.
+- Caps: `TeamRun.parallel` (2 members at once), leftover parts run one by one, `_officeParallel` (2 office jobs at once),
+  one office job per bot, office work waiting while the owner talks to the bot, the team daily work limit, 6 mentions
+  an hour, wakes put off while the bot did office work. `syncMcp` re-added SubMac's MCP server while other turns had
+  calls in flight; a BYOK restart could race a second turn starting.
+
+Fixes:
+- Team work runs under its own route key (`TeamKey`: `team:<office>[~job]:<bot>`), in a fresh opencode session, and
+  acts as the bot through `Bots.byConv(key)`. Office jobs are `teamTurn`s now; their result is posted to the team chat
+  only. Office tools are offered only under a team key.
+- Team asks: permissions become the team's approval card (team chat line, approvals inbox, notification); questions
+  are skipped. Team browser jobs run unattended and report only to their turn. Stop expires the team's cards and never
+  touches private chats.
+- Team journal lines carry `team: true` and stay out of the private brief.
+- `OpenCodeTurn` ignores errors of no session; orphan sessions' calls are refused (`McpRoutes.watchOrphans`); the
+  arguments fallback is used only while one turn runs.
+- No caps: every hand-off and leftover part starts at once, every ready office job starts at once (a bot may do several),
+  no daily work limit, no hourly mention cap. Kept: the bots' share (background lane), each bot's token budget, the
+  "a mention can't wake others" loop guard, one job per team at a time, one run per chat.
+- Engine: turns are counted (`ensure(turn: true)` / `endTurn()`); no restart and no MCP re-add while other turns work.

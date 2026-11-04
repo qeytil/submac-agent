@@ -104,25 +104,29 @@ void main() {
     expect(o.posts.where((p) => p.from == 'trn' || p.from == 'tra'), isEmpty);
   });
 
-  test('after Go: hand-offs, each member reports in turn (and can build on a teammate), then one answer', () async {
+  test('after Go: hand-offs, the members work side by side and each reports, then one answer', () async {
+    // No cap and no queue (owner 2026-11-04): parts the lead did not hand off one by one all start at once.
     withQuestions = true;
     final o = team();
     TeamRun.I.send(o, 'Find the three cheapest coffee suppliers in Hargeisa');
     await TeamRun.I.work;
     expect(TeamRun.I.approve(o), isTrue);
     await TeamRun.I.work;
-    expect(calls, ['floor', 'plan', 'part:Nova', 'part:Amal', 'combine']);
+    expect(calls.take(2), ['floor', 'plan']);
+    expect(calls.skip(2).take(2).toSet(), {'part:Nova', 'part:Amal'});
+    expect(calls.last, 'combine');
     final said = [for (final p in o.posts) '${p.from}: ${p.text}'];
     final iNova = said.indexWhere((s) => s.startsWith('trl: Nova, could you please take this part'));
     final iNovaDone = said.indexWhere((s) => s.startsWith('trn: Hodan, my part is done'));
     final iAmal = said.indexWhere((s) => s.startsWith('trl: Amal, could you please take this part'));
-    final iAmalDone = said.indexWhere((s) => s.startsWith('tra: Hodan, my part is done. I used Nova'));
+    final iAmalDone = said.indexWhere((s) => s.startsWith('tra: Hodan, my part is done'));
     expect([iNova, iNovaDone, iAmal, iAmalDone].every((i) => i >= 0), isTrue, reason: said.join('\n'));
-    expect(iNova < iNovaDone && iNovaDone < iAmal && iAmal < iAmalDone, isTrue);
+    expect(iNova < iNovaDone && iAmal < iAmalDone, isTrue);
+    expect(iAmal < iNovaDone, isTrue, reason: 'Amal started before Nova finished: side by side, not in turn');
     final answer = o.posts.last;
     expect(answer.kind, 'answer');
     expect(answer.text, 'Here are the three cheapest suppliers.');
-    expect(answer.parts.map((x) => x.from), ['trn', 'tra']);
+    expect(answer.parts.map((x) => x.from).toSet(), {'trn', 'tra'});
     expect(o.posts.firstWhere((p) => p.from == 'trn').parts.single.text, 'Full result from Nova.');
     expect(TeamRun.I.running, isEmpty);
   });

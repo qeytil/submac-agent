@@ -102,12 +102,15 @@ void main() {
     final oc = File('android_native/OpenCode.kt').readAsStringSync();
     final engine = File('lib/services/opencode.dart').readAsStringSync();
 
-    test('chat turns pick their lane from the bot-wake rules; team turns are always background office work', () {
+    test('chat turns pick their lane from the bot-wake rules; team turns are background office work (an owner\'s reply in the team chat is foreground)', () {
       expect(runner, contains('final bg = _backgroundLane(convId);'));
       expect(runner, contains('model: laneModel'));
       expect(RegExp(r'oc\.prompt\(').allMatches(runner).length, 2);
       expect(RegExp(r'oc\.prompt\([^;]*model: laneModel').allMatches(runner).length, 2, reason: 'every prompt names its lane');
-      expect(runner, contains('OcLane.pick(background: true, officeWork: true, botModel: b.model)'));
+      expect(runner, contains('OcLane.pick(background: background, officeWork: true, botModel: b.model)'));
+      expect(runner, contains('bool background = true,'), reason: 'team work is background unless the caller says otherwise');
+      // Office jobs: only answering the owner's own message in the team chat is foreground (owner 2026-11-03).
+      expect(File('lib/state/bots_controller.dart').readAsStringSync(), contains("background: j.kind != 'reply',"));
       expect(runner, contains('Cloud.background.value.pausedNow'));
       expect(runner, contains('Cloud.markBackgroundPaused()'));
     });
