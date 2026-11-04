@@ -78,3 +78,20 @@ Fixes:
   no daily work limit, no hourly mention cap. Kept: the bots' share (background lane), each bot's token budget, the
   "a mention can't wake others" loop guard, one job per team at a time, one run per chat.
 - Engine: turns are counted (`ensure(turn: true)` / `endTurn()`); no restart and no MCP re-add while other turns work.
+
+## Team chat status and error lines (owner 2026-11-04, 1.13.121)
+
+"When a bot is working and typing, it should say one state line with the bot name; for an error or issue, the name of
+the bot with the error type in a small line."
+
+- `TeamStatus` (lib/services/team_status.dart) tracks team turns by `TeamKey` only (a private chat key is ignored).
+  `teamTurn` calls `begin` / `phase` / `end`: "Nova is working…" while the turn thinks or runs steps, "Nova is typing…"
+  while its reply text streams; the line goes when the turn ends and its message lands. One line per bot (several bots
+  at once: one line each; one bot with two turns: one line, typing wins).
+- A failed turn leaves one small line "Nova · rate limit" (types: rate limit, out of budget, allowance used, out of
+  credit, key error, provider error, timed out, no connection, tool failed, no reply, error), mapped in one helper
+  `TeamStatus.typeOf`. Tap shows the detail. It stays until the bot starts its next work in that team.
+- Gone: the "<bot> hit a problem: <raw error>" system posts, the "<bot> used today's token budget" post, and a failed
+  member part's "I could not finish my part" bubble. Kept: team-level notices (paused until tomorrow, stopped trying
+  after 4 tries, the team could not finish).
+- Shown only by `TeamLiveLines` in the team chat (offices_screen); no other screen or widget reads `TeamStatus`.

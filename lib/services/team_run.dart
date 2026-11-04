@@ -15,6 +15,7 @@ import 'offices.dart';
 import 'quick_lane.dart';
 import 'system_bridge.dart';
 import 'team_key.dart';
+import 'team_status.dart';
 import 'tool_output_clean.dart';
 
 /// A team is a group chat, the Grok way (docs.x.ai/grok-bot/chat-and-collaboration; owner 2026-10-24, team intelligence):
@@ -705,6 +706,9 @@ class TeamRun extends ChangeNotifier {
       // CB-19: a part cut short by the owner's stop posts nothing (it used to say "I could not finish my part").
       if (_stopped.contains(o.id)) return 'Stopped by the owner.';
       done.add((bot: b, text: r.result));
+      // A part that failed posts no "could not finish" bubble: the team chat shows one small line instead
+      // ("Nova · rate limit", owner 2026-11-04), and the lead still hears about it.
+      if (r.note == BotManner.partFailed(lang: plan.lang) && r.result == r.note) return r.result;
       final post = Offices.I.post(o, b.id, r.note);
       post.parts.add((from: b.id, text: r.result));
       Offices.I.saveSoon();
@@ -735,8 +739,9 @@ class TeamRun extends ChangeNotifier {
             return doPart(p.bot, a.trim().isEmpty ? p.ask : a.trim());
           }))
               .trim();
-        } catch (_) {
+        } catch (e) {
           leadAnswer = '';
+          if (!_stopped.contains(o.id)) TeamStatus.I.failBot(o.id, lead.id, e);
         }
       } else if (llm != null && offs.isNotEmpty) {
         final sys = '${promptOf(lead)}\n\n${BotManner.lead}\n\n# Lead the work\nYou lead the team "${o.name}". The owner approved this plan '
@@ -827,6 +832,7 @@ class TeamRun extends ChangeNotifier {
       if (oc != null) {
         final raw = (await oc(b, TeamKey.of(o.id, b.id, job: TeamKey.job()), sys + _folderNote(o), part, stopped: () => _stopped.contains(o.id))).trim();
         b.log('work', 'Team part for ${o.name}: ${_short(part, 60)}', team: true);
+        if (raw.isEmpty && !_stopped.contains(o.id)) TeamStatus.I.flag(o.id, b.id, TeamStatus.noReply);
         return splitReport(raw, lang: plan.lang);
       }
       final tools = toolsFor?.call(b) ?? const <Map<String, dynamic>>[];
@@ -837,6 +843,8 @@ class TeamRun extends ChangeNotifier {
       b.log('work', 'Team part for ${o.name}: ${_short(part, 60)}', team: true);
       return splitReport(raw, lang: plan.lang);
     } catch (e) {
+      // The team chat's small line for it ("Nova · timed out"); a stop by the owner is no failure.
+      if (!_stopped.contains(o.id)) TeamStatus.I.failBot(o.id, b.id, e);
       final f = BotManner.partFailed(lang: plan.lang);
       return (note: f, result: f);
     }

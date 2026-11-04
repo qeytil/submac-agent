@@ -771,9 +771,10 @@ extension AppStateBots on AppState {
         final tomorrow = DateTime(now.year, now.month, now.day + 1, 0, 5);
         if (!b.journal.any((e) => e.kind == 'budget' && now.difference(e.at).inHours < 20)) {
           b.log('budget', 'Paused team work: today\'s budget is used up');
-          Offices.I.post(o, 'system', '${b.name} used today\'s token budget, so their work continues tomorrow. You can raise it in their settings.',
-              kind: 'system');
         }
+        // One small line in the team chat ("Nova · out of budget"), not a message (owner 2026-11-04).
+        TeamStatus.I.flag(o.id, b.id, TeamStatus.outOfBudget,
+            detail: '${b.name} used today\'s token budget, so their work continues tomorrow. You can raise it in their settings.');
         Offices.I.enqueue(OfficeJob(officeId: o.id, botId: b.id, kind: j.kind, taskId: j.taskId, instruction: j.instruction, at: j.at, after: tomorrow));
         return;
       }
@@ -828,9 +829,7 @@ extension AppStateBots on AppState {
       } catch (e) {
         failure = AppState.failureOf('$e');
         if (failure == 'other') failure = '';
-        if (failure.isEmpty && !Offices.I.stoppedSince(o.id, startedAt)) {
-          Offices.I.post(o, 'system', '${b.name} hit a problem: $e', kind: 'system');
-        }
+        // The team chat shows it as one small line ("Nova · rate limit", set by teamTurn), never the raw error text.
         finished = false;
       }
       // A failure that is not the bot's fault never burns a try: the work waits and runs again by itself.
@@ -913,7 +912,8 @@ extension AppStateBots on AppState {
           if (j.kind == 'task') tt.attempts = (tt.attempts - 1).clamp(0, 99).toInt();
         }
       }
-      Offices.I.post(o, 'system', '${b.name} hit a problem: $e', kind: 'system');
+      // One small line in the team chat ("Nova · no connection"), never the raw error text.
+      if (!Offices.I.stoppedSince(o.id, startedAt)) TeamStatus.I.failBot(o.id, b.id, e);
     } finally {
       _officeJobs.remove(key);
       Offices.I.saveSoon();
@@ -1121,27 +1121,23 @@ extension AppStateBots on AppState {
     return null;
   }
 
-  /// Who is working in an office right now ("Nova: Competitor prices").
-  /// Live lines for a team chat: who is working right now and on which step ("Nova · Searching the web · 0:42"),
-  /// then who has a message from the owner waiting ("Idil read your message"). Never tool names.
-  List<({Bot bot, String text, DateTime? since})> officeActivity(String officeId) {
-    final out = <({Bot bot, String text, DateTime? since})>[];
-    final seen = <String>{};
+  /// The team chat's live rows (owner 2026-11-04): one small line per bot, "Nova is working…" while its turn thinks or
+  /// runs steps and "Nova is typing…" while its reply streams (gone when its message lands); who has a message from the
+  /// owner waiting ("Idil · Read your message"); and a bot whose work failed as "Nova · rate limit". Never tool names,
+  /// never raw error text. Team chat only: a bot's private chat never shows these.
+  List<TeamStatusLine> officeActivity(String officeId) {
+    final busy = <String, DateTime>{};
     for (final j in _officeJobs.values) {
       if (j.officeId != officeId) continue;
-      final b = Bots.I.byId(j.botId);
-      if (b == null) continue;
-      seen.add(j.botId);
-      out.add((bot: b, text: j.status, since: j.started));
+      final had = busy[j.botId];
+      if (had == null || j.started.isBefore(had)) busy[j.botId] = j.started;
     }
+    final waiting = <String, String>{};
     for (final j in Offices.I.queue) {
-      if (j.officeId != officeId || j.kind != 'reply' || seen.contains(j.botId)) continue;
-      final b = Bots.I.byId(j.botId);
-      if (b == null) continue;
-      seen.add(j.botId);
-      out.add((bot: b, text: j.ready ? 'Read your message' : 'Will reply soon', since: null));
+      if (j.officeId != officeId || j.kind != 'reply' || waiting.containsKey(j.botId)) continue;
+      waiting[j.botId] = j.ready ? 'Read your message' : 'Will reply soon';
     }
-    return out;
+    return TeamStatus.I.linesFor(officeId, bot: Bots.I.byId, busy: busy, waiting: waiting);
   }
 
   List<String> officeWorking(String officeId) {

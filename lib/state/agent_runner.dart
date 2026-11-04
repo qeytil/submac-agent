@@ -512,6 +512,34 @@ extension AppStateAgentRunner on AppState {
       String? office,
       String? officeJob,
       void Function(String line)? onStatus}) async {
+    // The team chat's live line for this bot ("Nova is working…" / "Nova is typing…") while the turn runs, and its
+    // small issue line ("Nova · rate limit") when it fails (owner 2026-11-04). Team keys only: never a private chat.
+    TeamStatus.I.begin(key);
+    try {
+      return await _teamTurn(b, key, system, task,
+          stopped: stopped,
+          assign: assign,
+          maxSteps: maxSteps,
+          background: background,
+          office: office,
+          officeJob: officeJob,
+          onStatus: onStatus);
+    } catch (e) {
+      TeamStatus.I.fail(key, e);
+      rethrow;
+    } finally {
+      TeamStatus.I.end(key);
+    }
+  }
+
+  Future<String> _teamTurn(Bot b, String key, String system, String task,
+      {bool Function()? stopped,
+      Future<String> Function(String member, String ask)? assign,
+      int maxSteps = 40,
+      bool background = true,
+      String? office,
+      String? officeJob,
+      void Function(String line)? onStatus}) async {
     final oc = OpenCodeEngine.I;
     _ocWire(oc);
     // Team work nobody is watching bills to the bots' share (owner 2026-11-03, see OcLane): when the share is used
@@ -550,8 +578,10 @@ extension AppStateAgentRunner on AppState {
       _ocFamilies[key] = family;
       sub = oc.events.listen((e) {
         _routes.watch(e, key, family);
-        if (turn.apply(e) && onStatus != null) {
-          final last = turn.parts.values.isEmpty ? null : turn.parts.values.last;
+        if (!turn.apply(e)) return;
+        final last = turn.parts.values.isEmpty ? null : turn.parts.values.last;
+        TeamStatus.I.phase(key, TeamStatus.phaseOf(lastKind: last?.kind, lastFinished: last?.finished ?? true, reasoning: turn.reasoning));
+        if (onStatus != null) {
           if (last != null && last.kind == 'tool' && !last.finished) {
             onStatus(last.title ?? stepLabel(last.tool.replaceFirst('submac_', ''), last.input));
           } else if (turn.reasoning) {
@@ -618,6 +648,8 @@ extension AppStateAgentRunner on AppState {
     }
     final turn = turnRef.first;
     if (why == OcBgGuard.paused) throw OpenCodeError(turn.error ?? '${AppState.bgPausedText}.');
+    // Stopped mid-turn by the bot's own daily budget: it keeps what it wrote, and the team chat says why it stopped.
+    if (why == OcBgGuard.budget) TeamStatus.I.fail(key, '${b.name} used today\'s token budget. You can raise it in their settings.');
     if (aborted) return '';
     if (turn.error != null && OcLane.isByok(laneModel)) await ByokStore.I.rotateAfter(laneModel['providerID']!, turn.error);
     if (turn.error != null && turn.answer.isEmpty) throw OpenCodeError(turn.error!);
