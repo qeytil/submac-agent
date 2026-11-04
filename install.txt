@@ -1,0 +1,5 @@
+Performing Streamed Install
+Success
+    primaryCpuAbi=x86_64
+    versionCode=187 minSdk=24 targetSdk=34
+    versionName=1.13.117

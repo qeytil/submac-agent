@@ -1,0 +1,1 @@
+    topResumedActivity=ActivityRecord{b6d301d u0 com.submac.agent/.MainActivity t8}
