@@ -1,0 +1,106 @@
+name: Emulator smoke (screenshots)
+
+# Installs a published SubMac APK on an Android emulator, launches it, and captures screenshots,
+# a filtered logcat and a uiautomator dump. Output goes to a release `emu-<run_number>` (always) and an
+# artifact (best effort: this account's artifact quota has been full before, see apk.yml).
+# Runs on push to ci/emu, or: gh workflow run emulator.yml -f apk_tag=apk-1.13.117-187-opencode
+
+on:
+  push:
+    branches: [ci/emu]
+  workflow_dispatch:
+    inputs:
+      apk_tag:
+        description: 'Release tag holding the APK'
+        default: apk-1.13.117-187-opencode
+      flow:
+        description: 'Run ci/emu_flow.sh after the launch screenshots'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: emu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  emu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      APK_TAG: ${{ inputs.apk_tag || 'apk-1.13.117-187-opencode' }}
+      PKG: com.submac.agent
+      OUT: ${{ github.workspace }}/emu-out
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Download APK and pick the emulator ABI
+        id: apk
+        run: |
+          mkdir -p "$OUT" apk
+          gh release download "$APK_TAG" -R "$GITHUB_REPOSITORY" -p '*.apk' -D apk
+          APK=$(ls apk/*.apk | head -1); echo "apk=$APK" >> "$GITHUB_OUTPUT"
+          unzip -l "$APK" | awk '{print $4}' | grep '^lib/' | tee "$OUT/apk_libs.txt"
+          ABIS=$(cut -d/ -f2 "$OUT/apk_libs.txt" | sort -u | tr '\n' ' '); echo "ABIs in APK: $ABIS" | tee "$OUT/abi.txt"
+          if grep -q '^lib/x86_64/libflutter.so' "$OUT/apk_libs.txt"; then
+            echo "arch=x86_64" >> "$GITHUB_OUTPUT"; echo "api=34" >> "$GITHUB_OUTPUT"
+            echo "Using x86_64 API 34 (APK has x86_64 libflutter). arm64-only libs (opencode) will NOT be extracted on this ABI." | tee -a "$OUT/abi.txt"
+          else
+            # arm64-only APK: google_apis x86_64 images API 30+ translate arm64 (libndk_translation).
+            echo "arch=x86_64" >> "$GITHUB_OUTPUT"; echo "api=30" >> "$GITHUB_OUTPUT"
+            echo "APK has no x86_64 libflutter: x86_64 API 30 with ARM translation." | tee -a "$OUT/abi.txt"
+          fi
+
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ steps.apk.outputs.api }}-${{ steps.apk.outputs.arch }}-gapis-v1
+
+      - name: Run on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          APK: ${{ steps.apk.outputs.apk }}
+          RUN_FLOW: ${{ (inputs.flow == false) && '0' || '1' }}
+        with:
+          api-level: ${{ steps.apk.outputs.api }}
+          arch: ${{ steps.apk.outputs.arch }}
+          target: google_apis
+          ram-size: 4096M
+          disk-size: 8G
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
+          disable-animations: true
+          script: bash ci/emu_run.sh
+
+      - name: Publish results to release emu-${{ github.run_number }}
+        if: always()
+        run: |
+          ls -l "$OUT" || exit 0
+          TAG="emu-${{ github.run_number }}"
+          (cd "$OUT" && tar czf ../emu-out.tgz .)
+          gh release create "$TAG" --prerelease --target "$GITHUB_SHA" --title "Emulator run ${{ github.run_number }} ($APK_TAG)" \
+            --notes "Emulator smoke of $APK_TAG. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" || true
+          gh release upload "$TAG" "$OUT"/* emu-out.tgz --clobber
+
+      - name: Upload artifact (best effort)
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: emu-${{ github.run_number }}
+          path: emu-out
+          retention-days: 7
