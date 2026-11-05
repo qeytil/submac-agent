@@ -277,6 +277,51 @@ class SystemBridge {
   /// [reply] adds a Reply field right in the notification.
   Future<void> notifyBot({required int id, required String name, required String body, required String payload, bool reply = false}) =>
       _call('notifyBot', {'id': id, 'name': name, 'body': body, 'payload': payload, 'reply': reply});
+  /// A result or message from the agent ([channel] NotifChannels.agent: "SubMac", red) or a bot (NotifChannels.bots:
+  /// its name, a round face of [initial] on [color]). [body] is already the short summary (NotifText). [reply] adds
+  /// an inline Reply that works with SubMac closed; [high] pops up (it needs the owner).
+  Future<void> notifyFrom(
+          {required int id,
+          required String channel,
+          required String title,
+          required String body,
+          required String payload,
+          bool reply = false,
+          String initial = '',
+          int color = 0,
+          bool high = false}) =>
+      _call('notifyFrom', {
+        'id': id,
+        'channel': channel,
+        'title': title,
+        'body': body,
+        'payload': payload,
+        'reply': reply,
+        'initial': initial,
+        'color': color,
+        'high': high,
+      });
+  /// A team chat post: titled with the team's name, "<Bot>: message" in one conversation per team, inline Reply.
+  /// [needs]: a "[needs you]" post (pops up).
+  Future<void> notifyTeam(
+          {required int id,
+          required String teamId,
+          required String team,
+          required String sender,
+          required String text,
+          String initial = '',
+          int color = 0,
+          bool needs = false}) =>
+      _call('notifyTeam', {
+        'id': id,
+        'team': teamId,
+        'name': team,
+        'sender': sender,
+        'text': text,
+        'initial': initial,
+        'color': color,
+        'needs': needs,
+      });
   /// A bot asks before doing something risky: Approve / Deny right in the notification.
   Future<void> notifyApproval({required int id, required String approvalId, required String name, required String title, String body = ''}) =>
       _call('notifyApproval', {'id': id, 'approval': approvalId, 'name': name, 'title': title, 'body': body});

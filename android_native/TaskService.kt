@@ -22,7 +22,7 @@ class TaskService : Service() {
         private const val NOTE_ID = 7201
         /** The longest a single hold lasts; every new start or update renews it. */
         private const val HOLD_MS = 30L * 60L * 1000L
-        @Volatile var text = "Working on your task"
+        @Volatile var text = "SubMac · Working"
         @Volatile private var running = false
 
         fun start(ctx: Context, line: String) {
@@ -57,11 +57,16 @@ class TaskService : Service() {
 
     private fun note(): Notification {
         Notifier.ensureChannels(this)
-        return Notifier.builder(this, Notifier.WAKE)
-            .setSmallIcon(R.drawable.ic_stat_submac).setColor(0xFF17150F.toInt())
-            .setContentTitle(text)
+        // Background work channel (silent, low): who works and on what, "Nova · Hourly news" (2026-11-05). The
+        // result comes as its own notification when the work ends.
+        return Notifier.builder(this, Notifier.WORK)
+            .setSmallIcon(R.drawable.ic_stat_submac)
             .setColor(0xFF17150F.toInt())
+            .setContentTitle(text)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setCategory(Notification.CATEGORY_PROGRESS)
             .setContentIntent(Notifier.openIntent(this, "tasks", 7202))
             .build()
     }
@@ -143,9 +148,11 @@ class AlarmReceiver : BroadcastReceiver() {
         val replyTo = intent.getStringExtra("reply_to")
         if (replyTo != null) {
             val text = android.app.RemoteInput.getResultsFromIntent(intent)?.getCharSequence("reply_text")?.toString()?.trim() ?: ""
-            Notifier.replied(ctx, intent.getIntExtra("note", 0), intent.getStringExtra("name") ?: "SubMac")
+            val name = intent.getStringExtra("name") ?: "SubMac"
+            Notifier.replied(ctx, intent.getIntExtra("note", 0), name, text, replyTo)
             if (text.isNotEmpty()) {
-                TaskService.start(ctx, "Sending your reply")
+                // The app may be closed: the foreground service and its wake lock carry the answer (headless engine).
+                TaskService.start(ctx, "$name · Your reply")
                 SubMacApp.engine(ctx)
                 Bridge.send("notifReply", mapOf("to" to replyTo, "text" to text))
             }
@@ -154,7 +161,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val id = intent.getStringExtra("id") ?: return
         // The line Dart gave when it set the alarm ("<Bot name> · <task title>"); Dart updates it once it runs.
         val label = intent.getStringExtra("label") ?: ""
-        TaskService.start(ctx, if (label.isEmpty()) "Running a scheduled task" else label)
+        TaskService.start(ctx, if (label.isEmpty()) "SubMac · Getting ready" else label)
         SubMacApp.engine(ctx)
         Bridge.send("alarm", id)
     }

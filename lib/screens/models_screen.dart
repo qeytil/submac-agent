@@ -46,6 +46,13 @@ class ModelsScreen extends StatelessWidget {
                   },
                 ),
               ]),
+              // Bots choose their model in their own profile (owner 2026-11-05), not here.
+              Padding(
+                key: const ValueKey('bots-model-note'),
+                padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x2),
+                child: Text(tr("Each bot picks its own model in its profile. Bots left on Default use your chats' model."),
+                    style: AppText.microStyle.copyWith(color: p.muted)),
+              ),
               ByokGroup(title: 'Your providers', [
                 for (final pr in s.providers) _ProviderRow(pr, store: s),
                 ListTile(

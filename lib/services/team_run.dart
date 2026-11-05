@@ -256,7 +256,7 @@ class TeamRun extends ChangeNotifier {
   Future<void> _hold(Office o) async {
     _awake++;
     try {
-      await (keepAlive ?? SystemBridge.I.keepAlive)(true, text: '${o.name} is at work');
+      await (keepAlive ?? SystemBridge.I.keepAlive)(true, text: '${o.name} · Team work');
     } catch (_) {}
   }
 

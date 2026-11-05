@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../services/bot_powers.dart';
 import '../services/bots.dart';
+import '../services/byok.dart';
 import '../services/roles.dart';
 import '../services/trust.dart';
 import '../theme.dart';
 import '../ui/i18n.dart';
 import '../ui/tokens.dart';
+import '../widgets/model_picker.dart';
 import '../widgets/sub_avatar.dart';
 import '../widgets/surface.dart';
 import 'bot_store_screen.dart';
@@ -38,6 +40,8 @@ class _HireScreenState extends State<HireScreen> {
   final _rules = TextEditingController();
   late AvatarSpec _look;
   final Set<String> _off = {};
+  /// The bot's own model (owner 2026-11-05): `auto` is Default (same as SubMac).
+  String _model = BotModelWords.defaultValue;
   BotRole? _from;
   Bot? _described;
   bool _busy = false;
@@ -55,6 +59,7 @@ class _HireScreenState extends State<HireScreen> {
       _about.text = b.mission;
       _rules.text = b.instructions;
       _off.addAll(b.powersOff);
+      _model = b.model;
       _look = AvatarSpec.parse(b.look) ?? AvatarSpec.seeded(b.id);
     } else {
       _look = AvatarSpec.seeded('new-${DateTime.now().millisecondsSinceEpoch}');
@@ -151,7 +156,8 @@ class _HireScreenState extends State<HireScreen> {
         ..name = name
         ..role = _role.text.trim().isEmpty ? edit.role : _role.text.trim()
         ..mission = _about.text.trim()
-        ..instructions = _rules.text.trim();
+        ..instructions = _rules.text.trim()
+        ..model = _model.trim().isEmpty ? BotModelWords.defaultValue : _model.trim();
       edit.powersOff
         ..clear()
         ..addAll(_off);
@@ -187,6 +193,7 @@ class _HireScreenState extends State<HireScreen> {
     }
     b
       ..instructions = _rules.text.trim()
+      ..model = _model.trim().isEmpty ? BotModelWords.defaultValue : _model.trim()
       ..trust = BotTrust.levelNew;
     b.powersOff
       ..clear()
@@ -236,6 +243,24 @@ class _HireScreenState extends State<HireScreen> {
                   onChanged: (v) => setState(() => v ? _off.remove(g) : _off.add(g)),
                 ),
             ]),
+            const SizedBox(height: Space.x4),
+            _Label(tr('Model')),
+            ListenableBuilder(
+              listenable: ByokStore.I,
+              builder: (context, _) => SurfaceGroup(children: [
+                ListTile(
+                  key: const ValueKey('bot-edit-model'),
+                  contentPadding: const EdgeInsetsDirectional.fromSTEB(Space.x4, 0, Space.x3, 0),
+                  title: Text(botModelLabel(_model), style: AppText.bodyStyle.copyWith(color: p.text)),
+                  trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+                  onTap: () async {
+                    final v = await showModelPicker(context,
+                        current: _model, title: _name.text.trim().isEmpty ? 'Model' : 'Model for ${_name.text.trim()}', forBot: true);
+                    if (v != null && mounted) setState(() => _model = v);
+                  },
+                ),
+              ]),
+            ),
             const SizedBox(height: Space.x6),
             _PrimaryButton(
               key: const ValueKey('bot-save'),

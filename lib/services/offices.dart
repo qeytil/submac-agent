@@ -626,6 +626,10 @@ class Offices extends ChangeNotifier {
   void Function()? pump;
   /// Set by AppState: a short notification from a bot in an office (with an inline reply).
   Future<void> Function(Office o, Bot b, String text)? notify;
+
+  /// A post that needs the owner ("[needs you]", the lead's question): the team's notification pops up (high
+  /// priority, docs/notifications.md). Unset: [notify].
+  Future<void> Function(Office o, Bot b, String text)? notifyNeeds;
   /// Set by AppState: true while this bot is working right now (so it is not "quiet").
   bool Function(String botId)? isWorking;
   /// Set by AppState (CB-34): true while a member runs an office job for this office right now.
@@ -1125,7 +1129,7 @@ class Offices extends ChangeNotifier {
     if (needs) {
       final b = Bots.I.byId(from);
       final line = body.split('\n').firstWhere((l) => l.trim().isNotEmpty, orElse: () => body);
-      if (b != null) unawaited(notify?.call(o, b, line).catchError((Object _) {}));
+      if (b != null) unawaited((notifyNeeds ?? notify)?.call(o, b, line).catchError((Object _) {}));
     }
     while (o.posts.length > 400) {
       o.posts.removeAt(0);
@@ -1737,7 +1741,7 @@ class Offices extends ChangeNotifier {
         if (!isChief) return 'Error: only the Chief reaches the owner. Post to the Chief in the office chat.';
         if (s('text').isEmpty) return 'Error: say what you need.';
         post(o, b.id, s('text'), kind: 'ask');
-        await notify?.call(o, b, s('text'));
+        await (notifyNeeds ?? notify)?.call(o, b, s('text'));
         return 'The owner got your message on their phone. Carry on with other work; their answer comes as a new office message.';
       case 'docs_share':
         if (s('content').isEmpty) return 'Error: give the doc its full text in content.';

@@ -764,3 +764,17 @@ The owner asked for these while release build-51 was already running. They went 
 - **Result** (run 41213998765, commit `956c1ac`, 13m22s, every step green): `com.submac.agent` versionName 1.13.104 versionCode 174, targetSdk 34, ABIs arm64-v8a/armeabi-v7a/x86_64, v2 signature true, pinned key OK, zipalign 16 KB OK, `fail=0` strict. Release `apk-1.13.104-174`, asset `submac-1.13.104-174-release.apk` 69.7 MB, sha256 `c708742b…094b73`, downloaded back and the checksum matched.
 - **Storage sweep** (owner ask: "delete the entire artifacts in my account, do not leave anything"): artifacts were already 0 in all six repos; cleared the **7 Actions caches** instead — 9.98 GB, of which five were duplicate `flutter-linux-stable-3.47.8` entries at 1.6 GB each. Nothing left anywhere: `artifacts=0 caches=0` in every repo. GitHub has no trash for artifacts or caches — deleting is immediate and final.
 - **Boundary (honest)**: deleting the caches does not fix the artifact quota (that pool is consumed by something this token cannot see — Packages reads 403 without `read:packages`). The next APK build after this one will re-download the Flutter SDK, so it takes a few minutes longer. Other accounts (`submac-owner`, `ilqeytehassanahmed-art`) are separate GitHub accounts and their storage is not reachable from this token.
+
+## Bot model in each bot's profile (2026-11-05, v1.13.129+199, branch feat/bot-model)
+Owner: bots had no visible model select; it belongs in each bot's own settings, not in Settings.
+- Bot profile → Settings tab: a **Model** row (always shown, under Voice) and the same row on the bot's Edit screen.
+  The picker is the owner's picker (SubMac + own providers' models, strong models first) with **Default (same as
+  SubMac)** on top. Stored on `Bot.model` (`auto` = default, `submac`, or `byok-…|model`) and synced with the setup.
+- Default follows the owner's chat model (Settings → Models). An own model that is not usable on this phone
+  (provider off/removed, model off, no key, synced from another phone) falls back to that default
+  (`OcLane.botSetting`). `submac` pins SubMac even when the owner's chats use an own model.
+- Every bot turn goes through `OcLane.pick(botModel: …)`: its chat (owner typing, wakes, routines), team parts, and the
+  background allowance gate in BotsController.
+- The old hidden row in "What it may use" is gone; Settings → Models only carries a note pointing to the profile.
+- Shared / Bot Store packages never carry the model (`BotPackage.sanitize` always writes `auto`).
+- Tests: test/bot_model_test.dart.

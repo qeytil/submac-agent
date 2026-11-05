@@ -296,7 +296,9 @@ class BotPackage {
       'instructions': _str(raw['instructions'], 8000),
       'first_meeting': _str(raw['first_meeting'], 800),
       'voice': _voices.contains(voice) ? voice : '',
-      'model': raw['model'] == null ? 'auto' : modelHint('${raw['model']}'),
+      // A bot's model is its owner's own choice (owner 2026-11-05): never carried in a package, a copy starts on its
+      // default (same as SubMac).
+      'model': 'auto',
       'proactivity': const {'quiet', 'balanced', 'active'}.contains(pro) ? pro : 'balanced',
       'heartbeat_hours': _int(raw['heartbeat_hours'], 0, 48, 0),
       'quiet_from': _int(raw['quiet_from'], 0, 23, 22),

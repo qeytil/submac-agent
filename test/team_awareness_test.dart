@@ -59,6 +59,7 @@ void main() {
     Bots.I.bots.removeWhere((b) => b.id.startsWith('tw'));
     Offices.I.queue.clear();
     Offices.I.notify = null;
+    Offices.I.notifyNeeds = null;
     TeamRun.I.reset();
   });
 

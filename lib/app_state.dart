@@ -82,6 +82,7 @@ import 'services/live_controller.dart';
 import 'services/push.dart';
 import 'services/system_bridge.dart';
 import 'services/bg_runs.dart';
+import 'services/notif_text.dart';
 import 'services/system_tools.dart';
 import 'services/task_bubble.dart';
 import 'services/wake_word.dart';
@@ -117,6 +118,7 @@ part 'state/bots_controller.dart';
 part 'state/chat_controller.dart';
 part 'state/connectors.dart';
 part 'state/live_calls.dart';
+part 'state/notifications.dart';
 part 'state/settings_store.dart';
 part 'state/system_phone.dart';
 part 'state/tool_catalog.dart';
@@ -432,6 +434,9 @@ class AppState extends ChangeNotifier {
 
   final Set<String> _notifyConvs = {};
 
+  /// Chats answering a reply the owner typed in a notification: the answer comes back as a notification.
+  final Set<String> _notifReplyConvs = {};
+
   /// Opens Advanced > System permissions (set by the home screen).
   void Function()? openSystemSettings;
 
@@ -726,8 +731,11 @@ class AppState extends ChangeNotifier {
   bool headless = false;
 
   /// A run nobody is watching: a bot's own wake or a scheduled run, in a chat that is not on screen (BgRun).
+  /// Team work (a team key) is unattended while SubMac is not on screen at all (2026-11-05: a team's work with the app
+  /// closed waited three hours on an approval card nobody could see).
   bool unattendedRun(String? convId) => convId != null &&
-      BgRun.unattended(wakeKind: _botWakeConvs[convId], scheduled: _scheduledConvs.contains(convId), onScreen: appVisible && currentId == convId);
+      (TeamKey.isKey(convId) ? !appVisible :
+      BgRun.unattended(wakeKind: _botWakeConvs[convId], scheduled: _scheduledConvs.contains(convId), onScreen: appVisible && currentId == convId));
 
   /// Apps being signed in to right now (by preset id or url), for the spinner on their row.
   final Set<String> mcpSigningIn = {};

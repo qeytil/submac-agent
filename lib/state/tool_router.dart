@@ -232,7 +232,15 @@ extension AppStateTools on AppState {
       ok = await _askApproval(worker, g.office, req, tool: name, convId: convId);
       return ok;
     }
-    if (confirmCallback == null) return false;
+    if (confirmCallback == null) {
+      // No screen at all (SubMac started by an alarm for its own scheduled task): nobody can answer, so it is refused
+      // at once and one notification says what still needs the owner's OK (same rule as a bot's run, bg_runs.dart).
+      if (convId != null && unattendedRun(convId)) {
+        g.refusal = OutboundGuard.noAnswer(readOnly: _readOnlyTask(name, convId));
+        unawaited(_bgNeeds(convId, req.title));
+      }
+      return false;
+    }
     // CB-42 / CB-44: an approval nobody answers no longer holds the task forever. A read-only task (look up, compare,
     // price) waits a minute and then answers from what it found; any other task ends with what is still waiting.
     final readOnly = _readOnlyTask(name, convId);
