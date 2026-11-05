@@ -8,29 +8,56 @@ import 'brand_logo.dart';
 import 'chat/edge_fade.dart' show FrostedSurface;
 import 'logo.dart';
 
-/// Choosing a model (BYOK, owner 2026-11-03): SubMac first, then the user's own providers, each with its models.
-/// Returns the chosen setting (`submac` or `byok-…|model`), or null when dismissed. Used by Settings → Models, the
-/// composer's model pill and a bot's settings.
-Future<String?> showModelPicker(BuildContext context, {required String current, String title = 'Model'}) {
+/// Choosing a model (BYOK, owner 2026-11-03): SubMac first, then the user's own providers, each with its models
+/// (strong models first). Returns the chosen setting (`submac` or `byok-…|model`), or null when dismissed. Used by
+/// Settings → Models, the composer's model pill and each bot's profile.
+///
+/// [forBot] (a bot's profile, owner 2026-11-05): a "Default (same as SubMac)" row comes first and returns `auto`;
+/// the SubMac row then means SubMac's own model even when the owner's chats use another one.
+Future<String?> showModelPicker(BuildContext context, {required String current, String title = 'Model', bool forBot = false}) {
   return showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
     sheetAnimationStyle: SubMotion.sheet,
-    builder: (ctx) => _ModelSheet(current: current, title: title),
+    builder: (ctx) => _ModelSheet(current: current, title: title, forBot: forBot),
   );
 }
 
+/// The words for a bot's model setting in its profile: "Default (same as SubMac)", "SubMac", or the own model's name
+/// with its provider. A chosen model that cannot be used here says so (the bot runs on the default meanwhile).
+String botModelLabel(String setting, {ByokStore? store}) {
+  final st = store ?? ByokStore.I;
+  final s = setting.trim();
+  if (s.isEmpty || s == 'auto') return BotModelWords.defaultLabel;
+  if (ByokRef.parse(s) != null) {
+    final pick = st.resolve(s);
+    if (pick == null) return '${BotModelWords.defaultLabel} · ${ByokRef.parse(s)!.model} is not available';
+    return '${pick.model.label} · ${pick.provider.label}';
+  }
+  return 'SubMac';
+}
+
+class BotModelWords {
+  BotModelWords._();
+  static const defaultLabel = 'Default (same as SubMac)';
+  static const defaultValue = 'auto';
+}
+
 class _ModelSheet extends StatelessWidget {
-  const _ModelSheet({required this.current, required this.title});
+  const _ModelSheet({required this.current, required this.title, this.forBot = false});
   final String current;
   final String title;
+  final bool forBot;
 
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final store = ByokStore.I;
     final picked = store.resolve(current)?.ref.toString();
+    final cur = current.trim();
+    // A bot on its default, or on an own model that is not usable here (it runs on the default meanwhile).
+    final onDefault = forBot && (cur.isEmpty || cur == 'auto' || (ByokRef.parse(cur) != null && picked == null));
     final groups = <ByokProvider, List<ByokModel>>{};
     for (final c in store.choices) {
       (groups[c.provider] ??= []).add(c.model);
@@ -47,12 +74,22 @@ class _ModelSheet extends StatelessWidget {
               padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x2),
               child: Text(tr(title), style: AppText.titleStyle.copyWith(color: p.text)),
             ),
+            if (forBot)
+              ListTile(
+                key: const ValueKey('model-default'),
+                leading: const AppLogo(size: 32),
+                title: Text(tr(BotModelWords.defaultLabel)),
+                subtitle: Text('${tr('Now')}: ${store.labelOf(store.chatModel, withProvider: true)}',
+                    style: AppText.microStyle.copyWith(color: p.muted)),
+                trailing: check(onDefault),
+                onTap: () => Navigator.pop(context, BotModelWords.defaultValue),
+              ),
             ListTile(
               key: const ValueKey('model-submac'),
               leading: const AppLogo(size: 32),
               title: const Text('SubMac'),
               subtitle: Text(tr('Included in your plan'), style: AppText.microStyle.copyWith(color: p.muted)),
-              trailing: check(picked == null),
+              trailing: check(forBot ? (!onDefault && picked == null) : picked == null),
               onTap: () => Navigator.pop(context, ByokRef.submac),
             ),
             for (final e in groups.entries) ...[

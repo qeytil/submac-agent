@@ -66,12 +66,40 @@ class OcLane {
   /// user's own providers, the turn goes to that provider and model directly (`byok-…`), whatever the lane: lanes only
   /// decide SubMac billing, and a BYOK call is never billed by SubMac. Anything unusable falls back to SubMac.
   static Map<String, String> pick({required bool background, bool officeWork = false, String? botModel, String? userModel}) {
-    final own = byokFor(botModel ?? userModel ?? ByokStore.I.chatModel);
+    final setting = botModel == null ? (userModel ?? ByokStore.I.chatModel) : botSetting(botModel, userModel: userModel);
+    final own = byokFor(setting);
     if (own != null) return own;
     return {
       'providerID': background ? (officeWork ? office : bot) : fg,
-      'modelID': botModel == null ? Cloud.submac : modelFor(botModel),
+      'modelID': botModel == null ? Cloud.submac : modelFor(setting),
     };
+  }
+
+  /// A bot's model setting left at its default: `auto` or empty ("Default (same as SubMac)" in its profile).
+  static bool isDefault(String? setting) {
+    final s = (setting ?? '').trim();
+    return s.isEmpty || s == 'auto';
+  }
+
+  /// The model setting a bot's turn really runs on (owner 2026-11-05: each bot picks its model in its own profile).
+  ///  - Default (`auto`): the same model as SubMac, i.e. the owner's chat model ([userModel], default the one chosen
+  ///    in Settings → Models), whether that is SubMac or one of the owner's own providers.
+  ///  - An own-provider model (`byok-…|model`) that is no longer usable here (provider removed or off, model off,
+  ///    no key, or a setting synced from another phone with other providers): falls back to that default.
+  ///  - `submac` / `submac|alias`: SubMac's own model, whatever the owner's chats use.
+  static String botSetting(String? botModel, {String? userModel, ByokStore? store}) {
+    final st = store ?? ByokStore.I;
+    final fallback = userModel ?? st.chatModel;
+    if (isDefault(botModel)) return fallback;
+    final s = botModel!.trim();
+    if (ByokRef.parse(s) != null && st.resolve(s) == null) return fallback;
+    return s;
+  }
+
+  /// Whether a bot's chosen model is set but cannot be used here now (it runs on the default instead).
+  static bool botModelUnavailable(String? botModel, {ByokStore? store}) {
+    if (isDefault(botModel)) return false;
+    return ByokRef.parse(botModel) != null && (store ?? ByokStore.I).resolve(botModel) == null;
   }
 
   /// The prompt `model` of a BYOK setting, or null when it does not name a usable model of the user's providers.

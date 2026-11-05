@@ -172,6 +172,37 @@ object Bridge {
                         )
                         result.success(true)
                     }
+                    // Who it is from decides the channel and look (docs/notifications.md): agent | bots.
+                    "notifyFrom" -> {
+                        Notifier.from(
+                            ctx,
+                            call.argument<Int>("id") ?: 9200,
+                            call.argument<String>("channel") ?: Notifier.BOTS,
+                            call.argument<String>("title") ?: "SubMac",
+                            call.argument<String>("body") ?: "",
+                            call.argument<String>("payload") ?: "",
+                            call.argument<Boolean>("reply") ?: false,
+                            call.argument<String>("initial") ?: "",
+                            (call.argument<Number>("color") ?: 0).toLong().toInt(),
+                            call.argument<Boolean>("high") ?: false
+                        )
+                        result.success(true)
+                    }
+                    // A team chat post: one conversation per team, inline Reply.
+                    "notifyTeam" -> {
+                        Notifier.team(
+                            ctx,
+                            call.argument<Int>("id") ?: 9700,
+                            call.argument<String>("team") ?: "",
+                            call.argument<String>("name") ?: "Team",
+                            call.argument<String>("sender") ?: "",
+                            call.argument<String>("text") ?: "",
+                            call.argument<String>("initial") ?: "",
+                            (call.argument<Number>("color") ?: 0).toLong().toInt(),
+                            call.argument<Boolean>("needs") ?: false
+                        )
+                        result.success(true)
+                    }
                     "notifyApproval" -> {
                         Notifier.approval(
                             ctx,

@@ -199,6 +199,29 @@ class ByokModel {
 
   String get label => name.trim().isEmpty ? id : name.trim();
 
+  static final _small = RegExp(r'(\b(mini|nano|lite|haiku|tiny|small|micro|instant)\b|\b1?\d(\.\d)?b\b)', caseSensitive: false);
+  static final _strong = RegExp(
+      r'(opus|sonnet|gpt-?5|\bo[134]\b|\bo[134]-(pro|high)|gemini-[\d.]+-pro|gemini-pro|grok-[34]|deepseek-(r1|v3|reasoner)|qwen3?-max|qwen3-coder|kimi-k2|glm-4\.[5-9]|glm-[5-9]|mistral-large|llama-?[34](\.\d)?-405b|\bpro\b|-pro\b|thinking|reasoner)',
+      caseSensitive: false);
+
+  /// How strong a model looks from its name and what the provider said about it: 2 strong, 1 normal, 0 small/fast.
+  /// Only orders pickers (strong models pinned first); it never decides which model a turn runs on.
+  int get strength {
+    final n = '$id $name';
+    if (_small.hasMatch(n)) return 0;
+    if (_strong.hasMatch(n) || reasoning == true) return 2;
+    return 1;
+  }
+
+  /// [models] with the strong ones first; equal strength keeps the given order.
+  static List<ByokModel> strongFirst(List<ByokModel> models) {
+    final idx = {for (var i = 0; i < models.length; i++) models[i]: i};
+    return [...models]..sort((a, b) {
+        final d = b.strength - a.strength;
+        return d != 0 ? d : idx[a]!.compareTo(idx[b]!);
+      });
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         if (name.isNotEmpty) 'name': name,
@@ -586,11 +609,12 @@ class ByokStore extends ChangeNotifier {
     return ByokPick(p, m);
   }
 
-  /// Every model the user can pick, grouped by provider (enabled providers and models only).
+  /// Every model the user can pick, grouped by provider (enabled providers and models only). Within a provider the
+  /// strong models come first ([ByokModel.strength]), the rest keep the provider's order.
   List<ByokPick> get choices => [
         for (final p in _cfg.providers)
           if (p.enabled && (!p.needsKey || activeSecret(p) != null))
-            for (final m in p.enabledModels) ByokPick(p, m),
+            for (final m in ByokModel.strongFirst(p.enabledModels)) ByokPick(p, m),
       ];
 
   bool get hasChoices => choices.isNotEmpty;

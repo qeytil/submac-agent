@@ -247,7 +247,7 @@ extension AppStateBots on AppState {
     // A busy day, or the bots' share of today's allowance is used: the owner's own chats come first, so background
     // work waits for tomorrow (one note a day, no retries; the next wake after midnight UTC runs as usual).
     // A bot on its own BYOK model (owner 2026-11-03) is not held back by SubMac's allowance.
-    if (kind != 'chat' && OcLane.byokFor(b.model) == null && (Cloud.usage.value.light || Cloud.usage.value.resting || Cloud.background.value.pausedNow)) {
+    if (kind != 'chat' && !OcLane.isByok(OcLane.pick(background: true, botModel: b.model)) && (Cloud.usage.value.light || Cloud.usage.value.resting || Cloud.background.value.pausedNow)) {
       _notePaused(b);
       return;
     }
@@ -459,7 +459,7 @@ extension AppStateBots on AppState {
     if (last.id.isNotEmpty) await _rewrite(b.convId, last, visible.isEmpty ? out.text : visible);
     var want = out.kind;
     if (kind == 'message' && want == 'note') want = 'message';
-    final may = Bots.I.allow(b, want);
+    final may = BgRun.outreach(wakeKind: kind, want: want, allowed: Bots.I.allow(b, want), quiet: b.quietNow());
     final looking = appVisible && currentId == b.convId;
     Events.I.result(b.id, may);
     switch (may) {
@@ -474,7 +474,7 @@ extension AppStateBots on AppState {
             b.log('message', visible.split('\n').first);
             Bots.I.spent(b, 'message');
             if (!looking) {
-              await SystemBridge.I.notifyBot(id: 9200 + (b.id.hashCode % 500).abs(), name: b.name, body: visible, payload: 'conv/${b.convId}', reply: true);
+              await _notifyBot(b, visible);
             }
           } else {
             b.log('note', visible.split('\n').first);
@@ -486,7 +486,7 @@ extension AppStateBots on AppState {
         Bots.I.spent(b, 'message');
         Events.I.botMessaged(b.id);
         if (!looking) {
-          await SystemBridge.I.notifyBot(id: 9200 + (b.id.hashCode % 500).abs(), name: b.name, body: visible, payload: 'conv/${b.convId}', reply: true);
+          await _notifyBot(b, visible);
         }
       default:
         b.log('note', visible.split('\n').first);
@@ -508,7 +508,7 @@ extension AppStateBots on AppState {
       await repo.insertMessage(b.convId, m);
     } catch (_) {}
     if (notify && !(appVisible && currentId == b.convId) && !b.quietNow()) {
-      await SystemBridge.I.notifyBot(id: 9200 + (b.id.hashCode % 500).abs(), name: b.name, body: text.split('\n').first, payload: 'conv/${b.convId}');
+      await _notifyBot(b, text);
     }
   }
 
@@ -534,7 +534,7 @@ extension AppStateBots on AppState {
     }
     if (liveCtl.active) return 'The user is already on a call. Send a message instead.';
     if (!liveAvailable || Cloud.calls.value.out) {
-      await SystemBridge.I.notifyBot(id: 9200 + (b.id.hashCode % 500).abs(), name: b.name, body: reason, payload: 'conv/${b.convId}');
+      await _notifyBot(b, reason, summarize: false);
       return 'Voice calls are not available right now, so the user got a message instead.';
     }
     if (_ringing != null) return 'Another call is ringing.';
@@ -561,8 +561,7 @@ extension AppStateBots on AppState {
     b.log('missed', 'Missed call');
     final text = _ringText.remove(b.id) ?? '';
     // Same slot as Android's own missed-call line, so there is only ever one.
-    await SystemBridge.I.notifyBot(
-        id: _ringId(b) + 1000, name: b.name, body: text.isEmpty ? 'Missed call' : 'Missed call. $text', payload: 'conv/${b.convId}', reply: true);
+    await _notifyBot(b, text.isEmpty ? 'Missed call' : 'Missed call. ${NotifText.summary(text, max: 200, lines: 2)}', summarize: false, id: _ringId(b) + 1000);
     await Bots.I.save();
   }
 
@@ -576,7 +575,7 @@ extension AppStateBots on AppState {
     b.log('missed', 'You declined the call');
     final text = _ringText.remove(b.id) ?? '';
     if (text.isNotEmpty) {
-      await SystemBridge.I.notifyBot(id: 9200 + (b.id.hashCode % 500).abs(), name: b.name, body: text, payload: 'conv/${b.convId}');
+      await _notifyBot(b, text);
     }
     await Bots.I.save();
   }
@@ -724,7 +723,10 @@ extension AppStateBots on AppState {
       _retryTimer = Timer(at.difference(DateTime.now()) + const Duration(seconds: 1), _officePump);
       final j = q.firstWhere((x) => !x.ready, orElse: () => q.first);
       final o = Offices.I.byId(j.officeId);
-      if (o != null) unawaited(SystemBridge.I.scheduleAlarm(Offices.alarmId(o, 'retry'), at.add(const Duration(seconds: 5))));
+      if (o != null) {
+        unawaited(SystemBridge.I.scheduleAlarm(Offices.alarmId(o, 'retry'), at.add(const Duration(seconds: 5)),
+            label: NotifText.running(o.name, 'Team work')));
+      }
     }
   }
 
@@ -827,7 +829,9 @@ extension AppStateBots on AppState {
       }
       final system = '${Bots.I.opencodeBriefOf(b, team: true)}\n\n${Offices.I.promptFor(o, b, j)}';
       final task = '[Office: ${o.name}]\n# Now\n${Offices.I.jobText(o, b, j)}';
-      await SystemBridge.I.keepAlive(true, text: '${o.name} is working');
+      // The silent running line: "<Team> · <Bot>: <task>" (the result comes as the team's own notification).
+      await SystemBridge.I.keepAlive(true,
+          text: NotifText.running(o.name, '${b.name}: ${t?.title ?? (j.kind == 'reply' ? 'Your message' : 'Team work')}'));
       begun = true;
       String reply = '';
       String failure = '';
@@ -902,8 +906,15 @@ extension AppStateBots on AppState {
         final visible = BotOutcome.visible(reply);
         // Posted once: a reply the bot already put in the chat itself (office_post during the turn) or that repeats a
         // teammate is dropped by Offices.post (TeamDedupe). A reply to the owner's message links to it.
-        Offices.I.post(o, b.id, visible.isEmpty ? out.text : visible,
+        final before = o.posts.length;
+        final p = Offices.I.post(o, b.id, visible.isEmpty ? out.text : visible,
             kind: j.kind == 'digest' ? 'report' : 'chat', taskId: j.taskId, replyTo: j.kind == 'reply' ? j.thread : '');
+        // An answer to the owner while they are not looking at the team (2026-11-05: a reply typed in the team's
+        // notification is answered in that notification's conversation). A "[needs you]" post told them already, and a
+        // dropped duplicate says nothing new.
+        if (j.kind == 'reply' && p.kind != 'ask' && o.posts.length > before && !b.quietNow()) {
+          await _officeNotify(o, b, p.text);
+        }
         if (j.kind == 'digest') {
           final line = (visible.isEmpty ? out.text : visible).trim().split('\n').firstWhere((l) => l.trim().isNotEmpty, orElse: () => 'Your daily report is ready.');
           if (o.digestCall && Bots.callBlock(b) == null) {
@@ -998,12 +1009,6 @@ extension AppStateBots on AppState {
     }
   }
 
-  Future<void> _officeNotify(Office o, Bot b, String text) async {
-    if (appVisible && viewingOffice == o.id) return;
-    await SystemBridge.I.notifyBot(
-        id: 9700 + (o.id.hashCode % 200).abs(), name: '${b.name} · ${o.name}', body: text, payload: 'office/${o.id}', reply: true);
-  }
-
   /// A bot working in the background wants to do something that needs the owner's OK: one approval card (Approve ·
   /// Edit · Not now) in the app, batched with similar asks, and a notification to answer from.
   Future<bool> _askApproval(Bot b, Office? o, ActionRequest req, {String tool = '', String? convId}) async {
@@ -1046,14 +1051,25 @@ extension AppStateBots on AppState {
   Future<void> _notificationReply(String to, String text) async {
     if (text.trim().isEmpty) return;
     text = AiKeys.redact(text).text;
-    if (to.startsWith('office/')) {
-      final o = Offices.I.byId(to.substring(7));
-      // Same routing as typing in the team chat: only whoever is addressed (or picked) answers.
-      if (o != null) TeamRun.I.send(o, text);
+    final route = NotifRoute.parse(to, isBotConv: Bots.I.isBotConv);
+    if (route == null) {
+      _releaseIfIdle();
       return;
     }
-    if (!to.startsWith('conv/')) return;
-    final convId = to.substring(5);
+    if (route.from == NotifFrom.team) {
+      final o = Offices.I.byId(route.id);
+      // Same routing as typing in the team chat: only whoever is addressed (or picked) answers. Their answers come
+      // back in the team's notification while the owner is away (_officeRun).
+      if (o != null) TeamRun.I.send(o, text);
+      _releaseIfIdle(later: true);
+      return;
+    }
+    // 'botchat/<bot>': the bot's private chat.
+    final convId = route.id.isNotEmpty && to.startsWith('botchat/') ? (Bots.I.byId(route.id)?.convId ?? '') : route.id;
+    if (convId.isEmpty) {
+      _releaseIfIdle();
+      return;
+    }
     if (_lists[convId] == null) {
       try {
         _lists[convId] = await repo.listMessages(convId);
@@ -1080,9 +1096,26 @@ extension AppStateBots on AppState {
       return;
     }
     _notifyConvs.add(convId);
-    await SystemBridge.I.keepAlive(true, text: 'Replying');
+    _notifReplyConvs.add(convId);
+    final bot = Bots.I.byConv(convId);
+    await SystemBridge.I.keepAlive(true, text: NotifText.running(bot?.name ?? 'SubMac', 'Your reply'));
     _notify();
     unawaited(_runAgent(convId));
+  }
+
+  /// A notification reply that started nothing (an unknown chat, a team message nobody answers) lets the foreground
+  /// service it started go, unless other work runs. [later]: a team answers through its job queue, so this checks again
+  /// after a while.
+  void _releaseIfIdle({bool later = false}) {
+    if (appVisible) return;
+    bool idle() => _officeJobs.isEmpty && Offices.I.queue.isEmpty && TeamRun.I.running.isEmpty && !runs.any((r) => !r.side);
+    if (!later) {
+      if (idle()) unawaited(SystemBridge.I.keepAlive(false));
+      return;
+    }
+    Timer(const Duration(seconds: 20), () {
+      if (!appVisible && idle()) unawaited(SystemBridge.I.keepAlive(false));
+    });
   }
 
   /// Members are hired the moment they join an office, quietly (no first-meeting message).

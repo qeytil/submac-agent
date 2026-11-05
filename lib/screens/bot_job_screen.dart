@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../services/bot_powers.dart';
 import '../services/bot_sync.dart';
+import '../services/byok.dart';
 import '../services/bot_store.dart';
 import '../services/bots.dart';
 import '../services/offices.dart';
@@ -15,6 +16,7 @@ import '../services/trust.dart';
 import '../theme.dart';
 import '../widgets/avatar_picker.dart';
 import '../widgets/approval_card.dart';
+import '../widgets/model_picker.dart';
 import '../widgets/surface.dart';
 import 'bot_activity_screen.dart';
 import 'bot_setup_screens.dart';
@@ -500,6 +502,7 @@ class _SettingsTab extends StatelessWidget {
           await Bots.I.save();
         },
       ),
+      BotModelRow(bot: b),
       _Pick(
         label: 'Off hours',
         value: '${b.quietFrom}-${b.quietTo}',
@@ -701,6 +704,38 @@ class _SyncRow extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// The bot's own model (owner 2026-11-05): part of the bot's settings in its profile, not in Settings. Always shown.
+/// "Default (same as SubMac)" follows the model the owner's chats use; SubMac or one of the owner's own provider
+/// models pins this bot to it. Saved on the bot (`model`) and synced with its other settings; every turn of this bot
+/// (its chat, team parts, routines and wakes) runs on it (OcLane.pick).
+class BotModelRow extends StatelessWidget {
+  const BotModelRow({super.key, required this.bot});
+  final Bot bot;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge([ByokStore.I, Bots.I]),
+      builder: (context, _) => SurfaceRow(
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        child: ListTile(
+          key: const ValueKey('bot-model'),
+          contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
+          title: Text(tr('Model')),
+          subtitle: Text(botModelLabel(bot.model), style: TextStyle(color: p.muted)),
+          trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+          onTap: () async {
+            final v = await showModelPicker(context, current: bot.model, title: 'Model for ${bot.name}', forBot: true);
+            if (v == null) return;
+            await Bots.I.setModel(bot, v);
+          },
+        ),
+      ),
     );
   }
 }

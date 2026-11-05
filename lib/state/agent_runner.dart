@@ -746,8 +746,14 @@ extension AppStateAgentRunner on AppState {
   /// ("busy", come back in 15 minutes), an office job waited on a reply that never came, and the "working" notice
   /// stayed on (bots leak audit, 2026-11-03).
   void _ocRunEnded(String convId, List<ChatMessage> list, AgentRun run) {
-    _scheduledConvs.remove(convId);
+    final scheduled = _scheduledConvs.remove(convId);
+    final fromNote = _notifReplyConvs.remove(convId);
     _notifyConvs.remove(convId);
+    // The owner is away and waits on this: SubMac's own scheduled task, or an answer to a notification reply. It ends
+    // with its own notification: who it is from and a short summary of the result (owner 2026-11-05).
+    try {
+      _notifyRunEnd(convId, list, run, scheduled: scheduled && !Bots.I.isBotConv(convId), fromNote: fromNote);
+    } catch (_) {}
     if (!runs.any((r) => !r.side) && !(TelegramBridge.I.on && TelegramBridge.I.paired && !appVisible)) {
       unawaited(SystemBridge.I.keepAlive(false));
     }

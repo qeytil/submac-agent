@@ -85,6 +85,14 @@ class BgRun {
     return 'Needs your OK: ${cut.isEmpty ? 'an action' : cut}. Open SubMac to allow it.';
   }
 
+  /// How a bot's result reaches the owner. A result they asked for on a schedule (a "message" routine or scheduled
+  /// task) always notifies, outside quiet hours: the bot's daily message cap is for messages it starts itself (owner
+  /// 2026-11-05: an hourly news task went quiet after the third run). [allowed] is what Bots.allow gave.
+  static String outreach({required String wakeKind, required String want, required String allowed, required bool quiet}) {
+    if (wakeKind == 'message' && want == 'message' && allowed == 'note' && !quiet) return 'message';
+    return allowed;
+  }
+
   /// What opencode's tool is told when a permission was refused because nobody is watching.
   static const refusedNote = 'Not allowed in a background run (nobody is watching to approve it).';
 }

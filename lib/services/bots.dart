@@ -391,7 +391,8 @@ class Bot {
   /// knows about its owner (memory, journal, chats, desk) never leave the phone.
   Map<String, dynamic> export() => BotPackage.sanitize({
         'submac': BotPackage.format,
-        'name': name, 'role': role, 'persona': persona, 'icon': icon, 'voice': voice, 'model': model,
+        'name': name, 'role': role, 'persona': persona, 'icon': icon, 'voice': voice,
+        // No 'model': the model is the owner's own choice (their providers and keys); a copy starts on its default.
         'instructions': instructions, 'first_meeting': firstMeeting, 'sandbox': sandbox,
         'proactivity': proactivity, 'heartbeat_hours': heartbeatHours, 'quiet_from': quietFrom, 'quiet_to': quietTo,
         'calls': allowCalls, 'token_budget_k': tokenBudgetK, 'powers_off': powersOff.toList(),
@@ -1422,6 +1423,14 @@ class Bots extends ChangeNotifier {
     bots.add(b);
     await save();
     return b;
+  }
+
+  /// Sets a bot's own model from its profile (owner 2026-11-05): `auto` (Default, same as SubMac), `submac`, or one of
+  /// the owner's own provider models (`byok-…|model`). Saved and synced like the bot's other settings.
+  Future<void> setModel(Bot b, String setting) async {
+    final s = setting.trim();
+    b.model = s.isEmpty ? 'auto' : s;
+    await save();
   }
 
   /// Turns a model hint from a package (a model name, or 'auto') into one of the owner's own models (set by AppState).

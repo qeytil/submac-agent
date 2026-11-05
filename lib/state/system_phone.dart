@@ -28,7 +28,9 @@ extension AppStateSystem on AppState {
     Bots.I.working = (bot) => _officeBusy.contains(bot.id) || (bot.convId.isNotEmpty && runs.any((r) => r.convId == bot.convId && !r.side));
     Bots.I.waitingFor = (bot) => Offices.I.pending.where((a) => a.botId == bot.id).length;
     b.onApproval = (id, ok) => unawaited(Offices.I.answer(id, ok));
-    b.onNotifReply = (to, text) => unawaited(_notificationReply(to, text));
+    // A reply typed in a notification can be what started SubMac (closed): it waits, like an alarm, until the bots,
+    // teams and chats are loaded (it used to find no team or bot yet and was dropped).
+    b.onNotifReply = (to, text) => unawaited(_alarmGate.run(() => _notificationReply(to, text)));
     Offices.I.pump = _officePump;
     CodeGit.connect = (why) async {
       final r = await requestConnect('GitHub', why: why);
@@ -51,6 +53,11 @@ extension AppStateSystem on AppState {
     Offices.I.notify = (o, bot, text) async {
       if (bot.quietNow()) return;
       await _officeNotify(o, bot, text);
+    };
+    // A "[needs you]" post or a question from the lead: the team's notification pops up.
+    Offices.I.notifyNeeds = (o, bot, text) async {
+      if (bot.quietNow()) return;
+      await _officeNotify(o, bot, text, needs: true);
     };
     Bots.I.ring = _botRing;
     Bots.I.consult = _botConsult;
