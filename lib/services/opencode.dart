@@ -498,7 +498,16 @@ class OcPart {
 /// The answer goes back to the engine, which then carries on (or stops that step on Deny). Pure, so it is tested
 /// without the engine or the app.
 class OpenCodeAsks {
-  OpenCodeAsks({required this.ask, required this.permit, required this.answer, required this.convOf, this.autopilot});
+  OpenCodeAsks({required this.ask, required this.permit, required this.answer, required this.convOf, this.autopilot, this.unattended, this.refused});
+
+  /// A run nobody is watching (a bot's scheduled task with SubMac closed, 2026-11-05): returns how to answer a
+  /// permission ('once' | 'reject', see BgRun.permission) without showing a card, or null when someone can answer.
+  /// [perm] is '' for a question from opencode's question tool (always skipped then: only the owner could answer).
+  final String? Function(String conv, String perm)? unattended;
+
+  /// Told when an unattended run was refused something, with the card's title and detail, so the owner gets one
+  /// notification saying what was needed.
+  final void Function(String conv, String title, String detail)? refused;
 
   /// Autopilot (the composer's Ask · Autopilot switch): a permission is allowed once without asking. Questions from
   /// opencode's question tool still ask, since only the user can answer them.
@@ -530,11 +539,23 @@ class OpenCodeAsks {
         return true;
       }
       final (title, prompt) = permissionText('${p['permission'] ?? ''}', p['patterns'], p['metadata']);
+      // Nobody is watching: answered at once, never a card the run would wait on until the app opens.
+      final bg = unattended?.call(conv, '${p['permission'] ?? ''}');
+      if (bg != null) {
+        if (bg != 'once') refused?.call(conv, title, prompt);
+        await permit(id, bg == 'once' ? 'once' : 'reject');
+        return true;
+      }
       final a = await ask(conv, title, prompt, const [allow, always, deny]);
       await permit(id, a == allow ? 'once' : (a == always ? 'always' : 'reject'));
       return true;
     }
     final qs = p['questions'] is List ? p['questions'] as List : const [];
+    // A question in a run nobody is watching is skipped at once (the model carries on with its best judgment).
+    if (unattended?.call(conv, '') != null) {
+      await answer(id, null);
+      return true;
+    }
     final answers = <List<String>>[];
     for (final q in qs) {
       if (q is! Map) continue;

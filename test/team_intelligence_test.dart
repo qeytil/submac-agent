@@ -153,8 +153,10 @@ void main() {
       expect(o.posts.where((p) => p.from != 'you'), isEmpty, reason: 'no bot and no system line');
     });
 
-    test('a job for the whole team: the lead coordinates it', () async {
-      final o = team();
+    test('a job for the whole team while the lead leads (the owner handed over): the lead coordinates it', () async {
+      // Team awareness (owner 2026-11-05): the lead plans a team job only when the owner handed over or gives it the
+      // job by name; while the owner leads, the members the job needs answer (team_awareness_test.dart).
+      final o = team()..delegated = true;
       floor = '{"speaker":"Hodan","team_task":true}';
       TeamRun.I.send(o, 'Team, find the three cheapest suppliers and compare them');
       await TeamRun.I.work;
@@ -167,10 +169,10 @@ void main() {
       final o = team();
       Offices.I.post(o, 'tin', 'I found three suppliers.');
       final sys = TeamRun.floorSystem(o, lead, [nova, amal]);
-      expect(sys, contains('Hodan (lead): Manager'));
-      expect(sys, contains('Nova: I found three suppliers.'));
+      expect(sys, contains('- Hodan: team lead, Manager'));
+      expect(sys, contains('Nova (member, Researcher): I found three suppliers.'));
       expect(sys, contains('Silence is normal'));
-      expect(sys, contains('The lead answers only when'));
+      expect(sys, contains('the lead is a member like the others'));
     });
   });
 

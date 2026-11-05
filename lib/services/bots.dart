@@ -6,9 +6,11 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart' show ChatMessage;
+import 'bg_runs.dart';
 import 'bot_package.dart';
 import 'bot_powers.dart';
 import 'events.dart';
+import 'telegram_bridge.dart';
 import 'bot_manner.dart';
 import 'no_reply.dart';
 import 'house_rules.dart';
@@ -1069,6 +1071,9 @@ class Bots extends ChangeNotifier {
   @visibleForTesting
   List<HeldWake> get heldForTest => _held();
 
+  /// Some wake is waiting for SubMac to be ready.
+  bool get hasHeldWakes => _p != null && _held().isNotEmpty;
+
   Future<void> armAll() async {
     for (final b in bots) {
       await arm(b);
@@ -1092,7 +1097,7 @@ class Bots extends ChangeNotifier {
       }
       _routineAlarms[alarmId(b, r.id)] = n;
       if (n != null) {
-        await SystemBridge.I.scheduleAlarm(alarmId(b, r.id), n);
+        await SystemBridge.I.scheduleAlarm(alarmId(b, r.id), n, label: BgRun.line(b.name, BgRun.title(r.instruction)));
       } else {
         await SystemBridge.I.cancelAlarm(alarmId(b, r.id));
       }
@@ -1103,11 +1108,12 @@ class Bots extends ChangeNotifier {
         await SystemBridge.I.cancelAlarm(alarmId(b, f.id));
         continue;
       }
-      await SystemBridge.I.scheduleAlarm(alarmId(b, f.id), f.at.isBefore(now) ? now.add(const Duration(seconds: 20)) : f.at);
+      await SystemBridge.I.scheduleAlarm(alarmId(b, f.id), f.at.isBefore(now) ? now.add(const Duration(seconds: 20)) : f.at,
+          label: BgRun.line(b.name, BgRun.title(isHeartbeat(f.instruction) ? '' : f.instruction)));
     }
     final at = _heartbeatAt(b, now);
     if (b.active && at != null && !_cloud(b, 'hb')) {
-      await SystemBridge.I.scheduleAlarm(alarmId(b, 'hb'), at);
+      await SystemBridge.I.scheduleAlarm(alarmId(b, 'hb'), at, label: BgRun.line(b.name, 'Check-in'));
     } else {
       await SystemBridge.I.cancelAlarm(alarmId(b, 'hb'));
     }
@@ -1677,6 +1683,8 @@ class Bots extends ChangeNotifier {
             'call them directly with submac_run_tool (name + arguments); no need to look them up:\n$own\n'
             '${_teamsBrief(b)}'
             'Anything else in the app (connected apps, documents, memory, settings): submac_find_tools first.\n'
+            '${team ? '' : 'To ask the owner a question with answers to pick, call your question tool (the app shows it as a tap card); '
+                'never write the question as JSON or code.\n'}'
             'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'
             'Your name is ${b.name}. Never say you are opencode, an AI model or SubMac; you are ${b.name}.'
         .trim();
@@ -1835,7 +1843,7 @@ class Bots extends ChangeNotifier {
 
   static const names = {
     'bot_remember', 'bot_desk', 'bot_followup', 'bot_routine', 'bot_watch', 'bot_call', 'bot_ask', 'knowledge_search', 'knowledge_read',
-    'bot_lesson', 'bot_make', 'team_make',
+    'bot_lesson', 'bot_make', 'team_make', 'bot_telegram',
   };
 
   /// The tools only the Chief sees.
@@ -1937,6 +1945,10 @@ class Bots extends ChangeNotifier {
       'rules': {'type': 'string', 'description': 'Working rules, one line.'},
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action', 'name', 'members']),
+    _fn('bot_telegram', 'Message the owner in their own SubMac Telegram chat (no approval needed). Use when they want results in Telegram.', {
+      'text': {'type': 'string'},
+      'files': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Workspace file paths to attach.'},
+    }, ['text']),
     _fn('knowledge_search', 'Search your own knowledge (notes and files you were given). Returns the best passages with their ids.', {
       'query': {'type': 'string', 'description': 'What you need, in a few words.'},
     }, ['query']),
@@ -1954,11 +1966,36 @@ class Bots extends ChangeNotifier {
   /// Returns an error line, or null when the team exists.
   Future<String?> Function(Bot chief, Map<String, dynamic> spec)? makeTeam;
 
+  /// Sends [text] (and [files]) to the owner's paired Telegram chat. Returns an error line, or null when sent.
+  /// Set by tests; the app uses the Telegram bridge.
+  static Future<String?> Function(String text, List<String> files)? telegramSend;
+
+  static Future<String?> _telegramOwner(String text, List<String> files) async {
+    final t = TelegramBridge.I;
+    if (!t.on) {
+      return 'Error: Telegram is not connected. Tell the owner in one line that they can connect it in SubMac: Settings > Telegram.';
+    }
+    if (!t.paired) {
+      return 'Error: Telegram is connected but not paired yet. Tell the owner to send the pairing code to their SubMac bot in Telegram.';
+    }
+    await t.deliver([text, for (final f in files) 'FILE_SAVED $f'].join('\n'));
+    return null;
+  }
+
   Future<String> execute(String name, Map<String, dynamic> a, String? convId) async {
     final b = byConv(convId);
     if (b == null) return 'Error: this tool only works inside a bot\'s own chat.';
     String s(String k) => '${a[k] ?? ''}'.trim();
     switch (name) {
+      case 'bot_telegram':
+        final text = s('text');
+        final files = [for (final f in (a['files'] is List ? a['files'] as List : const [])) '$f'.trim()]..removeWhere((f) => f.isEmpty);
+        if (text.isEmpty && files.isEmpty) return 'Error: give the text to send.';
+        final err = await (telegramSend ?? _telegramOwner)(text, files);
+        if (err != null) return err;
+        b.log('message', 'Sent on Telegram: ${text.length > 120 ? '${text.substring(0, 119)}…' : text}');
+        await save();
+        return 'Sent to the owner on Telegram.';
       case 'bot_remember':
         if (s('forget').isNotEmpty) {
           final before = b.memory.length;

@@ -25,6 +25,8 @@ import 'services/mcp_known.dart';
 import 'services/mcp_routes.dart';
 import 'services/team_key.dart';
 import 'services/team_status.dart';
+import 'services/team_floor.dart';
+import 'services/no_reply.dart';
 import 'services/screen_lease.dart';
 import 'services/media_coder.dart';
 import 'services/ai_keys.dart';
@@ -79,6 +81,7 @@ export 'services/run_status.dart' show RunPhase, RunStatus;
 import 'services/live_controller.dart';
 import 'services/push.dart';
 import 'services/system_bridge.dart';
+import 'services/bg_runs.dart';
 import 'services/system_tools.dart';
 import 'services/task_bubble.dart';
 import 'services/wake_word.dart';
@@ -716,6 +719,16 @@ class AppState extends ChangeNotifier {
   /// Chats running a scheduled task right now: they notify with a one-line result only.
   final Set<String> _scheduledConvs = {};
 
+  /// Alarms wait here until SubMac has loaded its bots and scheduled tasks (see AlarmGate; opened by initLocal).
+  final AlarmGate _alarmGate = AlarmGate();
+
+  /// SubMac was started by an alarm or a restart with no screen (a bot's scheduled task with the app closed).
+  bool headless = false;
+
+  /// A run nobody is watching: a bot's own wake or a scheduled run, in a chat that is not on screen (BgRun).
+  bool unattendedRun(String? convId) => convId != null &&
+      BgRun.unattended(wakeKind: _botWakeConvs[convId], scheduled: _scheduledConvs.contains(convId), onScreen: appVisible && currentId == convId);
+
   /// Apps being signed in to right now (by preset id or url), for the spinner on their row.
   final Set<String> mcpSigningIn = {};
 
@@ -938,6 +951,8 @@ class AppState extends ChangeNotifier {
   @visibleForTesting
   Map<String, List<ChatMessage>> get listsForTest => _lists;
   @visibleForTesting
+  Map<String, String> get botWakeConvsForTest => _botWakeConvs;
+  @visibleForTesting
   Map<String, String> get resumeNotesForTest => _resumeNotes;
   @visibleForTesting
   List<Map<String, dynamic>> lightToolsForTest(String convId) => _lightTools(convId);
@@ -953,7 +968,7 @@ class AppState extends ChangeNotifier {
   static bool answersOurQuestionForTest(List<ChatMessage> list) => _answersOurQuestion(list);
 
   static bool _waitsOnUser(String s) {
-    final t = s.trim();
+    final t = Choices.fixReply(s.trim());
     return t.endsWith('?') || RegExp(r'\?\s*(\n|$)').hasMatch(_tailOf(t)) || t.contains('```choices') || t.contains('```confirm');
   }
 
@@ -1276,8 +1291,12 @@ class ToolGate {
 
 /// One office job running now (bots team audit 2026-11-04): who, for which team, what kind, and its live line.
 class OfficeLiveJob {
-  OfficeLiveJob({required this.botId, required this.officeId, required this.kind, this.taskId = ''}) : started = DateTime.now();
+  OfficeLiveJob({required this.botId, required this.officeId, required this.kind, this.taskId = '', this.thread = '', this.instruction = ''})
+      : started = DateTime.now();
   final String botId;
+  /// The owner post a thread of answers is about (OfficeJob.thread), or ''.
+  final String thread;
+  final String instruction;
   final String officeId;
   final String kind;
   final String taskId;

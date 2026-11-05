@@ -12,9 +12,12 @@ class BootReceiver : BroadcastReceiver() {
             val fp = ctx.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             val bots = fp.getString("flutter.bots_v1", "") ?: ""
             val offices = fp.getString("flutter.offices_v1", "") ?: ""
-            if (bots.contains("\"active\":true") || (offices.length > 4)) {
-                SubMacApp.engine(ctx)
-                Bridge.send("alarm", "rearm")
+            val tasks = fp.getString("flutter.scheduled", "") ?: ""
+            if (bots.contains("\"active\":true") || (offices.length > 4) || tasks.length > 4) {
+                // Not started from here: a receiver's process is frozen seconds after it returns (and Android 15 lets
+                // no dataSync service start from a boot broadcast), so Dart never finished setting the alarms. An
+                // exact alarm a few seconds from now starts SubMac with its foreground service instead (2026-11-05).
+                Alarms.set(ctx, "rearm", System.currentTimeMillis() + 5000L, "Getting your bots ready")
             }
         } catch (_: Throwable) {}
         if (!WakeService.enabled(ctx)) return

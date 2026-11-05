@@ -106,6 +106,25 @@ extension AppStateAgentRunner on AppState {
     return b == null ? SubMacStyle.identity : Bots.I.opencodeBriefOf(b);
   }
 
+  /// A run nobody is watching could not do something without the owner's OK: one notification says what, and the
+  /// bot's journal keeps it (BgRun, 2026-11-05).
+  Future<void> _bgNeeds(String convId, String what) async {
+    final bot = Bots.I.byConv(convId);
+    final text = BgRun.needs(what);
+    if (bot != null) {
+      bot.log('note', text);
+      unawaited(Bots.I.save());
+    }
+    try {
+      await SystemBridge.I.notify(
+          id: 9800 + (convId.hashCode % 90).abs(),
+          title: bot?.name ?? 'SubMac',
+          body: text,
+          payload: bot != null ? 'botchat/${bot.id}' : 'conv/$convId',
+          kind: 'attention');
+    } catch (_) {}
+  }
+
   /// Starts opencode in the background at launch (after sign-in), so the first message does not wait for the engine.
   /// Once the connected apps' tools have loaded, opencode is given the fresh list. Failures stay quiet: the first
   /// message starts the engine again and shows any error there.
@@ -169,6 +188,14 @@ extension AppStateAgentRunner on AppState {
       // A subagent's session asks in the chat of the turn that started it.
       convOf: (s) => McpRoutes.rootConv(s, oc.convOf, _ocParent),
       autopilot: () => FullAccess.I.on,
+      // A bot's scheduled task with nobody watching (2026-11-05): answered at once by what the owner already
+      // allowed (Full access, or the bot works "On its own"); anything else is refused and the owner is told.
+      unattended: (conv, perm) {
+        if (!unattendedRun(conv)) return null;
+        final bot = Bots.I.byConv(conv);
+        return perm.isEmpty ? 'reject' : BgRun.permission(perm: perm, fullAccess: FullAccess.I.on, botLevel: bot?.level ?? BotTrust.levelNew);
+      },
+      refused: (conv, title, detail) => unawaited(_bgNeeds(conv, '$title ${detail.split('\n').first}')),
     );
     _ocAskSub = oc.events.listen((e) {
       // Runs before every turn's own listener: tool calls of sessions no running turn owns are marked, so their

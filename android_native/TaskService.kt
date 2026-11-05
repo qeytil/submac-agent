@@ -1,6 +1,7 @@
 package com.submac.agent
 
 import android.app.AlarmManager
+import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.BroadcastReceiver
@@ -9,15 +10,29 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 
-/** Keeps SubMac alive while a task runs with the app closed, showing one calm line. */
+/**
+ * Keeps SubMac alive while a task runs with the app closed, showing one calm line.
+ * It also holds a partial wake lock while it runs (2026-11-05): a foreground service alone keeps the process, not the
+ * CPU, so with the screen off (Doze) a bot's scheduled task used to stall until the phone woke up or the app opened.
+ */
 class TaskService : Service() {
     companion object {
         private const val NOTE_ID = 7201
+        /** The longest a single hold lasts; every new start or update renews it. */
+        private const val HOLD_MS = 30L * 60L * 1000L
         @Volatile var text = "Working on your task"
+        @Volatile private var running = false
 
         fun start(ctx: Context, line: String) {
             text = line
+            // Already in the foreground: only the line changes (no second start from the background).
+            val live = instance
+            if (running && live != null) {
+                live.refresh()
+                return
+            }
             val i = Intent(ctx, TaskService::class.java)
             try {
                 if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i) else ctx.startService(i)
@@ -26,28 +41,74 @@ class TaskService : Service() {
         }
 
         fun stop(ctx: Context) {
+            // Marked stopped at once: a start right after this must start the service again, not only change the line
+            // of a service that is about to go.
+            running = false
+            instance = null
             ctx.stopService(Intent(ctx, TaskService::class.java))
         }
+
+        @Volatile private var instance: TaskService? = null
     }
+
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    private fun note(): Notification {
         Notifier.ensureChannels(this)
-        val n = Notifier.builder(this, Notifier.WAKE)
+        return Notifier.builder(this, Notifier.WAKE)
             .setSmallIcon(R.drawable.ic_stat_submac).setColor(0xFF17150F.toInt())
             .setContentTitle(text)
             .setColor(0xFF17150F.toInt())
             .setOngoing(true)
             .setContentIntent(Notifier.openIntent(this, "tasks", 7202))
             .build()
+    }
+
+    /** New line on the running notification, and the wake lock renewed. */
+    fun refresh() {
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            nm.notify(NOTE_ID, note())
+        } catch (_: Exception) {
+        }
+        hold()
+    }
+
+    private fun hold() {
+        try {
+            val w = wakeLock ?: (getSystemService(Context.POWER_SERVICE) as PowerManager)
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "submac:task").also { it.setReferenceCounted(false) }
+            wakeLock = w
+            w.acquire(HOLD_MS)
+        } catch (_: Exception) {
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val n = note()
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(NOTE_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
             else startForeground(NOTE_ID, n)
+            instance = this
+            running = true
+            hold()
         } catch (_: Exception) {
             stopSelf()
         }
         return START_NOT_STICKY
+    }
+
+    override fun onDestroy() {
+        running = false
+        if (instance === this) instance = null
+        try {
+            if (wakeLock?.isHeld == true) wakeLock?.release()
+        } catch (_: Exception) {
+        }
+        wakeLock = null
+        super.onDestroy()
     }
 }
 
@@ -91,21 +152,24 @@ class AlarmReceiver : BroadcastReceiver() {
             return
         }
         val id = intent.getStringExtra("id") ?: return
-        TaskService.start(ctx, "Running a scheduled task")
+        // The line Dart gave when it set the alarm ("<Bot name> · <task title>"); Dart updates it once it runs.
+        val label = intent.getStringExtra("label") ?: ""
+        TaskService.start(ctx, if (label.isEmpty()) "Running a scheduled task" else label)
         SubMacApp.engine(ctx)
         Bridge.send("alarm", id)
     }
 }
 
 object Alarms {
-    private fun pi(ctx: Context, id: String): PendingIntent {
+    private fun pi(ctx: Context, id: String, label: String = ""): PendingIntent {
         val i = Intent(ctx, AlarmReceiver::class.java).putExtra("id", id)
+        if (label.isNotEmpty()) i.putExtra("label", label)
         return PendingIntent.getBroadcast(ctx, id.hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    fun set(ctx: Context, id: String, at: Long) {
+    fun set(ctx: Context, id: String, at: Long, label: String = "") {
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val p = pi(ctx, id)
+        val p = pi(ctx, id, label)
         val exact = Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()
         if (exact) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p)
         else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p)

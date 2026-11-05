@@ -45,6 +45,8 @@ class BotPowers {
     'prayer_times', 'hijri_date', 'quran', 'qibla', 'money_add', 'money_report', 'money_delete',
     'somali_knowledge', 'somali_knowledge_read',
     'bot_remember', 'bot_desk', 'bot_followup', 'bot_routine', 'bot_watch', 'bot_call', 'bot_ask', 'knowledge_search', 'knowledge_read', 'bot_lesson',
+    // A message to the owner's own Telegram chat is like a notification: never taken away by a switched-off power.
+    'bot_telegram',
     // The Chief's hiring tools are its core duty: they are never taken away by a switched-off power
     // (bot_make used to fall through groupOf to 'apps' and vanish when apps was off).
     'bot_make', 'team_make',

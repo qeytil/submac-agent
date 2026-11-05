@@ -39,7 +39,9 @@ void main() {
     return '';
   }
 
-  Office team() => Office(id: 'otr${DateTime.now().microsecondsSinceEpoch}', name: 'Coffee', members: ['trl', 'trn', 'tra'], chiefId: 'trl');
+  // These tests drive the lead's team job; since team awareness (owner 2026-11-05) the lead plans an owner's job only
+  // when the owner handed the team over (or gave the lead the job by name), so the team starts handed over.
+  Office team() => Office(id: 'otr${DateTime.now().microsecondsSinceEpoch}', name: 'Coffee', members: ['trl', 'trn', 'tra'], chiefId: 'trl')..delegated = true;
 
   setUp(() {
     Bots.I.bots.addAll([lead, nova, amal]);
@@ -85,7 +87,8 @@ void main() {
     expect(calls, ['floor', 'plan', 'part:Nova', 'part:Amal', 'combine']);
     expect(TeamRun.I.awaitingGo(o), isFalse);
     final plan = o.posts.firstWhere((p) => p.from == 'trl');
-    expect(plan.text, contains('You want the three cheapest coffee suppliers'));
+    // Team awareness (owner 2026-11-05): the lead no longer restates the owner's message back to the team.
+    expect(plan.text, isNot(contains('You want the three cheapest coffee suppliers')));
     expect(plan.text, contains('- Nova: Find suppliers and prices'));
     expect(plan.text, contains('- Amal: Compare the prices'));
     expect(plan.text, contains(BotManner.startingNow()));
@@ -116,13 +119,13 @@ void main() {
     expect(calls.skip(2).take(2).toSet(), {'part:Nova', 'part:Amal'});
     expect(calls.last, 'combine');
     final said = [for (final p in o.posts) '${p.from}: ${p.text}'];
-    final iNova = said.indexWhere((s) => s.startsWith('trl: Nova, could you please take this part'));
+    // Team awareness (owner 2026-11-05): the plan shows each part once; an unchanged part gets no second hand-off post.
+    expect(said.where((s) => s.contains('could you please take this part')), isEmpty, reason: said.join('\n'));
+    final iPlan = said.indexWhere((s) => s.startsWith('trl:') && s.contains('- Nova: Find suppliers and prices'));
     final iNovaDone = said.indexWhere((s) => s.startsWith('trn: Hodan, my part is done'));
-    final iAmal = said.indexWhere((s) => s.startsWith('trl: Amal, could you please take this part'));
     final iAmalDone = said.indexWhere((s) => s.startsWith('tra: Hodan, my part is done'));
-    expect([iNova, iNovaDone, iAmal, iAmalDone].every((i) => i >= 0), isTrue, reason: said.join('\n'));
-    expect(iNova < iNovaDone && iAmal < iAmalDone, isTrue);
-    expect(iAmal < iNovaDone, isTrue, reason: 'Amal started before Nova finished: side by side, not in turn');
+    expect([iPlan, iNovaDone, iAmalDone].every((i) => i >= 0), isTrue, reason: said.join('\n'));
+    expect(iPlan < iNovaDone && iPlan < iAmalDone, isTrue);
     final answer = o.posts.last;
     expect(answer.kind, 'answer');
     expect(answer.text, 'Here are the three cheapest suppliers.');

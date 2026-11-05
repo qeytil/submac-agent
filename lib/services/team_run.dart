@@ -14,6 +14,7 @@ import 'no_reply.dart';
 import 'offices.dart';
 import 'quick_lane.dart';
 import 'system_bridge.dart';
+import 'team_floor.dart';
 import 'team_key.dart';
 import 'team_status.dart';
 import 'tool_output_clean.dart';
@@ -367,24 +368,51 @@ class TeamRun extends ChangeNotifier {
 
   /// The owner wrote [text] in team [o], optionally as a reply to post [replyTo]. Always true (a message while the team
   /// works reaches the lead).
+  ///
+  /// Team awareness (owner 2026-11-05): the owner can hand the team to the lead ("lead, take over", "I'm away") and
+  /// take it back ("I'm back"); see [TeamLeadMode]. Who answers is decided by cheap rules first ([TeamFloor.rules]),
+  /// then by one small model call; several bots asked about one message answer one after another (a thread).
   bool send(Office o, String text, {String replyTo = ''}) {
-    final t = text.trim();
+    var t = text.trim();
     if (t.isEmpty) return true;
     final lead = Bots.I.byId(o.chiefId);
-    final members = [for (final id in o.members) if (id != o.chiefId) Bots.I.byId(id)].whereType<Bot>().take(maxParts).toList();
-    final lang = BotManner.langOf(t);
     // "@silent": the owner only wants it on record. Nobody answers.
     if (NoReply.ownerWantsQuiet(t)) {
       Offices.I.ownerPost(o, t, replyTo: replyTo);
       return true;
     }
+    OfficePost? posted;
+    // Lead mode: the owner hands over or comes back. A task that comes with it is routed as usual.
+    final cmd = isStop(t) ? null : TeamLeadMode.commandOf(t);
+    if (cmd != null && lead != null) {
+      posted = _owner(o, t, replyTo);
+      final want = cmd == 'delegate';
+      if (o.delegated != want) {
+        o.delegated = want;
+        final lang = BotManner.langOf(t);
+        Offices.I.post(o, 'system', want ? BotManner.leadTakesOver(lead.name, lang: lang) : BotManner.ownerLeads(lead.name, lang: lang), kind: 'system');
+      }
+      Offices.I.saveSoon();
+      notifyListeners();
+      final rest = TeamLeadMode.rest(t);
+      if (rest.split(' ').where((w) => w.isNotEmpty).length < 3) return true;
+      t = rest;
+    }
+    return _route(o, t, replyTo: replyTo, posted: posted);
+  }
+
+  bool _route(Office o, String t, {String replyTo = '', OfficePost? posted}) {
+    final lead = Bots.I.byId(o.chiefId);
+    final members = [for (final id in o.members) if (id != o.chiefId) Bots.I.byId(id)].whereType<Bot>().take(maxParts).toList();
+    final lang = BotManner.langOf(t);
+    OfficePost say() => posted ??= _owner(o, t, replyTo);
     final to = addressed(o, t, replyTo: replyTo);
     // "Stop" stops everything the team has going: its run and every member reply it started (CB-34). It never goes to
     // the "who speaks" decision, which used to wake a member instead.
     if (isStop(t) && pending[o.id] == null) {
       final was = busy(o);
       final lang = RegExp(r'^(jooji|iska daa|ha bilaabin)', caseSensitive: false).hasMatch(t) ? 'so' : BotManner.langOf(t);
-      _owner(o, t, replyTo);
+      say();
       halt(o);
       Offices.I.post(o, 'system', BotManner.stopped(lang: lang), kind: 'system');
       if (!was) debugPrint('team stop: nothing was running in ${o.id}');
@@ -394,7 +422,7 @@ class TeamRun extends ChangeNotifier {
     // Working: the message reaches the work (the lead and the members still to report), and the owner sees that it
     // did (CB-37: it used to vanish into the inbox without a word).
     if (running.contains(o.id)) {
-      _owner(o, t, replyTo);
+      say();
       (_inbox[o.id] ??= []).add(t);
       Offices.I.post(o, 'system', BotManner.noted(lang: lang), kind: 'system');
       notifyListeners();
@@ -402,7 +430,7 @@ class TeamRun extends ChangeNotifier {
     }
     final plan = pending[o.id];
     if (plan != null && lead != null && (to.isEmpty || to.contains(lead))) {
-      _owner(o, t, replyTo);
+      say();
       if (isGo(t)) {
         pending.remove(o.id);
         // A job interrupted before the lead had a plan (CB-64) starts again from the plan.
@@ -419,28 +447,66 @@ class TeamRun extends ChangeNotifier {
       }
       return true;
     }
-    // Addressed: only they answer. The lead, when addressed, decides itself whether this is a job for the whole team.
+    // The owner writing is the owner being here: the lead leads an owner's message only when handed the team
+    // ("lead, take over", "I'm away") or when the owner gives the job to the lead by name (decided below).
+    final leading = o.delegated;
+    // Addressed: only they answer.
     if (to.isNotEmpty) {
-      final others = [for (final b in to) if (b.id != lead?.id) b.id];
-      if (lead != null && to.contains(lead) && members.isNotEmpty && _wired) {
-        _owner(o, t, replyTo);
-        for (final id in others) {
-          Offices.I.askBot(o, id, t, replyTo: replyTo);
+      final everyone = Offices.mentionsEveryone(t);
+      final p = say();
+      // "@team": every member, one after another, each for their own role (or quiet when covered). While the lead leads,
+      // a job for the whole team goes to the lead to plan instead.
+      if (everyone) {
+        if (leading && lead != null && members.isNotEmpty && _wired && looksLikeTeamTask(t)) {
+          work = _propose(o, lead, members, t, lang: lang);
+          return true;
         }
-        work = _decide(o, lead, members, t, replyTo: replyTo, leadAddressed: true, lang: lang);
+        _ask(o, to, t, replyTo: replyTo, thread: p.id);
+        return true;
+      }
+      final others = [for (final b in to) if (b.id != lead?.id) b];
+      // The lead, when addressed, decides itself whether the owner hands it a job for the team (that is the owner
+      // telling it to lead) or is just talking to it as a colleague.
+      if (lead != null && to.contains(lead) && members.isNotEmpty && _wired) {
+        final thread = others.isEmpty ? '' : p.id;
+        _ask(o, others, t, replyTo: replyTo, thread: thread);
+        work = _decide(o, lead, members, t, replyTo: replyTo, leadAddressed: true, lang: lang, thread: thread);
       } else {
-        Offices.I.ownerPost(o, t, to: [for (final b in to) b.id], replyTo: replyTo);
+        _ask(o, to, t, replyTo: replyTo, thread: to.length > 1 ? p.id : '');
       }
       return true;
     }
-    // Nobody addressed: the team decides who, if anyone, speaks.
+    // Nobody addressed.
     if (!_wired || (lead == null && members.isEmpty)) {
-      Offices.I.ownerPost(o, t, replyTo: replyTo);
+      if (posted == null) {
+        Offices.I.ownerPost(o, t, replyTo: replyTo);
+      }
       return true;
     }
-    _owner(o, t, replyTo);
-    work = _decide(o, lead, members, t, replyTo: replyTo, lang: lang);
+    final p = say();
+    // CB-36: two or more listed deliverables is a team job. The lead plans it only while it leads (the owner away or
+    // handed over); while the owner is here the team decides which members take part.
+    if (leading && lead != null && members.isNotEmpty && looksLikeTeamTask(t)) {
+      work = _propose(o, lead, members, t, lang: lang);
+      return true;
+    }
+    if (!looksLikeTeamTask(t)) {
+      // Cheap rules first: a role named, or the owner answering a bot's question a moment ago.
+      final pick = TeamFloor.rules(o, t);
+      if (!pick.needModel && pick.speakers.length == 1) {
+        _ask(o, pick.speakers, t, replyTo: replyTo);
+        return true;
+      }
+    }
+    work = _decide(o, lead, members, t, replyTo: replyTo, lang: lang, thread: p.id);
     return true;
+  }
+
+  /// Asks [bots] to answer the owner's [t]. With a [thread] (several bots, one message) they answer one after another.
+  void _ask(Office o, List<Bot> bots, String t, {String replyTo = '', String thread = ''}) {
+    for (final b in bots) {
+      Offices.I.askBot(o, b.id, t, replyTo: replyTo, thread: thread);
+    }
   }
 
   /// Who the owner is talking to in [t]: @mentions (or @team), the author of the bot message they reply to, or a member
@@ -465,16 +531,11 @@ class TeamRun extends ChangeNotifier {
     return out;
   }
 
-  /// The system prompt of the "who speaks" decision. Instructions, not a rule table: the model reads the room.
+  /// The system prompt of the "who speaks" decision. Instructions, not a rule table: the model reads the room, with
+  /// every message labelled (owner, lead, member and role) and the situation (TeamTranscript, owner 2026-11-05).
   @visibleForTesting
   static String floorSystem(Office o, Bot? lead, List<Bot> members, {bool leadAddressed = false}) {
-    String who(String id) => id == 'you' ? 'Owner' : (id == 'system' ? 'System' : (Bots.I.byId(id)?.name ?? 'A bot'));
-    final recent = o.posts.reversed.where((p) => p.kind != 'system').take(12).toList().reversed;
-    final roster = [
-      if (lead != null) '- ${lead.name} (lead): ${lead.role}${lead.mission.isEmpty ? '' : '. ${lead.mission}'}',
-      for (final b in members) '- ${b.name}: ${b.role}${b.mission.isEmpty ? '' : '. ${b.mission}'}',
-    ].join('\n');
-    final chat = [for (final p in recent) '${who(p.from)}: ${_short(p.text, 300)}'].join('\n');
+    final leading = TeamLeadMode.leads(o);
     final sb = StringBuffer('# Who speaks\n');
     if (leadAddressed) {
       sb.writeln('The owner just wrote to ${lead?.name}, the lead of the team "${o.name}". Decide whether they are asking the lead to '
@@ -482,39 +543,42 @@ class TeamRun extends ChangeNotifier {
           '"team_task": true) or simply talking to the lead (a question, a chat, something the lead answers itself: false).');
     } else {
       sb.writeln('You read the group chat of the team "${o.name}" and decide, the way the people in a real work chat would, who '
-          'answers the owner\'s newest message, if anyone. The person who is asked, or whose job it clearly is, answers; the '
-          'others stay quiet. Nobody answers just to acknowledge or to show they are there.');
+          'answers the owner\'s newest message, if anyone. ONE member answers: the one who is asked, or whose job it clearly is; the '
+          'others stay quiet. Nobody answers just to acknowledge or to show they are there, and nobody answers what a teammate already '
+          'answered.');
       sb.writeln('- The message continues a conversation with one member (answers their question, follows up on what they '
           'said): that member answers.');
       sb.writeln('- A question or request that fits one member\'s role: that member, even if it is not the lead.');
-      sb.writeln('- The lead answers only when the owner talks to the lead or asks about the team\'s plan or progress. When '
-          'the owner asks the team to work on something together that needs several members, set "team_task": true and '
-          'the lead will coordinate it.');
+      if (leading) {
+        sb.writeln('- The lead is leading right now (the owner is away or handed over). When the owner asks the team for work that '
+            'needs several members, set "team_task": true and the lead will plan and assign it.');
+      } else {
+        sb.writeln('- The owner is here and leads; the lead is a member like the others (pick the lead only for its own role or when '
+            'the owner talks to it). When the owner asks for work that needs several roles, set "team_task": true and list in '
+            '"speakers" only the members whose roles are needed, most relevant first (at most 3). Nobody coordinates them.');
+      }
       sb.writeln('- A greeting or thanks to everyone: one member at most replies, briefly, or nobody.');
       sb.writeln('- A note, an FYI, the owner thinking aloud, or nothing anyone needs to answer: "none". Silence is normal.');
     }
     sb
-      ..writeln('\nMembers:\n$roster')
-      ..writeln('\nRecent chat (oldest first):\n${chat.isEmpty ? '(empty)' : chat}')
-      ..write('\nReply with JSON only, no code fence: {"speaker":"<member name or none>","team_task":false}');
+      ..writeln('\n${TeamTranscript.observer(o)}')
+      ..write('\nReply with JSON only, no code fence: {"speaker":"<member name or none>","speakers":[],"team_task":false}');
     return sb.toString();
   }
 
-  /// The decision step: who answers (or nobody), or a team job for the lead.
-  Future<void> _decide(Office o, Bot? lead, List<Bot> members, String t, {String replyTo = '', bool leadAddressed = false, String lang = 'en'}) async {
+  /// The decision step: who answers (or nobody), or a team job. A job goes to the lead to plan when the owner told
+  /// the lead to (addressed it with a job) or the lead leads (owner away or handed over); otherwise the members the
+  /// job needs answer one after another (a thread), each for its own role.
+  Future<void> _decide(Office o, Bot? lead, List<Bot> members, String t,
+      {String replyTo = '', bool leadAddressed = false, String lang = 'en', String thread = ''}) async {
     final all = [if (lead != null) lead, ...members];
-    // CB-36: two or more listed deliverables for a team of two or more is a team job, whatever the language (the
-    // floor call sometimes took an Arabic three-part job for a single reply).
-    if (lead != null && members.isNotEmpty && all.length >= 2 && looksLikeTeamTask(t)) {
-      await _propose(o, lead, members, t, lang: lang);
-      return;
-    }
     Bot? speaker;
+    final speakers = <Bot>[];
     var teamTask = false;
     var none = false;
     try {
       final asker = lead ?? members.first;
-      final raw = await _once(asker, floorSystem(o, lead, members, leadAddressed: leadAddressed), t, maxTokens: 120);
+      final raw = await _once(asker, floorSystem(o, lead, members, leadAddressed: leadAddressed), t, maxTokens: 160);
       final m = RegExp(r'\{[\s\S]*\}').firstMatch(raw);
       final j = m == null ? null : jsonDecode(m.group(0)!);
       if (j is Map) {
@@ -522,6 +586,11 @@ class TeamRun extends ChangeNotifier {
         final n = '${j['speaker'] ?? ''}'.trim().toLowerCase();
         none = n == 'none' || n == 'nobody';
         speaker = all.where((b) => b.name.toLowerCase() == n).firstOrNull;
+        for (final x in (j['speakers'] as List? ?? const [])) {
+          final s = '$x'.trim().toLowerCase();
+          final b = all.where((b) => b.name.toLowerCase() == s).firstOrNull;
+          if (b != null && !speakers.contains(b) && speakers.length < 3) speakers.add(b);
+        }
       }
     } catch (e) {
       debugPrint('team floor: $e');
@@ -533,12 +602,24 @@ class TeamRun extends ChangeNotifier {
       return;
     }
     if (leadAddressed) speaker = lead;
-    if (teamTask && lead != null && members.isNotEmpty) {
+    final leads = leadAddressed || o.delegated;
+    if (teamTask && lead != null && members.isNotEmpty && leads) {
+      // The lead plans and hands the parts out: the replies already asked of the teammates for this message go, so
+      // nobody answers twice (once on their own, once with their part).
+      if (thread.isNotEmpty) Offices.I.queue.removeWhere((q) => q.officeId == o.id && q.thread == thread && q.kind == 'reply');
       await _propose(o, lead, members, t, lang: lang);
       return;
     }
+    if (teamTask && !leads) {
+      final who = speakers.isNotEmpty ? speakers : [if (speaker != null) speaker];
+      if (who.isNotEmpty) {
+        _ask(o, who, t, replyTo: replyTo, thread: thread);
+        return;
+      }
+    }
     if (speaker != null) {
-      Offices.I.askBot(o, speaker.id, t, replyTo: replyTo);
+      // The lead talked to alongside named teammates answers in the same thread, after them.
+      Offices.I.askBot(o, speaker.id, t, replyTo: replyTo, thread: leadAddressed ? thread : '');
       return;
     }
     // CB-37: no speaker the team knows (a name that is no member, or no answer at all) used to drop the message without a
@@ -579,9 +660,10 @@ class TeamRun extends ChangeNotifier {
     send(o, 'Cancel');
   }
 
-  void _owner(Office o, String t, [String replyTo = '']) {
-    Offices.I.post(o, 'you', t, replyTo: replyTo);
+  OfficePost _owner(Office o, String t, [String replyTo = '']) {
+    final p = Offices.I.post(o, 'you', t, replyTo: replyTo);
     o.lastOwnerPost = DateTime.now();
+    return p;
   }
 
   static String _roster(List<Bot> members) => [for (final b in members) '- ${b.name}: ${b.role}${b.mission.isEmpty ? '' : '. ${b.mission}'}'].join('\n');
@@ -595,12 +677,15 @@ class TeamRun extends ChangeNotifier {
     await _hold(o);
     try {
       final sys = '${promptOf(lead)}\n\n${BotManner.lead}\n\n# Plan for the owner\nYou lead the team "${o.name}"'
-          '${o.goal.isEmpty ? '' : ' (team goal: ${o.goal})'}.\nMembers:\n${_roster(members)}\n\n'
-          'The owner just gave the team a task. Restate the goal in one plain sentence and say who does what (one part per '
-          'member at most, skip members who cannot help; each part a clear, self-contained ask). The team starts right after your '
-          'message, so ask questions (at most two) only when something you truly need is missing or it is a judgment call only '
-          'the owner can make; otherwise leave "questions" empty. Write in the owner\'s language.\n'
-          'Reply with JSON only, no code fence: {"reply":"<one sentence>","questions":["…"],"parts":[{"bot":"<member name>","ask":"<their part>"}]}';
+          '${o.goal.isEmpty ? '' : ' (team goal: ${o.goal})'}.\nMembers:\n${_roster(members)}\n\n${TeamTranscript.observer(o, max: 10)}\n\n'
+          'The owner just gave the team the task below. Understand it, then split it into concrete subtasks: one part per member at '
+          'most, only members whose role fits; each part a specific, self-contained ask written for that member\'s role (what to do, '
+          'what to hand back), never the owner\'s message copied or forwarded. When a part needs another part\'s result, say so in '
+          '"after" (the member it waits for). "reply": one short line in your own words on what the team will deliver (do not repeat '
+          'the owner\'s message). The team starts right after your message, so ask questions (at most two) only when something you '
+          'truly need is missing or it is a judgment call only the owner can make; otherwise leave "questions" empty. Write in the '
+          'owner\'s language.\n'
+          'Reply with JSON only, no code fence: {"reply":"<one line>","questions":["…"],"parts":[{"bot":"<member name>","ask":"<their part>","after":""}]}';
       String reply = '';
       final questions = <String>[];
       final parts = <({Bot bot, String ask})>[];
@@ -619,12 +704,21 @@ class TeamRun extends ChangeNotifier {
             if (e is! Map) continue;
             final name = '${e['bot'] ?? ''}'.trim().toLowerCase();
             final b = members.where((x) => x.name.toLowerCase() == name || x.role.toLowerCase() == name).firstOrNull;
-            final a = '${e['ask'] ?? ''}'.trim();
+            var a = '${e['ask'] ?? ''}'.trim();
+            final after = '${e['after'] ?? ''}'.trim();
+            // The lead copying the owner's message into a part is no plan (owner 2026-11-05): the member gets a part
+            // for its role instead, and the owner's words stay where they are (in the chat every member reads).
+            if (a.isNotEmpty && b != null && TeamDedupe.parrots(job, a)) a = roleAsk(b);
+            if (b != null && after.isNotEmpty && after.toLowerCase() != b.name.toLowerCase() && members.any((x) => x.name.toLowerCase() == after.toLowerCase())) {
+              a = '$a (after ${members.firstWhere((x) => x.name.toLowerCase() == after.toLowerCase()).name})';
+            }
             if (b != null && a.isNotEmpty && !parts.any((x) => x.bot == b)) parts.add((bot: b, ask: a));
           }
         }
       } catch (_) {}
-      if (parts.isEmpty) parts.addAll([for (final b in members) (bot: b, ask: job)]);
+      // An unreadable plan: each member takes the part of the job that fits its role (never the owner's words copied).
+      if (parts.isEmpty) parts.addAll([for (final b in members) (bot: b, ask: roleAsk(b))]);
+      if (TeamDedupe.parrots(job, reply)) reply = '';
       // "Stop" while the lead was still thinking: no plan is left waiting.
       if (_stopped.contains(o.id)) return;
       final plan = TeamPlan(job: job, parts: parts, lang: lang);
@@ -664,6 +758,11 @@ class TeamRun extends ChangeNotifier {
     }
   }
 
+  /// A member's part when the lead's plan gave none it could use: the side of the owner's request its role covers.
+  /// The request itself is in the team chat (and in the member's prompt), so it is not repeated here.
+  static String roleAsk(Bot b) => 'Take the part of the owner\'s request that fits your role'
+      '${b.role.trim().isEmpty ? '' : ' (${b.role.trim()})'}, do it fully and hand back a concrete result.';
+
   /// The lead's message with the plan: the goal, any questions, who does what, and the question to start.
   static String planText(TeamPlan p, {String reply = '', List<String> questions = const [], bool starting = false}) {
     final sb = StringBuffer();
@@ -699,7 +798,12 @@ class TeamRun extends ChangeNotifier {
       if (_stopped.contains(o.id)) return 'Stopped by the owner.';
       if (handed.contains(b)) return '${b.name} already did their part: ${_short(done.firstWhere((d) => d.bot == b, orElse: () => (bot: b, text: '')).text, 600)}';
       handed.add(b);
-      Offices.I.post(o, lead.id, BotManner.handOff(b.name, ask, lang: plan.lang));
+      // The plan already showed this part: a hand-off line only when the lead changed it (owner 2026-11-05: the same
+      // ask was posted twice, in the plan and again as a hand-off).
+      final planned = plan.parts.where((p) => p.bot == b).firstOrNull?.ask ?? '';
+      if (!TeamDedupe.near(planned, ask, at: 0.7) && planned.trim() != ask.trim()) {
+        Offices.I.post(o, lead.id, BotManner.handOff(b.name, ask, lang: plan.lang));
+      }
       // No cap on how many members work at once (owner 2026-11-04): every hand-off starts now, each member in its own
       // opencode session, side by side with the owner's chat and other bots.
       final r = await _part(o, lead, b, ask, plan, [...done]);
@@ -709,7 +813,7 @@ class TeamRun extends ChangeNotifier {
       // A part that failed posts no "could not finish" bubble: the team chat shows one small line instead
       // ("Nova · rate limit", owner 2026-11-04), and the lead still hears about it.
       if (r.note == BotManner.partFailed(lang: plan.lang) && r.result == r.note) return r.result;
-      final post = Offices.I.post(o, b.id, r.note);
+      final post = Offices.I.post(o, b.id, r.note, dedupe: false);
       post.parts.add((from: b.id, text: r.result));
       Offices.I.saveSoon();
       return r.result;
@@ -729,7 +833,9 @@ class TeamRun extends ChangeNotifier {
             'Parts that do not depend on each other can be handed off together; they run side by side. When a later part needs what '
             'an earlier member found, hand them off one at a time and include what they need. When every part is back, write ONE clear '
             'answer for the owner: the result first, then what matters, then the next step if there is one. Credit a teammate by name '
-            'only where it helps. Plain, calm words in the owner\'s language.${_folderNote(o, lead: true)}';
+            'only where it helps. Plain, calm words in the owner\'s language. Never forward the owner\'s message as an ask: each '
+            'ask is a concrete subtask for that member\'s role, with anything it needs from teammates.${_folderNote(o, lead: true)}\n\n'
+            '${TeamTranscript.build(o, lead, max: 12)}';
         try {
           leadAnswer = (await oc(lead, TeamKey.of(o.id, lead.id, job: TeamKey.job()), sys, 'Start the work.', stopped: () => _stopped.contains(o.id),
                   assign: (member, a) async {
@@ -825,7 +931,8 @@ class TeamRun extends ChangeNotifier {
           ? ''
           : '\n\nWhat teammates already reported:\n${[for (final d in before) '- ${d.bot.name}: ${_short(d.text, 600)}'].join('\n')}';
       final oc = ocTurn;
-      final sys = '${oc != null ? Bots.I.opencodeBriefOf(b, team: true) : promptOf(b)}\n\n${BotManner.member(lead.name)}\n\n# Your part\nYou are in the team "${o.name}", led by ${lead.name}. '
+      final sys = '${oc != null ? Bots.I.opencodeBriefOf(b, team: true) : promptOf(b)}\n\n${BotManner.member(lead.name)}\n\n'
+          '${oc != null ? '${TeamTranscript.build(o, b, max: 12)}\n\n' : ''}# Your part\nYou are ${b.name} (${b.role.isEmpty ? 'member' : b.role}) in the team "${o.name}", led by ${lead.name}. '
           'The owner asked the team: "${plan.job}"${_ownerSaid(o)}$notes\n\n${lead.name} gave you the part below. Do it well, then reply in two '
           'pieces: first one or two short sentences to ${lead.name} for the team chat (what you did and anything they should know; name a '
           'teammate if you build on their work), then a line with only ---, then your full result: concrete, no greeting, no questions back.';

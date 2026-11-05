@@ -95,3 +95,59 @@ the bot with the error type in a small line."
   member part's "I could not finish my part" bubble. Kept: team-level notices (paused until tomorrow, stopped trying
   after 4 tries, the team could not finish).
 - Shown only by `TeamLiveLines` in the team chat (offices_screen); no other screen or widget reads `TeamStatus`.
+
+## Team awareness (owner 2026-11-05, 1.13.126)
+
+Owner: "bots send duplicate messages; they confuse who they are and their roles; weak situational awareness; the lead
+always repeats the owner's words to the others." Wanted: the lead leads only when the owner is away or says so; no bot
+speaks without understanding the situation.
+
+Root causes found:
+- Duplicates. (1) An office job's final reply is posted to the team chat (bots_controller `_officeRun`, the
+  `Offices.I.post(o, b.id, visible…)` after `teamTurn`), and the team prompt told bots to post with `office_post` too
+  (offices.dart `teamStablePromptOf` "Team chat: office_post"; the tool posts at once in `execute` 'office_post'), so a
+  reply often landed twice. (2) "@team" and several mentions enqueued one reply job per bot (`ownerPost` → `askBot`),
+  and the pump started them all at once (`_officePump`, no cap since 1.13.119), so every bot answered the same thing
+  blind to the others. (3) The lead addressed with named teammates: the teammates were asked (`askBot`) and, when the
+  lead's floor call said team_task, the lead also planned and handed them parts: each answered twice. (4) A team job
+  posted each part three times: the plan list (`planText`), a hand-off post per member (`doPart` →
+  `BotManner.handOff`), and the member's note. (5) `enqueue` never deduped reply jobs, so a double send (or the
+  notification reply plus the app) answered twice; a job retried after a busy/offline failure could repost what it
+  already posted with office_post. Not a cause: stream + final (team turns post only `turn.answer`, once).
+- Identity and roles. The team chat in every prompt was "Name: text" with no role, no lead/member, no "you", no
+  reply links or times (`teamLivePromptOf`, `floorSystem`), so a bot could not tell its own lines from a teammate's.
+- Parroting. `_propose` asked the lead to "restate the goal", an unreadable plan fell back to the owner's message as
+  every member's part (`parts.addAll(… ask: job)`), and `handOff` then posted it to each member.
+- Lead always leading. Any team_task from the floor call (or CB-36's listed deliverables) went to `_propose`, so the
+  lead planned and relayed even while the owner was in the chat.
+
+Design (lib/services/team_floor.dart):
+- `TeamTranscript`: every message labelled `#n HH:MM Name (lead|member, Role; you) → addressee (reply to #m) [NEEDS
+  OWNER]: text`, the bot's identity, the roster with roles, and "the situation": newest message and to whom, what the
+  owner last asked and of whom, who already answered it, what waits on the owner, whether the owner is here, who leads,
+  who is working on a reply. Used by office jobs (`teamLivePromptOf` / `teamStablePromptOf`), team parts, the lead's
+  run, the plan and the "who speaks" call.
+- `TeamFloor.rules`: addressed → those bots; a role named ("the analyst") → that member; "team lead" → the lead; the
+  owner answering a bot's question within 15 min → that bot; only otherwise one small model call. The model picks ONE
+  speaker; for a job that needs several roles while the owner leads it lists up to 3 `speakers`.
+- Threads: several bots asked about one owner message (`@team`, several mentions, a multi-role job) get
+  `OfficeJob.thread` = the owner post id; the pump runs one job of a thread at a time, each sees who answered before it
+  (`threadAnswers`) and may reply `[no reply]` (no "did not reply" line for a covered thread answer; a covered small
+  talk gets no second quick reply). Same bot + same words: one job (queue and in flight).
+- `TeamDedupe` in `Offices.post`: a bot post that near-repeats its own recent post, another bot's substantive post
+  (4+ words), or echoes the owner's latest message (15 min window) is dropped and the earlier post returned. Task
+  updates, approvals, system lines and the owner are never dropped.
+- `TeamLeadMode`: peer while the owner is here; leading when the owner says "lead, take over" / "I'm away" (until
+  "I'm back"; `Office.delegated`, saved) or has been away 20 min (for routines and office work). An owner message always
+  means the owner is here: the lead plans it only when handed over or given the job by name; otherwise the members the
+  job needs answer in a thread. The lead's prompt says which mode it is in; leading = concrete subtasks per role with
+  hand-offs ("after"), never the owner's words forwarded (a part that parrots the owner becomes a role part; no
+  hand-off post when the plan already shows it). Indicator: one small line in the team chat ("Hodan is leading the
+  team" / "… while you are away") while the lead leads.
+- `NeedsYou`: a bot starts a post with `[needs you]` when the owner must decide or act; it becomes a "Needs you" post
+  (kind 'ask') and notifies the owner. Every team prompt says so.
+- Kept: team isolation (TeamKey; nothing goes to private chats), team status lines, stop, @silent, the mention loop
+  guard.
+
+Tests: test/team_awareness_test.dart (transcript, turn selection, threads, dedupe, needs you, lead mode);
+team_intelligence_test.dart updated (a team job is planned by the lead when handed over; labelled floor prompt).

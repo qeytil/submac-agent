@@ -11,6 +11,7 @@ import 'full_access.dart';
 import 'house_rules.dart';
 import 'no_reply.dart';
 import 'system_bridge.dart';
+import 'team_floor.dart';
 import 'team_run.dart';
 import 'tools.dart';
 
@@ -171,8 +172,13 @@ class OfficePost {
 
 /// One piece of office work waiting for a bot. Saved, so work survives the app being closed or the phone restarting.
 class OfficeJob {
-  OfficeJob({required this.officeId, required this.botId, required this.kind, this.taskId = '', this.instruction = '', DateTime? at, this.after, this.tries = 0})
+  OfficeJob({required this.officeId, required this.botId, required this.kind, this.taskId = '', this.instruction = '', DateTime? at, this.after, this.tries = 0, this.thread = ''})
       : at = at ?? DateTime.now();
+
+  /// The owner post several bots were asked to answer (owner 2026-11-05: bots answering the same thing at once sent
+  /// duplicates). Jobs of one thread run one after another, so each bot sees what the ones before it said and can
+  /// stay quiet when it is covered. '' = a job of its own.
+  final String thread;
   /// Times this job already failed because the phone was offline or the models were busy.
   final int tries;
   /// Not before this time (a retry after the phone was offline or the provider was busy).
@@ -189,7 +195,7 @@ class OfficeJob {
   int get rank => switch (kind) { 'reply' => 0, 'mention' => 1, 'unblock' => 1, 'review' => 2, 'task' => 3, 'digest' => 4, _ => 5 };
 
   Map<String, dynamic> toJson() =>
-      {'o': officeId, 'b': botId, 'k': kind, 't': taskId, 'i': instruction, 'at': at.toIso8601String(), 'af': after?.toIso8601String(), if (tries > 0) 'tr': tries};
+      {'o': officeId, 'b': botId, 'k': kind, 't': taskId, 'i': instruction, 'at': at.toIso8601String(), 'af': after?.toIso8601String(), if (tries > 0) 'tr': tries, if (thread.isNotEmpty) 'th': thread};
   static OfficeJob fromJson(Map<String, dynamic> j) => OfficeJob(
       officeId: '${j['o']}',
       botId: '${j['b']}',
@@ -198,7 +204,8 @@ class OfficeJob {
       instruction: '${j['i'] ?? ''}',
       at: DateTime.tryParse('${j['at']}'),
       after: DateTime.tryParse('${j['af']}'),
-      tries: (j['tr'] as num?)?.toInt() ?? 0);
+      tries: (j['tr'] as num?)?.toInt() ?? 0,
+      thread: '${j['th'] ?? ''}');
 }
 
 /// A number the office works toward ("Orders a week", target 50). The team updates it; the history draws the trend.
@@ -346,6 +353,10 @@ class Office {
   int runsToday = 0;
   DateTime? lastTick;
   DateTime? lastOwnerPost;
+
+  /// The owner handed the team to the lead ("lead, take over", "I'm away") until they say they are back
+  /// (TeamLeadMode, owner 2026-11-05). While false, the lead leads only when the owner has been away a while.
+  bool delegated = false;
   int unread = 0;
   /// Work waits until then (the model ran out of credit). Replies to the owner still go out.
   DateTime? holdUntil;
@@ -382,7 +393,7 @@ class Office {
         'every': checkMinutes, 'wf': workFrom, 'wt': workTo, 'dg': digestTime, 'dgc': digestCall, 'trust': trust,
         'lim': dailyLimit, 'rules': rules, 'tasks': tasks.map((e) => e.toJson()).toList(),
         'posts': posts.map((e) => e.toJson()).toList(), 'brief': brief, 'dec': decisions, 'day': dayKey,
-        'rt': runsToday, 'lt': lastTick?.toIso8601String(), 'lo': lastOwnerPost?.toIso8601String(), 'un': unread, 'kpi': kpis.map((k) => k.toJson()).toList(), 'docs': docs.map((d) => d.toJson()).toList(),
+        'rt': runsToday, 'lt': lastTick?.toIso8601String(), 'lo': lastOwnerPost?.toIso8601String(), if (delegated) 'dg': true, 'un': unread, 'kpi': kpis.map((k) => k.toJson()).toList(), 'docs': docs.map((d) => d.toJson()).toList(),
         'hold': holdUntil?.toIso8601String(), 'fd': folder, 'v': v,
       };
 
@@ -409,6 +420,7 @@ class Office {
       ..runsToday = (j['rt'] as num?)?.toInt() ?? 0
       ..lastTick = DateTime.tryParse('${j['lt']}')
       ..lastOwnerPost = DateTime.tryParse('${j['lo']}')
+      ..delegated = j['dg'] == true
       ..unread = (j['un'] as num?)?.toInt() ?? 0
       ..holdUntil = DateTime.tryParse('${j['hold']}')
       ..folder = '${j['fd'] ?? ''}'
@@ -1080,9 +1092,41 @@ class Offices extends ChangeNotifier {
     await arm(o);
   }
 
-  OfficePost post(Office o, String from, String text, {String kind = 'chat', String taskId = '', String replyTo = ''}) {
-    final p = OfficePost(id: 'p${DateTime.now().microsecondsSinceEpoch}', from: from, text: text.trim(), kind: kind, taskId: taskId, replyTo: replyTo);
+  /// Posts [text] in team [o] as [from] ('you', 'system' or a bot id).
+  ///
+  /// A bot's chat post (owner 2026-11-05, team awareness): "[needs you]" in it makes it a "Needs you" post (kind 'ask')
+  /// and tells the owner; one that repeats a recent post (the same bot again, another bot saying the same, a bot
+  /// echoing the owner's message) is dropped and the earlier post is returned instead ([dropped] counts them).
+  /// [dedupe] false: a structured post that may look like a teammate's on purpose (each member's hand-back note in a
+  /// team job, which carries its own part).
+  OfficePost post(Office o, String from, String text, {String kind = 'chat', String taskId = '', String replyTo = '', bool dedupe = true}) {
+    var body = text.trim();
+    var k = kind;
+    final bot = from != 'you' && from != 'system';
+    var needs = false;
+    if (bot && (k == 'chat' || k == 'report' || k == 'answer')) {
+      final n = NeedsYou.parse(body);
+      if (n.needs) {
+        body = n.text;
+        needs = true;
+        if (k == 'chat') k = 'ask';
+      }
+      if (dedupe && (k == 'chat' || k == 'ask' || k == 'report')) {
+        final dup = TeamDedupe.duplicateOf(o, from, body);
+        if (dup != null) {
+          dropped++;
+          debugPrint('team post dropped as a duplicate of ${dup.id}');
+          return dup;
+        }
+      }
+    }
+    final p = OfficePost(id: _postId(), from: from, text: body, kind: k, taskId: taskId, replyTo: replyTo);
     o.posts.add(p);
+    if (needs) {
+      final b = Bots.I.byId(from);
+      final line = body.split('\n').firstWhere((l) => l.trim().isNotEmpty, orElse: () => body);
+      if (b != null) unawaited(notify?.call(o, b, line).catchError((Object _) {}));
+    }
     while (o.posts.length > 400) {
       o.posts.removeAt(0);
     }
@@ -1090,6 +1134,12 @@ class Offices extends ChangeNotifier {
     saveSoon();
     return p;
   }
+
+  /// Bot posts dropped as near-duplicates since the app started (diagnostics and tests).
+  int dropped = 0;
+
+  static int _postSeq = 0;
+  static String _postId() => 'p${DateTime.now().microsecondsSinceEpoch}${(_postSeq++ % 1000).toString().padLeft(3, '0')}';
 
   /// The members [text] @mentions, in the order written ("@Nova", or a role without spaces such as "@researcher").
   /// "@team", "@everyone" and "@all" mean every member. An @word that is no member ("@silent", an e-mail address) is
@@ -1111,21 +1161,22 @@ class Offices extends ChangeNotifier {
   OfficePost ownerPost(Office o, String text, {List<String> to = const [], String replyTo = ''}) {
     final p = post(o, 'you', text.trim(), replyTo: replyTo);
     o.lastOwnerPost = DateTime.now();
+    // Several bots asked about one message answer one after another (a thread), so nobody repeats a teammate.
     for (final id in to) {
-      askBot(o, id, text.trim(), replyTo: replyTo);
+      askBot(o, id, text.trim(), replyTo: replyTo, thread: to.length > 1 ? p.id : '');
     }
     return p;
   }
 
   /// Asks one member to answer the owner's [text] (a full turn with its tools). [replyTo] is the post it answers.
-  void askBot(Office o, String botId, String text, {String replyTo = ''}) {
+  void askBot(Office o, String botId, String text, {String replyTo = '', String thread = ''}) {
     if (!o.members.contains(botId)) return;
     final quoted = replyTo.isEmpty ? null : o.posts.where((x) => x.id == replyTo).firstOrNull;
     final ctx = quoted == null
         ? ''
         : '\n(The owner is replying to ${quoted.from == 'you' ? 'their own message' : quoted.from == botId ? 'your message' : '${_botName(quoted.from)}\'s message'}: '
             '"${quoted.text.length > 600 ? '${quoted.text.substring(0, 600)}…' : quoted.text}")';
-    enqueue(OfficeJob(officeId: o.id, botId: botId, kind: 'reply', instruction: '${text.trim()}$ctx'));
+    enqueue(OfficeJob(officeId: o.id, botId: botId, kind: 'reply', instruction: '${text.trim()}$ctx', thread: thread));
   }
 
   Bot? _member(Office o, String name) {
@@ -1144,7 +1195,14 @@ class Offices extends ChangeNotifier {
 
   void enqueue(OfficeJob j) {
     // One waiting job per bot and task is enough.
-    final dup = queue.any((q) => q.officeId == j.officeId && q.botId == j.botId && q.kind == j.kind && q.taskId == j.taskId && j.kind != 'reply');
+    // A reply job is one per message: the same bot asked the same words twice (a double send, a notification reply
+    // and the app at once) waits once (owner 2026-11-05: duplicate messages).
+    final dup = queue.any((q) =>
+        q.officeId == j.officeId &&
+        q.botId == j.botId &&
+        q.kind == j.kind &&
+        q.taskId == j.taskId &&
+        (j.kind != 'reply' || q.instruction == j.instruction));
     if (!dup) queue.add(j);
     queue.sort((a, b) => a.rank != b.rank ? a.rank.compareTo(b.rank) : a.at.compareTo(b.at));
     saveSoon();
@@ -1305,18 +1363,19 @@ class Offices extends ChangeNotifier {
     final sb = StringBuffer()
       ..writeln('# Your team: ${o.name}')
       ..writeln('Goal: ${o.goal.isEmpty ? '(not set yet: ask the owner in one short post)' : o.goal}')
+      ..writeln('You are ${b.name}, ${b.role.isEmpty ? 'colleague' : b.role}, ${isLead ? 'the lead' : 'a member'}; teammates are other people.')
       ..writeln(isLead
-          ? 'You are the lead (Chief in your tools). Plan the work toward the goal, split it into clear tasks and give each to the '
-              'teammate whose role fits (office_board add with owner), check progress, unblock or reassign, keep the brief current '
-              'and report to the owner. Do specialist work yourself only when nobody fits.'
+          ? 'You are the lead (Chief in your tools). When leading: plan toward the goal, give each task to the teammate whose role '
+              'fits (office_board add with owner), check progress, unblock, report to the owner.'
           : 'Your lead is ${lead?.name ?? 'not set'}. Own your tasks: do them fully, then office_board update to done with the result '
               '(links, numbers, file names), or to blocked with the exact reason.');
+    if (isLead) sb.writeln(TeamLeadMode.leadInstruction(o));
     sb.writeln(isLead ? BotManner.leadLine : BotManner.memberLine(lead?.name ?? 'your lead'));
     sb.writeln('\n# Teammates');
     for (final id in o.members) {
       final m = Bots.I.byId(id);
       if (m == null) continue;
-      sb.writeln('- ${m.name}${id == o.chiefId ? ' (lead)' : ''}: ${m.role.isEmpty ? 'colleague' : m.role}');
+      sb.writeln('- ${m.name}${id == o.chiefId ? ' (lead)' : ''}: ${m.role.isEmpty ? 'colleague' : m.role}${id == b.id ? ' (you)' : ''}');
     }
     if (o.rules.trim().isNotEmpty) {
       sb
@@ -1326,8 +1385,8 @@ class Offices extends ChangeNotifier {
     sb
       ..writeln('\n# How the team works')
       ..writeln('- One shared task list (office_board). Check it before you start; never redo work that is on it.')
-      ..writeln('- Team chat: office_post; @Name wakes that teammate. The owner reads it. Shared notes and decisions: office_brief. '
-          'Numbers: office_kpi (real values only).')
+      ..writeln('- Team chat: your final reply is posted for you; office_post only for an extra message mid-work, never the same reply. '
+          '@Name wakes that teammate. Notes and decisions: office_brief. Numbers: office_kpi (real values only).')
       ..writeln('- Team folder: Files > ${o.folder.isEmpty ? 'Teams/${o.name}' : o.folder}, shared with the owner. Anything long (research, '
           'plan, draft, list) goes there in full with docs_share; in chat and task results write 2 to 4 lines and say it is in the team '
           'folder. Before you research, check docs_list and docs_read: a teammate may have it.')
@@ -1335,7 +1394,8 @@ class Offices extends ChangeNotifier {
           '(Approve · Edit · Not now) reaches them by itself. Never ask again in text.')
       ..writeln(isLead
           ? '- Reach the owner with office_ask_owner only when their rules say so or you truly need them.'
-          : '- Stuck: ask your lead in the team chat, not the owner.')
+          : '- Stuck: ask your lead in the team chat. Only a decision or an action that is the owner\'s alone goes to them, '
+              'marked [needs you].')
       ..writeln('- Never say something is done or sent unless a tool result shows it.')
       ..writeln('- Speak when you are spoken to or have something the team needs. Like a person in a work chat, you can stay '
           'quiet; nobody needs to confirm, echo or narrate.')
@@ -1386,14 +1446,18 @@ class Offices extends ChangeNotifier {
     if (done.isNotEmpty) {
       sb.writeln('Recently done: ${done.reversed.take(6).map((t) => '[${t.id}] ${t.title}').join('; ')}');
     }
-    final chat = o.posts.reversed.take(18).toList().reversed;
-    if (chat.isNotEmpty) {
-      sb.writeln('\n# Team chat (latest)');
-      for (final p in chat) {
-        final who = p.from == 'you' ? 'Owner' : (p.from == 'system' ? 'System' : _botName(p.from));
-        final t = p.text.length > 400 ? '${p.text.substring(0, 400)}…' : p.text;
-        sb.writeln('$who: $t');
-      }
+    // Every message labelled with who wrote it (owner, lead, member and role, system, "you"), to whom, what it replies
+    // to and when, then the situation (owner 2026-11-05: bots confused who they are and spoke without reading the room).
+    if (o.posts.isNotEmpty) {
+      sb.writeln('\n# Team chat (latest; oldest first)');
+      sb.writeln(TeamTranscript.lines(o, selfId: b.id, max: 18).join('\n'));
+    }
+    sb.writeln('\n# The situation');
+    for (final s in TeamTranscript.situation(o, selfId: b.id, working: [
+      for (final id in o.members)
+        if (id != b.id && (isWorking?.call(id) ?? false)) _botName(id)
+    ])) {
+      sb.writeln('- $s');
     }
     if (o.docs.isNotEmpty) {
       sb.writeln('\n# Team folder (docs_read)');
@@ -1409,13 +1473,24 @@ class Offices extends ChangeNotifier {
     final t = job.taskId.isEmpty ? null : o.task(job.taskId);
     const end = '\n\nYour final reply goes in the team chat as you: results first, under 500 characters (long work: docs_share).';
     const mayPass = '\n${NoReply.rule}';
+    const check = '\nBefore you answer, read the team chat and the situation above: who wrote what, who it was for, and whether a teammate '
+        'already answered. ${NeedsYou.rule}';
     switch (job.kind) {
       case 'reply':
         // The owner addressed this bot (an @mention, a reply to its message, or the team picked it to answer): it answers,
-        // the way a colleague answers when spoken to. Nobody else was asked.
+        // the way a colleague answers when spoken to. Nobody else was asked, unless it is a thread (several were asked
+        // about one message): then it answers after the ones before it and may stay quiet when they covered it.
+        if (job.thread.isNotEmpty) {
+          final before = threadAnswers(o, job.thread, except: b.id);
+          return 'The owner wrote to several of you in the team chat: "${job.instruction}"\n'
+              'Answer only for your own role (${b.role.isEmpty ? 'your part' : b.role}). '
+              '${before.isEmpty ? 'You answer first.' : 'Already answered by ${before.join(', ')} (see the chat): add only what is new from your role; '
+                  'if they covered it, reply with exactly ${NoReply.token}.'} Never repeat a teammate or the owner\'s words.$check$end';
+        }
         return 'The owner wrote to you in the team chat: "${job.instruction}"\n'
             'They are talking to you, so answer them yourself, in your own role. If they asked for work, do it with your tools. '
-            'Do not answer for teammates and do not hand the work around unless they asked you to coordinate it.$end';
+            'Do not answer for teammates, do not repeat the owner\'s words, and do not hand the work around unless they asked you to '
+            'coordinate it.$check$end';
       case 'mention':
         return '${job.instruction}\n'
             'This is a teammate, not the owner. Answer in one short post only if it needs you, and do a small thing it asks now. '
@@ -1448,6 +1523,19 @@ class Offices extends ChangeNotifier {
             '${o.mode == 'supervised' ? 'New tasks wait for the owner\'s OK. ' : ''}'
             'Reach the owner only as their rules say.$end$mayPass';
     }
+  }
+
+  /// The bots that already answered thread [thread] (the owner post several bots were asked about), by name.
+  List<String> threadAnswers(Office o, String thread, {String except = ''}) {
+    final i = o.posts.indexWhere((p) => p.id == thread);
+    if (i < 0) return const [];
+    final out = <String>[];
+    for (final p in o.posts.sublist(i + 1)) {
+      if (p.from == 'you' || p.from == 'system' || p.from == except || p.kind == 'system') continue;
+      final n = _botName(p.from);
+      if (!out.contains(n)) out.add(n);
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------- office tools

@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'chat_logic.dart';
 
 import '../models.dart';
+import '../services/choices.dart';
 import '../services/turn_visuals.dart';
 import 'markdown_view.dart';
 import 'motion.dart';
@@ -29,6 +30,8 @@ final _open = RegExp(r'^\s{0,3}(```+|~~~+)\s*([^\s`]*)[^`]*$');
 /// Splits a reply into text and card blocks. Card fences only count at the top
 /// level; other code fences stay inside the text so markdown renders them.
 List<ReplyBlock> parseReply(String content) {
+  // A bot's question written as raw code (a ```json fence, a fence opened mid-line, bare JSON) becomes its card.
+  content = Choices.fixReply(content);
   final out = <ReplyBlock>[];
   final text = StringBuffer();
   final card = StringBuffer();

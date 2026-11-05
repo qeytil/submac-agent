@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../app_state.dart';
 import '../services/bots.dart';
 import '../services/offices.dart';
+import '../services/team_floor.dart';
 import '../services/team_run.dart';
 import '../services/team_status.dart';
 import '../services/system_bridge.dart';
@@ -631,7 +632,34 @@ class _TeamActivityState extends State<_TeamActivity> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    return ListenableBuilder(listenable: TeamStatus.I, builder: (context, _) => TeamLiveLines(rows: state.officeActivity(widget.officeId)));
+    return ListenableBuilder(listenable: TeamStatus.I, builder: (context, _) {
+      final lines = TeamLiveLines(rows: state.officeActivity(widget.officeId));
+      final o = Offices.I.byId(widget.officeId);
+      // Lead mode (owner 2026-11-05): one small line while the lead leads (handed over, or the owner away while the team
+      // works). Nothing while the owner leads.
+      final mode = o == null || !(o.delegated || TeamRun.I.busy(o)) ? '' : TeamLeadMode.indicator(o);
+      if (mode.isEmpty) return lines;
+      return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        TeamModeLine(text: mode),
+        lines,
+      ]);
+    });
+  }
+}
+
+/// The small lead-mode line in the team chat: "Hodan is leading the team" (owner 2026-11-05).
+class TeamModeLine extends StatelessWidget {
+  const TeamModeLine({super.key, required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return Padding(
+      key: const ValueKey('team-lead-mode'),
+      padding: const EdgeInsets.only(top: Space.x2),
+      child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.captionStyle.copyWith(color: p.muted)),
+    );
   }
 }
 

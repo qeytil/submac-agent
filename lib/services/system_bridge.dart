@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 
 /// Talks to SubMac's Android side: wake word, floating Live, phone control, SMS,
@@ -125,7 +126,12 @@ class SystemBridge {
     } catch (_) {}
   }
 
+  /// Sees every call to Android (tests: the foreground line, alarms and notifications a background run asks for).
+  @visibleForTesting
+  static void Function(String method, Map<String, dynamic>? args)? debugCalls;
+
   Future<T?> _call<T>(String m, [Map<String, dynamic>? args]) async {
+    debugCalls?.call(m, args);
     if (!supported) return null;
     try {
       return await _ch.invokeMethod<T>(m, args);
@@ -257,7 +263,9 @@ class SystemBridge {
     } catch (_) {}
   }
   Future<void> keepAlive(bool on, {String text = 'Working on your task'}) => _call('keepAlive', {'on': on, 'text': text});
-  Future<void> scheduleAlarm(String id, DateTime at) => _call('scheduleAlarm', {'id': id, 'at': at.millisecondsSinceEpoch});
+  /// [label]: the line the foreground service shows when the alarm starts SubMac ("<Bot name> · <task title>").
+  Future<void> scheduleAlarm(String id, DateTime at, {String label = ''}) =>
+      _call('scheduleAlarm', {'id': id, 'at': at.millisecondsSinceEpoch, if (label.isNotEmpty) 'label': label});
   Future<void> cancelAlarm(String id) => _call('cancelAlarm', {'id': id});
 
   // ---- bots ----

@@ -66,7 +66,8 @@ class BotAsk {
       '- When the owner gives you a task, carry it through end to end, the way a capable colleague would: no check-ins at '
       'every step. Come back only for a real judgment call, information only they have, or an approval the app asks for.\n'
       '- When they only greet you, do not start anything: say in a line what you can take on and suggest '
-      'one or two concrete first tasks from your job as a ```choices card (a JSON list of one or two short tap replies).\n'
+      'one or two concrete first tasks from your job as a ```choices card: the fence on its own line, then a JSON list of one '
+      'or two short tap replies, then the closing fence on its own line (never a ```json block, never JSON in the text).\n'
       '- Never add work they did not ask for. Routines and follow-ups the owner set up are work they already gave you.';
 
   /// The turn note when the engine holds a turn to asking (no tools in this reply).

@@ -261,7 +261,7 @@ object Bridge {
                         result.success(true)
                     }
                     "scheduleAlarm" -> {
-                        Alarms.set(ctx, call.argument<String>("id") ?: "", (call.argument<Number>("at") ?: 0).toLong())
+                        Alarms.set(ctx, call.argument<String>("id") ?: "", (call.argument<Number>("at") ?: 0).toLong(), call.argument<String>("label") ?: "")
                         result.success(true)
                     }
                     "cancelAlarm" -> {

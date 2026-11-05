@@ -87,6 +87,12 @@ class BotManner {
   static String interrupted({String lang = 'en'}) => _l(lang, 'The team\'s work was interrupted when SubMac closed. Say "go" to restart.',
       'Shaqada kooxda way go\'day markii SubMac xirmay. Dheh "go" si dib loogu bilaabo.', 'توقف عمل الفريق عندما أُغلق SubMac. اكتب "go" لإعادة البدء.');
 
+  /// Lead mode lines (owner 2026-11-05): the owner hands the team to the lead, or takes it back.
+  static String leadTakesOver(String lead, {String lang = 'en'}) => _l(lang, '$lead is leading the team until you are back.',
+      '$lead ayaa hoggaaminaya kooxda ilaa aad soo noqoto.', 'يقود $lead الفريق حتى تعود.');
+  static String ownerLeads(String lead, {String lang = 'en'}) => _l(lang, 'Welcome back. You lead again; $lead is a team member for now.',
+      'Ku soo dhowoow. Adiga ayaa mar kale hoggaaminaya; $lead hadda waa xubin kooxda ka mid ah.', 'مرحبًا بعودتك. أنت تقود مجددًا، و$lead عضو في الفريق الآن.');
+
   static const langs = ['en', 'so', 'ar'];
 
   /// Every fixed phrase above, for the tone test.
@@ -103,6 +109,8 @@ class BotManner {
           nobody(lang: l),
           noReply('Nova', lang: l),
           interrupted(lang: l),
+          leadTakesOver('Hodan', lang: l),
+          ownerLeads('Hodan', lang: l),
         ],
       ];
 }

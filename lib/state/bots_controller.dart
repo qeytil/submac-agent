@@ -299,6 +299,11 @@ extension AppStateBots on AppState {
       return;
     }
     _botWakeConvs[b.convId] = kind;
+    // With SubMac closed the foreground service (and its wake lock) carries the work; its line names the bot and the
+    // task: "<Bot name> · <task title>" (2026-11-05).
+    if (kind != 'chat' && !appVisible) {
+      unawaited(SystemBridge.I.keepAlive(true, text: BgRun.line(b.name, BgRun.title(Bots.isHeartbeat(asked) ? '' : asked))));
+    }
     String? err;
     try {
       err = await startBackgroundTask(task, reuseConvId: b.convId, onDone: (reply) => unawaited(_botOutcome(b, reply, kind, instruction: asked.startsWith('(retry) ') ? asked : instruction)));
@@ -688,6 +693,16 @@ extension AppStateBots on AppState {
       }
       // The same task already in someone's hands: it waits for that run to end.
       if (j.taskId.isNotEmpty && _officeJobs.values.any((x) => x.officeId == j.officeId && x.taskId == j.taskId && x.kind == j.kind)) continue;
+      // One owner message several bots were asked about (a thread): they answer one after another, so each reads what
+      // the ones before it said and stays quiet when it is covered (owner 2026-11-05: duplicate answers).
+      if (TeamTurns.waitsForThread(j, _officeJobs.values.map((x) => x.thread))) continue;
+      // The same bot already answering the same words (a double send): no second answer.
+      if (j.kind == 'reply' &&
+          _officeJobs.values.any((x) => x.officeId == j.officeId && x.botId == j.botId && x.kind == 'reply' && x.instruction == j.instruction)) {
+        q.remove(j);
+        changed = true;
+        continue;
+      }
       if (o.paused && j.kind != 'reply') {
         q.remove(j);
         changed = true;
@@ -750,7 +765,7 @@ extension AppStateBots on AppState {
   /// any other work: the owner's chats, the bot's own chat, other office jobs.
   Future<void> _officeRun(Office o, Bot b, OfficeJob j) async {
     final key = TeamKey.of(o.id, b.id, job: TeamKey.job());
-    final live = OfficeLiveJob(botId: b.id, officeId: o.id, kind: j.kind, taskId: j.taskId);
+    final live = OfficeLiveJob(botId: b.id, officeId: o.id, kind: j.kind, taskId: j.taskId, thread: j.thread, instruction: j.instruction);
     _officeJobs[key] = live;
     final startedAt = live.started;
     _notify();
@@ -798,10 +813,15 @@ extension AppStateBots on AppState {
       }
       o.rollDay();
       o.runsToday++;
+      // A thread answer (several bots asked about one message) after a teammate already answered: the bot may stay
+      // quiet, and small talk gets no second quick reply at all.
+      final covered = j.kind == 'reply' && j.thread.isNotEmpty && Offices.I.threadAnswers(o, j.thread, except: b.id).isNotEmpty;
       // Small talk in the office gets an instant answer in character.
       if (j.kind == 'reply' && QuickLane.laneFor(j.instruction) == QuickLane.quick) {
-        final text = await _officeQuick(o, b, j.instruction);
+        if (covered) return;
+        final text = NoReply.clean(await _officeQuick(o, b, j.instruction));
         if (Offices.I.stoppedSince(o.id, startedAt)) return; // CB-34: the owner stopped the team meanwhile
+        if (text.isEmpty && j.thread.isNotEmpty) return;
         Offices.I.post(o, b.id, text.isNotEmpty ? text : BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)), kind: text.isNotEmpty ? 'chat' : 'system');
         return;
       }
@@ -868,10 +888,11 @@ extension AppStateBots on AppState {
       final out = BotOutcome.parse(reply);
       // The owner spoke to this bot (or it was given a task): what it wrote is posted even with a stray silence tag on
       // it (that used to throw a real answer away). Elsewhere the bot may stay quiet, which is normal.
-      final mustAnswer = j.kind == 'reply' || j.kind == 'task';
+      // A thread answer may pass when a teammate covered it (it was told so).
+      final mustAnswer = (j.kind == 'reply' && !covered) || j.kind == 'task';
       if (out.text.trim().isEmpty || (out.kind == 'silent' && !mustAnswer)) {
         // CB-37: a direct request that ended with nothing to show says so (it used to leave the owner waiting).
-        if (j.kind == 'reply' && finished && !Offices.I.stoppedSince(o.id, startedAt)) {
+        if (j.kind == 'reply' && mustAnswer && finished && !Offices.I.stoppedSince(o.id, startedAt)) {
           Offices.I.post(o, 'system', BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)), kind: 'system');
         }
       } else if (Offices.I.stoppedSince(o.id, startedAt)) {
@@ -879,7 +900,10 @@ extension AppStateBots on AppState {
       } else {
         // The team chat only: nothing of it is written to the bot's private chat.
         final visible = BotOutcome.visible(reply);
-        Offices.I.post(o, b.id, visible.isEmpty ? out.text : visible, kind: j.kind == 'digest' ? 'report' : 'chat', taskId: j.taskId);
+        // Posted once: a reply the bot already put in the chat itself (office_post during the turn) or that repeats a
+        // teammate is dropped by Offices.post (TeamDedupe). A reply to the owner's message links to it.
+        Offices.I.post(o, b.id, visible.isEmpty ? out.text : visible,
+            kind: j.kind == 'digest' ? 'report' : 'chat', taskId: j.taskId, replyTo: j.kind == 'reply' ? j.thread : '');
         if (j.kind == 'digest') {
           final line = (visible.isEmpty ? out.text : visible).trim().split('\n').firstWhere((l) => l.trim().isNotEmpty, orElse: () => 'Your daily report is ready.');
           if (o.digestCall && Bots.callBlock(b) == null) {
@@ -1001,8 +1025,12 @@ extension AppStateBots on AppState {
     final same = Offices.I.pending.where((x) => x.group == a.group).length + 1;
     final title = same > 1 ? '$same ${ApprovalGroups.noun(a.group, same)}' : req.title;
     await SystemBridge.I.notifyApproval(id: note, approvalId: a.id, name: o == null ? b.name : '${b.name} · ${o.name}', title: title, body: a.body);
-    final ok = await Offices.I.ask(a);
+    // A run nobody is watching (a scheduled task, SubMac closed) waits a few minutes, not three hours: then it moves
+    // on, and one notification says what still needs the owner's OK (2026-11-05).
+    final unattended = unattendedRun(convId);
+    final ok = await Offices.I.ask(a, wait: unattended ? BgRun.approvalWait : const Duration(hours: 3));
     await SystemBridge.I.ringCancel(note);
+    if (!ok && unattended && a.status == 'expired') unawaited(_bgNeeds(convId ?? '', req.title));
     if (ok && a.edited.isNotEmpty && req.edit != null) {
       req.edit!
         ..value = a.edited

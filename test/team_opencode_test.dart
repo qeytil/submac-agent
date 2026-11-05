@@ -43,7 +43,9 @@ void main() {
     return '${lead.name}, done.\n---\nResult from ${b.name}.';
   }
 
-  Office team() => Office(id: 'oto${DateTime.now().microsecondsSinceEpoch}', name: 'Coffee', members: ['tol', 'ton', 'toa', 'too'], chiefId: 'tol');
+  // These tests drive the lead's team job; since team awareness (owner 2026-11-05) the lead plans an owner's job only
+  // when the owner handed the team over (or gave the lead the job by name), so the team starts handed over.
+  Office team() => Office(id: 'oto${DateTime.now().microsecondsSinceEpoch}', name: 'Coffee', members: ['tol', 'ton', 'toa', 'too'], chiefId: 'tol')..delegated = true;
 
   setUp(() {
     Bots.I.bots.addAll([lead, nova, amal, omar]);

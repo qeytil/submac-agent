@@ -14,25 +14,9 @@ extension AppStateSystem on AppState {
     b.onWake = (_) => liveCtl.onWake();
     b.onOverlay = liveCtl.onOverlay;
     b.onNotificationTap = _onNotificationTap;
-    b.onAlarm = (id) async {
-      if (id == 'rearm') {
-        // The phone restarted: starting up has already re-armed every alarm.
-        if (!runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
-        return;
-      }
-      if (id.startsWith('office|')) {
-        final queued = await Offices.I.fire(id);
-        _officePump();
-        if (!queued && !runs.any((r) => !r.side) && _officeBusy.isEmpty) await SystemBridge.I.keepAlive(false);
-        return;
-      }
-      if (id.startsWith('bot|')) {
-        final woke = await Bots.I.fire(id);
-        if (!woke && !runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
-      } else {
-        await Scheduler.I.fire(id);
-      }
-    };
+    // Alarms wait until the bots and scheduled tasks are loaded (AlarmGate, 2026-11-05): Android hands an alarm
+    // over the moment Dart listens, which used to be before Scheduler/Bots had loaded, so the task was dropped.
+    b.onAlarm = (id) => _alarmGate.run(() => _onAlarm(id));
     b.onBotDecline = (id) => unawaited(declineBotCall(id));
     b.onBotMissed = (id) {
       final bot = Bots.I.byId(id);
@@ -153,6 +137,12 @@ extension AppStateSystem on AppState {
       }
     };
     await b.init();
+    // Started by an alarm or a restart with no screen: nothing is on screen, so a bot's result notifies and its
+    // approvals never wait on a card (2026-11-05). The screen's lifecycle sets this right once it opens.
+    if (await _startedHeadless()) {
+      headless = true;
+      appVisible = false;
+    }
     // The floating task bubble; nothing can be driving the screen yet, so clear any badge left from before.
     TaskBubble.I.attach(this);
     TaskBubble.I.reset();
@@ -185,10 +175,72 @@ extension AppStateSystem on AppState {
     } catch (_) {}
     await sideInits;
     TelegramBridge.I.onMessage = _telegramAsk;
-    unawaited(TelegramBridge.I.init());
+    // Awaited (it only reads the saved token; polling runs on its own) so a bot's first background task can already
+    // message the owner on Telegram (bot_telegram).
+    await TelegramBridge.I.init().timeout(const Duration(seconds: 10)).catchError((_) {});
+    // CB-46 + 2026-11-05: a wake held because SubMac was not ready (account not restored yet, offline at a cold
+    // start) is tried again a few times. It used to run only when the home screen opened.
+    unawaited(_retryHeldWakes());
     final p = await b.takeLaunchPayload();
     if (p != null) _onNotificationTap(p);
   }
+
+  /// True when no screen started this engine: Flutter has no lifecycle state yet and Android says SubMac is not in
+  /// front (an alarm, a restart or a push started it).
+  Future<bool> _startedHeadless() async {
+    if (!SystemBridge.I.supported) return false;
+    try {
+      final life = WidgetsBinding.instance.lifecycleState;
+      if (life != null && life != AppLifecycleState.detached) return false;
+      return !await SystemBridge.I.isForeground();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Runs held wakes again after a while, a few times, while SubMac may still be getting ready. When nothing ran,
+  /// the foreground service an alarm started is let go after the last try.
+  Future<void> _retryHeldWakes() async {
+    for (final d in BgRun.heldRetries) {
+      if (!Bots.I.hasHeldWakes) return;
+      await Future<void>.delayed(d);
+      try {
+        await _runHeldWakes();
+      } catch (_) {}
+    }
+    if (Bots.I.hasHeldWakes && !runs.any((r) => !r.side) && _officeBusy.isEmpty) await SystemBridge.I.keepAlive(false);
+  }
+
+  @visibleForTesting
+  Future<void> retryHeldWakesForTest() => _retryHeldWakes();
+
+  /// One alarm, once SubMac is ready (see AlarmGate).
+  Future<void> _onAlarm(String id) async {
+    if (id == 'rearm') {
+      // The phone restarted: starting up has already re-armed every alarm (BootReceiver starts SubMac through this
+      // alarm so its foreground service keeps it alive while it does).
+      if (!runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
+      return;
+    }
+    if (id.startsWith('office|')) {
+      final queued = await Offices.I.fire(id);
+      _officePump();
+      if (!queued && !runs.any((r) => !r.side) && _officeBusy.isEmpty) await SystemBridge.I.keepAlive(false);
+      return;
+    }
+    if (id.startsWith('bot|')) {
+      final woke = await Bots.I.fire(id);
+      if (!woke && !runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
+    } else {
+      await Scheduler.I.fire(id);
+    }
+  }
+
+  @visibleForTesting
+  Future<void> onAlarmForTest(String id) => _alarmGate.run(() => _onAlarm(id));
+
+  @visibleForTesting
+  void openAlarmGateForTest() => _alarmGate.open();
 
   void _onNotificationTap(String payload) {
     if (payload.startsWith('botcall/')) {

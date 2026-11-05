@@ -157,7 +157,8 @@ extension AppStateSettings on AppState {
     Future<String> sec(String k) => local.secret(k).catchError((_) => '');
     final keys = Future.wait([sec('loginSites'), sec('braveKey'), sec('tavilyKey'), sec('githubToken'), sec('notionToken'), sec('mcpServers')]);
     final apps = _loadApps().catchError((_) {});
-    final system = _initSystem().catchError((_) {});
+    // Alarms that came while this loads run once it is done (AlarmGate).
+    final system = _initSystem().catchError((_) {}).whenComplete(_alarmGate.open);
     final k = await keys;
     try {
       if (k[0].isNotEmpty) savedLoginSites = List<String>.from(jsonDecode(k[0]) as List);
