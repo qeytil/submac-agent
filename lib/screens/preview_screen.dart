@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../services/data_sheet.dart';
@@ -38,6 +39,7 @@ bool canPreview(String path) {
       _textExt.contains(e) ||
       _officeExt.contains(e) ||
       e == 'pdf' ||
+      e == 'svg' ||
       e == 'html' ||
       e == 'htm';
 }
@@ -119,6 +121,13 @@ class _FilePreview extends StatelessWidget {
       body = Center(child: Text('This file isn\'t on this phone or in your account any more.', style: TextStyle(color: p.muted)));
     } else if (_imageExt.contains(e)) {
       body = ZoomablePicture(child: Image.file(f));
+    } else if (e == 'svg') {
+      // A drawing the agent wrote (owner 2026-11-04, visuals): drawn, zoomable, like a picture.
+      body = ZoomablePicture(
+        child: SvgPicture.file(f,
+            fit: BoxFit.contain,
+            errorBuilder: (c, err, st) => Center(child: Text(tr('The drawing could not be shown'), style: TextStyle(color: p.muted)))),
+      );
     } else if (e == 'pdf') {
       body = PdfPages(path: path);
     } else if (e == 'html' || e == 'htm') {

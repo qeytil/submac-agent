@@ -15,6 +15,7 @@ import 'logins_screen.dart';
 import 'whatsapp_screen.dart';
 import '../widgets/motion.dart';
 import '../theme.dart';
+import '../widgets/app_key_dialog.dart';
 import '../widgets/brand_logo.dart';
 import '../widgets/pill_kit.dart';
 import '../ui/tokens.dart';
@@ -309,14 +310,19 @@ class _PresetTile extends StatelessWidget {
     final status = on == null ? null : state.mcpStatus[on.id];
     final failed = !busy && on == null ? state.mcpConnectError[pr.id] : null;
     Future<void> connect() async {
-      final err = await state.connectMcpPreset(pr);
+      String? key;
+      if (pr.needsKey) {
+        key = await askAppKey(context, pr);
+        if (key == null || !context.mounted) return;
+      }
+      final err = await state.connectMcpPreset(pr, key: key);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err ?? '${pr.name} is connected.')));
     }
     return CardRow(
       title: pr.name,
       subtitle: busy
-          ? (pr.signIn ? 'Finish signing in, in your browser…' : 'Connecting…')
+          ? (pr.signIn && !pr.needsKey ? 'Finish signing in, in your browser…' : 'Connecting…')
           : on != null
               ? (status ?? 'Connected')
               : (failed ?? pr.blurb),

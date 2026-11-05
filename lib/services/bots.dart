@@ -6,15 +6,18 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart' show ChatMessage;
+import 'bg_runs.dart';
 import 'bot_package.dart';
 import 'bot_powers.dart';
 import 'events.dart';
+import 'telegram_bridge.dart';
 import 'bot_manner.dart';
 import 'no_reply.dart';
 import 'house_rules.dart';
 import 'skill_library.dart';
 
 import 'system_bridge.dart';
+import 'team_key.dart';
 import 'full_access.dart';
 import 'trust.dart';
 
@@ -159,13 +162,19 @@ class DeskTask {
 }
 
 class JournalEntry {
-  JournalEntry(this.at, this.kind, this.text);
+  JournalEntry(this.at, this.kind, this.text, {this.team = false});
   final DateTime at;
   /// work | note | message | call | missed | learned
   final String kind;
   final String text;
-  Map<String, dynamic> toJson() => {'at': at.toUtc().toIso8601String(), 'k': kind, 't': text};
-  static JournalEntry fromJson(Map<String, dynamic> j) => JournalEntry(DateTime.tryParse('${j['at']}')?.toLocal() ?? DateTime.now(), '${j['k'] ?? 'note'}', '${j['t'] ?? ''}');
+
+  /// Written by team work (a team part, leading a job, an office job). The bot's private chat does not read these
+  /// into its brief, so team work never shows up in its 1:1 conversation (bots team audit, 2026-11-04).
+  final bool team;
+  Map<String, dynamic> toJson() => {'at': at.toUtc().toIso8601String(), 'k': kind, 't': text, if (team) 'tm': true};
+  static JournalEntry fromJson(Map<String, dynamic> j) => JournalEntry(
+      DateTime.tryParse('${j['at']}')?.toLocal() ?? DateTime.now(), '${j['k'] ?? 'note'}', '${j['t'] ?? ''}',
+      team: j['tm'] == true);
 }
 
 class Bot {
@@ -508,8 +517,8 @@ class Bot {
     return (callCap - callsToday).clamp(0, 99).toInt();
   }
 
-  void log(String kind, String text) {
-    journal.add(JournalEntry(DateTime.now(), kind, text.length > 300 ? '${text.substring(0, 300)}…' : text));
+  void log(String kind, String text, {bool team = false}) {
+    journal.add(JournalEntry(DateTime.now(), kind, text.length > 300 ? '${text.substring(0, 300)}…' : text, team: team));
     while (journal.length > 200) {
       journal.removeAt(0);
     }
@@ -672,9 +681,9 @@ class Bots extends ChangeNotifier {
   static bool requeueAfterRun({required bool finished, required String kind, required String status}) =>
       finished && kind == 'task' && status == 'doing';
 
-  /// May a wake take a bot's chat? Not while an office job holds it, another wake is marked on it, or a run is going.
-  static bool wakeMayClaim({required bool officeBusy, required bool hasMarker, required bool running}) =>
-      !officeBusy && !hasMarker && !running;
+  /// May a wake take a bot's chat? Not while another wake is marked on it, or a run is going in it.
+  /// Team work no longer runs in the bot's chat (it has its own sessions, side by side), so it never holds a wake off.
+  static bool wakeMayClaim({required bool hasMarker, required bool running}) => !hasMarker && !running;
 
   /// A follow-up for the same job is already waiting: a busy bot must not stack one per wake.
   static bool hasPendingFollowup(Bot b, String instruction, String kind) {
@@ -788,7 +797,13 @@ class Bots extends ChangeNotifier {
 
   bool _cloud(Bot b, String job) => cloudOwns?.call(b, job) ?? false;
   Bot? byId(String id) => bots.where((b) => b.id == id).firstOrNull;
-  Bot? byConv(String? convId) => convId == null || convId.isEmpty ? null : bots.where((b) => b.convId == convId).firstOrNull;
+  /// The bot of a chat, or of a piece of team work ([TeamKey]: team work runs under its own key, not the bot's
+  /// private chat, and still acts as that bot: its powers, apps, trust and own tools).
+  Bot? byConv(String? convId) {
+    if (convId == null || convId.isEmpty) return null;
+    if (TeamKey.isKey(convId)) return byId(TeamKey.botOf(convId));
+    return bots.where((b) => b.convId == convId).firstOrNull;
+  }
   bool isBotConv(String? convId) => byConv(convId) != null;
   Bot? byName(String name) {
     final n = name.trim().toLowerCase();
@@ -1056,6 +1071,9 @@ class Bots extends ChangeNotifier {
   @visibleForTesting
   List<HeldWake> get heldForTest => _held();
 
+  /// Some wake is waiting for SubMac to be ready.
+  bool get hasHeldWakes => _p != null && _held().isNotEmpty;
+
   Future<void> armAll() async {
     for (final b in bots) {
       await arm(b);
@@ -1079,7 +1097,7 @@ class Bots extends ChangeNotifier {
       }
       _routineAlarms[alarmId(b, r.id)] = n;
       if (n != null) {
-        await SystemBridge.I.scheduleAlarm(alarmId(b, r.id), n);
+        await SystemBridge.I.scheduleAlarm(alarmId(b, r.id), n, label: BgRun.line(b.name, BgRun.title(r.instruction)));
       } else {
         await SystemBridge.I.cancelAlarm(alarmId(b, r.id));
       }
@@ -1090,11 +1108,12 @@ class Bots extends ChangeNotifier {
         await SystemBridge.I.cancelAlarm(alarmId(b, f.id));
         continue;
       }
-      await SystemBridge.I.scheduleAlarm(alarmId(b, f.id), f.at.isBefore(now) ? now.add(const Duration(seconds: 20)) : f.at);
+      await SystemBridge.I.scheduleAlarm(alarmId(b, f.id), f.at.isBefore(now) ? now.add(const Duration(seconds: 20)) : f.at,
+          label: BgRun.line(b.name, BgRun.title(isHeartbeat(f.instruction) ? '' : f.instruction)));
     }
     final at = _heartbeatAt(b, now);
     if (b.active && at != null && !_cloud(b, 'hb')) {
-      await SystemBridge.I.scheduleAlarm(alarmId(b, 'hb'), at);
+      await SystemBridge.I.scheduleAlarm(alarmId(b, 'hb'), at, label: BgRun.line(b.name, 'Check-in'));
     } else {
       await SystemBridge.I.cancelAlarm(alarmId(b, 'hb'));
     }
@@ -1641,7 +1660,43 @@ class Bots extends ChangeNotifier {
   }
 
   /// The bot's whole text-chat prompt (identity, what it knows, its desk), for one-off calls like bot_ask.
-  String chatPromptOf(Bot b) => '${stablePromptOf(b)}\n\n${memoryPromptOf(b)}\n\n${livePromptOf(b)}'.trim();
+  /// [team]: the prompt is for team work, so the journal's team lines are in it; the private chat's prompt leaves them
+  /// out (no team work in the 1:1 conversation).
+  String chatPromptOf(Bot b, {bool team = true}) => '${stablePromptOf(b)}\n\n${memoryPromptOf(b)}\n\n${livePromptOf(b, team: team)}'.trim();
+
+  /// What a bot's opencode turn gets after opencode's own prompt (owner, 2026-11-03: bots on opencode, "better, smart
+  /// and powerful"). opencode stays the engine with its own tools; this says who the bot is, what it knows and owns,
+  /// and how its own SubMac tools are called (through submac_run_tool, no lookup needed).
+  /// The teams a bot is in, for its brief (set by the app): one line per team, empty when none.
+  String Function(Bot b)? teamsOf;
+
+  /// The brief of a bot's opencode turn. [team]: false (default) for its private chat with the owner, whose brief
+  /// leaves out the team lines of its journal; true for its team work.
+  String opencodeBriefOf(Bot b, {bool team = false}) {
+    final own = [
+      for (final d in definitionsFor(b))
+        '- ${(d['function'] as Map)['name']}: ${'${(d['function'] as Map)['description']}'.split('. ').first}',
+    ].join('\n');
+    return '${chatPromptOf(b, team: team)}\n\n'
+            '# Your tools\n'
+            'You have opencode\'s own tools (files, shell, web fetch, to-dos) plus SubMac\'s app tools. Your own bot tools are SubMac tools: '
+            'call them directly with submac_run_tool (name + arguments); no need to look them up:\n$own\n'
+            '${_teamsBrief(b)}'
+            'Anything else in the app (connected apps, documents, memory, settings): submac_find_tools first.\n'
+            '${team ? '' : 'To ask the owner a question with answers to pick, call your question tool (the app shows it as a tap card); '
+                'never write the question as JSON or code.\n'}'
+            'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'
+            'Your name is ${b.name}. Never say you are opencode, an AI model or SubMac; you are ${b.name}.'
+        .trim();
+  }
+
+  String _teamsBrief(Bot b) {
+    final t = (teamsOf?.call(b) ?? '').trim();
+    return t.isEmpty ? '' : '\n# Your teams\n$t\n';
+  }
+
+  /// The bot's own working folder inside SubMac's workspace.
+  static String botFolder(Bot b) => 'bots/${b.id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}';
 
   /// The identity text Live calls still use (kept as it was; calls are tuned separately).
   String _callStablePromptOf(Bot b) {
@@ -1751,7 +1806,7 @@ class Bots extends ChangeNotifier {
 
   String promptOf(Bot b) => '${_callStablePromptOf(b)}\n\n${livePromptOf(b)}'.trim();
 
-  String livePromptOf(Bot b) {
+  String livePromptOf(Bot b, {bool team = true}) {
     final sb = StringBuffer();
     final open = b.desk.where((t) => t.status != 'done').toList();
     sb.writeln('\n# Your desk');
@@ -1774,7 +1829,7 @@ class Bots extends ChangeNotifier {
         sb.writeln('- ${f.at.toIso8601String().substring(0, 16)}: ${f.instruction}');
       }
     }
-    final recent = b.journal.reversed.take(8).toList().reversed;
+    final recent = b.journal.reversed.where((j) => team || !j.team).take(8).toList().reversed;
     if (recent.isNotEmpty) {
       sb.writeln('\n# Lately');
       for (final j in recent) {
@@ -1788,7 +1843,7 @@ class Bots extends ChangeNotifier {
 
   static const names = {
     'bot_remember', 'bot_desk', 'bot_followup', 'bot_routine', 'bot_watch', 'bot_call', 'bot_ask', 'knowledge_search', 'knowledge_read',
-    'bot_lesson', 'bot_make', 'team_make',
+    'bot_lesson', 'bot_make', 'team_make', 'bot_telegram',
   };
 
   /// The tools only the Chief sees.
@@ -1890,6 +1945,10 @@ class Bots extends ChangeNotifier {
       'rules': {'type': 'string', 'description': 'Working rules, one line.'},
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action', 'name', 'members']),
+    _fn('bot_telegram', 'Message the owner in their own SubMac Telegram chat (no approval needed). Use when they want results in Telegram.', {
+      'text': {'type': 'string'},
+      'files': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Workspace file paths to attach.'},
+    }, ['text']),
     _fn('knowledge_search', 'Search your own knowledge (notes and files you were given). Returns the best passages with their ids.', {
       'query': {'type': 'string', 'description': 'What you need, in a few words.'},
     }, ['query']),
@@ -1907,11 +1966,36 @@ class Bots extends ChangeNotifier {
   /// Returns an error line, or null when the team exists.
   Future<String?> Function(Bot chief, Map<String, dynamic> spec)? makeTeam;
 
+  /// Sends [text] (and [files]) to the owner's paired Telegram chat. Returns an error line, or null when sent.
+  /// Set by tests; the app uses the Telegram bridge.
+  static Future<String?> Function(String text, List<String> files)? telegramSend;
+
+  static Future<String?> _telegramOwner(String text, List<String> files) async {
+    final t = TelegramBridge.I;
+    if (!t.on) {
+      return 'Error: Telegram is not connected. Tell the owner in one line that they can connect it in SubMac: Settings > Telegram.';
+    }
+    if (!t.paired) {
+      return 'Error: Telegram is connected but not paired yet. Tell the owner to send the pairing code to their SubMac bot in Telegram.';
+    }
+    await t.deliver([text, for (final f in files) 'FILE_SAVED $f'].join('\n'));
+    return null;
+  }
+
   Future<String> execute(String name, Map<String, dynamic> a, String? convId) async {
     final b = byConv(convId);
     if (b == null) return 'Error: this tool only works inside a bot\'s own chat.';
     String s(String k) => '${a[k] ?? ''}'.trim();
     switch (name) {
+      case 'bot_telegram':
+        final text = s('text');
+        final files = [for (final f in (a['files'] is List ? a['files'] as List : const [])) '$f'.trim()]..removeWhere((f) => f.isEmpty);
+        if (text.isEmpty && files.isEmpty) return 'Error: give the text to send.';
+        final err = await (telegramSend ?? _telegramOwner)(text, files);
+        if (err != null) return err;
+        b.log('message', 'Sent on Telegram: ${text.length > 120 ? '${text.substring(0, 119)}…' : text}');
+        await save();
+        return 'Sent to the owner on Telegram.';
       case 'bot_remember':
         if (s('forget').isNotEmpty) {
           final before = b.memory.length;

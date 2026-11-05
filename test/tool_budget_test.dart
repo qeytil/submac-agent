@@ -44,6 +44,8 @@ void main() {
     print(top.take(10).map((e) => '${e.key}=${e.value}').join(', '));
     // 11000 -> 11400 (core loop v3, 2026-11-01): web_research and the shell/run_shell honesty lines are worth ~160 tokens;
     // the cap still catches a schema that balloons.
-    expect(total ~/ 4, lessThan(11400));
+    // 11400 -> 11500 (bots background, 2026-11-05): bot_telegram (~60 tokens) lets a bot's scheduled task message the
+    // owner in Telegram with SubMac closed. Bot tools reach opencode through find_tools, not with every step.
+    expect(total ~/ 4, lessThan(11500));
   });
 }

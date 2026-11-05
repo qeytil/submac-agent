@@ -97,12 +97,12 @@ void main() {
     });
   });
 
-  group('T-3 a wake never takes a chat an office job holds', () {
-    test('busy office, a mark already there, or a run going: no', () {
-      expect(Bots.wakeMayClaim(officeBusy: true, hasMarker: false, running: false), isFalse);
-      expect(Bots.wakeMayClaim(officeBusy: false, hasMarker: true, running: false), isFalse);
-      expect(Bots.wakeMayClaim(officeBusy: false, hasMarker: false, running: true), isFalse);
-      expect(Bots.wakeMayClaim(officeBusy: false, hasMarker: false, running: false), isTrue);
+  group('T-3 a wake never takes a chat another run holds', () {
+    // Team work runs in its own sessions now (bots team audit 2026-11-04), so it no longer holds the chat.
+    test('a mark already there, or a run going: no', () {
+      expect(Bots.wakeMayClaim(hasMarker: true, running: false), isFalse);
+      expect(Bots.wakeMayClaim(hasMarker: false, running: true), isFalse);
+      expect(Bots.wakeMayClaim(hasMarker: false, running: false), isTrue);
     });
   });
 

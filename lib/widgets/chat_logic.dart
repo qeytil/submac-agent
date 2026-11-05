@@ -1,10 +1,13 @@
 import '../services/agent_loop.dart';
+import '../services/choices.dart';
 
 // Pure helpers behind the chat screen's feel: incremental markdown, smooth text reveal,
 // follow-up chips and the "How I did it" list. No Flutter imports, so they are cheap to test.
 
 /// A card written on one line ("```file /path/a.pdf```") becomes a real fenced block, so it still draws as a card.
-String fixInlineCards(String s) => s.replaceAllMapped(
+/// A bot's question written as raw code becomes a ```choices card first (Choices.fixReply), so the team chat and every
+/// markdown view draw the same card as the chat.
+String fixInlineCards(String s) => Choices.fixReply(s).replaceAllMapped(
     RegExp(r'```(file|images|photos|table|diagram|choices|links)[ \t]+([^\n`]+?)[ \t]*```'),
     (m) => '```${m.group(1)}\n${m.group(2)}\n```');
 
@@ -123,7 +126,7 @@ int revealTarget(String full, {required bool streaming}) {
 /// Up to five short replies the user can tap after an answer, worked out from the answer itself
 /// (no extra request). Offers ("Want me to…?") get Yes / No; "A, B or C?" gets each choice.
 List<String> suggestFollowUps(String reply, {int max = 5}) {
-  final text = reply.trim();
+  final text = Choices.fixReply(reply.trim());
   if (text.isEmpty) return const [];
   // Cards that already carry their own buttons speak for themselves.
   if (RegExp(r'```(choices|confirm|order|order_summary|receipt)\b').hasMatch(text)) return const [];

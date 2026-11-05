@@ -72,6 +72,9 @@ extension AppStateTools on AppState {
       for (final job in BrowserJobs.I.jobs) {
         if (job.live || job.reported) continue;
         job.reported = true;
+        // Team work's browser jobs report to the team turn that started them, never into a chat or a notification
+        // of their own (they used to report in the member's private chat).
+        if (TeamKey.isKey(job.convId)) continue;
         final waiting = runs.any((r) => r.convId == job.convId && !r.side);
         if (!waiting) {
           final msg = switch (job.status) {
@@ -167,7 +170,9 @@ extension AppStateTools on AppState {
     final outMsg = _outboundBlock(name, args, convId);
     if (outMsg != null) return ToolGate.blocked(outMsg);
     final worker = Bots.I.byConv(convId);
-    final office = _officeCtx[convId] == null ? null : Offices.I.byId(_officeCtx[convId]!);
+    // Team work runs under its team key, which names its team (its trust rule, and where its approval card shows).
+    final officeId = _officeCtx[convId] ?? TeamKey.officeOf(convId);
+    final office = officeId.isEmpty ? null : Offices.I.byId(officeId);
     // WhatsApp: every message, file and call to someone needs the user's OK, even with Full access on or a Trusted bot,
     // unless the user trusted this bot for WhatsApp (or its office is trusted). Plan 5.2 keeps this rule as it was.
     if (WhatsAppTools.names.contains(name)) {
@@ -423,15 +428,21 @@ extension AppStateTools on AppState {
       final o = _officeCtx[convId] == null ? null : Offices.I.byId(_officeCtx[convId]!);
       final b = Bots.I.byConv(convId);
       if (o == null || b == null) return 'Error: office tools only work during office work.';
-      return Offices.I.execute(name, args, o, b);
+      return Offices.I.execute(name, args, o, b, job: AppStateAgentRunner.ocOfficeJob[convId]);
     }
     if (BrowserJobs.names.contains(name)) {
       final id = convId ?? currentId ?? '';
       return BrowserJobs.I.execute(name, args, id,
-          // A scheduled task has nobody to answer a check-in, so its browser work runs unattended.
-          unattended: _scheduledConvs.contains(id), parentCancelled: () {
+          // A scheduled task, or team work (no chat to answer in), has nobody to answer a check-in, so its browser
+          // work runs unattended.
+          unattended: _scheduledConvs.contains(id) || TeamKey.isKey(id), parentCancelled: () {
         final r = runs.where((r) => r.convId == convId && !r.side).firstOrNull;
-        return r == null || r.cancelled;
+        // A team member's turn has no chat run: its job lives as long as the turn.
+        if (r == null) {
+          final team = AppStateAgentRunner.teamLive[convId];
+          return team == null || team();
+        }
+        return r.cancelled;
       });
     }
     if (BrowserAgent.names.contains(name)) {
@@ -488,9 +499,13 @@ extension AppStateTools on AppState {
   }
 
   Future<String> _generateImage(Map<String, dynamic> args) async {
-    if (!Cloud.features.value.image) return 'Error: creating pictures is not available yet. Tell the user plainly, and offer another way (a diagram, a document, or a search for a photo).';
+    final prompt = '${args['prompt'] ?? ''}'.trim();
+    if (prompt.isEmpty) return 'Error: give a prompt that describes the picture.';
+    // No picture model on SubMac's server yet (no submac-image route): say so, and name the ways that still work, so
+    // the agent still answers with a visual (owner 2026-11-04).
+    if (!Cloud.features.value.image) return AgentTools.imageOffNote;
     try {
-      final bytes = await Cloud.image((args['prompt'] ?? '').toString(), size: (args['size'] ?? '1024x1024').toString());
+      final bytes = await Cloud.image(prompt, size: TurnVisuals.sizeFor(args));
       final ws = await AgentTools.workspaceDir();
       final dir = Directory('$ws/media');
       await dir.create(recursive: true);
@@ -498,7 +513,7 @@ extension AppStateTools on AppState {
       await f.writeAsBytes(bytes);
       return 'IMAGE_SAVED ${f.path}\nThe image is shown to the user and saved in their Library.';
     } catch (e) {
-      return 'Error: the picture could not be made ($e).';
+      return 'Error: the picture could not be made ($e). ${AgentTools.imageOtherWays}';
     }
   }
 
@@ -512,6 +527,10 @@ extension AppStateTools on AppState {
   }
 
   Future<Map<String, String>?> askUser(UserAsk a) {
+    // Team work has no chat card to ask in (its team chat is no conversation, and the member's private chat is not
+    // the place: bots team audit 2026-11-04). The question is skipped at once and the member carries on, instead of
+    // waiting on a card nobody can see.
+    if (TeamKey.isKey(a.convId)) return Future<Map<String, String>?>.value(null);
     asks.add(a);
     final signIn = a.kind == 'login' || a.kind == 'login_confirm';
     if (signIn) BrowserAgent.I.setSheetUp(true);

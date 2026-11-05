@@ -14,6 +14,8 @@ import java.net.URL
  *   libocld.so       musl's dynamic loader (ld-musl-aarch64.so.1). It is the program we start.
  *   libopencode.so   the opencode binary, loaded by libocld.so.
  *   libocstdcpp.so   libstdc++.so.6        libocgcc.so   libgcc_s.so.1
+ *   libocrg.so / liboccurl.so / libocexec.so   static rg, curl and the `opencode` launcher for opencode's tools,
+ *                    linked as filesDir/oc/bin/{rg,curl,opencode} and put first on PATH (2026-11-03).
  * The binary asks for its libraries by soname, so filesDir/oc/lib holds symlinks with those names pointing at the
  * extracted files. musl treats libc.musl-aarch64.so.1 as itself. Everything opencode writes (config, sessions,
  * temp files) lives under filesDir/oc. It listens on 127.0.0.1 only, behind a password.
@@ -36,7 +38,9 @@ object OpenCode {
     /** Starts the server (or returns the running one). [baseUrl] is the OpenAI-compatible model endpoint (our
      *  ai-chat function) and [token] the signed-in user's access token. Returns the port. */
     @Synchronized
-    fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int, cwd: String? = null): Int {
+    fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int, cwd: String? = null,
+              skills: Map<String, String> = emptyMap(), providers: List<Map<String, String>> = emptyList(),
+              models: List<String> = emptyList(), byokProviders: String = "", byokEnv: Map<String, String> = emptyMap()): Int {
         if (running()) return port
         val lib = File(ctx.applicationInfo.nativeLibraryDir)
         val ld = File(lib, "libocld.so")
@@ -46,13 +50,32 @@ object OpenCode {
         val links = File(root, "lib").apply { mkdirs() }
         link(File(lib, "libocstdcpp.so"), File(links, "libstdc++.so.6"))
         link(File(lib, "libocgcc.so"), File(links, "libgcc_s.so.1"))
+        // Programs opencode's tools call by name (owner, 2026-11-03: "make every opencode tool work on the phone").
+        // Android has no rg or curl: glob/grep/skill failed with "ripgrep execution failed" (opencode looks for rg on
+        // PATH, else downloads one into its data dir, which Android will not execute), and bash with "curl: inaccessible
+        // or not found". The APK ships static builds as lib*.so; Android only executes files in nativeLibraryDir, so
+        // filesDir/oc/bin holds symlinks into it (exec through a symlink runs the target there) and goes first on PATH.
+        // `opencode` points at libocexec.so, which re-runs libocld.so with libopencode.so (see ocexec.c): a wrapper
+        // script would not run, since Android executes nothing written to app data.
+        val binDir = File(root, "bin").apply { mkdirs() }
+        for ((name, so) in listOf("rg" to "libocrg.so", "curl" to "liboccurl.so", "opencode" to "libocexec.so")) {
+            val target = File(lib, so)
+            if (target.exists()) link(target, File(binDir, name)) else Log.w(TAG, "no $so in this build: $name unavailable")
+        }
         val work = (if (cwd.isNullOrEmpty()) File(root, "work") else File(cwd)).apply { mkdirs() }
         val tmp = File(root, "tmp").apply { mkdirs() }
         val proxyPort = LocalProxy.start()
         if (baseUrl.isNotEmpty()) LocalProxy.upstream = baseUrl
         if (token.isNotEmpty()) LocalProxy.token = token
+        // SubMac's skill (the app's tools, reached through SubMac's MCP server): opencode lists them and loads one when it wants it.
+        val skillDir = File(root, "skills")
+        skillDir.deleteRecursively()
+        for ((name, body) in skills) {
+            if (!Regex("[a-z0-9-]{1,64}").matches(name)) continue
+            File(skillDir, name).apply { mkdirs() }.resolve("SKILL.md").writeText(body)
+        }
         val cfg = File(root, "opencode.json")
-        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}"))
+        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillDir.path, providers, models, byokProviders))
         val pb = ProcessBuilder(ld.path, "--library-path", links.path, bin.path, "serve", "--hostname", "127.0.0.1", "--port", "$wantPort")
         pb.directory(work)
         pb.redirectErrorStream(true)
@@ -64,9 +87,17 @@ object OpenCode {
         env["XDG_STATE_HOME"] = File(root, "state").path
         env["TMPDIR"] = tmp.path
         env["SHELL"] = "/system/bin/sh"
+        // bin first so opencode (Bun.which("rg")) and every bash-tool command find rg, curl and opencode; the system
+        // dirs stay after it. SUBMAC_OC_LIB tells ocexec where the soname links are (same as --library-path below).
+        val sysPath = env["PATH"].takeUnless { it.isNullOrEmpty() } ?: "/system/bin:/system/xbin:/vendor/bin"
+        env["PATH"] = binDir.path + ":" + sysPath
+        env["SUBMAC_OC_LIB"] = links.path
         env["OPENCODE_CONFIG"] = cfg.path
         env["OPENCODE_SERVER_PASSWORD"] = pass
         env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
+        // The user's own provider keys (BYOK, owner 2026-11-03): only in this process's environment, named by the
+        // config as {env:SUBMAC_BYOK_<ID>}; never written to opencode.json or logged.
+        for ((k, v) in byokEnv) if (Regex("SUBMAC_BYOK_[A-Z0-9_]{1,40}").matches(k) && v.isNotEmpty()) env[k] = v
         // Android has no /etc/resolv.conf, so musl cannot resolve names: all outbound traffic goes through the
         // app's own proxy, which resolves with Android's resolver (LocalProxy).
         val proxy = "http://127.0.0.1:$proxyPort"
@@ -129,27 +160,57 @@ object OpenCode {
 
     private fun isLink(f: File): Boolean = try { android.system.Os.lstat(f.path); true } catch (_: Throwable) { false }
 
-    private fun q(s: String) = org.json.JSONObject.quote(s)
-
-    /** One provider: SubMac's own model gateway, which speaks the OpenAI chat API, reached through LocalProxy (which adds
-     *  the token). Every permission is allowed: the chat has no approval card for opencode yet, and an "ask" would
-     *  leave the reply waiting forever. The engine runs inside the app's own sandbox. */
-    private fun config(baseUrl: String): String = """
-{
-  "${'$'}schema": "https://opencode.ai/config.json",
-  "autoupdate": false,
-  "share": "disabled",
-  "provider": {
-    "submac": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "SubMac",
-      "options": { "baseURL": ${q(baseUrl)}, "apiKey": "via-proxy", "headers": { "x-submac-source": "opencode" } },
-      "models": { "submac": { "name": "SubMac", "tool_call": true } }
+    /** SubMac's own model gateway, which speaks the OpenAI chat API, reached through LocalProxy (which adds the token).
+     *  One provider per allowance lane (owner 2026-11-03, OcLane in the app): `submac` is the user's own lane; each
+     *  background provider (`submac-bg`, `submac-office`) points at `/__submac/lane/<source>`, which LocalProxy sends on
+     *  with `x-submac-lane: background`, so the lane rides in each request's own path and never leaks between sessions.
+     *  The app names the provider in every prompt. No `small_model`: opencode then runs its small jobs (titles,
+     *  summaries) on the turn's own provider, so they bill to the same lane. With no list from the app, the one
+     *  foreground provider is written as before.
+     *  Permissions: reading, editing files in the workspace and fetching pages go ahead; running a command,
+     *  touching files outside the workspace and a step repeating itself ask first, on SubMac's ask card in the chat
+     *  (OpenCodeAsks). SubMac's own tools come through SubMac's MCP server (registered by the app after start) and ask
+     *  through SubMac's own approval card. */
+    private fun config(baseUrl: String, skills: String, providers: List<Map<String, String>>, models: List<String>,
+                       byok: String = ""): String {
+        val list = providers.filter { Regex("[a-z0-9-]{1,32}").matches(it["id"] ?: "") }
+            .ifEmpty { listOf(mapOf("id" to "submac", "name" to "SubMac", "path" to "", "source" to "opencode")) }
+        val names = models.filter { Regex("[a-z0-9.-]{1,48}").matches(it) }.ifEmpty { listOf("submac") }
+        val prov = org.json.JSONObject()
+        for (p in list) {
+            val path = (p["path"] ?: "").let { if (it.isEmpty() || Regex("/lane/[a-z-]{1,20}").matches(it)) it else "" }
+            val ms = org.json.JSONObject()
+            for (m in names) ms.put(m, org.json.JSONObject().put("name", if (m == "submac") "SubMac" else m).put("tool_call", true))
+            prov.put(p.getValue("id"), org.json.JSONObject()
+                .put("npm", "@ai-sdk/openai-compatible")
+                .put("name", p["name"] ?: "SubMac")
+                .put("options", org.json.JSONObject()
+                    .put("baseURL", baseUrl + path)
+                    .put("apiKey", "via-proxy")
+                    .put("headers", org.json.JSONObject().put("x-submac-source", p["source"] ?: "opencode")))
+                .put("models", ms))
+        }
+        // The user's own providers (BYOK, owner 2026-11-03), built by the app (ByokOpencode): only `byok-*` ids are
+        // taken, so they can never replace a SubMac lane provider. Their packages are bundled in the binary.
+        if (byok.isNotEmpty()) {
+            try {
+                val extra = org.json.JSONObject(byok)
+                for (id in extra.keys()) {
+                    if (Regex("byok-[a-z0-9]{4,24}").matches(id)) prov.put(id, extra.getJSONObject(id))
+                }
+            } catch (e: Throwable) {
+                Log.w(TAG, "byok providers skipped: ${e.javaClass.simpleName}")
+            }
+        }
+        val root = org.json.JSONObject()
+            .put("\$schema", "https://opencode.ai/config.json")
+            .put("autoupdate", false)
+            .put("share", "disabled")
+            .put("provider", prov)
+            .put("model", "submac/submac")
+            .put("skills", org.json.JSONObject().put("paths", org.json.JSONArray().put(skills)))
+            .put("permission", org.json.JSONObject().put("edit", "allow").put("bash", "ask").put("webfetch", "allow")
+                .put("external_directory", "ask").put("doom_loop", "ask").put("question", "allow"))
+        return root.toString(2)
     }
-  },
-  "model": "submac/submac",
-  "small_model": "submac/submac",
-  "permission": { "edit": "allow", "bash": "allow", "webfetch": "allow", "external_directory": "allow", "doom_loop": "allow" }
-}
-""".trimIndent()
 }

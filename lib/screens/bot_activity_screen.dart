@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../services/bot_package.dart';
 import '../services/bot_powers.dart';
 import '../services/bots.dart';
+import '../services/byok.dart';
 import '../services/offices.dart';
 import '../services/whatsapp.dart';
 import '../widgets/motion.dart';
@@ -16,6 +17,7 @@ import '../theme.dart';
 import '../ui/tokens.dart';
 import '../widgets/surface.dart';
 import '../widgets/logo.dart';
+import '../widgets/model_picker.dart';
 
 /// Everything a bot did, run by run and step by step.
 class BotActivityScreen extends StatelessWidget {
@@ -256,6 +258,29 @@ class BotPowersSection extends StatelessWidget {
         if (g == 'whatsapp' && !b.powersOff.contains(g) && !b.powersOff.contains('phone'))
           _WaTrust(bot: b),
       ],
+      // The bot's model (BYOK, owner 2026-11-03): SubMac, or one of the owner's own provider models. Shown only when
+      // there is something to choose (or the bot is already set to an own model).
+      ListenableBuilder(
+        listenable: ByokStore.I,
+        builder: (context, _) {
+          final store = ByokStore.I;
+          if (!store.hasChoices && store.resolve(b.model) == null) return const SizedBox.shrink();
+          return ListTile(
+            key: const ValueKey('bot-model'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Model'),
+            subtitle: Text(store.labelOf(b.model, withProvider: true), style: TextStyle(color: p.muted)),
+            trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+            onTap: () async {
+              final v = await showModelPicker(context, current: b.model, title: 'Model for ${b.name}');
+              if (v == null) return;
+              // SubMac is stored as 'auto' (the bot's default), an own model as 'byok-…|model'.
+              b.model = v == ByokRef.submac ? 'auto' : v;
+              await Bots.I.save();
+            },
+          );
+        },
+      ),
       ListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('Daily limit'),

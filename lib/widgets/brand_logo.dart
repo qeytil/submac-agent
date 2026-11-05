@@ -10,6 +10,8 @@ import 'pill_kit.dart';
 /// drawn in the brand's own colour; apps Simple Icons doesn't carry use their own
 /// icon (assets/logos/<id>.png or a full-colour .svg). Anything else falls back to
 /// the serif letter tile, so a new app never shows a broken image.
+/// AI providers for BYOK (owner 2026-11-03) use the same tiles: Simple Icons marks for OpenAI, Anthropic, Gemini,
+/// OpenRouter, DeepSeek, NVIDIA, Mistral, xAI, Ollama, Moonshot, OpenCode and LM Studio.
 class BrandLogo extends StatelessWidget {
   const BrandLogo(this.id, this.name, {super.key, this.size = 40, this.on = false});
 
@@ -24,6 +26,7 @@ class BrandLogo extends StatelessWidget {
   /// Brand colours for the single-colour marks.
   static const tint = <String, int>{
     'airtable': 0xFF18BFFF,
+    'anthropic': 0xFF191919,
     'asana': 0xFFF06A6A,
     'atlassian': 0xFF0052CC,
     'basecamp': 0xFF1D2D35,
@@ -38,6 +41,7 @@ class BrandLogo extends StatelessWidget {
     'cloudflare': 0xFFF38020,
     'coda': 0xFFF46A54,
     'confluence': 0xFF172B4D,
+    'deepseek': 0xFF5786FE,
     'discord': 0xFF5865F2,
     'dropbox': 0xFF0061FF,
     'elevenlabs': 0xFF000000,
@@ -48,6 +52,7 @@ class BrandLogo extends StatelessWidget {
     'gitlab': 0xFFFC6D26,
     'gmail': 0xFFEA4335,
     'godaddy': 0xFF1BDBDB,
+    'googlegemini': 0xFF8E75B2,
     'grafana': 0xFFF46800,
     'greenhouse': 0xFF24A47F,
     'homeassistant': 0xFF18BCF2,
@@ -59,6 +64,7 @@ class BrandLogo extends StatelessWidget {
     'intercom': 0xFF6AFDEF,
     'jira': 0xFF0052CC,
     'linear': 0xFF5E6AD2,
+    'lmstudio': 0xFF000000,
     'lottiefiles': 0xFF00DDB3,
     'mailchimp': 0xFFFFE01B,
     'make': 0xFF6D00CC,
@@ -66,11 +72,18 @@ class BrandLogo extends StatelessWidget {
     'meetup': 0xFFED1C40,
     'mintlify': 0xFF18E299,
     'miro': 0xFF050038,
+    'mistralai': 0xFFFA520F,
     'mixpanel': 0xFF7856FF,
+    'moonshotai': 0xFF000000,
     'neon': 0xFF34D59A,
     'netlify': 0xFF00C7B7,
     'newrelic': 0xFF1CE783,
     'notion': 0xFF000000,
+    'nvidia': 0xFF76B900,
+    'ollama': 0xFF000000,
+    'openai': 0xFF412991,
+    'opencode': 0xFF000000,
+    'openrouter': 0xFF94A3B8,
     'paddle': 0xFFFDDD35,
     'paypal': 0xFF002991,
     'pexels': 0xFF05A081,
@@ -99,6 +112,7 @@ class BrandLogo extends StatelessWidget {
     'wix': 0xFF0C6EFC,
     'woocommerce': 0xFF96588A,
     'wordpress': 0xFF21759B,
+    'xai': 0xFF000000,
     'youtube': 0xFFFF0000,
     'zapier': 0xFFFF4F00,
     'zendesk': 0xFF03363D,
@@ -106,7 +120,7 @@ class BrandLogo extends StatelessWidget {
   };
 
   /// Apps drawn from their own picture.
-  static const pictures = <String>{'alphavantage', 'amplitude', 'apify', 'apollo', 'attio', 'axiom', 'brightdata', 'canva', 'close', 'coingecko', 'consensus', 'context7', 'dataforseo', 'deepwiki', 'dice', 'exa', 'fireflies', 'folk', 'frameio', 'freshdesk', 'gitguardian', 'globalping', 'granola', 'honeycomb', 'hunter', 'invideo', 'jam', 'jina', 'jotform', 'kajabi', 'kiwi', 'klaviyo', 'krisp', 'lovable', 'mem', 'mercury', 'monday', 'mslearn', 'mux', 'newsapi', 'otter', 'parallel', 'pcloud', 'peek', 'pipedream', 'pipedrive', 'productboard', 'ramp', 'recurly', 'sendgrid', 'serper', 'shipstation', 'spline', 'supermemory', 'tavily', 'twilio', 'vanta', 'workable', 'yahoo', 'zenrows'};
+  static const pictures = <String>{'alphavantage', 'amplitude', 'apify', 'apollo', 'attio', 'axiom', 'brightdata', 'canva', 'close', 'coingecko', 'composio', 'consensus', 'context7', 'dataforseo', 'deepwiki', 'dice', 'exa', 'fireflies', 'folk', 'frameio', 'freshdesk', 'gitguardian', 'globalping', 'granola', 'honeycomb', 'hunter', 'invideo', 'jam', 'jina', 'jotform', 'kajabi', 'kiwi', 'klaviyo', 'krisp', 'lovable', 'mem', 'mercury', 'monday', 'mslearn', 'mux', 'newsapi', 'otter', 'parallel', 'pcloud', 'peek', 'pipedream', 'pipedrive', 'productboard', 'ramp', 'recurly', 'sendgrid', 'serper', 'shipstation', 'spline', 'supermemory', 'tavily', 'twilio', 'vanta', 'workable', 'yahoo', 'zenrows'};
 
   /// Full-colour vector marks (drawn as they are).
   static const colourMarks = <String>{'slack'};

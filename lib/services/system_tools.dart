@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_state.dart';
+import 'bg_runs.dart';
 import 'bots.dart';
 import 'live_session.dart';
 import 'system_bridge.dart';
@@ -612,10 +613,16 @@ class Scheduler extends ChangeNotifier {
   /// Runs a task (set by AppState): starts it in the background and notifies when done.
   Future<void> Function(ScheduledTask t)? runTask;
 
-  static Future<void> _arm(String id, DateTime at) async {
+  static Future<void> _arm(String id, DateTime at, [ScheduledTask? t]) async {
     try {
-      await SystemBridge.I.scheduleAlarm(id, at);
+      await SystemBridge.I.scheduleAlarm(id, at, label: t == null ? '' : alarmLabel(t));
     } catch (_) {}
+  }
+
+  /// The foreground line while the task runs with SubMac closed: "<Bot name> · <task title>" for a bot's task.
+  static String alarmLabel(ScheduledTask t) {
+    final bot = t.bot.isEmpty ? null : Bots.I.byId(t.bot);
+    return BgRun.line(bot?.name ?? 'SubMac', BgRun.title(t.task));
   }
 
   static Future<void> _disarm(String id) async {
@@ -683,7 +690,7 @@ class Scheduler extends ChangeNotifier {
           t.next = t.following()!;
         }
       }
-      await _arm(t.id, t.next.isBefore(now) ? now.add(const Duration(seconds: 5)) : t.next);
+      await _arm(t.id, t.next.isBefore(now) ? now.add(const Duration(seconds: 5)) : t.next, t);
     }
     await _save();
   }
@@ -729,7 +736,7 @@ class Scheduler extends ChangeNotifier {
       t.next = f;
     }
     tasks.add(t);
-    await _arm(t.id, t.next);
+    await _arm(t.id, t.next, t);
     await _save();
     return 'Scheduled (${t.id}): "${t.task}" at ${_fmt(t.next)}${repeat == 'none' ? '' : ', repeating $repeat'}. '
         '${watch ? 'It is a watcher: it is checked each time and notifies only when something new turns up.' : bot.isNotEmpty ? 'You will be woken then to do it yourself and message the result.' : 'SubMac will run it and send a notification.'}';
@@ -775,7 +782,7 @@ class Scheduler extends ChangeNotifier {
       tasks.remove(t);
     } else {
       t.next = f;
-      await _arm(t.id, t.next);
+      await _arm(t.id, t.next, t);
     }
     await _save();
     await runTask?.call(t);

@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/bots_screen.dart';
 import 'app_state.dart';
+import 'services/byok.dart';
 import 'services/forged_tools.dart';
 import 'services/billing/billing_service.dart';
 import 'services/bot_sync.dart';
@@ -63,6 +64,9 @@ Future<void> main() async {
   // App language: follows the phone unless chosen in Settings > Language (PLAN.md 3.4).
   await AppLang.I.load();
   await FullAccess.I.load();
+  // The user's own AI providers and model choice (BYOK, owner 2026-11-03): read once from encrypted storage, so the
+  // first turn already runs on the chosen model.
+  await ByokStore.I.load();
   // First-launch intro flag and a sign-in tick still waiting to be saved on the account (both local, read before the
   // first frame so later starts never wait on them).
   await IntroFlag.load();

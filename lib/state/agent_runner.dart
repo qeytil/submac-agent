@@ -7,6 +7,209 @@
 part of '../app_state.dart';
 
 extension AppStateAgentRunner on AppState {
+  // Lives as long as the app: one listener for every chat.
+  // ignore: cancel_subscriptions
+  static StreamSubscription<Map<String, dynamic>>? _ocAskSub;
+
+  /// Which chat (or team member) an MCP call belongs to, matched on the tool and its arguments (see McpRoutes).
+  static final McpRoutes _routes = McpRoutes();
+
+  /// One driver of the phone's screen at a time among chats, bots and team members.
+  static final ScreenLease screen = ScreenLease();
+
+  /// Team work running right now, by its route key ([TeamKey]: never the bot's private chat id), with that turn's stop
+  /// check, so its browser jobs live as long as the turn does.
+  static final Map<String, bool Function()> teamLive = {};
+
+  /// The sessions of every opencode turn running now, by route key: the turn's own session and the subagent sessions
+  /// opencode starts under it. A SubMac call from a session in none of them comes from no running turn (see
+  /// McpRoutes.watchOrphans) and is refused, never run as another chat.
+  static final Map<String, Set<String>> _ocFamilies = {};
+  static bool _ocOwned(String session) => _ocFamilies.values.any((f) => f.contains(session));
+
+  /// The office job each piece of office work is doing, by its route key (reply | task | review | chief | digest |
+  /// unblock | mention), for the mention rule in office_post.
+  static final Map<String, String> ocOfficeJob = {};
+
+  /// The opencode turns running now, by route key (a chat id, or `team:<team>:<bot>` for a team member's part). A
+  /// SubMac call with no matching part goes to the only one running, never to the chat on screen (bots leak audit,
+  /// 2026-11-03: a bot's call used to act on whatever chat was open).
+  static final Set<String> _ocLive = {};
+
+  /// Child session -> parent session (opencode's `task` tool runs subagents in child sessions), so a subagent's
+  /// approval card shows in the chat that started it.
+  static final Map<String, String> _ocParent = {};
+
+  /// The lead of a team job hands parts to members with team_assign: its handler, by the lead's route key.
+  static final Map<String, Future<String> Function(String member, String ask)> _teamAssign = {};
+
+  /// SubMac's tools offered to opencode through SubMac's MCP server. Layer 1 (owner, 2026-11-02): memory and the
+  /// everyday helpers; the browser, the phone and Live come in the next layers. Each call runs through SubMac's own
+  /// gate, so a risky one shows SubMac's approval card first.
+  List<Map<String, dynamic>> _ocAppTools() => [
+        if (memoryEnabled) ...MemoryStore.definitions,
+        ...LifeTools.definitions,
+        // The app, its outputs, apps and connectors (owner, 2026-11-02).
+        SystemTools.settingsTool,
+        // Layer 2 and 3 (owner, 2026-11-03): the browser agent for websites, and control of the phone and its apps.
+        // Behind "Let it take action", as in the old chat.
+        if (agentEnabled) ...[
+          ...BrowserJobs.definitions,
+          for (final d in SystemTools.definitions())
+            if ((d['function'] as Map)['name'] != 'app_settings') d,
+          ...PhoneTools.definitions,
+          WhatsAppTools.definition,
+        ],
+        AppState.projectsTool,
+        AppState.sitesTool,
+        ...DocTools.definitions,
+        ...DocMaker.definitions,
+        ...MediaCoder.definitions,
+        // Always findable (owner 2026-11-04, visuals): with no picture model on the server it says so and names the
+        // ways that work (an .svg/.html file, code_media, the user's own model).
+        AgentTools.imageTool,
+        // The user's own AI models (their base URL + key), as the old chat had them: pictures, video, speech.
+        ...AiModels.definitions,
+        AppState.connectAppTool,
+        ...ConnectorCatalog.definitions(),
+        ConnectorCatalog.apiCallTool,
+        // Every app tool: find_tools searches them, so none is out of reach (2026-11-03: Canva's generate-image and
+        // Composio's execute tool were cut by the 8-tool cap the old chat used).
+        ..._mcpToolDefs(all: true),
+        AppState.addMcpServerTool,
+      ];
+
+  /// The SubMac tools the turn [conv] may find and run (bots leak audit, 2026-11-03; see OcToolScope). The owner's
+  /// chat: the app's tools only (bot and team tools are no longer offered to the main agent). A bot's chat: its own
+  /// tools (bot_make only for the Chief), the office tools while it does office work, team_task, and the app's tools,
+  /// cut by the powers the owner switched off for it. A team member's part (`team:<team>:<bot>`): its own tools,
+  /// team_assign and team_task, and the app's tools, cut the same way.
+  List<Map<String, dynamic>> _mcpTools([String? conv]) {
+    final teamKey = TeamKey.isKey(conv);
+    final b = Bots.I.byConv(conv);
+    if (b == null) return OcToolScope.of(app: _ocAppTools());
+    return OcToolScope.of(
+      app: _ocAppTools(),
+      botOwn: Bots.I.definitionsFor(b),
+      // Office tools only for office work, which runs under its own team key (never in the bot's private chat).
+      office: teamKey && _officeCtx.containsKey(conv) ? Offices.definitions : const [],
+      team: [if (teamKey && _teamAssign.containsKey(conv)) TeamRun.assignTool, TeamRun.taskTool],
+      allowed: (n) => BotPowers.allowed(b.effectiveOff, n) && (!b.appsScoped || _botAppOk(b, n, const {})),
+    );
+  }
+
+  /// The only text added to opencode's own prompt: the name SubMac (owner, 2026-11-03). A bot's chat gets the bot's
+  /// own brief instead (who it is, what it knows and owns, its tools).
+  String _ocLayer([String? convId]) {
+    final b = Bots.I.byConv(convId);
+    // The bot's private chat: its brief without its team work (that stays in the team chat).
+    return b == null ? SubMacStyle.identity : Bots.I.opencodeBriefOf(b);
+  }
+
+  /// A run nobody is watching could not do something without the owner's OK: one notification says what, and the
+  /// bot's journal keeps it (BgRun, 2026-11-05).
+  Future<void> _bgNeeds(String convId, String what) async {
+    final bot = Bots.I.byConv(convId);
+    final text = BgRun.needs(what);
+    if (bot != null) {
+      bot.log('note', text);
+      unawaited(Bots.I.save());
+    }
+    try {
+      await SystemBridge.I.notify(
+          id: 9800 + (convId.hashCode % 90).abs(),
+          title: bot?.name ?? 'SubMac',
+          body: text,
+          payload: bot != null ? 'botchat/${bot.id}' : 'conv/$convId',
+          kind: 'attention');
+    } catch (_) {}
+  }
+
+  /// Starts opencode in the background at launch (after sign-in), so the first message does not wait for the engine.
+  /// Once the connected apps' tools have loaded, opencode is given the fresh list. Failures stay quiet: the first
+  /// message starts the engine again and shows any error there.
+  Future<void> warmAgent() async {
+    try {
+      final oc = OpenCodeEngine.I;
+      _ocWire(oc);
+      await oc.ensure();
+      await ensureMcpTools().catchError((Object _) {});
+      await oc.syncMcp();
+    } catch (e) {
+      debugPrint('opencode warm start: $e');
+    }
+  }
+
+  /// Gives the engine SubMac's MCP server, and turns opencode's permission and question requests into the ask card.
+  void _ocWire(OpenCodeEngine oc) {
+    // New BYOK settings restart the engine only while no turn runs (owner 2026-11-03).
+    oc.busy ??= () => _ocLive.isNotEmpty;
+    // Two MCP tools only (find, run); the full SubMac set is looked up when a task needs it (SubMacGateway).
+    // Bots leak audit (2026-11-03): the caller is found first, for find_tools as well as run_tool, so each turn finds
+    // and runs only its own tools (see _mcpTools), and a call with no route goes to the only turn running or is
+    // refused; it no longer runs as the chat on screen (a bot's bot_remember used to land on the open bot's chat, and
+    // its approval card in the owner's chat).
+    oc.mcp ??= SubMacMcp(
+      // find_tools and run_tool, plus generate_image by name while the server can make pictures (SubMacGateway.listing).
+      tools: () => SubMacGateway.listing([if (hasImageModel) AgentTools.imageTool]),
+      call: (name, args) async {
+        final (rn, ra) = name == SubMacGateway.runName ? SubMacGateway.inner(args) : (name, args);
+        // Several turns at once (the owner's chat, bots, team members side by side): only an exact match routes.
+        final routed = await _routes.take(rn, ra, fuzzy: _ocLive.length <= 1);
+        // A call from a session no running turn owns is refused (McpRoutes.orphan), never run as the only live turn.
+        final conv = routed == McpRoutes.orphan ? null : (routed ?? McpRoutes.soleLive(_ocLive));
+        final gate = SubMacGateway(
+          tools: () => _mcpTools(conv),
+          run: (n, a) async {
+            if (conv == null) {
+              return 'Error: SubMac could not tell which chat this call came from (several are working). Call it once more.';
+            }
+            if (n == 'add_mcp_server') return addMcpServerFromChat(a);
+            return _runRouted(n, a, conv);
+          },
+        );
+        return gate.call(name, args);
+      },
+    );
+    if (_ocAskSub != null) return;
+    final asks = OpenCodeAsks(
+      ask: (conv, title, prompt, options) async {
+        // A request from a session of no SubMac chat is refused (Deny / skipped): it used to show in whatever chat
+        // was open, so a bot's or team member's "Run this command?" landed in the owner's chat (2026-11-03).
+        if (conv.isEmpty) return null;
+        // Team work asks in the team (its chat and the approvals inbox, with a notification), never in the member's
+        // private chat with the owner (bots team audit 2026-11-04).
+        if (TeamKey.isKey(conv)) return _teamPermission(conv, title, prompt, options);
+        final r = await askUser(UserAsk(kind: 'text', convId: conv, title: title, prompt: prompt, options: options));
+        return r?['answer'];
+      },
+      permit: oc.replyPermission,
+      answer: oc.replyQuestion,
+      // A subagent's session asks in the chat of the turn that started it.
+      convOf: (s) => McpRoutes.rootConv(s, oc.convOf, _ocParent),
+      autopilot: () => FullAccess.I.on,
+      // A bot's scheduled task with nobody watching (2026-11-05): answered at once by what the owner already
+      // allowed (Full access, or the bot works "On its own"); anything else is refused and the owner is told.
+      unattended: (conv, perm) {
+        if (!unattendedRun(conv)) return null;
+        final bot = Bots.I.byConv(conv);
+        return perm.isEmpty ? 'reject' : BgRun.permission(perm: perm, fullAccess: FullAccess.I.on, botLevel: bot?.level ?? BotTrust.levelNew);
+      },
+      refused: (conv, title, detail) => unawaited(_bgNeeds(conv, '$title ${detail.split('\n').first}')),
+    );
+    _ocAskSub = oc.events.listen((e) {
+      // Runs before every turn's own listener: tool calls of sessions no running turn owns are marked, so their
+      // SubMac call is refused rather than run as another chat.
+      _routes.watchOrphans(e, _ocOwned);
+      final props = e['properties'];
+      if ((e['type'] == 'session.created' || e['type'] == 'session.updated') && props is Map) {
+        final info = props['info'];
+        if (info is Map && info['parentID'] != null && info['id'] != null) _ocParent['${info['id']}'] = '${info['parentID']}';
+      }
+      unawaited(asks.handle(e).catchError((Object _) => false));
+    });
+  }
+
   /// Runs one opencode turn for the newest user message of [convId]. [side] and [chain] are kept for the callers
   /// (bots, calls): opencode queues a message sent while a reply is still being written, so both run the same way.
   Future<void> _runAgent(String convId, {bool side = false, int chain = 0}) async {
@@ -23,6 +226,8 @@ extension AppStateAgentRunner on AppState {
     if (runs.any((r) => r.convId == convId)) return;
     final run = AgentRun(convId: convId, side: false, title: _shortTitle(lastUser?.content ?? 'Task'));
     runs.add(run);
+    // A bot's wake keeps the rows it writes, so a wake that ends silent removes only those (CB-17).
+    if (_botWakeConvs.containsKey(convId)) _wakeRows[convId] = run.wrote;
     _notify();
     final testRun = AppState.debugRunAgent;
     if (testRun != null) {
@@ -36,13 +241,16 @@ extension AppStateAgentRunner on AppState {
       return;
     }
     String? sentId;
+    var engineTurn = false;
     try {
       if (lastUser == null) return;
       sentId = lastUser.id;
       run.show(RunPhase.starting, RunStatus.starting);
       _notify();
       final oc = OpenCodeEngine.I;
-      await oc.ensure();
+      _ocWire(oc);
+      await oc.ensure(turn: true);
+      engineTurn = true;
       final session = await oc.sessionFor(convId, title: run.title);
       run.onStop = () => unawaited(oc.abort(session));
       if (run.cancelled) return;
@@ -57,34 +265,48 @@ extension AppStateAgentRunner on AppState {
 
       void sync() {
         for (final p in turn.parts.values) {
-          if (p.kind == 'text') {
+          if (p.kind == 'text' || p.kind == 'reasoning') {
             var m = shown[p.id];
             if (m == null) {
               if (p.text.trim().isEmpty) continue;
-              m = ChatMessage(id: _uuid.v4(), role: 'assistant', streaming: true)..animateIn = true;
+              // Thinking is its own row (name 'reasoning'), drawn as opencode desktop draws it.
+              m = ChatMessage(id: _uuid.v4(), role: 'assistant', streaming: true, name: p.kind == 'reasoning' ? 'reasoning' : null)
+                ..animateIn = true;
               shown[p.id] = m;
               list.add(m);
               run.wrote.add(m.id);
             }
             m.content = p.text;
+            if (p.kind == 'reasoning' && p.finished) m.streaming = false;
           } else {
+            // SubMac's own tools come back from opencode as submac_<name>: shown under their own name.
+            var tool = p.tool.startsWith('submac_') ? p.tool.substring(7) : p.tool;
+            var input = p.input;
+            // A SubMac tool run through the gateway shows (and routes) as the tool itself.
+            if (tool != p.tool && tool == SubMacGateway.runName) {
+              final (n, a) = SubMacGateway.inner(p.input);
+              if (n.isNotEmpty) {
+                tool = n;
+                input = a;
+              }
+            }
             var m = shown[p.id];
             if (m == null) {
               m = ChatMessage(
                 id: _uuid.v4(),
                 role: 'assistant',
-                toolCalls: [ToolCall(id: p.callId, name: p.tool, arguments: jsonEncode(p.input))],
+                toolCalls: [ToolCall(id: p.callId, name: tool, arguments: jsonEncode(input))],
               );
               shown[p.id] = m;
               list.add(m);
               run.wrote.add(m.id);
-              run.trail.add(RunStep(p.title ?? stepLabel(p.tool, p.input)));
+              run.trail.add(RunStep(p.title ?? stepLabel(tool, input)));
             } else {
-              m.toolCalls = [ToolCall(id: p.callId, name: p.tool, arguments: jsonEncode(p.input))];
+              m.toolCalls = [ToolCall(id: p.callId, name: tool, arguments: jsonEncode(input))];
             }
             if (p.finished && !shown.containsKey('${p.id}:out')) {
               final out = ChatMessage(
-                  id: _uuid.v4(), role: 'tool', toolCallId: p.callId, name: p.tool, content: _clip(p.output ?? ''));
+                  id: _uuid.v4(), role: 'tool', toolCallId: p.callId, name: tool, content: _clip(p.output ?? ''));
               shown['${p.id}:out'] = out;
               list.add(out);
               run.wrote.add(out.id);
@@ -101,7 +323,7 @@ extension AppStateAgentRunner on AppState {
         if (turn.retry != null && turn.retry!.isNotEmpty) {
           run.show(RunPhase.retrying, turn.retry!);
         } else if (last != null && last.kind == 'tool' && !last.finished) {
-          run.show(RunPhase.tool, last.title ?? stepLabel(last.tool, last.input));
+          run.show(RunPhase.tool, last.title ?? stepLabel(last.tool.replaceFirst('submac_', ''), last.input));
         } else if (turn.reasoning) {
           run.show(RunPhase.thinking, RunStatus.thinking);
         } else if (last != null && last.kind == 'text') {
@@ -110,19 +332,56 @@ extension AppStateAgentRunner on AppState {
         _notify();
       }
 
+      // The allowance lane and model of this turn (owner 2026-11-03, see OcLane): a bot's wake and office work bill
+      // to the bots' share (background lane); the owner's own chats, and the owner typing in a bot's chat, stay
+      // foreground. A bot's chat runs on the bot's own model setting.
+      final laneBot = Bots.I.byConv(convId);
+      final bg = _backgroundLane(convId);
+      final laneModel = OcLane.pick(background: bg, officeWork: bg && _officeCtx.containsKey(convId), botModel: laneBot?.model);
+      final guard = OcBgGuard(
+          background: bg, budgetLeft: OcBgGuard.leftOf(laneBot?.tokenBudgetK ?? 0, laneBot?.tokensTodayNow ?? 0), byok: OcLane.isByok(laneModel));
+      String? stopped;
+      // SubMac's tools may have changed since opencode listed them (an app connected, its tools loaded). Re-listed
+      // only while no other turn works (OpenCodeEngine.syncMcp).
+      await ensureMcpTools().catchError((Object _) {});
+      await oc.syncMcp().catchError((Object _) {});
+      // This turn's session and the subagent sessions opencode starts under it: their SubMac calls route here.
+      final family = {session};
+      _ocLive.add(convId);
+      _ocFamilies[convId] = family;
       final sub = oc.events.listen((e) {
+        _routes.watch(e, convId, family);
         if (turn.apply(e)) sync();
+        // Background work stops when the bots' share is refused or the bot's own budget runs out (owner 2026-11-03).
+        final why = stopped == null ? guard.check(turn) : null;
+        if (why != null) {
+          stopped = why;
+          unawaited(oc.abort(session));
+          if (!done.isCompleted) done.complete();
+        }
         if ((turn.done || turn.error != null) && !done.isCompleted) done.complete();
       });
+      final began = DateTime.now().subtract(const Duration(seconds: 2));
       try {
         run.show(RunPhase.waiting, RunStatus.waiting);
         _notify();
-        await oc.prompt(session, await _partsFor(lastUser));
+        await oc.prompt(session, await _partsFor(lastUser), system: _ocLayer(convId), model: laneModel);
         while (!done.isCompleted && !run.cancelled) {
           await Future.any([done.future, Future<void>.delayed(const Duration(seconds: 1))]);
         }
       } finally {
         await sub.cancel();
+        _ocLive.remove(convId);
+        if (identical(_ocFamilies[convId], family)) _ocFamilies.remove(convId);
+        _ocBgStopped(stopped, turn, laneBot);
+        // The bots' share as the server now counts it, so the next wake knows whether to wait for tomorrow.
+        if (bg) unawaited(Cloud.refreshStatus());
+        // A bot's opencode work counts toward its own daily budget.
+        final bot = Bots.I.byConv(convId);
+        if (bot != null && turn.tokens > 0) {
+          bot.addTokens(turn.tokens);
+          unawaited(Bots.I.save());
+        }
       }
       for (final m in shown.values) {
         m.streaming = false;
@@ -132,10 +391,16 @@ extension AppStateAgentRunner on AppState {
         }
         if (run.cancelled && m.role == 'assistant' && m.toolCalls == null) m.stopped = true;
       }
+      if (!run.cancelled) await _ocShowVisuals(convId, turn, list, shown, run, began);
       for (final m in list.where((m) => shown.containsValue(m)).toList()) {
         await save(m);
       }
       if (turn.error != null && !run.cancelled) {
+        // A BYOK key refused or out of quota: the provider's next key takes over for the next turn (owner 2026-11-03).
+        if (OcLane.isByok(laneModel)) {
+          final next = await ByokStore.I.rotateAfter(laneModel['providerID']!, turn.error);
+          if (next != null) turn.error = '${turn.error}\n\nSwitched to $next for the next message.';
+        }
         final err = ChatMessage(id: _uuid.v4(), role: 'assistant', error: turn.error)..animateIn = true;
         list.add(err);
         run.wrote.add(err.id);
@@ -148,7 +413,11 @@ extension AppStateAgentRunner on AppState {
         run.wrote.add(err.id);
       }
     } finally {
+      if (engineTurn) OpenCodeEngine.I.endTurn();
+      screen.release(convId);
+      _ocLive.remove(convId);
       runs.remove(run);
+      _ocRunEnded(convId, list, run);
       if (!run.finished.isCompleted) run.finished.complete();
       _notify();
     }
@@ -156,6 +425,292 @@ extension AppStateAgentRunner on AppState {
     if (!run.cancelled && sentId != null && chain < 3) {
       final newest = list.lastWhere((m) => m.role == 'user', orElse: () => list.first);
       if (newest.role == 'user' && newest.id != sentId) unawaited(_runAgent(convId, chain: chain + 1));
+    }
+  }
+
+  /// The pictures, drawings, pages and videos the turn made with opencode's own tools (a written .svg, a script's
+  /// .png, an .html page) or named in its answer, shown as cards under the answer (owner 2026-11-04: "no visual
+  /// output ability, why?"). opencode does not know SubMac's cards, so the chat finds its visuals itself.
+  Future<void> _ocShowVisuals(String convId, OpenCodeTurn turn, List<ChatMessage> list, Map<String, ChatMessage> shown, AgentRun run, DateTime began) async {
+    try {
+      final ws = await AgentTools.workspaceDir();
+      final bot = Bots.I.byConv(convId);
+      final calls = <(String, Map<String, dynamic>)>[];
+      final outs = <String>[];
+      for (final p in turn.parts.values) {
+        if (p.kind != 'tool') continue;
+        calls.add((p.tool, p.input));
+        if (p.output != null) outs.add(p.output!);
+      }
+      final answer = list.lastWhere(
+          (m) => shown.containsValue(m) && m.role == 'assistant' && m.name == null && (m.toolCalls?.isEmpty ?? true) && m.error == null,
+          orElse: () => ChatMessage(id: '', role: 'user'));
+      final text = answer.id.isEmpty ? '' : answer.content;
+      final cards = TurnVisuals.cardsFor(
+        answer: TurnVisuals.liftImages(text),
+        workspace: ws,
+        calls: calls,
+        toolOutputs: outs,
+        // Files a script made: a bot's turn looks in its own folder only; the owner's chat skips the bots' and teams'
+        // folders, which other turns write to meanwhile.
+        made: bot == null
+            ? TurnVisuals.madeSince(Directory(ws), began, skip: const {'bots', 'teams'})
+            : TurnVisuals.madeSince(Directory('$ws/${Bots.botFolder(bot)}'), began),
+      );
+      if (cards.isEmpty) return;
+      if (answer.id.isNotEmpty) {
+        answer.content = TurnVisuals.attach(answer.content, cards);
+        return;
+      }
+      final m = ChatMessage(id: _uuid.v4(), role: 'assistant', content: cards)..animateIn = true;
+      shown['visuals:${m.id}'] = m;
+      list.add(m);
+      run.wrote.add(m.id);
+    } catch (e) {
+      debugPrint('turn visuals: $e');
+    }
+  }
+
+  /// Runs a SubMac tool for the chat [conv] its call came from. A team member's part runs under the route key
+  /// `team:<team>:<bot>`: its own bot tools act on that bot, and team_assign reaches the lead's job.
+  Future<String> _runRouted(String name, Map<String, dynamic> args, String? conv) async {
+    if (ScreenLease.drives(name)) {
+      final who = conv ?? currentId ?? '';
+      final busy = screen.take(who, label: _screenLabel(who));
+      if (busy != null) return busy;
+    }
+    if (TeamKey.isKey(conv)) {
+      final bot = Bots.I.byConv(conv);
+      if (bot == null) return 'Error: this team member is gone.';
+      if (name == TeamRun.assignName) {
+        final h = _teamAssign[conv];
+        if (h == null) return 'Error: team_assign works only while you lead a team job.';
+        return h('${args['member'] ?? ''}', '${args['ask'] ?? ''}');
+      }
+      if (name == TeamRun.taskName) return _teamTask(bot, args);
+      // Everything runs under the team key itself (bots team audit 2026-11-04): it acts as the member (Bots.byConv
+      // reads the key), its approval cards and asks go to the team, its browser jobs and screen steps belong to the
+      // team work. It used to run as the member's private chat, so cards, browser results and "working" lines of team
+      // work showed up in the bot's 1:1 conversation with the owner.
+      return runToolWithApproval(name, args, convId: conv);
+    }
+    if (name == TeamRun.assignName) return 'Error: team_assign works only while you lead a team job.';
+    if (name == TeamRun.taskName) return _teamTask(Bots.I.byConv(conv), args);
+    return runToolWithApproval(name, args, convId: conv ?? currentId);
+  }
+
+  String _screenLabel(String who) {
+    if (who.startsWith('team:')) return Bots.I.byId(who.split(':').last)?.name ?? 'a team member';
+    return Bots.I.byConv(who)?.name ?? 'SubMac';
+  }
+
+  /// team_task: a team's lead gives its team a job (from a routine, a follow-up, or the owner asking in its chat).
+  Future<String> _teamTask(Bot? lead, Map<String, dynamic> args) async {
+    if (lead == null) return 'Error: team_task works only for a bot that leads a team.';
+    final name = '${args['team'] ?? ''}'.trim().toLowerCase();
+    final task = '${args['task'] ?? ''}'.trim();
+    if (task.isEmpty) return 'Error: give the task.';
+    final led = Offices.I.offices.where((o) => o.chiefId == lead.id).toList();
+    final o = led.where((o) => o.name.toLowerCase() == name).firstOrNull ?? (led.length == 1 && name.isEmpty ? led.first : null);
+    if (o == null) {
+      return led.isEmpty
+          ? 'Error: ${lead.name} leads no team.'
+          : 'Error: no team named "$name". Teams ${lead.name} leads: ${led.map((o) => o.name).join(', ')}.';
+    }
+    return TeamRun.I.startJob(o, task);
+  }
+
+  /// One opencode turn for a team member or lead, or one office job, in a fresh session that is deleted afterwards
+  /// (nothing piles up, and no member sees another's session or its own private chat's). [key] ([TeamKey]) routes its
+  /// SubMac tool calls, approval cards and asks; [assign] is the lead's hand-off. Returns the answer text; throws when
+  /// the turn failed.
+  ///
+  /// Nothing of it is written to the bot's private chat: the caller posts the result in the team chat (owner
+  /// 2026-11-04: team work shows only in the team chat). Turns run side by side with no cap: each has its own session.
+  ///
+  /// [background]: bills to the bots' share (default); an office reply to the owner's own message is foreground.
+  /// [office]: an office job of that office (its office tools are offered). [onStatus]: the live line ("Searching
+  /// the web") for the team chat.
+  Future<String> teamTurn(Bot b, String key, String system, String task,
+      {bool Function()? stopped,
+      Future<String> Function(String member, String ask)? assign,
+      int maxSteps = 40,
+      bool background = true,
+      String? office,
+      String? officeJob,
+      void Function(String line)? onStatus}) async {
+    // The team chat's live line for this bot ("Nova is working…" / "Nova is typing…") while the turn runs, and its
+    // small issue line ("Nova · rate limit") when it fails (owner 2026-11-04). Team keys only: never a private chat.
+    TeamStatus.I.begin(key);
+    try {
+      return await _teamTurn(b, key, system, task,
+          stopped: stopped,
+          assign: assign,
+          maxSteps: maxSteps,
+          background: background,
+          office: office,
+          officeJob: officeJob,
+          onStatus: onStatus);
+    } catch (e) {
+      TeamStatus.I.fail(key, e);
+      rethrow;
+    } finally {
+      TeamStatus.I.end(key);
+    }
+  }
+
+  Future<String> _teamTurn(Bot b, String key, String system, String task,
+      {bool Function()? stopped,
+      Future<String> Function(String member, String ask)? assign,
+      int maxSteps = 40,
+      bool background = true,
+      String? office,
+      String? officeJob,
+      void Function(String line)? onStatus}) async {
+    final oc = OpenCodeEngine.I;
+    _ocWire(oc);
+    // Team work nobody is watching bills to the bots' share (owner 2026-11-03, see OcLane): when the share is used
+    // up today it waits for tomorrow, as the old team path did on ai-chat's background_paused.
+    final laneModel = OcLane.pick(background: background, officeWork: true, botModel: b.model);
+    // A member on its own BYOK model does not use the bots' share, so it is not paused with it (owner 2026-11-03).
+    if (background && Cloud.background.value.pausedNow && !OcLane.isByok(laneModel)) {
+      _notePaused(b);
+      throw OpenCodeError('${AppState.bgPausedText}.');
+    }
+    await oc.ensure(turn: true);
+    var over = false;
+    bool live() => over || (stopped?.call() ?? false);
+    final family = <String>{};
+    String? session;
+    final turnRef = <OpenCodeTurn>[];
+    StreamSubscription<Map<String, dynamic>>? sub;
+    String? why;
+    var aborted = false;
+    try {
+      await ensureMcpTools().catchError((Object _) {});
+      await oc.syncMcp().catchError((Object _) {});
+      // Its permission and question cards show in the team ([key]): never the member's private chat, the "SubMac
+      // team" chat, or the chat that happens to be open.
+      final s = await oc.newSession(title: '${b.name}: ${_shortTitle(task)}', conv: key);
+      session = s;
+      family.add(s);
+      final turn = OpenCodeTurn(s);
+      turnRef.add(turn);
+      final guard = OcBgGuard(background: background, budgetLeft: OcBgGuard.leftOf(b.tokenBudgetK, b.tokensTodayNow), byok: OcLane.isByok(laneModel));
+      if (assign != null) _teamAssign[key] = assign;
+      if (office != null) _officeCtx[key] = office;
+      if (officeJob != null) ocOfficeJob[key] = officeJob;
+      teamLive[key] = live;
+      _ocLive.add(key);
+      _ocFamilies[key] = family;
+      sub = oc.events.listen((e) {
+        _routes.watch(e, key, family);
+        if (!turn.apply(e)) return;
+        final last = turn.parts.values.isEmpty ? null : turn.parts.values.last;
+        TeamStatus.I.phase(key, TeamStatus.phaseOf(lastKind: last?.kind, lastFinished: last?.finished ?? true, reasoning: turn.reasoning));
+        if (onStatus != null) {
+          if (last != null && last.kind == 'tool' && !last.finished) {
+            onStatus(last.title ?? stepLabel(last.tool.replaceFirst('submac_', ''), last.input));
+          } else if (turn.reasoning) {
+            onStatus('Thinking');
+          } else if (last != null && last.kind == 'text') {
+            onStatus('Writing');
+          }
+        }
+      });
+      await oc.prompt(s, [{'type': 'text', 'text': task}], system: system, model: laneModel);
+      final from = DateTime.now();
+      final until = from.add(const Duration(minutes: 30));
+      while (true) {
+        // The bots' share refused, or this bot's budget ran out: stop now (opencode would retry a 429 for 30 min).
+        why = guard.check(turn);
+        if (why != null) {
+          await oc.abort(s);
+          break;
+        }
+        if (turn.error != null) break;
+        // Idle with nothing written in the first seconds may be the state before the prompt started: keep waiting.
+        if (turn.done && (turn.parts.isNotEmpty || DateTime.now().difference(from) > const Duration(seconds: 8))) break;
+        if (stopped?.call() ?? false) {
+          aborted = true;
+          await oc.abort(s);
+          break;
+        }
+        // The step cap: a member that keeps going stops here and keeps what it wrote so far.
+        if (turn.parts.values.where((p) => p.kind == 'tool').length > maxSteps) {
+          await oc.abort(s);
+          break;
+        }
+        if (DateTime.now().isAfter(until)) {
+          await oc.abort(s);
+          throw OpenCodeError('${b.name} ran out of time (30 min).');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }
+    } finally {
+      over = true;
+      oc.endTurn();
+      _ocLive.remove(key);
+      if (identical(_ocFamilies[key], family)) _ocFamilies.remove(key);
+      screen.release(key);
+      // Its screen steps (phone, browser) were owned by its key: the task bubble lets go of them now.
+      TaskBubble.I.runEnded(key);
+      await sub?.cancel();
+      if (identical(teamLive[key], live)) teamLive.remove(key);
+      if (assign != null && identical(_teamAssign[key], assign)) _teamAssign.remove(key);
+      if (office != null) _officeCtx.remove(key);
+      if (officeJob != null) ocOfficeJob.remove(key);
+      final turn = turnRef.firstOrNull;
+      if (turn != null) {
+        if (turn.tokens > 0) {
+          b.addTokens(turn.tokens);
+          unawaited(Bots.I.save());
+        }
+        _ocBgStopped(why, turn, b);
+      }
+      if (background) unawaited(Cloud.refreshStatus());
+      // The team's waiting approval cards of this work go with it (they live under its key).
+      unawaited(Offices.I.expireFor(key));
+      if (session != null) unawaited(oc.dropSession(session));
+    }
+    final turn = turnRef.first;
+    if (why == OcBgGuard.paused) throw OpenCodeError(turn.error ?? '${AppState.bgPausedText}.');
+    // Stopped mid-turn by the bot's own daily budget: it keeps what it wrote, and the team chat says why it stopped.
+    if (why == OcBgGuard.budget) TeamStatus.I.fail(key, '${b.name} used today\'s token budget. You can raise it in their settings.');
+    if (aborted) return '';
+    if (turn.error != null && OcLane.isByok(laneModel)) await ByokStore.I.rotateAfter(laneModel['providerID']!, turn.error);
+    if (turn.error != null && turn.answer.isEmpty) throw OpenCodeError(turn.error!);
+    return turn.answer;
+  }
+
+  /// An opencode permission or question from team work ([key]): asked in the team, never in the member's private
+  /// chat. A permission becomes the team's approval card (team chat line, approvals inbox, notification); a question
+  /// from opencode's question tool has nobody to answer it there, so it is skipped and the member carries on.
+  Future<String?> _teamPermission(String key, String title, String prompt, List<String> options) async {
+    final b = Bots.I.byConv(key);
+    if (b == null) return null;
+    final isPermission = options.contains(OpenCodeAsks.allow) && options.contains(OpenCodeAsks.deny);
+    if (!isPermission) return null;
+    final o = Offices.I.byId(TeamKey.officeOf(key));
+    final req = ActionRequest(title: title, body: prompt, detail: prompt);
+    final ok = await _askApproval(b, o, req, tool: 'opencode', convId: key);
+    return ok ? OpenCodeAsks.allow : OpenCodeAsks.deny;
+  }
+
+  /// A background turn stopped by [OcBgGuard] (owner 2026-11-03). `paused`: the bots' share is used up today, so
+  /// later wakes wait for tomorrow (Cloud.markBackgroundPaused) and the turn ends on the allowance message (a wake's
+  /// outcome reads it as 'credit': one quiet note, no retry). `budget`: the bot's own budget ran out mid-turn; it
+  /// keeps what it wrote and notes it once.
+  void _ocBgStopped(String? why, OpenCodeTurn turn, Bot? b) {
+    if (why == OcBgGuard.paused) {
+      Cloud.markBackgroundPaused();
+      turn.error = '${AppState.bgPausedText}.';
+      if (b != null) _notePaused(b);
+    } else if (why == OcBgGuard.budget && b != null) {
+      if (!b.journal.any((e) => e.kind == 'budget' && DateTime.now().difference(e.at).inHours < 20)) {
+        b.log('budget', 'Stopped work: today\'s token budget is used up');
+        unawaited(Bots.I.save());
+      }
     }
   }
 
@@ -183,6 +738,29 @@ extension AppStateAgentRunner on AppState {
     }
     if (parts.isEmpty) parts.add({'type': 'text', 'text': m.content});
     return parts;
+  }
+
+  /// A run ended: what the old runner's end-of-task step did for background work (it went with the old runner on
+  /// 2026-11-02 and nothing replaced it). Without it a bot's wake never got its outcome (no @note/@message/@call, a
+  /// silent check-in's rows stayed), its wake mark stayed set so every later wake of that bot was put off for good
+  /// ("busy", come back in 15 minutes), an office job waited on a reply that never came, and the "working" notice
+  /// stayed on (bots leak audit, 2026-11-03).
+  void _ocRunEnded(String convId, List<ChatMessage> list, AgentRun run) {
+    _scheduledConvs.remove(convId);
+    _notifyConvs.remove(convId);
+    if (!runs.any((r) => !r.side) && !(TelegramBridge.I.on && TelegramBridge.I.paired && !appVisible)) {
+      unawaited(SystemBridge.I.keepAlive(false));
+    }
+    final done = _doneCbs.remove(convId);
+    _botWakeConvs.remove(convId);
+    if (done == null || run.cancelled) return;
+    final reply = OcRunEnd.replyOf(list, run.wrote);
+    if (!Bots.I.isBotConv(convId) && (reply == 'NO_CHANGE' || (reply.contains('NO_CHANGE') && reply.length < 40))) {
+      // A watcher found nothing new: stay quiet and leave no clutter behind (as before).
+      unawaited(deleteConversation(convId));
+      return;
+    }
+    done(reply);
   }
 
   String _clip(String s) => s.length <= 8000 ? s : '${s.substring(0, 8000)}\n…';

@@ -25,7 +25,9 @@ extension AppStateSettings on AppState {
     _notify();
   }
 
-  /// The step list under a finished task is always folded (the old "show steps" setting is gone).
+  /// The chat stays quiet: one working line while SubMac works, and the turn's work (thinking, tools, notes) folded
+  /// into categorized sections the user opens (owner, 2026-11-03, replacing "show every step" from earlier that day).
+  /// Saying "show steps" in a message still shows that turn's steps in full.
   bool get showSteps => false;
 
   /// Making a picture is a separate capability switched on from the server, not a model the user picks.
@@ -155,7 +157,8 @@ extension AppStateSettings on AppState {
     Future<String> sec(String k) => local.secret(k).catchError((_) => '');
     final keys = Future.wait([sec('loginSites'), sec('braveKey'), sec('tavilyKey'), sec('githubToken'), sec('notionToken'), sec('mcpServers')]);
     final apps = _loadApps().catchError((_) {});
-    final system = _initSystem().catchError((_) {});
+    // Alarms that came while this loads run once it is done (AlarmGate).
+    final system = _initSystem().catchError((_) {}).whenComplete(_alarmGate.open);
     final k = await keys;
     try {
       if (k[0].isNotEmpty) savedLoginSites = List<String>.from(jsonDecode(k[0]) as List);
@@ -181,6 +184,8 @@ extension AppStateSettings on AppState {
     Cloud.usage.addListener(_usageNotice);
     unawaited(memory.sync().then((_) => _notify()));
     if (mcpServers.isNotEmpty) unawaited(refreshMcpTools());
+    // The agent's engine starts with the app, so the first message does not wait for it (owner, 2026-11-02).
+    unawaited(warmAgent());
     // Bots are kept in the account too: a new phone gets them back here, and later changes go up by themselves.
     BotSync.I.postToChat = _cloudBotMessage;
     // The cloud handed a job over (it needs the phone): run it here now, in the background, and notify the result.

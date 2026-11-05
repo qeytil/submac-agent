@@ -86,3 +86,9 @@ No code copied. The workflow templates in `lib/services/apk_build.dart` and `lib
 | gradle/actions/setup-gradle@v4 | MIT | https://github.com/gradle/actions | Gradle cache and setup |
 
 Signing uses apksigner/zipalign from the runner's Android SDK build-tools, and the Release step uses the runner's preinstalled `gh` CLI (no third-party release action).
+
+## Bring your own key (branch feat/byok, 2026-11-03, v1.13.118+188)
+No new packages and no copied code. Provider presets, model-list parsing and the opencode provider config (`lib/services/byok*.dart`) are our own Dart, written from each provider's public API docs.
+
+### Logos
+anthropic, deepseek, googlegemini, lmstudio, mistralai, moonshotai, nvidia, ollama, openai, opencode, openrouter, xai (12 files in `assets/logos/`): Simple Icons (CC0-1.0, https://simpleicons.org, https://github.com/simple-icons/simple-icons), unmodified single-path SVGs, used only to label each provider. Trademarks stay with their owners.

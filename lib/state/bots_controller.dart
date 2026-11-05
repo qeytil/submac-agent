@@ -8,7 +8,6 @@ extension AppStateBots on AppState {
   bool _backgroundLane(String convId) {
     final k = _botWakeConvs[convId];
     if (k == null || k == 'chat') return false;
-    if (k == 'office' && _officeJobKind[convId] == 'reply') return false;
     return true;
   }
 
@@ -247,7 +246,8 @@ extension AppStateBots on AppState {
     }
     // A busy day, or the bots' share of today's allowance is used: the owner's own chats come first, so background
     // work waits for tomorrow (one note a day, no retries; the next wake after midnight UTC runs as usual).
-    if (kind != 'chat' && (Cloud.usage.value.light || Cloud.usage.value.resting || Cloud.background.value.pausedNow)) {
+    // A bot on its own BYOK model (owner 2026-11-03) is not held back by SubMac's allowance.
+    if (kind != 'chat' && OcLane.byokFor(b.model) == null && (Cloud.usage.value.light || Cloud.usage.value.resting || Cloud.background.value.pausedNow)) {
       _notePaused(b);
       return;
     }
@@ -299,6 +299,11 @@ extension AppStateBots on AppState {
       return;
     }
     _botWakeConvs[b.convId] = kind;
+    // With SubMac closed the foreground service (and its wake lock) carries the work; its line names the bot and the
+    // task: "<Bot name> · <task title>" (2026-11-05).
+    if (kind != 'chat' && !appVisible) {
+      unawaited(SystemBridge.I.keepAlive(true, text: BgRun.line(b.name, BgRun.title(Bots.isHeartbeat(asked) ? '' : asked))));
+    }
     String? err;
     try {
       err = await startBackgroundTask(task, reuseConvId: b.convId, onDone: (reply) => unawaited(_botOutcome(b, reply, kind, instruction: asked.startsWith('(retry) ') ? asked : instruction)));
@@ -349,11 +354,10 @@ extension AppStateBots on AppState {
   }
 
   bool _wakeMayClaim(Bot b) => Bots.wakeMayClaim(
-      officeBusy: _officeBusy.contains(b.id),
       hasMarker: b.convId.isNotEmpty && _botWakeConvs.containsKey(b.convId),
       running: b.convId.isNotEmpty && runs.any((r) => r.convId == b.convId && !r.side));
 
-  /// Busy (talking with the user, or at team work): come back in 15 minutes, once (not one more follow-up per busy wake).
+  /// Busy (a run or another wake in its own chat): come back in 15 minutes, once (not one more follow-up per busy wake).
   Future<void> _wakeLater(Bot b, String instruction, String kind) async {
     if (kind == 'chat' || Bots.hasPendingFollowup(b, instruction, kind)) return;
     b.followups.add(BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', DateTime.now().add(const Duration(minutes: 15)),
@@ -624,70 +628,23 @@ extension AppStateBots on AppState {
         'work');
   }
 
-  /// One expert answer from another bot (no tools), for bot_ask.
-  /// One answer for a team run (TeamRun): the owner is watching, so it is not background work.
-  /// The wire under team agent runs (TeamRun on the Genkit core): one model call for a member, tools allowed, on the
-  /// bots' background lane.
-  Future<LlmResult> _teamLlm(Bot b, Turn t, {int maxTokens = 1500}) async {
+  /// One plain answer for a team (who speaks, the plan, the combined answer): one model call on the bots' lane,
+  /// counted toward the bot's own budget (estimated from the text, about 4 characters a token).
+  Future<String> _teamAsk(Bot b, String system, String user, {int maxTokens = 1500}) async {
     final route = submacRef;
-    await RateLimiter.acquire(route.provider, RateLimiter.estimateTokens(t.payload, t.tools), local, onWait: (_) {}, cancelled: () => false);
-    final client = LlmClient()
-      ..background = true
-      ..chatId = b.convId.isEmpty ? null : b.convId;
-    final r = await client.streamChat(
-      provider: route.provider,
-      model: route.model,
-      messages: t.payload,
-      tools: AppState._capTools(t.tools),
-      maxTokens: maxTokens,
-      source: 'office',
-      onDelta: (_) {},
-    );
-    final units = UsageUnits.ofResult(r); // CB-20: billing units, as the server counts them
-    if (units > 0) b.addTokens(units);
+    await RateLimiter.acquire(route.provider, (system.length + user.length) ~/ 4 + maxTokens, local, onWait: (_) {}, cancelled: () => false);
+    // No chat id: a team's decision is no part of the bot's private chat (bots team audit 2026-11-04).
+    final t = await (LlmClient()..background = true)
+        .complete(source: 'office', maxTokens: maxTokens, provider: route.provider, model: route.model, messages: [
+      {'role': 'system', 'content': system},
+      {'role': 'user', 'content': user},
+    ]);
+    b.addTokens((system.length + user.length + t.length) ~/ 4);
     unawaited(Bots.I.save());
-    return r;
+    return t;
   }
 
-  /// A member's tools for its part of a team job: the everyday core set of its own chat (its powers and apps apply at
-  /// run time). A bot without a chat of its own answers from what it knows.
-  List<Map<String, dynamic>> _memberTools(Bot b) {
-    if (b.convId.isEmpty) return const [];
-    return [
-      for (final t in _lightTools(b.convId))
-        if (!const {'more_tools', 'ask_user', 'say', 'todo'}.contains(Wire.toolName(t)) && !Offices.names.contains(Wire.toolName(t))) t,
-    ];
-  }
-
-  Future<Map<String, dynamic>?> _memberApproval(Bot b, ToolCall c, Map<String, dynamic> args) async {
-    final g = await toolGate(c.name, args, b.convId);
-    _memberGates[c.id] = g;
-    return g.ask == null ? null : g.toInterrupt(c.name);
-  }
-
-  Future<ToolApproval> _memberAnswer(Bot b, ToolCall c, Map<String, dynamic> args, Map<String, dynamic> data) async {
-    final g = _memberGates[c.id] ?? await toolGate(c.name, args, b.convId);
-    _memberGates[c.id] = g;
-    if (g.ask == null) return ToolApproval.yes(args: args);
-    final ok = await presentApproval(g, c.name, args, b.convId);
-    return ok ? ToolApproval.yes(args: approvedArgs(g, c.name, args)) : ToolApproval.no(g.refusal);
-  }
-
-  Future<String> _memberTool(Bot b, ToolCall c, Map<String, dynamic> args, {Object? approved}) async {
-    var g = _memberGates.remove(c.id);
-    if (g == null || (g.ask != null && approved == null)) {
-      g = await toolGate(c.name, args, b.convId);
-      if (g.ask != null && approved == null && !await presentApproval(g, c.name, args, b.convId)) return g.refusal;
-    }
-    if (g.blocked != null) return g.blocked!;
-    try {
-      final out = await runGated(g, c.name, args, callId: c.id, convId: b.convId);
-      return out.trim().isEmpty ? 'Done (the tool returned nothing to show).' : out;
-    } catch (e) {
-      return 'Error in ${c.name}: $e';
-    }
-  }
-
+  /// One expert answer from another bot (no tools), for bot_ask.
   Future<String> _botConsult(Bot asker, Bot expert, String question) async {
     final route = submacRef;
     try {
@@ -713,8 +670,10 @@ extension AppStateBots on AppState {
     final bgPaused = Cloud.background.value.pausedNow;
     var changed = false;
     DateTime? nextRetry;
+    // Every ready job starts now (owner 2026-11-04): no cap on how many bots work at once, a bot may do several jobs
+    // side by side, and a bot talking with the owner in its own chat still does its team work (each piece of work has
+    // its own opencode session). The bots' share and each bot's own budget still hold.
     for (final j in List.of(q)) {
-      if (_officeBusy.length >= AppState._officeParallel) break;
       // The bots' share of today's allowance is used: office work waits for the next UTC day (owner replies still run).
       if (bgPaused && j.kind != 'reply') {
         final at = DateTime.now().add(Cloud.untilBackgroundResets());
@@ -732,9 +691,18 @@ extension AppStateBots on AppState {
         changed = true;
         continue;
       }
-      if (_officeBusy.contains(b.id)) continue;
-      // Busy with the owner in its own chat: the office waits for it.
-      if (b.convId.isNotEmpty && runs.any((r) => r.convId == b.convId && !r.side)) continue;
+      // The same task already in someone's hands: it waits for that run to end.
+      if (j.taskId.isNotEmpty && _officeJobs.values.any((x) => x.officeId == j.officeId && x.taskId == j.taskId && x.kind == j.kind)) continue;
+      // One owner message several bots were asked about (a thread): they answer one after another, so each reads what
+      // the ones before it said and stays quiet when it is covered (owner 2026-11-05: duplicate answers).
+      if (TeamTurns.waitsForThread(j, _officeJobs.values.map((x) => x.thread))) continue;
+      // The same bot already answering the same words (a double send): no second answer.
+      if (j.kind == 'reply' &&
+          _officeJobs.values.any((x) => x.officeId == j.officeId && x.botId == j.botId && x.kind == 'reply' && x.instruction == j.instruction)) {
+        q.remove(j);
+        changed = true;
+        continue;
+      }
       if (o.paused && j.kind != 'reply') {
         q.remove(j);
         changed = true;
@@ -744,20 +712,8 @@ extension AppStateBots on AppState {
         if (nextRetry == null || o.holdUntil!.isBefore(nextRetry)) nextRetry = o.holdUntil;
         continue;
       }
-      if (j.kind != 'reply' && o.runsLeft - (_officeStarting[o.id] ?? 0) <= 0) {
-        q.remove(j);
-        changed = true;
-        final k = '${o.id}${o.dayKey}';
-        if (_limitNoted.add(k)) {
-          Offices.I.post(o, 'system',
-              'Today\'s work limit is reached (${o.dailyLimit} sessions). The team carries on tomorrow, or raise the limit under Bots in the team.',
-              kind: 'system');
-        }
-        continue;
-      }
       q.remove(j);
       changed = true;
-      if (j.kind != 'reply') _officeStarting[o.id] = (_officeStarting[o.id] ?? 0) + 1;
       unawaited(_officeRun(o, b, j));
     }
     if (changed) Offices.I.saveSoon();
@@ -780,10 +736,8 @@ extension AppStateBots on AppState {
       // The Chief's rounds: nudge a quiet teammate, then tell the owner if they stay quiet.
       Offices.I.supervise(o);
       for (final t in o.tasks.where((t) => t.status == 'doing')) {
-        if (t.owner.isEmpty || _officeBusy.contains(t.owner)) continue;
+        if (t.owner.isEmpty || _officeJobs.values.any((j) => j.officeId == o.id && j.taskId == t.id)) continue;
         if (Offices.I.queue.any((j) => j.taskId == t.id)) continue;
-        final b = Bots.I.byId(t.owner);
-        if (b != null && runs.any((r) => r.convId == b.convId && !r.side)) continue;
         t.status = 'todo';
         Offices.I.startIfReady(o, t);
       }
@@ -800,31 +754,21 @@ extension AppStateBots on AppState {
     for (final m in list.sublist(start).reversed) {
       final e = m.error;
       if (e == null || e.isEmpty) continue;
-      if (RegExp(r'allowance|done a lot today|refreshes tomorrow|resting until tomorrow', caseSensitive: false).hasMatch(e)) return 'credit';
-      if (RegExp(r"you're offline|connection dropped|took too long|network error|socketexception|failed host lookup|connection (refused|reset|closed)|timed? ?out|no internet", caseSensitive: false).hasMatch(e)) return 'offline';
-      if (RegExp(r"busy|couldn't reach its models|couldn't get an answer just now|lost the connection|short break|\b429\b|too many requests|\b50[234]\b|unavailable", caseSensitive: false).hasMatch(e)) return 'busy';
-      return 'other';
+      return AppState.failureOf(e);
     }
     return '';
   }
 
-  /// One bot does one piece of office work in its own chat, with all its tools, and posts the result to the office.
+  /// One bot does one piece of office work in its own opencode session (TeamKey: never its private chat), with all
+  /// its tools, and posts the result to the team chat only (owner 2026-11-04: team work used to run as a wake inside
+  /// the bot's 1:1 chat with the owner, so every reply, step and result showed in both chats). Runs side by side with
+  /// any other work: the owner's chats, the bot's own chat, other office jobs.
   Future<void> _officeRun(Office o, Bot b, OfficeJob j) async {
-    _officeBusy.add(b.id);
-    _officeBusyIn[b.id] = o.id;
-    final startedAt = DateTime.now();
+    final key = TeamKey.of(o.id, b.id, job: TeamKey.job());
+    final live = OfficeLiveJob(botId: b.id, officeId: o.id, kind: j.kind, taskId: j.taskId, thread: j.thread, instruction: j.instruction);
+    _officeJobs[key] = live;
+    final startedAt = live.started;
     _notify();
-    var reserved = j.kind != 'reply';
-    void unreserve() {
-      if (!reserved) return;
-      reserved = false;
-      final n = (_officeStarting[o.id] ?? 1) - 1;
-      if (n <= 0) {
-        _officeStarting.remove(o.id);
-      } else {
-        _officeStarting[o.id] = n;
-      }
-    }
     OfficeTask? t;
     var begun = false;
     try {
@@ -842,9 +786,10 @@ extension AppStateBots on AppState {
         final tomorrow = DateTime(now.year, now.month, now.day + 1, 0, 5);
         if (!b.journal.any((e) => e.kind == 'budget' && now.difference(e.at).inHours < 20)) {
           b.log('budget', 'Paused team work: today\'s budget is used up');
-          Offices.I.post(o, 'system', '${b.name} used today\'s token budget, so their work continues tomorrow. You can raise it in their settings.',
-              kind: 'system');
         }
+        // One small line in the team chat ("Nova · out of budget"), not a message (owner 2026-11-04).
+        TeamStatus.I.flag(o.id, b.id, TeamStatus.outOfBudget,
+            detail: '${b.name} used today\'s token budget, so their work continues tomorrow. You can raise it in their settings.');
         Offices.I.enqueue(OfficeJob(officeId: o.id, botId: b.id, kind: j.kind, taskId: j.taskId, instruction: j.instruction, at: j.at, after: tomorrow));
         return;
       }
@@ -868,58 +813,52 @@ extension AppStateBots on AppState {
       }
       o.rollDay();
       o.runsToday++;
-      unreserve();
+      // A thread answer (several bots asked about one message) after a teammate already answered: the bot may stay
+      // quiet, and small talk gets no second quick reply at all.
+      final covered = j.kind == 'reply' && j.thread.isNotEmpty && Offices.I.threadAnswers(o, j.thread, except: b.id).isNotEmpty;
       // Small talk in the office gets an instant answer in character.
       if (j.kind == 'reply' && QuickLane.laneFor(j.instruction) == QuickLane.quick) {
-        final text = await _officeQuick(o, b, j.instruction);
+        if (covered) return;
+        final text = NoReply.clean(await _officeQuick(o, b, j.instruction));
         if (Offices.I.stoppedSince(o.id, startedAt)) return; // CB-34: the owner stopped the team meanwhile
+        if (text.isEmpty && j.thread.isNotEmpty) return;
         Offices.I.post(o, b.id, text.isNotEmpty ? text : BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)), kind: text.isNotEmpty ? 'chat' : 'system');
         return;
       }
-      final convId = b.convId;
-      final prompt = '$botWakeMark[Office: ${o.name}]\n${Offices.I.promptFor(o, b, j)}\n\n# Now\n${Offices.I.jobText(o, b, j)}';
-      _officeCtx[convId] = o.id;
-      _botWakeConvs[convId] = 'office';
-      _officeJobKind[convId] = j.kind;
+      final system = '${Bots.I.opencodeBriefOf(b, team: true)}\n\n${Offices.I.promptFor(o, b, j)}';
+      final task = '[Office: ${o.name}]\n# Now\n${Offices.I.jobText(o, b, j)}';
       await SystemBridge.I.keepAlive(true, text: '${o.name} is working');
-      final done = Completer<String>();
-      final err = await startBackgroundTask(prompt, reuseConvId: convId, onDone: (r) {
-        if (!done.isCompleted) done.complete(r);
-      });
-      if (err == null) begun = true;
-      if (err != null) {
-        if (_botWakeConvs[convId] == 'office') _botWakeConvs.remove(convId);
-        if (t != null && t.status == 'doing') t.status = 'todo';
-        if (t != null && j.kind == 'task') t.attempts = (t.attempts - 1).clamp(0, 99).toInt();
-        o.runsToday = (o.runsToday - 1).clamp(0, 9999).toInt();
-        if (err == 'busy') {
-          Offices.I.enqueue(OfficeJob(officeId: o.id, botId: b.id, kind: j.kind, taskId: j.taskId, instruction: j.instruction, at: j.at,
-              after: DateTime.now().add(const Duration(minutes: 1))));
-        } else {
-          Offices.I.post(o, 'system', 'Couldn\'t start ${b.name}\'s work: $err', kind: 'system');
-        }
-        return;
+      begun = true;
+      String reply = '';
+      String failure = '';
+      var finished = true;
+      try {
+        reply = await teamTurn(b, key, system, task,
+            stopped: () => Offices.I.stoppedSince(o.id, startedAt),
+            // Answering the owner in the team chat is the owner's own conversation (foreground lane); the rest is
+            // bot work on the bots' share (owner 2026-11-03).
+            background: j.kind != 'reply',
+            office: o.id,
+            officeJob: j.kind,
+            maxSteps: AppState.officeStepCap(j.kind),
+            onStatus: (line) {
+              live.status = line;
+              _throttledNotify();
+            });
+        if (Offices.I.stoppedSince(o.id, startedAt)) finished = false;
+      } catch (e) {
+        failure = AppState.failureOf('$e');
+        if (failure == 'other') failure = '';
+        // The team chat shows it as one small line ("Nova · rate limit", set by teamTurn), never the raw error text.
+        finished = false;
       }
-      // Wait for the work to end (also when it is stopped, which never calls onDone).
-      var idle = 0;
-      final started = DateTime.now();
-      while (!done.isCompleted) {
-        await Future<void>.delayed(const Duration(seconds: 3));
-        final running = runs.any((r) => r.convId == convId && !r.side);
-        idle = running ? 0 : idle + 1;
-        if (idle >= 3 || DateTime.now().difference(started) > const Duration(hours: 2)) break;
-      }
-      final finished = done.isCompleted; // onDone never fires for a stopped run (or the 2-hour cut-off)
-      final reply = finished ? await done.future : '';
       // A failure that is not the bot's fault never burns a try: the work waits and runs again by itself.
-      final failure = _wakeFailure(convId);
       if (failure == 'offline' || failure == 'busy' || failure == 'credit') {
         if (t != null && j.kind == 'task') {
           t.attempts = (t.attempts - 1).clamp(0, 99).toInt();
           if (t.status == 'doing') t.status = 'todo';
         }
         o.runsToday = (o.runsToday - 1).clamp(0, 9999).toInt();
-        await _dropWakeTurn(convId);
         final wait = switch (failure) { 'offline' => const Duration(minutes: 5), 'busy' => const Duration(minutes: 3), _ => AppState._untilAllowanceResets() };
         // Busy models or no connection: try again a few times, then stop instead of retrying all day (each try costs tokens).
         if (failure != 'credit' && j.tries >= 3) {
@@ -946,25 +885,25 @@ extension AppStateBots on AppState {
             tries: failure == 'credit' ? j.tries : j.tries + 1));
         return;
       }
-      await _shrinkWake(convId, '$botWakeMark[Office ${o.name}: ${j.kind}${t == null ? '' : ' "${t.title}"'}]');
       final out = BotOutcome.parse(reply);
       // The owner spoke to this bot (or it was given a task): what it wrote is posted even with a stray silence tag on
       // it (that used to throw a real answer away). Elsewhere the bot may stay quiet, which is normal.
-      final mustAnswer = j.kind == 'reply' || j.kind == 'task';
+      // A thread answer may pass when a teammate covered it (it was told so).
+      final mustAnswer = (j.kind == 'reply' && !covered) || j.kind == 'task';
       if (out.text.trim().isEmpty || (out.kind == 'silent' && !mustAnswer)) {
-        if (j.kind == 'chief' || j.kind == 'digest' || j.kind == 'mention') await _dropWakeTurn(convId);
         // CB-37: a direct request that ended with nothing to show says so (it used to leave the owner waiting).
-        if (j.kind == 'reply' && finished && !Offices.I.stoppedSince(o.id, startedAt)) {
+        if (j.kind == 'reply' && mustAnswer && finished && !Offices.I.stoppedSince(o.id, startedAt)) {
           Offices.I.post(o, 'system', BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)), kind: 'system');
         }
       } else if (Offices.I.stoppedSince(o.id, startedAt)) {
         // CB-34: stopped by the owner; nothing more goes into the team chat.
       } else {
+        // The team chat only: nothing of it is written to the bot's private chat.
         final visible = BotOutcome.visible(reply);
-        final list = _lists[convId];
-        final last = list?.lastWhere((m) => m.role == 'assistant' && m.content.trim().isNotEmpty, orElse: () => ChatMessage(id: '', role: 'assistant'));
-        if (last != null && last.id.isNotEmpty) await _rewrite(convId, last, visible);
-        Offices.I.post(o, b.id, visible.isEmpty ? out.text : visible, kind: j.kind == 'digest' ? 'report' : 'chat', taskId: j.taskId);
+        // Posted once: a reply the bot already put in the chat itself (office_post during the turn) or that repeats a
+        // teammate is dropped by Offices.post (TeamDedupe). A reply to the owner's message links to it.
+        Offices.I.post(o, b.id, visible.isEmpty ? out.text : visible,
+            kind: j.kind == 'digest' ? 'report' : 'chat', taskId: j.taskId, replyTo: j.kind == 'reply' ? j.thread : '');
         if (j.kind == 'digest') {
           final line = (visible.isEmpty ? out.text : visible).trim().split('\n').firstWhere((l) => l.trim().isNotEmpty, orElse: () => 'Your daily report is ready.');
           if (o.digestCall && Bots.callBlock(b) == null) {
@@ -986,44 +925,28 @@ extension AppStateBots on AppState {
           Offices.I.post(o, 'system', '${b.name} stopped "${t.title}". Tap Start to continue.', kind: 'system', taskId: t.id);
         }
       }
-      b.log('work', '${o.name}: ${j.kind}${t == null ? '' : ' "${t.title}"'}');
+      b.log('work', '${o.name}: ${j.kind}${t == null ? '' : ' "${t.title}"'}', team: true);
       unawaited(Bots.I.save());
     } catch (e) {
-      // Nothing started: undo what this job claimed, so the task and the bot's chat aren't left mislabelled.
+      // Nothing started: undo what this job claimed, so the task isn't left mislabelled.
       if (!begun) {
-        if (_botWakeConvs[b.convId] == 'office') _botWakeConvs.remove(b.convId);
-        if (!reserved) o.runsToday = (o.runsToday - 1).clamp(0, 9999).toInt();
         final tt = t;
         if (tt != null && tt.status == 'doing') {
           tt.status = 'todo';
           if (j.kind == 'task') tt.attempts = (tt.attempts - 1).clamp(0, 99).toInt();
         }
       }
-      Offices.I.post(o, 'system', '${b.name} hit a problem: $e', kind: 'system');
+      // One small line in the team chat ("Nova · no connection"), never the raw error text.
+      if (!Offices.I.stoppedSince(o.id, startedAt)) TeamStatus.I.failBot(o.id, b.id, e);
     } finally {
-      unreserve();
-      _officeCtx.remove(b.convId);
-      _officeBusy.remove(b.id);
-      _officeBusyIn.remove(b.id);
+      _officeJobs.remove(key);
       Offices.I.saveSoon();
+      if (_officeJobs.isEmpty && !runs.any((r) => !r.side) && !(TelegramBridge.I.on && TelegramBridge.I.paired && !appVisible)) {
+        unawaited(SystemBridge.I.keepAlive(false));
+      }
       _notify();
       Future<void>.delayed(const Duration(milliseconds: 300), _officePump);
     }
-  }
-
-  /// The office wake message is long (board, chat, brief): once the work is done only a short label stays in the bot's chat.
-  Future<void> _shrinkWake(String convId, String label) async {
-    final list = _lists[convId];
-    if (list == null) return;
-    final i = list.lastIndexWhere((m) => m.role == 'user' && m.content.startsWith(botWakeMark));
-    if (i < 0) return;
-    final m = list[i];
-    if (m.content.length < 400) return;
-    m.content = label;
-    try {
-      await repo.deleteMessages([m.id]);
-      await repo.insertMessage(convId, m);
-    } catch (_) {}
   }
 
   /// Removes the latest wake and everything after it from a bot's chat (a check-in with nothing to say).
@@ -1102,8 +1025,12 @@ extension AppStateBots on AppState {
     final same = Offices.I.pending.where((x) => x.group == a.group).length + 1;
     final title = same > 1 ? '$same ${ApprovalGroups.noun(a.group, same)}' : req.title;
     await SystemBridge.I.notifyApproval(id: note, approvalId: a.id, name: o == null ? b.name : '${b.name} · ${o.name}', title: title, body: a.body);
-    final ok = await Offices.I.ask(a);
+    // A run nobody is watching (a scheduled task, SubMac closed) waits a few minutes, not three hours: then it moves
+    // on, and one notification says what still needs the owner's OK (2026-11-05).
+    final unattended = unattendedRun(convId);
+    final ok = await Offices.I.ask(a, wait: unattended ? BgRun.approvalWait : const Duration(hours: 3));
     await SystemBridge.I.ringCancel(note);
+    if (!ok && unattended && a.status == 'expired') unawaited(_bgNeeds(convId ?? '', req.title));
     if (ok && a.edited.isNotEmpty && req.edit != null) {
       req.edit!
         ..value = a.edited
@@ -1222,36 +1149,32 @@ extension AppStateBots on AppState {
     return null;
   }
 
-  /// Who is working in an office right now ("Nova: Competitor prices").
-  /// Live lines for a team chat: who is working right now and on which step ("Nova · Searching the web · 0:42"),
-  /// then who has a message from the owner waiting ("Idil read your message"). Never tool names.
-  List<({Bot bot, String text, DateTime? since})> officeActivity(String officeId) {
-    final out = <({Bot bot, String text, DateTime? since})>[];
-    final seen = <String>{};
-    for (final id in _officeBusy) {
-      final b = Bots.I.byId(id);
-      if (b == null || _officeCtx[b.convId] != officeId) continue;
-      final r = runs.where((x) => x.convId == b.convId && !x.side).firstOrNull;
-      seen.add(id);
-      out.add((bot: b, text: r == null ? 'Getting started' : r.status, since: r?.started));
+  /// The team chat's live rows (owner 2026-11-04): one small line per bot, "Nova is working…" while its turn thinks or
+  /// runs steps and "Nova is typing…" while its reply streams (gone when its message lands); who has a message from the
+  /// owner waiting ("Idil · Read your message"); and a bot whose work failed as "Nova · rate limit". Never tool names,
+  /// never raw error text. Team chat only: a bot's private chat never shows these.
+  List<TeamStatusLine> officeActivity(String officeId) {
+    final busy = <String, DateTime>{};
+    for (final j in _officeJobs.values) {
+      if (j.officeId != officeId) continue;
+      final had = busy[j.botId];
+      if (had == null || j.started.isBefore(had)) busy[j.botId] = j.started;
     }
+    final waiting = <String, String>{};
     for (final j in Offices.I.queue) {
-      if (j.officeId != officeId || j.kind != 'reply' || seen.contains(j.botId)) continue;
-      final b = Bots.I.byId(j.botId);
-      if (b == null) continue;
-      seen.add(j.botId);
-      out.add((bot: b, text: j.ready ? 'Read your message' : 'Will reply soon', since: null));
+      if (j.officeId != officeId || j.kind != 'reply' || waiting.containsKey(j.botId)) continue;
+      waiting[j.botId] = j.ready ? 'Read your message' : 'Will reply soon';
     }
-    return out;
+    return TeamStatus.I.linesFor(officeId, bot: Bots.I.byId, busy: busy, waiting: waiting);
   }
 
   List<String> officeWorking(String officeId) {
     final o = Offices.I.byId(officeId);
     if (o == null) return const [];
     final out = <String>[];
-    for (final id in _officeBusy) {
+    for (final id in {for (final j in _officeJobs.values) if (j.officeId == officeId) j.botId}) {
       final b = Bots.I.byId(id);
-      if (b == null || _officeCtx[b.convId] != officeId) continue;
+      if (b == null) continue;
       final t = o.tasks.where((t) => t.owner == id && t.status == 'doing').map((t) => t.title).firstOrNull;
       out.add(t == null ? '${b.name} is working' : '${b.name}: $t');
     }

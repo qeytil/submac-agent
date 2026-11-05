@@ -14,25 +14,9 @@ extension AppStateSystem on AppState {
     b.onWake = (_) => liveCtl.onWake();
     b.onOverlay = liveCtl.onOverlay;
     b.onNotificationTap = _onNotificationTap;
-    b.onAlarm = (id) async {
-      if (id == 'rearm') {
-        // The phone restarted: starting up has already re-armed every alarm.
-        if (!runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
-        return;
-      }
-      if (id.startsWith('office|')) {
-        final queued = await Offices.I.fire(id);
-        _officePump();
-        if (!queued && !runs.any((r) => !r.side) && _officeBusy.isEmpty) await SystemBridge.I.keepAlive(false);
-        return;
-      }
-      if (id.startsWith('bot|')) {
-        final woke = await Bots.I.fire(id);
-        if (!woke && !runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
-      } else {
-        await Scheduler.I.fire(id);
-      }
-    };
+    // Alarms wait until the bots and scheduled tasks are loaded (AlarmGate, 2026-11-05): Android hands an alarm
+    // over the moment Dart listens, which used to be before Scheduler/Bots had loaded, so the task was dropped.
+    b.onAlarm = (id) => _alarmGate.run(() => _onAlarm(id));
     b.onBotDecline = (id) => unawaited(declineBotCall(id));
     b.onBotMissed = (id) {
       final bot = Bots.I.byId(id);
@@ -50,25 +34,19 @@ extension AppStateSystem on AppState {
       final r = await requestConnect('GitHub', why: why);
       return r.contains('is connected') || r.contains('already connected');
     };
-    Offices.I.currentJob = (id) {
-      final bot = Bots.I.byId(id);
-      if (bot == null || !_officeBusy.contains(id)) return null;
-      return _officeJobKind[bot.convId];
-    };
+    // The kind of the office job a bot does now, for callers that do not pass it (office_post passes its own).
+    Offices.I.currentJob = (id) => _officeJobs.values.where((j) => j.botId == id).firstOrNull?.kind;
     Offices.I.isWorking = (id) {
       if (_officeBusy.contains(id)) return true;
       final bot = Bots.I.byId(id);
       return bot != null && bot.convId.isNotEmpty && runs.any((r) => r.convId == bot.convId && !r.side);
     };
-    Offices.I.jobsRunning = (officeId) => _officeBusyIn.values.contains(officeId);
+    Offices.I.jobsRunning = (officeId) => _officeJobs.values.any((j) => j.officeId == officeId);
+    // Office jobs read Offices.stoppedSince as their stop check, so a stop reaches each of them at its next step.
+    // It no longer stops the runs in the members' private chats (those are the owner's own 1:1 conversations, which
+    // a team's "stop" used to cut off).
     Offices.I.stopRunning = (officeId) {
-      for (final id in [for (final e in _officeBusyIn.entries) if (e.value == officeId) e.key]) {
-        final bot = Bots.I.byId(id);
-        if (bot == null || bot.convId.isEmpty) continue;
-        for (final r in runs.where((r) => r.convId == bot.convId && !r.side).toList()) {
-          stopRun(r);
-        }
-      }
+      unawaited(Offices.I.expireForOffice(officeId));
     };
     Offices.I.notify = (o, bot, text) async {
       if (bot.quietNow()) return;
@@ -77,13 +55,19 @@ extension AppStateSystem on AppState {
     Bots.I.ring = _botRing;
     Bots.I.consult = _botConsult;
     Bots.I.makeTeam = _botMakeTeam;
-    // Teams run on the Genkit agent core; members get their own tools and ask the owner through approval interrupts.
+    Bots.I.teamsOf = (b) => [
+          for (final o in Offices.I.offices)
+            if (o.chiefId == b.id)
+              '- You lead "${o.name}"${o.goal.isEmpty ? '' : ' (goal: ${o.goal})'}. Give it a job with submac_run_tool name "team_task", '
+                  'arguments {"team": "${o.name}", "task": "..."}; for regular team work, make a bot_routine whose instruction says to do that.'
+            else if (o.members.contains(b.id))
+              '- You are in "${o.name}", led by ${Bots.I.byId(o.chiefId)?.name ?? 'its lead'}. Team folder: ${TeamRun.folderOf(o)}/.',
+        ].join('\n');
+    // Teams run on opencode (owner, 2026-11-03): every member's part and the lead's work are opencode turns with the
+    // bot's own brief and tools; one-answer calls (who speaks, the plan, the combined answer) are one plain model call.
     TeamRun.I
-      ..llm = _teamLlm
-      ..toolsFor = _memberTools
-      ..runTool = _memberTool
-      ..approvalFor = _memberApproval
-      ..answer = _memberAnswer
+      ..ocTurn = teamTurn
+      ..ask = _teamAsk
       // CB-62: a team holds the phone awake while it works; letting go never cuts other work still running.
       ..keepAlive = (on, {String text = ''}) async {
         if (on) {
@@ -153,6 +137,12 @@ extension AppStateSystem on AppState {
       }
     };
     await b.init();
+    // Started by an alarm or a restart with no screen: nothing is on screen, so a bot's result notifies and its
+    // approvals never wait on a card (2026-11-05). The screen's lifecycle sets this right once it opens.
+    if (await _startedHeadless()) {
+      headless = true;
+      appVisible = false;
+    }
     // The floating task bubble; nothing can be driving the screen yet, so clear any badge left from before.
     TaskBubble.I.attach(this);
     TaskBubble.I.reset();
@@ -185,10 +175,72 @@ extension AppStateSystem on AppState {
     } catch (_) {}
     await sideInits;
     TelegramBridge.I.onMessage = _telegramAsk;
-    unawaited(TelegramBridge.I.init());
+    // Awaited (it only reads the saved token; polling runs on its own) so a bot's first background task can already
+    // message the owner on Telegram (bot_telegram).
+    await TelegramBridge.I.init().timeout(const Duration(seconds: 10)).catchError((_) {});
+    // CB-46 + 2026-11-05: a wake held because SubMac was not ready (account not restored yet, offline at a cold
+    // start) is tried again a few times. It used to run only when the home screen opened.
+    unawaited(_retryHeldWakes());
     final p = await b.takeLaunchPayload();
     if (p != null) _onNotificationTap(p);
   }
+
+  /// True when no screen started this engine: Flutter has no lifecycle state yet and Android says SubMac is not in
+  /// front (an alarm, a restart or a push started it).
+  Future<bool> _startedHeadless() async {
+    if (!SystemBridge.I.supported) return false;
+    try {
+      final life = WidgetsBinding.instance.lifecycleState;
+      if (life != null && life != AppLifecycleState.detached) return false;
+      return !await SystemBridge.I.isForeground();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Runs held wakes again after a while, a few times, while SubMac may still be getting ready. When nothing ran,
+  /// the foreground service an alarm started is let go after the last try.
+  Future<void> _retryHeldWakes() async {
+    for (final d in BgRun.heldRetries) {
+      if (!Bots.I.hasHeldWakes) return;
+      await Future<void>.delayed(d);
+      try {
+        await _runHeldWakes();
+      } catch (_) {}
+    }
+    if (Bots.I.hasHeldWakes && !runs.any((r) => !r.side) && _officeBusy.isEmpty) await SystemBridge.I.keepAlive(false);
+  }
+
+  @visibleForTesting
+  Future<void> retryHeldWakesForTest() => _retryHeldWakes();
+
+  /// One alarm, once SubMac is ready (see AlarmGate).
+  Future<void> _onAlarm(String id) async {
+    if (id == 'rearm') {
+      // The phone restarted: starting up has already re-armed every alarm (BootReceiver starts SubMac through this
+      // alarm so its foreground service keeps it alive while it does).
+      if (!runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
+      return;
+    }
+    if (id.startsWith('office|')) {
+      final queued = await Offices.I.fire(id);
+      _officePump();
+      if (!queued && !runs.any((r) => !r.side) && _officeBusy.isEmpty) await SystemBridge.I.keepAlive(false);
+      return;
+    }
+    if (id.startsWith('bot|')) {
+      final woke = await Bots.I.fire(id);
+      if (!woke && !runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
+    } else {
+      await Scheduler.I.fire(id);
+    }
+  }
+
+  @visibleForTesting
+  Future<void> onAlarmForTest(String id) => _alarmGate.run(() => _onAlarm(id));
+
+  @visibleForTesting
+  void openAlarmGateForTest() => _alarmGate.open();
 
   void _onNotificationTap(String payload) {
     if (payload.startsWith('botcall/')) {

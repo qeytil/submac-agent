@@ -29,6 +29,7 @@ import 'home_screen.dart' show TodayUsage;
 import 'inbox_screen.dart' show enterInviteCode;
 import 'logins_screen.dart';
 import 'memory_screen.dart';
+import 'models_screen.dart';
 import 'opencode_lab_screen.dart';
 import 'system_screens.dart';
 import '../ui/tokens.dart';
@@ -74,6 +75,8 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           _Group([
             row('Account', const _AccountPage()),
             row('Plan & usage', const _PlanPage()),
+            // Bring your own key (owner 2026-11-03): SubMac or the user's own providers.
+            row('Models', const ModelsScreen()),
             row('Language', const _LanguagePage()),
             row('Voice', const _VoicePage()),
           ]),

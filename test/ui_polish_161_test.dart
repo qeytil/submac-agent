@@ -277,7 +277,10 @@ void main() {
       }
     });
 
-    testWidgets('a line written before a step is hidden; it shows when the user asked for the steps', (t) async {
+    // Owner, 2026-11-03: every opencode step and the words around it show, like opencode desktop (showSteps is always on).
+    // Owner 2026-11-03 (14:24): quiet again. A line before a step folds into the turn's activity view (Notes); it shows
+    // inline only when steps were asked for.
+    testWidgets('a line written before a step stays out of the chat unless steps were asked for', (t) async {
       final m = ChatMessage(
         id: 'n',
         role: 'assistant',
@@ -293,10 +296,10 @@ void main() {
     });
 
 
-    test('the live line only opens the checklist and step list when steps were asked for', () {
+    test('the live line opens to the categorized activity; the old step list only when steps were asked for', () {
       final src = File('lib/widgets/composer.dart').readAsStringSync();
       expect(src, contains('widget.showSteps && t != null && t.todo.isNotEmpty'));
-      expect(src, contains('final canOpen = widget.showSteps &&'));
+      expect(src, contains('final canOpen = hasActivity || (widget.showSteps && trail.isNotEmpty);'));
     });
   });
 }

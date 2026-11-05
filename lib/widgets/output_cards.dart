@@ -212,9 +212,14 @@ Widget? buildOutputCard(String language, String body, {String? owner}) {
         } catch (_) {
           j = body;
         }
-        final opts = Choices.parse(j);
-        if (opts.length < Choices.min) return null;
-        return ChoicesCard(opts, question: Choices.question(j), owner: owner);
+        // A question with no answers still shows, as its question with a row for your own words. opencode's
+        // {"questions":[…]} shows one card per question.
+        final qs = [for (final q in Choices.questionsIn(j)) if (q.$2.length >= Choices.min || q.$1 != null) q];
+        if (qs.isEmpty) return null;
+        if (qs.length == 1) return ChoicesCard(qs.first.$2, question: qs.first.$1, owner: owner);
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          for (final q in qs) ChoicesCard(q.$2, question: q.$1, owner: owner),
+        ]);
       case 'file':
         final path = AgentTools.cardPath(body.trim().split('\n').first.trim());
         if (RegExp(r'\.wav$', caseSensitive: false).hasMatch(path)) return AudioCard(path);

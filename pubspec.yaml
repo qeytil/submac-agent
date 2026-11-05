@@ -1,7 +1,7 @@
 name: agent
 description: SubMac Agent - an agentic chat app.
 publish_to: 'none'
-version: 1.13.109+179
+version: 1.13.127+197
 
 environment:
   sdk: '>=3.12.0 <4.0.0'

@@ -18,17 +18,21 @@ import 'browser_card.dart';
 import '../models.dart';
 import '../screens/live_screen.dart';
 import '../services/attach_limits.dart';
+import '../services/full_access.dart';
 import '../services/doc_tools.dart';
 import '../theme.dart';
 import 'chat_extras.dart';
 import 'logo.dart';
 import 'message_view.dart';
+import 'model_picker.dart';
 import 'sub_icon.dart';
 import 'meeting_sheet.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 import '../screens/skills_screen.dart';
 import 'chat/activity.dart';
+import 'chat/activity_groups.dart';
+import 'chat/activity_panel.dart';
 import 'chat/edge_fade.dart';
 
 class Composer extends StatefulWidget {
@@ -604,10 +608,70 @@ class _ComposerState extends State<Composer> {
                   ),
                 ],
               ),
+              // Ask or Autopilot (owner, 2026-11-03): a tiny switch under the field. Autopilot answers approval cards
+              // and opencode's permission asks by itself; money and SubMac's own settings still ask.
+              // The chat's model (BYOK, owner 2026-11-03) sits beside it, only when the user has models of their own.
+              const Padding(
+                padding: EdgeInsetsDirectional.only(top: Space.x2),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Wrap(spacing: Space.x2, runSpacing: Space.x1, crossAxisAlignment: WrapCrossAlignment.center, children: [PermissionPill(), ModelPill()]),
+                ),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Ask · Autopilot, under the composer: two quiet words in one frosted pill, the chosen one inked.
+class PermissionPill extends StatelessWidget {
+  const PermissionPill({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return ListenableBuilder(
+      listenable: FullAccess.I,
+      builder: (context, _) {
+        final auto = FullAccess.I.on;
+        Widget seg(String label, bool on, bool value) => Semantics(
+              button: true,
+              selected: on,
+              label: label,
+              child: InkWell(
+                key: ValueKey('perm-$label'),
+                borderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
+                onTap: on ? null : () => FullAccess.I.set(value),
+                child: AnimatedContainer(
+                  duration: LuxMotion.quick,
+                  curve: LuxMotion.ease,
+                  height: 24,
+                  padding: const EdgeInsets.symmetric(horizontal: Space.x3),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: on ? (value ? p.accentWash : p.bubble) : Colors.transparent,
+                    borderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
+                  ),
+                  child: Text(label,
+                      style: AppText.microStyle.copyWith(
+                          color: on ? p.text : p.muted, fontWeight: on ? FontWeight.w600 : FontWeight.w500)),
+                ),
+              ),
+            );
+        return FrostedSurface(
+          radius: Radii.pill,
+          child: Padding(
+            padding: const EdgeInsets.all(2),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              seg(tr('Ask'), !auto, false),
+              seg(tr('Autopilot'), auto, true),
+            ]),
+          ),
+        );
+      },
     );
   }
 }
@@ -757,8 +821,13 @@ const turnMarkSize = 22.0;
 /// A plain reply with no steps hands over to the answer: once the answer has been streaming for a moment
 /// with no step taken, the line folds away and the text takes its place.
 class WorkingLine extends StatefulWidget {
-  const WorkingLine({super.key, this.run, this.more = 0, this.answerShowing = false, this.writing = false, this.showSteps = false});
+  const WorkingLine(
+      {super.key, this.run, this.more = 0, this.answerShowing = false, this.writing = false, this.showSteps = false, this.activity, this.results = const {}});
   final AgentRun? run;
+
+  /// This turn's work so far (thinking, tools, notes): the line opens to it, in categorized sections (owner 2026-11-03).
+  final ActivityGroups? activity;
+  final Map<String, ChatMessage> results;
 
   /// The user asked to see the steps: the task's checklist and its step list can open under the line. Otherwise
   /// (owner 2026-10-24) the line is one quiet status, updating in place, and nothing else.
@@ -889,7 +958,9 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
         final status = WorkingLine.lineFor(t, writing: widget.writing, more: widget.more);
         final el = _elapsed();
         final trail = t?.trail ?? const <RunStep>[];
-        final canOpen = widget.showSteps && trail.isNotEmpty;
+        final act = widget.activity;
+        final hasActivity = act != null && !act.isEmpty;
+        final canOpen = hasActivity || (widget.showSteps && trail.isNotEmpty);
         final kind = WorkingLine.kindOf(t);
         final row = SizedBox(
           height: turnHeadHeight,
@@ -915,6 +986,12 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
                 padding: const EdgeInsetsDirectional.only(start: 8, end: 4),
                 child: Text(el, style: TextStyle(color: p.muted, fontSize: AppText.micro, fontFeatures: const [FontFeature.tabularFigures()])),
               ),
+            if (canOpen)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _open = !_open),
+                child: ActivityChevron(open: _open),
+              ),
           ]),
         );
         return Padding(
@@ -933,7 +1010,12 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
               child: SubSize(
                 duration: SubMotion.quick,
                 alignment: AlignmentDirectional.topStart,
-                child: Padding(
+                child: hasActivity
+                    ? Padding(
+                        padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),
+                        child: ActivityPanel(groups: act, results: widget.results),
+                      )
+                    : Padding(
                       padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         // What the task has done so far, newest last, with how long each step took.

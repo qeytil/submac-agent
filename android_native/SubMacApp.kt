@@ -30,6 +30,9 @@ class SubMacApp : Application() {
             val e = FlutterEngine(ctx.applicationContext)
             Bridge.attach(ctx.applicationContext, e)
             AppUpdater.attach(ctx.applicationContext, e)
+            // opencode's calls work with no screen (a bot's scheduled task started by an alarm). MainActivity replaces
+            // this handler with its own when the screen opens and forwards these calls to OcChannel.
+            OcChannel.attach(ctx.applicationContext, e)
             e.dartExecutor.executeDartEntrypoint(DartExecutor.DartEntrypoint.createDefault())
             FlutterEngineCache.getInstance().put(ENGINE, e)
             return e

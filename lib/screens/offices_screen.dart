@@ -7,7 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../app_state.dart';
 import '../services/bots.dart';
 import '../services/offices.dart';
+import '../services/team_floor.dart';
 import '../services/team_run.dart';
+import '../services/team_status.dart';
 import '../services/system_bridge.dart';
 import '../theme.dart';
 import '../widgets/approval_card.dart';
@@ -442,8 +444,10 @@ class _TeamChatState extends State<TeamChat> {
           // composer and fade softly at both edges.
           Expanded(
             child: FloatingChatFrame(
-              body: Builder(
-                builder: (context) => posts.isEmpty && context.watch<AppState>().officeActivity(o.id).isEmpty
+              // The live lines also follow TeamStatus (a bot's turn starts typing, or fails), not only AppState.
+              body: ListenableBuilder(
+                listenable: TeamStatus.I,
+                builder: (context, _) => posts.isEmpty && context.watch<AppState>().officeActivity(o.id).isEmpty
                 ? Padding(
                     padding: EdgeInsets.only(top: top ? 0 : widget.topInset, bottom: ChatFooterInset.of(context)),
                     child: _TeamGreeting(office: o, lead: lead),
@@ -625,6 +629,46 @@ class _TeamActivityState extends State<_TeamActivity> {
     super.dispose();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    return ListenableBuilder(listenable: TeamStatus.I, builder: (context, _) {
+      final lines = TeamLiveLines(rows: state.officeActivity(widget.officeId));
+      final o = Offices.I.byId(widget.officeId);
+      // Lead mode (owner 2026-11-05): one small line while the lead leads (handed over, or the owner away while the team
+      // works). Nothing while the owner leads.
+      final mode = o == null || !(o.delegated || TeamRun.I.busy(o)) ? '' : TeamLeadMode.indicator(o);
+      if (mode.isEmpty) return lines;
+      return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        TeamModeLine(text: mode),
+        lines,
+      ]);
+    });
+  }
+}
+
+/// The small lead-mode line in the team chat: "Hodan is leading the team" (owner 2026-11-05).
+class TeamModeLine extends StatelessWidget {
+  const TeamModeLine({super.key, required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return Padding(
+      key: const ValueKey('team-lead-mode'),
+      padding: const EdgeInsets.only(top: Space.x2),
+      child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.captionStyle.copyWith(color: p.muted)),
+    );
+  }
+}
+
+/// The team chat's small live lines (owner 2026-11-04), one per bot: "Nova is working…", "Nova is typing…",
+/// "Idil · Read your message", or a problem as "Nova · rate limit" (tap shows what happened). Team chat only.
+class TeamLiveLines extends StatelessWidget {
+  const TeamLiveLines({super.key, required this.rows});
+  final List<TeamStatusLine> rows;
+
   static String _el(DateTime? since) {
     if (since == null) return '';
     final d = DateTime.now().difference(since);
@@ -635,8 +679,6 @@ class _TeamActivityState extends State<_TeamActivity> {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final state = context.watch<AppState>();
-    final rows = state.officeActivity(widget.officeId);
     return SubSize(
       duration: SubMotion.quick,
       alignment: AlignmentDirectional.topStart,
@@ -645,24 +687,40 @@ class _TeamActivityState extends State<_TeamActivity> {
           : Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Column(children: [
-                for (final r in rows.take(4))
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    // Same left edge as a teammate's message: avatar, then the live line where their reply will be.
-                    child: Row(children: [
-                      // Tiny: a small face in its working ring, then one quiet line.
-                      StatusRing(state: RingState.working, size: _MemberStrip.face, child: BotAvatar(bot: r.bot, size: _MemberStrip.face)),
-                      const SizedBox(width: Space.x2),
-                      Expanded(
-                        child: Text('${r.bot.name} · ${r.text}',
-                            maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.captionStyle.copyWith(color: p.muted)),
-                      ),
-                      if (_el(r.since).isNotEmpty)
-                        Text(_el(r.since), style: TextStyle(color: p.muted, fontSize: AppText.caption, fontFeatures: const [FontFeature.tabularFigures()])),
-                    ]),
-                  ),
+                for (final r in rows.take(6)) _row(context, p, r),
               ]),
             ),
+    );
+  }
+
+  /// One small line: the bot's tiny face (in its working ring while it works), then "Nova is typing…", or
+  /// "Nova · rate limit" for a problem (tap shows what happened, when there is more to say).
+  Widget _row(BuildContext context, Palette p, TeamStatusLine r) {
+    final live = r.kind == TeamLineKind.working || r.kind == TeamLineKind.typing;
+    final el = live ? _el(r.since) : '';
+    final row = Padding(
+      key: ValueKey('team-line-${r.bot.id}'),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      // Same left edge as a teammate's message: avatar, then the live line where their reply will be.
+      child: Row(children: [
+        StatusRing(
+            state: live ? RingState.working : (r.isIssue ? RingState.waiting : RingState.idle),
+            size: _MemberStrip.face,
+            child: BotAvatar(bot: r.bot, size: _MemberStrip.face)),
+        const SizedBox(width: Space.x2),
+        Expanded(
+          child: Text(r.line,
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.captionStyle.copyWith(color: r.isIssue ? p.faint : p.muted)),
+        ),
+        if (el.isNotEmpty)
+          Text(el, style: TextStyle(color: p.muted, fontSize: AppText.caption, fontFeatures: const [FontFeature.tabularFigures()])),
+      ]),
+    );
+    if (!r.isIssue || r.detail.isEmpty) return row;
+    return InkWell(
+      key: ValueKey('team-issue-${r.bot.id}'),
+      onTap: () => showSelectableText(context, '${r.line}\n\n${r.detail}'),
+      child: row,
     );
   }
 }
@@ -1251,19 +1309,8 @@ class _PeopleTab extends StatelessWidget {
           saved();
         },
       ),
-      ChoiceRow(
-        label: 'Daily limit',
-        value: '${o.dailyLimit}',
-        options: const {'10': 'Light', '25': '25 a day', '40': '40 a day', '80': '80 a day', '200': 'Heavy'},
-        onChanged: (v) {
-          o.dailyLimit = int.parse(v);
-          saved();
-        },
-      ),
-      Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 10),
-        child: Text('Used today: ${o.runsToday} of ${o.dailyLimit}.', style: TextStyle(color: p.muted, fontSize: AppText.micro)),
-      ),
+      // No daily limit on a team's work any more (owner 2026-11-04: no limits on how much bots work); the bots' share
+      // of the allowance and each bot's own token budget still hold.
       if (o.brief.isNotEmpty || o.decisions.isNotEmpty) ...[
         const SizedBox(height: 8),
         const SectionHeader('Agreed'),
