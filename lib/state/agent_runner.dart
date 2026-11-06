@@ -332,7 +332,10 @@ extension AppStateAgentRunner on AppState {
         } else if (last != null && last.kind == 'text') {
           run.show(RunPhase.writing, RunStatus.writing);
         }
-        _notify();
+        // Every streamed word arrives as its own engine event. Rebuilding the whole app on each one made the chat
+        // stutter while a reply streamed (and bots' background turns rebuilt the open chat too): batched like the
+        // reply's own reveal (bug hunt 2026-11-06). The turn's end still notifies at once.
+        _throttledNotify();
       }
 
       // The allowance lane and model of this turn (owner 2026-11-03, see OcLane): a bot's wake and office work bill
@@ -352,9 +355,13 @@ extension AppStateAgentRunner on AppState {
       final family = {session};
       _ocLive.add(convId);
       _ocFamilies[convId] = family;
+      var seen = DateTime.now();
       final sub = oc.events.listen((e) {
         _routes.watch(e, convId, family);
-        if (turn.apply(e)) sync();
+        if (turn.apply(e)) {
+          seen = DateTime.now();
+          sync();
+        }
         // Background work stops when the bots' share is refused or the bot's own budget runs out (owner 2026-11-03).
         final why = stopped == null ? guard.check(turn) : null;
         if (why != null) {
@@ -369,8 +376,23 @@ extension AppStateAgentRunner on AppState {
         run.show(RunPhase.waiting, RunStatus.waiting);
         _notify();
         await oc.prompt(session, await _partsFor(lastUser), system: _ocLayer(convId), model: laneModel);
+        final sent = DateTime.now();
+        var drops = oc.streamDrops;
+        var checked = sent;
         while (!done.isCompleted && !run.cancelled) {
           await Future.any([done.future, Future<void>.delayed(const Duration(seconds: 1))]);
+          if (done.isCompleted || run.cancelled) break;
+          // The event stream dropped, or nothing changed for a while: ask the engine itself, so a lost stream or a
+          // stopped engine never leaves the chat "Working" forever (bug hunt 2026-11-06).
+          final now = DateTime.now();
+          if (OcWatch.due(now: now, sent: sent, seen: seen, checked: checked, dropped: oc.streamDrops != drops)) {
+            checked = now;
+            drops = oc.streamDrops;
+            if (await oc.recover(turn, since: began)) {
+              sync();
+              if (!done.isCompleted) done.complete();
+            }
+          }
         }
       } finally {
         await sub.cancel();
@@ -457,8 +479,8 @@ extension AppStateAgentRunner on AppState {
         // Files a script made: a bot's turn looks in its own folder only; the owner's chat skips the bots' and teams'
         // folders, which other turns write to meanwhile.
         made: bot == null
-            ? TurnVisuals.madeSince(Directory(ws), began, skip: const {'bots', 'teams'})
-            : TurnVisuals.madeSince(Directory('$ws/${Bots.botFolder(bot)}'), began),
+            ? await TurnVisuals.madeSinceAsync(Directory(ws), began, skip: const {'bots', 'teams'})
+            : await TurnVisuals.madeSinceAsync(Directory('$ws/${Bots.botFolder(bot)}'), began),
       );
       if (cards.isEmpty) return;
       if (answer.id.isNotEmpty) {
@@ -606,9 +628,11 @@ extension AppStateAgentRunner on AppState {
       teamLive[key] = live;
       _ocLive.add(key);
       _ocFamilies[key] = family;
+      var seen = DateTime.now();
       sub = oc.events.listen((e) {
         _routes.watch(e, key, family);
         if (!turn.apply(e)) return;
+        seen = DateTime.now();
         final last = turn.parts.values.isEmpty ? null : turn.parts.values.last;
         TeamStatus.I.phase(key, TeamStatus.phaseOf(lastKind: last?.kind, lastFinished: last?.finished ?? true, reasoning: turn.reasoning));
         if (onStatus != null) {
@@ -624,7 +648,17 @@ extension AppStateAgentRunner on AppState {
       await oc.prompt(s, [{'type': 'text', 'text': task}], system: system, model: laneModel);
       final from = DateTime.now();
       final until = from.add(const Duration(minutes: 30));
+      var drops = oc.streamDrops;
+      var checked = from;
       while (true) {
+        // A lost event stream or a stopped engine: asked directly, so team work never waits out the 30 min for
+        // nothing (bug hunt 2026-11-06).
+        final now = DateTime.now();
+        if (!turn.done && turn.error == null && OcWatch.due(now: now, sent: from, seen: seen, checked: checked, dropped: oc.streamDrops != drops)) {
+          checked = now;
+          drops = oc.streamDrops;
+          await oc.recover(turn, since: from.subtract(const Duration(seconds: 2)));
+        }
         // The bots' share refused, or this bot's budget ran out: stop now (opencode would retry a 429 for 30 min).
         why = guard.check(turn);
         if (why != null) {
