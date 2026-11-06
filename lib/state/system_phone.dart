@@ -60,6 +60,22 @@ extension AppStateSystem on AppState {
       await _officeNotify(o, bot, text, needs: true);
     };
     Bots.I.ring = _botRing;
+    Bots.I.connectedAppsOf = botConnectedApps;
+    // "Every hour" is one repeating scheduled task of the bot (the bot wakes for it), never one routine per hour.
+    Bots.I.scheduleRepeat = (bot, job, repeat) {
+      final n = DateTime.now();
+      final first = DateTime(n.year, n.month, n.day, n.hour + 1);
+      return Scheduler.I.add(job, first.toIso8601String().substring(0, 16), repeat, bot: bot.id);
+    };
+    Bots.I.repeatsOf = (bot) => [
+          for (final t in Scheduler.I.tasks)
+            if (t.bot == bot.id && (t.repeat == 'hourly' || t.repeat == 'every_3_hours')) (id: t.id, task: t.task, repeat: t.repeat),
+        ];
+    Bots.I.cancelRepeat = (bot, id) async {
+      if (!Scheduler.I.tasks.any((t) => t.id == id && t.bot == bot.id)) return 'Error: no routine $id.';
+      await Scheduler.I.cancel(id);
+      return 'Removed.';
+    };
     Bots.I.consult = _botConsult;
     Bots.I.makeTeam = _botMakeTeam;
     Bots.I.teamsOf = (b) => [

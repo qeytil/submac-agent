@@ -712,6 +712,72 @@ class ConnectorCatalog {
 
   static Future<String> execute(String name, Map<String, dynamic> args) async => scrub(await _execute(name, args));
 
+  /// The HTTP client the Telegram send below uses (tests put a fake one here).
+  static http.Client Function() httpClient = http.Client.new;
+
+  /// The owner's chat with their own connected Telegram bot, once found.
+  static String telegramChat = '';
+
+  /// The owner's private chat in a getUpdates answer: the newest private chat that wrote to the bot, or ''.
+  static String chatIdFromUpdates(dynamic j) {
+    final list = j is Map && j['result'] is List ? j['result'] as List : const [];
+    for (final u in list.reversed) {
+      if (u is! Map) continue;
+      for (final k in ['message', 'edited_message', 'my_chat_member', 'callback_query']) {
+        var m = u[k];
+        if (m is Map && k == 'callback_query') m = m['message'];
+        final c = m is Map ? m['chat'] : null;
+        if (c is Map && c['type'] == 'private' && c['id'] != null) return '${c['id']}';
+      }
+    }
+    return '';
+  }
+
+  /// Sends [text] to the owner through the Telegram bot they connected in Apps (a bot's bot_telegram when SubMac's
+  /// own Telegram is not set up). The chat is the newest private chat with that bot (the owner pressed Start).
+  /// Returns null when sent, or an error line.
+  static Future<String?> telegramToOwner(String text) async {
+    final v = connected['telegram'];
+    final d = byId('telegram');
+    if (v == null || d == null) return 'Error: no Telegram bot is connected in Apps.';
+    final base = _clean(_fill(d.base, v));
+    final c = httpClient();
+    try {
+      var chat = (v['chat_id'] ?? '').trim();
+      if (chat.isEmpty) chat = telegramChat;
+      if (chat.isEmpty) {
+        final r = await c.get(Uri.parse('$base/getUpdates?limit=100')).timeout(const Duration(seconds: 20));
+        if (r.statusCode != 200) {
+          return scrub('Error: the Telegram bot in Apps did not answer (HTTP ${r.statusCode}: ${r.body.length > 200 ? r.body.substring(0, 200) : r.body}). '
+              'Tell the owner to check its token in Apps.');
+        }
+        chat = chatIdFromUpdates(jsonDecode(r.body));
+        if (chat.isEmpty) {
+          return 'Error: the owner\'s Telegram bot has no chat with them yet. Tell them in one line to open their bot in Telegram '
+              'and press Start (or send "hi"); then send again.';
+        }
+        telegramChat = chat;
+      }
+      // Telegram takes at most 4096 characters a message.
+      for (var i = 0; i < text.length || i == 0; i += 4000) {
+        final part = text.substring(i, i + 4000 > text.length ? text.length : i + 4000);
+        final r = await c
+            .post(Uri.parse('$base/sendMessage'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'chat_id': chat, 'text': part}))
+            .timeout(const Duration(seconds: 30));
+        if (r.statusCode != 200) {
+          if (r.statusCode == 400 || r.statusCode == 403) telegramChat = '';
+          return scrub('Error: Telegram did not take the message (HTTP ${r.statusCode}: ${r.body.length > 200 ? r.body.substring(0, 200) : r.body}).');
+        }
+        if (text.isEmpty) break;
+      }
+      return null;
+    } catch (e) {
+      return scrub('Error: could not reach Telegram: $e');
+    } finally {
+      c.close();
+    }
+  }
+
   static Future<String> _execute(String name, Map<String, dynamic> args) async {
     // Voice models send objects as JSON text; turn them back into objects.
     final a = {...args};
@@ -767,7 +833,12 @@ class ConnectorCatalog {
 
   static Future<String> _call(ConnDef d, Map<String, String> v, Map<String, dynamic> a) async {
     final method = (a['method'] ?? 'GET').toString().toUpperCase();
-    var path = (a['path'] ?? '').toString().trim();
+    // Models also send the address as "url" or "endpoint" (seen 2026-11-05: every Telegram call went to the bare base).
+    var path = normPath(d.base, '${a['path'] ?? a['url'] ?? a['endpoint'] ?? ''}');
+    if (path.isEmpty || path == '/') {
+      return 'Error: give "path", the part after the base ${_fill(d.base, {...v, 'token': '***', 'key': '***'})}'
+          '${d.examples.isEmpty ? '' : ', e.g. ${d.examples}'}. Nothing was sent.';
+    }
     final baseUrl = _clean(_fill(d.base, v));
     final base = Uri.tryParse(baseUrl.startsWith('http') ? baseUrl : 'https://$baseUrl');
     final own = base?.host.toLowerCase() ?? '';
@@ -802,6 +873,25 @@ class ConnectorCatalog {
       headers['Authorization'] = 'Basic ${base64Encode(utf8.encode('${part(d.basic![0])}:${part(d.basic![1])}'))}';
     }
     return _send(method, uri, headers, a['body'], d.form ? 'form' : 'json');
+  }
+
+  /// The path of an app call with the base's own path taken off when the model repeated it: Telegram's base ends in
+  /// /bot{token}, and models write "/bot<token>/sendMessage" (any token), which doubled it and answered 404 Not Found
+  /// (2026-11-05). A full https URL is kept as it is (it is checked against the app's host later).
+  static String normPath(String baseTemplate, String path) {
+    var p = path.trim();
+    if (p.isEmpty || p.startsWith('http')) return p;
+    if (!p.startsWith('/') && !p.startsWith('?') && !p.startsWith('.')) p = '/$p';
+    final i = baseTemplate.indexOf('://');
+    final j = i < 0 ? -1 : baseTemplate.indexOf('/', i + 3);
+    if (j < 0) return p;
+    final own = baseTemplate.substring(j).replaceAll(RegExp(r'/+$'), '');
+    if (own.isEmpty) return p;
+    final re = RegExp('^${RegExp.escape(own).replaceAll(RegExp(r'\\\{[a-z_]+\\\}|\{[a-z_]+\}'), r'(?:\{[a-z_]+\}|[^/?]{8,})')}(?=[/?]|\$)');
+    final m = re.firstMatch(p);
+    if (m == null) return p;
+    final rest = p.substring(m.end);
+    return rest.isEmpty ? '/' : rest;
   }
 
   static Future<String> _raw(Map<String, dynamic> a) async {
@@ -856,8 +946,13 @@ class ConnectorCatalog {
         req.body = jsonEncode(b);
       }
     }
-    final streamed = await req.send().timeout(const Duration(seconds: 45));
-    final r = await http.Response.fromStream(streamed);
+    final c = httpClient();
+    final http.Response r;
+    try {
+      r = await http.Response.fromStream(await c.send(req).timeout(const Duration(seconds: 45)));
+    } finally {
+      c.close();
+    }
     var text = utf8.decode(r.bodyBytes, allowMalformed: true);
     final ct = r.headers['content-type'] ?? '';
     if (ct.contains('html') && text.length > 2000) {

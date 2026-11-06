@@ -458,6 +458,9 @@ extension AppStateTools on AppState {
       return BrowserAgent.I.execute(name, args, callId: callId, shots: canSee);
     }
     if (WebTools.names.contains(name)) return WebTools.execute(name, args);
+    // A bot's memory call acts on the bot's own memory, never the owner's (known issue 2026-11-06).
+    final botMem = Bots.I.byConv(convId) == null ? null : OcToolScope.botMemory(name, args);
+    if (botMem != null) return Bots.I.execute(botMem.$1, botMem.$2, convId);
     if (MemoryStore.names.contains(name)) {
       final r = await memory.execute(name, args);
       _notify();

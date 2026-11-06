@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models.dart' show ChatMessage;
 import 'bg_runs.dart';
 import 'bot_package.dart';
+import 'connector_catalog.dart';
+import 'save_guard.dart';
 import 'bot_powers.dart';
 import 'events.dart';
 import 'telegram_bridge.dart';
@@ -1086,7 +1088,9 @@ class Bots extends ChangeNotifier {
     final now = DateTime.now();
     final rNow = clock();
     var runsChanged = false;
-    for (final r in b.routines) {
+    // A copy: parallel tool calls add routines while this awaits each alarm ("Concurrent modification during
+    // iteration", 2026-11-05).
+    for (final r in List.of(b.routines)) {
       final owned = b.active && !_cloud(b, r.id);
       DateTime? n;
       if (owned) {
@@ -1621,8 +1625,9 @@ class Bots extends ChangeNotifier {
       ..writeln('- A long build the owner asks for (an app, a website, software, a big report): settle their decisions first, then the todo '
           'checklist with every step, and keep going in the same task until all of it is built and checked. You have room for hundreds of '
           'steps: never stop half way to ask "shall I continue?", never leave stubs or placeholders. After a pause, "continue" picks up your plan.')
-      ..writeln('- Learn a preference, goal, deadline or fact about their work: bot_remember at once. Promise to come back later: create the '
-          'bot_followup in the same turn. A regular thing ("every morning", "call me Fridays"): bot_routine.')
+      ..writeln('- Learn a preference, goal, deadline or fact about their work: bot_remember at once (once; never keys or tokens). Promise '
+          'to come back later: create the bot_followup in the same turn. A regular thing ("every morning", "call me Fridays"): one '
+          'bot_routine; "every hour" is ONE bot_routine with repeat "hourly". A tool result that says done is done: never repeat the call.')
       ..writeln('- Check your work before you deliver: exactly what was asked, facts and numbers right, sources linked. Long work goes in a document.')
       ..writeln('- Stuck (two failed tries, or missing information): ask a colleague with bot_ask, your team lead in a team, or the owner one clear question. '
           'After a mistake or a correction, save one general lesson with bot_lesson (never names or private facts).')
@@ -1681,6 +1686,19 @@ class Bots extends ChangeNotifier {
 
   /// The brief of a bot's opencode turn. [team]: false (default) for its private chat with the owner, whose brief
   /// leaves out the team lines of its journal; true for its team work.
+  /// The owner's connected apps this bot may use, one line each with how to call them (set by the app). In the brief,
+  /// so a bot knows they are there: it used to look only for its own tools and told the owner an app they had
+  /// connected was "not connected" (2026-11-05).
+  List<String> Function(Bot b)? connectedAppsOf;
+
+  String _connectedBrief(Bot b) {
+    final l = connectedAppsOf?.call(b) ?? const <String>[];
+    if (l.isEmpty) return '';
+    return '\n# The owner\'s connected apps you can use\n${l.join('\n')}\n'
+        'They are signed in already: call them with submac_run_tool (name + arguments). Never ask the owner for keys or tokens '
+        'of these apps, and never say one is not connected before you tried it.\n';
+  }
+
   String opencodeBriefOf(Bot b, {bool team = false}) {
     final own = [
       for (final d in definitionsFor(b))
@@ -1691,6 +1709,7 @@ class Bots extends ChangeNotifier {
             'You have opencode\'s own tools (files, shell, web fetch, to-dos) plus SubMac\'s app tools. Your own bot tools are SubMac tools: '
             'call them directly with submac_run_tool (name + arguments); no need to look them up:\n$own\n'
             '${_teamsBrief(b)}'
+            '${_connectedBrief(b)}'
             'Anything else in the app (connected apps, documents, memory, settings): submac_find_tools first.\n'
             '${team ? '' : 'To ask the owner a question with answers to pick, call your question tool (the app shows it as a tap card); '
                 'never write the question as JSON or code.\n'}'
@@ -1826,10 +1845,14 @@ class Bots extends ChangeNotifier {
         sb.writeln('- [${t.id}] (${t.status}) ${t.text}${t.note.isEmpty ? '' : ' — ${t.note}'}');
       }
     }
-    if (b.routines.isNotEmpty) {
-      sb.writeln('\n# Your routines');
-      for (final r in b.routines) {
-        sb.writeln('- ${r.id}: ${r.describe()}');
+    final reps = repeatsOf?.call(b) ?? const <({String id, String task, String repeat})>[];
+    if (b.routines.isNotEmpty || reps.isNotEmpty) {
+      sb.writeln('\n# Your routines (already set: never add them again)');
+      for (final g in routineGroups(b.routines)) {
+        sb.writeln('- ${g.ids.join(', ')}: ${g.when}: ${g.kind == 'call' ? '(call) ' : g.kind == 'message' ? '(message) ' : ''}${g.instruction}');
+      }
+      for (final t in reps) {
+        sb.writeln('- ${t.id}: ${t.repeat == 'hourly' ? 'every hour' : 'every 3 hours'}: ${t.task}');
       }
     }
     if (b.followups.isNotEmpty) {
@@ -1905,12 +1928,14 @@ class Bots extends ChangeNotifier {
       'instruction': {'type': 'string'},
       'kind': {'type': 'string', 'enum': ['work', 'message', 'call'], 'description': 'call = ring the user then.'},
     }, ['instruction']),
-    _fn('bot_routine', 'Add, change or remove a recurring routine at a time of day (a daily brief, a weekly report, a lesson call). '
-        'For every hour or every few hours use schedule_task with repeat hourly or every_3_hours.', {
+    _fn('bot_routine', 'Add, change, remove or list a recurring job: at a time of day ("time"), or through the day with ONE call '
+        '("repeat"), never one routine per hour.', {
       'action': {'type': 'string', 'enum': ['add', 'remove', 'list']},
       'on_phone': _onPhone,
       'id': {'type': 'string'},
       'time': {'type': 'string', 'description': 'HH:MM local time.'},
+      'repeat': {'type': 'string', 'enum': ['hourly', 'every_3_hours']},
+      'every_hours': {'type': 'integer', 'description': '2, 4, 6, 8 or 12, from "time".'},
       'days': {'type': 'string', 'description': 'daily, weekdays, weekends, or names like mon,wed,fri.'},
       'kind': {'type': 'string', 'enum': ['work', 'message', 'call']},
       'instruction': {'type': 'string'},
@@ -1981,8 +2006,14 @@ class Bots extends ChangeNotifier {
 
   static Future<String?> _telegramOwner(String text, List<String> files) async {
     final t = TelegramBridge.I;
+    // SubMac's own Telegram is not set up, but the owner connected their own Telegram bot in Apps: send through that
+    // (owner bug 2026-11-05: "I connected Telegram" and the bot kept answering "not connected").
+    if ((!t.on || !t.paired) && ConnectorCatalog.connected.containsKey('telegram')) {
+      return ConnectorCatalog.telegramToOwner([text, for (final f in files) 'File: $f'].join('\n'));
+    }
     if (!t.on) {
-      return 'Error: Telegram is not connected. Tell the owner in one line that they can connect it in SubMac: Settings > Telegram.';
+      return 'Error: Telegram is not connected. Tell the owner in one line that they can connect it in SubMac: Settings > Telegram '
+          '(or add their own Telegram bot in Apps).';
     }
     if (!t.paired) {
       return 'Error: Telegram is connected but not paired yet. Tell the owner to send the pairing code to their SubMac bot in Telegram.';
@@ -1994,10 +2025,120 @@ class Bots extends ChangeNotifier {
   Future<String> execute(String name, Map<String, dynamic> a, String? convId) async {
     final b = byConv(convId);
     if (b == null) return 'Error: this tool only works inside a bot\'s own chat.';
+    // The same save twice, or a save loop: answered here, never run again (owner bug 2026-11-06, SaveGuard).
+    final scope = convId ?? b.id;
+    final early = SaveGuard.I.before(scope, name, a);
+    if (early != null) return early;
+    final out = await _execute(b, name, a, convId);
+    SaveGuard.I.after(scope, name, a, out);
+    return out;
+  }
+
+  /// Run a repeating job for [b] ("every hour", "every 3 hours") as one scheduled task of the bot (set by the app:
+  /// Scheduler). Returns the result line.
+  Future<String> Function(Bot b, String instruction, String repeat)? scheduleRepeat;
+
+  /// The bot's repeating scheduled tasks (id, what, repeat), set by the app.
+  List<({String id, String task, String repeat})> Function(Bot b)? repeatsOf;
+
+  /// Cancels one of the bot's repeating scheduled tasks by id (set by the app). Returns the result line.
+  Future<String> Function(Bot b, String id)? cancelRepeat;
+
+  /// The repeat a bot_routine call asks for: 'hourly', 'every_3_hours', 'every_<n>_hours' (2, 4, 6, 8, 12: made as
+  /// daily routines at those times), or '' (a time of day). Models say it many ways: repeat, every_hours, a cron line
+  /// ("0 * * * *", seen 2026-11-05), "every hour".
+  static String repeatOf(Map<String, dynamic> a) {
+    String v(String k) => '${a[k] ?? ''}'.trim().toLowerCase();
+    final cron = v('cron');
+    if (cron.isNotEmpty) {
+      final f = cron.split(RegExp(r'\s+'));
+      if (f.length >= 5 && RegExp(r'^\d{1,2}$').hasMatch(f[0]) && f[2] == '*' && f[3] == '*' && f[4] == '*') {
+        if (f[1] == '*') return 'hourly';
+        final m = RegExp(r'^\*/(\d{1,2})$').firstMatch(f[1]);
+        if (m != null) return _everyHours(int.parse(m.group(1)!));
+      }
+    }
+    final n = int.tryParse(v('every_hours'));
+    if (n != null) return _everyHours(n);
+    final r = '${v('repeat')} ${v('every')} ${v('frequency')} ${v('interval')}'.trim().replaceAll('_', ' ');
+    if (r.isEmpty) return '';
+    if (RegExp(r'^(hourly|every hour|each hour|1 ?h|1 hours?|every 1 hours?)$').hasMatch(r)) return 'hourly';
+    final m = RegExp(r'(?:every )?(\d{1,2}) ?(?:h|hours?)$').firstMatch(r);
+    if (m != null) return _everyHours(int.parse(m.group(1)!));
+    return '';
+  }
+
+  static String _everyHours(int n) => switch (n) {
+        1 => 'hourly',
+        3 => 'every_3_hours',
+        2 || 4 || 6 || 8 || 12 => 'every_${n}_hours',
+        _ => 'bad',
+      };
+
+  /// Two routine instructions that say the same thing (case, spacing and punctuation aside).
+  static String sameJob(String instruction) => instruction.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ').trim();
+
+  /// Routines that are one job at several times of day, as one entry each: the Job page and the bot's own prompt show
+  /// "every hour" once instead of 24 lines (the hourly news of 2026-11-05 made one routine per hour).
+  static List<({List<String> ids, List<BotRoutine> routines, String when, String instruction, String kind})> routineGroups(List<BotRoutine> rs) {
+    final groups = <String, List<BotRoutine>>{};
+    for (final r in rs) {
+      (groups['${sameJob(r.instruction)}|${r.days}|${r.kind}'] ??= []).add(r);
+    }
+    return [
+      for (final g in groups.values)
+        (
+          ids: [for (final r in g) r.id],
+          routines: g,
+          when: _groupWhen(g),
+          instruction: g.first.instruction,
+          kind: g.first.kind,
+        ),
+    ];
+  }
+
+  static String _groupWhen(List<BotRoutine> g) {
+    final days = g.first.days;
+    if (g.length == 1) return '${g.first.time} $days';
+    final mins = [for (final r in g) _minOf(r.time)]..sort();
+    final step = mins[1] - mins[0];
+    var even = step > 0 && 1440 % step == 0 && mins.length == 1440 ~/ step;
+    for (var i = 1; i < mins.length && even; i++) {
+      if (mins[i] - mins[i - 1] != step) even = false;
+    }
+    final on = days == 'daily' ? '' : ' ($days)';
+    if (even && step == 60) return 'every hour$on';
+    if (even) return 'every ${step ~/ 60} hours$on';
+    return '${[for (final m in mins) '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}'].join(', ')} $days';
+  }
+
+  static int _minOf(String t) {
+    final p = t.split(':');
+    return (int.tryParse(p.first) ?? 0) * 60 + (p.length > 1 ? int.tryParse(p[1]) ?? 0 : 0);
+  }
+
+  /// A line that looks like a password, key or token (a Telegram bot token, an API key): never kept in memory.
+  static final _secret = RegExp(r'\b\d{6,12}:[A-Za-z0-9_-]{30,}\b|\b(sk|pk|rk)[-_][A-Za-z0-9_-]{16,}|\bgh[pousr]_[A-Za-z0-9]{20,}|'
+      r'\bxox[abpr]-[A-Za-z0-9-]{10,}|\bAIza[A-Za-z0-9_-]{30,}|\bya29\.[A-Za-z0-9_-]{20,}');
+  static bool looksSecret(String s) => _secret.hasMatch(s);
+
+  /// A job that repeats through the day ("every hour"): one scheduled task of the bot, never one routine per hour.
+  Future<String> _addRepeat(Bot b, String job, String repeat) async {
+    final same = repeatsOf?.call(b).where((t) => t.repeat == repeat && sameJob(t.task) == sameJob(job)).firstOrNull;
+    if (same != null) return 'Already set: ${same.id} runs ${repeat == 'hourly' ? 'every hour' : 'every 3 hours'}. Nothing new was added.';
+    final f = scheduleRepeat;
+    if (f == null) return 'Error: repeating jobs are not available right now.';
+    final out = await f(b, job, repeat);
+    if (!out.startsWith('Error')) b.log('work', 'Set up: ${repeat == 'hourly' ? 'every hour' : 'every 3 hours'}, ${job.length > 80 ? '${job.substring(0, 79)}…' : job}');
+    return out.startsWith('Error') ? out : '$out This is one job: do not add routines for each hour.';
+  }
+
+  Future<String> _execute(Bot b, String name, Map<String, dynamic> a, String? convId) async {
     String s(String k) => '${a[k] ?? ''}'.trim();
     switch (name) {
       case 'bot_telegram':
-        final text = s('text');
+        // Models also call the text "message" (seen 2026-11-05) or "body".
+        final text = [s('text'), s('message'), s('body'), s('content')].firstWhere((t) => t.isNotEmpty, orElse: () => '');
         final files = [for (final f in (a['files'] is List ? a['files'] as List : const [])) '$f'.trim()]..removeWhere((f) => f.isEmpty);
         if (text.isEmpty && files.isEmpty) return 'Error: give the text to send.';
         final err = await (telegramSend ?? _telegramOwner)(text, files);
@@ -2006,6 +2147,9 @@ class Bots extends ChangeNotifier {
         await save();
         return 'Sent to the owner on Telegram.';
       case 'bot_remember':
+        if (a['list'] == true || '${a['list']}' == 'true') {
+          return b.memory.isEmpty ? 'Nothing saved yet.' : b.memory.map((m) => '- $m').join('\n');
+        }
         if (s('forget').isNotEmpty) {
           final before = b.memory.length;
           b.memory.removeWhere((m) => m.toLowerCase().contains(s('forget').toLowerCase()));
@@ -2013,6 +2157,13 @@ class Bots extends ChangeNotifier {
           return 'Forgot ${before - b.memory.length} line(s).';
         }
         if (s('fact').isEmpty) return 'Error: give the fact.';
+        // A key or token in memory is shown in every prompt and synced to the account (2026-11-05: a bot saved a
+        // Telegram bot token): the owner keeps those in Apps, never in a bot's memory.
+        if (looksSecret(s('fact'))) {
+          return 'Error: not saved: it contains a key or token. Never keep keys in memory; the owner adds them in Apps '
+              '(the app then signs requests by itself). Save the fact without the key.';
+        }
+        if (b.memory.any((m) => sameJob(m) == sameJob(s('fact')))) return 'Already remembered.';
         b.memory.removeWhere((m) => m.toLowerCase() == s('fact').toLowerCase());
         b.memory.add(s('fact'));
         while (b.memory.length > 150) {
@@ -2066,32 +2217,92 @@ class Bots extends ChangeNotifier {
         await arm(b);
         return 'You will be woken at ${at.toIso8601String().substring(0, 16)} to: ${f.instruction}.';
       case 'bot_routine':
-        switch (s('action')) {
+        var action = s('action').toLowerCase();
+        final repeat = repeatOf(a);
+        // A call that sets a time, a job or a repeat but names no action is an add: it used to fall through to "list"
+        // and answer "No routines.", and the model tried again and again (2026-11-05).
+        if (action.isEmpty && (s('instruction').isNotEmpty || s('time').isNotEmpty || repeat.isNotEmpty)) action = 'add';
+        switch (action) {
           case 'add':
-            if (s('instruction').isEmpty || !RegExp(r'^\d{1,2}:\d{2}$').hasMatch(s('time'))) {
-              return 'Error: give time as HH:MM and the instruction.';
+            final job = [s('instruction'), s('task'), s('description')].firstWhere((t) => t.isNotEmpty, orElse: () => '');
+            if (repeat == 'bad') {
+              return 'Error: nothing added. Repeats that work: "repeat": "hourly" or "every_3_hours", or "every_hours" 2, 4, 6, 8 or 12; '
+                  'for once or a few times a day give "time" (HH:MM), one routine per time.';
             }
+            if (job.isEmpty) return 'Error: give the instruction (what to do each time).';
+            if (repeat == 'hourly' || repeat == 'every_3_hours') return _addRepeat(b, job, repeat);
+            if (repeat.startsWith('every_')) {
+              // Every 2, 4, 6, 8 or 12 hours: one routine per time of day, made here in one call.
+              final n = int.parse(repeat.split('_')[1]);
+              final start = RegExp(r'^\d{1,2}:\d{2}$').hasMatch(s('time')) ? s('time') : '08:00';
+              final h0 = int.parse(start.split(':')[0]) % n, m0 = start.split(':')[1];
+              final made = <String>[];
+              for (var h = h0; h < 24; h += n) {
+                final t = '${h.toString().padLeft(2, '0')}:$m0';
+                if (b.routines.any((r) => r.time == t && sameJob(r.instruction) == sameJob(job))) continue;
+                final r = BotRoutine(id: 'r${(DateTime.now().microsecondsSinceEpoch + h) % 1000000}', time: t, instruction: job)
+                  ..days = s('days').isEmpty ? 'daily' : s('days')
+                  ..kind = s('kind').isEmpty ? 'work' : s('kind')
+                  ..local = a['on_phone'] == true || '${a['on_phone']}' == 'true';
+                b.routines.add(r);
+                made.add(t);
+              }
+              await save();
+              await arm(b);
+              return made.isEmpty
+                  ? 'Already set: this runs every $n hours. Nothing new was added.'
+                  : 'Set: every $n hours (${made.join(', ')}). This is one job; do not add more routines for it.';
+            }
+            if (!RegExp(r'^\d{1,2}:\d{2}$').hasMatch(s('time'))) {
+              return 'Error: give "time" as HH:MM for a routine at a time of day, or "repeat": "hourly" / "every_3_hours" for one '
+                  'that repeats through the day.';
+            }
+            final time = s('time').padLeft(5, '0');
+            final days = s('days').isEmpty ? 'daily' : s('days');
             final existing = b.routines.where((r) => r.id == s('id')).firstOrNull;
-            final r = existing ?? BotRoutine(id: 'r${DateTime.now().millisecondsSinceEpoch % 100000}', time: s('time'), instruction: s('instruction'));
+            if (existing == null) {
+              final same = b.routines.where((r) => sameJob(r.instruction) == sameJob(job)).toList();
+              final twin = same.where((r) => r.time == time && r.days == days).firstOrNull;
+              if (twin != null) return 'Already set: routine ${twin.id} (${twin.describe()}). Nothing new was added.';
+              // One job at many times of day is a repeat, not many routines (the 24 hourly routines of 2026-11-05).
+              if (same.length >= 4) {
+                return 'Error: not added. This job already runs at ${same.map((r) => r.time).join(', ')}. For a job through the day use '
+                    'ONE call with "repeat": "hourly" or "every_3_hours" (or "every_hours"), and remove the extra routines.';
+              }
+            }
+            final r = existing ?? BotRoutine(id: 'r${DateTime.now().millisecondsSinceEpoch % 100000}', time: time, instruction: job);
             r
-              ..time = s('time')
-              ..days = s('days').isEmpty ? 'daily' : s('days')
+              ..time = time
+              ..days = days
               ..kind = s('kind').isEmpty ? 'work' : s('kind')
-              ..instruction = s('instruction')
+              ..instruction = job
               ..local = a['on_phone'] == true || '${a['on_phone']}' == 'true';
             if (existing == null) b.routines.add(r);
             await save();
             await arm(b);
             return 'Routine ${r.id}: ${r.describe()}.';
           case 'remove':
-            final r = b.routines.where((x) => x.id == s('id')).firstOrNull;
-            if (r == null) return 'Error: no routine ${s('id')}.';
+            final id = s('id');
+            final r = b.routines.where((x) => x.id == id).firstOrNull;
+            if (r == null) {
+              final cancel = cancelRepeat;
+              if (cancel != null && (repeatsOf?.call(b).any((t) => t.id == id) ?? false)) return await cancel(b, id);
+              return 'Error: no routine $id. Call bot_routine with action "list" for the ids.';
+            }
             b.routines.remove(r);
             await SystemBridge.I.cancelAlarm(alarmId(b, r.id));
             await save();
             return 'Removed.';
+          case 'list':
+          case '':
+            final lines = [
+              for (final r in b.routines) '${r.id}: ${r.describe()}',
+              for (final t in repeatsOf?.call(b) ?? const <({String id, String task, String repeat})>[])
+                '${t.id}: ${t.repeat == 'hourly' ? 'every hour' : 'every 3 hours'}: ${t.task}',
+            ];
+            return lines.isEmpty ? 'No routines.' : lines.join('\n');
           default:
-            return b.routines.isEmpty ? 'No routines.' : b.routines.map((r) => '${r.id}: ${r.describe()}').join('\n');
+            return 'Error: action must be add, remove or list.';
         }
       case 'bot_watch':
         switch (s('action')) {
