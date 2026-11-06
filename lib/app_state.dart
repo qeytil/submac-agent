@@ -45,6 +45,7 @@ import 'services/opencode.dart';
 import 'services/oc_lanes.dart';
 import 'services/output_limits.dart';
 import 'services/oc_scope.dart';
+import 'services/save_guard.dart';
 import 'services/submac_gateway.dart';
 import 'services/turn_visuals.dart';
 import 'services/submac_mcp.dart';

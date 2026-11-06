@@ -750,7 +750,9 @@ class OpenCodeAsks {
     final conv = convOf('${p['sessionID'] ?? ''}') ?? '';
     if (type == 'permission.asked') {
       if (autopilot?.call() == true) {
-        await permit(id, 'once');
+        // Autopilot (Full access) allows work without asking, never a loop: opencode asks doom_loop when the same tool
+        // call repeats three times in a row, and allowing it let a bot repeat the same save without end (2026-11-06).
+        await permit(id, '${p['permission'] ?? ''}' == 'doom_loop' ? 'reject' : 'once');
         return true;
       }
       final (title, prompt) = permissionText('${p['permission'] ?? ''}', p['patterns'], p['metadata']);

@@ -157,8 +157,19 @@ extension AppStateSettings on AppState {
     Future<String> sec(String k) => local.secret(k).catchError((_) => '');
     final keys = Future.wait([sec('loginSites'), sec('braveKey'), sec('tavilyKey'), sec('githubToken'), sec('notionToken'), sec('mcpServers')]);
     final apps = _loadApps().catchError((_) {});
-    // Alarms that came while this loads run once it is done (AlarmGate).
-    final system = _initSystem().catchError((_) {}).whenComplete(_alarmGate.open);
+    // Alarms that came while this loads run once it is done (AlarmGate): the bots and scheduled tasks, and also the
+    // owner's connected apps and MCP servers, so a bot's run started by an alarm with the app closed can use them
+    // (2026-11-06: the gate opened before they were read, and headless runs found no connected apps).
+    final system = _initSystem().catchError((_) {});
+    try {
+      await _loadKeysAndApps(keys, apps);
+    } finally {
+      await system;
+      _alarmGate.open();
+    }
+  }
+
+  Future<void> _loadKeysAndApps(Future<List<String>> keys, Future<void> apps) async {
     final k = await keys;
     try {
       if (k[0].isNotEmpty) savedLoginSites = List<String>.from(jsonDecode(k[0]) as List);
@@ -173,7 +184,6 @@ extension AppStateSettings on AppState {
       }
     } catch (_) {}
     await apps;
-    await system;
   }
 
   Future<void> onSignedIn() async {

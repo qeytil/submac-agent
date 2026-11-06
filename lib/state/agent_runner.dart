@@ -98,6 +98,8 @@ extension AppStateAgentRunner on AppState {
       office: teamKey && _officeCtx.containsKey(conv) ? Offices.definitions : const [],
       team: [if (teamKey && _teamAssign.containsKey(conv)) TeamRun.assignTool, TeamRun.taskTool],
       allowed: (n) => BotPowers.allowed(b.effectiveOff, n) && (!b.appsScoped || _botAppOk(b, n, const {})),
+      // A bot never writes the owner's memory: its `remember` is its own bot_remember (known issue, 2026-11-06).
+      exclude: OcToolScope.ownerMemory,
     );
   }
 
@@ -158,11 +160,16 @@ extension AppStateAgentRunner on AppState {
       call: (name, args) async {
         final (rn, ra) = name == SubMacGateway.runName ? SubMacGateway.inner(args) : (name, args);
         // Several turns at once (the owner's chat, bots, team members side by side): only an exact match routes.
-        final routed = await _routes.take(rn, ra, fuzzy: _ocLive.length <= 1);
+        // With several turns at once the call's own event can come late (busy event stream): wait longer before
+        // giving up, since a call with no route is refused ("could not tell which chat", B 2026-11-06).
+        final routed = await _routes.take(rn, ra,
+            fuzzy: _ocLive.length <= 1, wait: _ocLive.length > 1 ? const Duration(seconds: 5) : const Duration(milliseconds: 1500));
         // A call from a session no running turn owns is refused (McpRoutes.orphan), never run as the only live turn.
         final conv = routed == McpRoutes.orphan ? null : (routed ?? McpRoutes.soleLive(_ocLive));
         final gate = SubMacGateway(
           tools: () => _mcpTools(conv),
+          // A bot's `remember`, `forget`, `list_memories`: run as its own memory (see _runToolAfterChecksInner).
+          redirect: (n) => Bots.I.byConv(conv) != null ? OcToolScope.botMemory(n, const {})?.$1 : null,
           run: (n, a) async {
             if (conv == null) {
               return 'Error: SubMac could not tell which chat this call came from (several are working). Call it once more.';
@@ -229,6 +236,8 @@ extension AppStateAgentRunner on AppState {
     if (runs.any((r) => r.convId == convId)) return;
     final run = AgentRun(convId: convId, side: false, title: _shortTitle(lastUser?.content ?? 'Task'));
     runs.add(run);
+    // A new turn: the save guard's counts for this chat start again (SaveGuard).
+    SaveGuard.I.newTurn(convId);
     // A bot's wake keeps the rows it writes, so a wake that ends silent removes only those (CB-17).
     if (_botWakeConvs.containsKey(convId)) _wakeRows[convId] = run.wrote;
     _notify();
@@ -619,6 +628,7 @@ extension AppStateAgentRunner on AppState {
       void Function(String line)? onStatus}) async {
     final oc = OpenCodeEngine.I;
     _ocWire(oc);
+    SaveGuard.I.newTurn(key);
     // Team work nobody is watching bills to the bots' share (owner 2026-11-03, see OcLane): when the share is used
     // up today it waits for tomorrow, as the old team path did on ai-chat's background_paused.
     final laneModel = OcLane.pick(background: background, officeWork: true, botModel: b.model);

@@ -405,15 +405,30 @@ class _JobTab extends StatelessWidget {
           onTap: () => _task(context, b, t),
         ),
       _Head('Responsibilities'),
-      for (final r in b.routines)
+      // One job at several times of day is one line (it used to show 24 for an hourly job, 2026-11-05).
+      for (final g in Bots.routineGroups(b.routines))
         _Line(
-          icon: r.kind == 'call' ? Icons.call_outlined : Icons.schedule_rounded,
-          text: r.instruction,
-          sub: '${routineWhen(r)}${r.kind == 'call' ? ' · calls you' : r.kind == 'message' ? ' · messages you' : ' · tells you if it matters'}',
+          icon: g.kind == 'call' ? Icons.call_outlined : Icons.schedule_rounded,
+          text: g.instruction,
+          sub: '${g.routines.length == 1 ? routineWhen(g.routines.first) : g.when[0].toUpperCase() + g.when.substring(1)}'
+              '${g.kind == 'call' ? ' · calls you' : g.kind == 'message' ? ' · messages you' : ' · tells you if it matters'}',
           onDelete: () async {
-            b.routines.remove(r);
+            for (final r in g.routines) {
+              b.routines.remove(r);
+              await SystemBridge.I.cancelAlarm(Bots.alarmId(b, r.id));
+            }
             await Bots.I.save();
             await Bots.I.arm(b);
+          },
+        ),
+      // A job through the day ("every hour"): the bot's own repeating scheduled task.
+      for (final t in Scheduler.I.tasks.where((t) => t.bot == b.id && t.repeat != 'none').toList())
+        _Line(
+          icon: Icons.repeat_rounded,
+          text: t.task,
+          sub: t.repeat == 'hourly' ? 'Every hour' : (t.repeat == 'every_3_hours' ? 'Every 3 hours' : t.repeat),
+          onDelete: () async {
+            await Scheduler.I.cancel(t.id);
           },
         ),
       for (final w in b.watches)

@@ -6,7 +6,18 @@ import 'dart:convert';
 /// behind [findTool]; opencode looks a tool up when a task needs one and runs it with [runTool]. The `submac` skill
 /// says what is there. Pure, so it is tested without the app.
 class SubMacGateway {
-  SubMacGateway({required this.tools, required this.run});
+  SubMacGateway({required this.tools, required this.run, this.redirect});
+
+  /// A tool this caller may call by another name (a bot's `remember` is its own bot_remember): the name it runs as,
+  /// or null. The call still runs under its own name (the app maps it).
+  final String? Function(String name)? redirect;
+
+  /// opencode's own tools. Called through run_tool they are not found (2026-11-05: run_tool name "webfetch"), so the
+  /// answer says to call them directly instead of a bare "no SubMac tool".
+  static const engineTools = {
+    'bash', 'read', 'write', 'edit', 'glob', 'grep', 'list', 'ls', 'webfetch', 'websearch', 'codesearch', 'todowrite', 'todoread',
+    'task', 'skill', 'patch', 'multiedit', 'question',
+  };
 
   /// The full SubMac tool list (OpenAI function form), read fresh on every lookup.
   final List<Map<String, dynamic>> Function() tools;
@@ -102,6 +113,11 @@ class SubMacGateway {
       if (tool.isEmpty) return 'Error: name is required. Use find_tools to see the tools.';
       if (tool == findName || tool == runName) return 'Error: $tool is not a SubMac app tool.';
       if (!tools().any((t) => _fn(t)['name'] == tool)) {
+        final to = redirect?.call(tool);
+        if (to != null && tools().any((t) => _fn(t)['name'] == to)) return run(tool, a);
+        if (engineTools.contains(tool.toLowerCase())) {
+          return 'Error: "$tool" is one of your own tools, not a SubMac app tool. Call $tool directly (not through run_tool).';
+        }
         return 'Error: no SubMac tool named "$tool". ${find(tool.replaceAll('_', ' '))}';
       }
       return run(tool, a);

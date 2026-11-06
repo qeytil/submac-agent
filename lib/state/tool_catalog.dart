@@ -123,6 +123,29 @@ extension AppStateToolCatalog on AppState {
     return true;
   }
 
+  /// The owner's connected apps [b] may use (its powers and app scope allow them), one line each with how to call
+  /// them, for its opencode brief (Bots.connectedAppsOf).
+  List<String> botConnectedApps(Bot b) {
+    bool ok(String tool) => BotPowers.allowed(b.effectiveOff, tool) && _botAppOk(b, tool, const {});
+    final out = <String>[];
+    for (final e in ConnectorCatalog.connected.entries) {
+      final d = ConnectorCatalog.byId(e.key);
+      if (d == null || d.kind != 'api') continue;
+      final tool = ConnectorCatalog.toolName(d.id);
+      if (!ok(tool)) continue;
+      out.add('- ${d.name}: $tool with method and path after its base${d.examples.isEmpty ? '' : ' (e.g. ${d.examples})'}'
+          '${d.id == 'telegram' ? '; bot_telegram also sends to the owner through it' : ''}.');
+    }
+    final mail = ConnectorCatalog.connectedEmails();
+    if (mail.isNotEmpty && ok('email_list')) out.add('- Email (${mail.join(', ')}): email_list, email_search, email_read, email_send.');
+    for (final s in mcpServers.where((s) => s.enabled)) {
+      if (b.appsScoped && _botMcp(b, s) == null) continue;
+      if (!BotPowers.allowed(b.effectiveOff, 'apps_run_tool')) continue;
+      out.add('- ${s.name}: apps_list_tools with app "${s.name}" lists its actions; apps_run_tool runs one.');
+    }
+    return out;
+  }
+
   /// Is this app connected for the owner (their own key or sign-in)?
   bool botAppConnected(BotApp a) {
     if (a.kind == 'connector') return ConnectorCatalog.connected.containsKey(a.ref);

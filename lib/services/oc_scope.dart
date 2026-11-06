@@ -15,18 +15,39 @@ class OcToolScope {
 
   /// [app]: the app's tools for anyone. [botOwn], [office], [team]: the caller's own (empty for the owner's chat).
   /// [allowed]: the bot's switched-off powers and app scope; null for the owner's chat.
+  /// [exclude]: app tools the caller never gets (a bot: [ownerMemory]).
   static List<Map<String, dynamic>> of({
     required List<Map<String, dynamic>> app,
     List<Map<String, dynamic>> botOwn = const [],
     List<Map<String, dynamic>> office = const [],
     List<Map<String, dynamic>> team = const [],
     bool Function(String name)? allowed,
+    Set<String> exclude = const {},
   }) {
     final seen = <String>{};
     return [
       for (final t in [...office, ...botOwn, ...team, ...app])
-        if ((allowed?.call(nameOf(t)) ?? true) && seen.add(nameOf(t))) t,
+        if (!exclude.contains(nameOf(t)) && (allowed?.call(nameOf(t)) ?? true) && seen.add(nameOf(t))) t,
     ];
+  }
+
+  /// The owner's own memory tools. A bot never writes to the owner's memory (known issue 2026-11-06: a bot's
+  /// `remember` landed in the main memory): they are not in a bot's list, and a bot's call to one acts on the bot's
+  /// own memory instead ([botMemory]).
+  static const ownerMemory = {'remember', 'forget', 'list_memories'};
+
+  /// A bot's call to one of [ownerMemory] as the call on its own memory (bot_remember), or null for any other tool.
+  static (String, Map<String, dynamic>)? botMemory(String name, Map<String, dynamic> args) {
+    String v(List<String> ks) => ks.map((k) => '${args[k] ?? ''}'.trim()).firstWhere((x) => x.isNotEmpty, orElse: () => '');
+    switch (name) {
+      case 'remember':
+        return ('bot_remember', {'fact': v(['fact', 'text', 'memory'])});
+      case 'forget':
+        return ('bot_remember', {'forget': v(['match', 'query', 'fact', 'text'])});
+      case 'list_memories':
+        return ('bot_remember', {'list': true});
+    }
+    return null;
   }
 }
 
