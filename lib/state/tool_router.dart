@@ -329,7 +329,7 @@ extension AppStateTools on AppState {
       int? note;
       if (!appVisible) {
         note = 9600 + ((convId ?? 'none').hashCode % 90).abs();
-        await OutboundGuard.notify(id: note, title: 'SubMac needs your OK', body: req.title, payload: convId == null ? '' : 'conv/$convId');
+        await OutboundGuard.notify(id: note, title: 'Telesia needs your OK', body: req.title, payload: convId == null ? '' : 'conv/$convId');
         await SystemBridge.I.bringToFront();
       }
       HapticFeedback.lightImpact(); // SubHaptics.attention (part file)
@@ -431,7 +431,7 @@ extension AppStateTools on AppState {
     if (Bots.names.contains(name)) return Bots.I.execute(name, args, convId);
     if (SkillLibrary.names.contains(name)) {
       final who = Bots.I.byConv(convId);
-      return SkillLibrary.I.execute(name, args, who?.id ?? SkillLibrary.agent, who: who?.name ?? 'SubMac');
+      return SkillLibrary.I.execute(name, args, who?.id ?? SkillLibrary.agent, who: who?.name ?? 'Telesia');
     }
     if (Offices.names.contains(name)) {
       final o = _officeCtx[convId] == null ? null : Offices.I.byId(_officeCtx[convId]!);
@@ -676,7 +676,7 @@ extension AppStateTools on AppState {
     await Sites.I.init();
     final action = '${a['action'] ?? 'list'}';
     if (action == 'list') {
-      if (Sites.I.list.isEmpty) return 'No sites published from SubMac yet.';
+      if (Sites.I.list.isEmpty) return 'No sites published from Telesia yet.';
       return [
         for (final s in Sites.I.list)
           '- "${s.title}": ${s.statusLine}${s.url.isEmpty ? '' : ' · ${s.url}'}${s.host.isEmpty ? '' : ' (${s.hostName})'}'
@@ -782,7 +782,7 @@ extension AppStateTools on AppState {
       }
     }
     if (t == null || !t.server.readOnly || AppState._readOnlyTool.hasMatch(t.name)) return null;
-    return 'Not allowed: ${t.server.name} is set to read only, so SubMac can look things up there but not change anything. '
+    return 'Not allowed: ${t.server.name} is set to read only, so Telesia can look things up there but not change anything. '
         'Do not try it another way. Tell the user in one line, and that they can turn off "Read only" in Apps > ${t.server.name}.';
   }
 
@@ -839,7 +839,7 @@ extension AppStateTools on AppState {
       if (AppState._readOnlyTool.hasMatch(tool)) return null;
       return ActionRequest(
         title: 'Let ${t?.server.name ?? 'the connector'} do this?',
-        body: 'SubMac wants to use "${tool.replaceAll('_', ' ').toLowerCase()}". It may change things in your connected account.',
+        body: 'Telesia wants to use "${tool.replaceAll('_', ' ').toLowerCase()}". It may change things in your connected account.',
         detail: AppState.plainDetails(args),
         confirmLabel: 'Allow',
       );

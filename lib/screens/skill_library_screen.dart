@@ -22,7 +22,7 @@ class _SkillLibraryScreenState extends State<SkillLibraryScreen> {
   String _q = '';
   String _cat = 'All';
 
-  String get _who => widget.target == SkillLibrary.agent ? 'SubMac' : (Bots.I.byId(widget.target)?.name ?? 'this bot');
+  String get _who => widget.target == SkillLibrary.agent ? 'Telesia' : (Bots.I.byId(widget.target)?.name ?? 'this bot');
 
   @override
   void initState() {

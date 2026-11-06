@@ -54,7 +54,7 @@ class BgRun {
 
   /// The ongoing notification while the bot works: "<Bot name> · <task title>".
   static String line(String botName, String title) {
-    final n = botName.trim().isEmpty ? 'SubMac' : botName.trim();
+    final n = botName.trim().isEmpty ? 'Telesia' : botName.trim();
     final t = title.trim();
     return t.isEmpty ? n : '$n · $t';
   }
@@ -82,7 +82,7 @@ class BgRun {
   static String needs(String what) {
     final w = what.trim().replaceAll(RegExp(r'\s+'), ' ');
     final cut = w.length > 90 ? '${w.substring(0, 89).trimRight()}…' : w;
-    return 'Needs your OK: ${cut.isEmpty ? 'an action' : cut}. Open SubMac to allow it.';
+    return 'Needs your OK: ${cut.isEmpty ? 'an action' : cut}. Open Telesia to allow it.';
   }
 
   /// How a bot's result reaches the owner. A result they asked for on a schedule (a "message" routine or scheduled

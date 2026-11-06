@@ -48,7 +48,7 @@ class AgentTools {
     _fn('list_dir', 'List files in a directory (default: the workspace root).', {
       'path': {'type': 'string'},
     }, []),
-    _fn('delete_file', 'Safely delete a file or folder by moving it to the SubMac Trash (restorable for 30 days). '
+    _fn('delete_file', 'Safely delete a file or folder by moving it to the Telesia Trash (restorable for 30 days). '
         'Always use this instead of rm.', {
       'path': {'type': 'string'},
     }, ['path']),
@@ -77,7 +77,7 @@ class AgentTools {
       'the chat shows the file to the user when you name its path. If the user has their own image model, ai_call can use it.';
 
   /// generate_image while SubMac's server has no picture model.
-  static const imageOffNote = 'Error: making photo-like pictures is not switched on in SubMac yet. $imageOtherWays '
+  static const imageOffNote = 'Error: making photo-like pictures is not switched on in Telesia yet. $imageOtherWays '
       'Tell the user in one line that photo-style pictures are not available yet, then make the visual another way.';
 
   static final Map<String, dynamic> videoTool = _fn(
@@ -425,7 +425,7 @@ class AgentTools {
       }
     }
     await File('$dest.origin').writeAsString(full);
-    return 'Moved "$name" to SubMac Trash (restorable). Original location: $full';
+    return 'Moved "$name" to Telesia Trash (restorable). Original location: $full';
   }
 
   static final _riskyShell = RegExp(
@@ -452,7 +452,7 @@ class AgentTools {
         final path = (args['path'] ?? '').toString();
         return ActionRequest(
           title: 'Delete ${_short(path)}?',
-          body: 'It goes to the SubMac Trash, so you can restore it later.',
+          body: 'It goes to the Telesia Trash, so you can restore it later.',
           detail: await _resolve(path),
           confirmLabel: 'Delete',
           destructive: true,
@@ -471,7 +471,7 @@ class AgentTools {
         if (!await File(full).exists() || _ownFiles.contains(full)) return null;
         return ActionRequest(
           title: 'Change ${_short(full)}?',
-          body: 'SubMac will edit part of this file.',
+          body: 'Telesia will edit part of this file.',
           detail: full,
           confirmLabel: 'Change',
         );
@@ -496,10 +496,10 @@ class AgentTools {
     return ActionRequest(
       title: 'Change the setting "$key"?',
       body: key == 'approval_mode'
-          ? 'This changes how often SubMac asks you before acting.'
+          ? 'This changes how often Telesia asks you before acting.'
           : (key == 'about_you' || key == 'how_to_respond')
-              ? 'This becomes a standing instruction SubMac follows in every chat.'
-              : 'This changes how SubMac works for you.',
+              ? 'This becomes a standing instruction Telesia follows in every chat.'
+              : 'This changes how Telesia works for you.',
       detail: '$key = $shown',
       confirmLabel: 'Change',
       destructive: key == 'approval_mode' || key == 'actions_enabled',

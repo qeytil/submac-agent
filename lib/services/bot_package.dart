@@ -148,7 +148,7 @@ class BotPackage {
   static final _hidden = RegExp('[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]');
   static final _redFlags = <RegExp, String>{
     RegExp(r'ignore (all |any )?(the )?(previous|prior|above|earlier|system) (instructions|rules|prompts?)', caseSensitive: false):
-        'tries to override SubMac\'s own rules',
+        'tries to override Telesia\'s own rules',
     RegExp(r"(do not|don't|never) (tell|inform) (the )?(user|owner)", caseSensitive: false): 'hides what it does from you',
     RegExp(r'(send|forward|upload|post|share|copy|export)\b[^.\n]{0,60}\b(contacts?|address book|sms|text messages|passwords?|codes?|otp|photos|location|notifications)\b[^.\n]{0,60}\b(to|at)\b',
         caseSensitive: false): 'sends your private data somewhere',

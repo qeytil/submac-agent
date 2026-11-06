@@ -119,7 +119,7 @@ class _ProjectScreenState extends State<ProjectScreen> {
           children: [
             Text(tr('Instructions'), style: Brand.serif(size: 24, color: Palette.of(c).text)),
             const SizedBox(height: 6),
-            Text('How SubMac should work in this project: tone, facts to remember, what to always or never do.',
+            Text('How Telesia should work in this project: tone, facts to remember, what to always or never do.',
                 style: TextStyle(color: Palette.of(c).muted, height: 1.4)),
             const SizedBox(height: 12),
             TextField(controller: ctrl, autofocus: true, minLines: 4, maxLines: 10),
@@ -215,7 +215,7 @@ class _ProjectScreenState extends State<ProjectScreen> {
                 action: proj.instructions.isEmpty ? 'Add' : 'Edit',
                 onAction: () => _editInstructions(proj),
                 child: Text(
-                  proj.instructions.isEmpty ? 'Tell SubMac how to work here. Every chat in this project follows it.' : proj.instructions,
+                  proj.instructions.isEmpty ? 'Tell Telesia how to work here. Every chat in this project follows it.' : proj.instructions,
                   maxLines: 5,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: proj.instructions.isEmpty ? p.muted : p.text, height: 1.45),
@@ -229,7 +229,7 @@ class _ProjectScreenState extends State<ProjectScreen> {
                 action: 'Add',
                 onAction: _addFiles,
                 child: _files.isEmpty
-                    ? Text('Add documents, notes or images SubMac should use in this project.',
+                    ? Text('Add documents, notes or images Telesia should use in this project.',
                         style: TextStyle(color: p.muted, height: 1.45))
                     : Column(
                         children: [

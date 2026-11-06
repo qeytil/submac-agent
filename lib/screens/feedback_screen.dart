@@ -236,7 +236,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
             const SizedBox(height: Space.x4),
             Text(ft('Thank you'), style: AppText.titleStyle.copyWith(color: p.text)),
             const SizedBox(height: Space.x2),
-            Text(ft('Your feedback reached the SubMac team.'),
+            Text(ft('Your feedback reached the Telesia team.'),
                 textAlign: TextAlign.center, style: AppText.bodyStyle.copyWith(color: p.muted)),
             const SizedBox(height: Space.x6),
             FilledButton(onPressed: () => Navigator.maybePop(context), child: Text(ft('Done'))),

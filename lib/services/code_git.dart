@@ -40,7 +40,7 @@ class CodeGit {
         'Authorization': 'Bearer $token',
         'Accept': 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'SubMac',
+        'User-Agent': 'Telesia',
       };
 
   static Future<(int, dynamic)> call(String method, String path, [Object? body]) async {
@@ -262,7 +262,7 @@ class CodeGit {
       await readme.writeAsString('# $name\n${description.isEmpty ? '' : '\n$description\n'}');
     }
     await writeMeta(root, {'repo': repo, 'branch': branch, 'commit': head, 'files': shas});
-    final p = await push(root, 'First version from SubMac');
+    final p = await push(root, 'First version from Telesia');
     return 'Made ${private ? 'private' : 'public'} repo https://github.com/$repo\n$p';
   }
 
@@ -301,7 +301,7 @@ class CodeGit {
   static String? workflowFor(String kind, String target) {
     // React Native and Capacitor are Node projects for tests and websites.
     if ((kind == 'react-native' || kind == 'capacitor') && target != 'apk') return workflowFor('node', target);
-    const head = 'name: SubMac build\non:\n  workflow_dispatch:\n';
+    const head = 'name: Telesia build\non:\n  workflow_dispatch:\n';
     const pagesPerms = 'permissions:\n  contents: read\n  pages: write\n  id-token: write\n';
     const deploy = '  deploy:\n    needs: build\n    runs-on: ubuntu-latest\n    environment:\n      name: github-pages\n'
         '      url: \${{ steps.d.outputs.page_url }}\n    steps:\n      - id: d\n        uses: actions/deploy-pages@v4\n';
@@ -401,7 +401,7 @@ class CodeGit {
       await f.parent.create(recursive: true);
       await f.writeAsString(wf);
     }
-    final p = await push(root, 'SubMac: build $target');
+    final p = await push(root, 'Telesia: build $target');
     if (p.startsWith('Error')) return p;
     // GitHub needs a moment to see a new workflow file.
     var started = false;

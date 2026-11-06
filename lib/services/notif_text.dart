@@ -52,10 +52,10 @@ class NotifText {
   static String title(NotifFrom from, {String bot = '', String team = ''}) {
     final b = bot.trim(), t = team.trim();
     return switch (from) {
-      NotifFrom.agent => 'SubMac',
-      NotifFrom.bot => b.isEmpty ? 'SubMac' : b,
+      NotifFrom.agent => 'Telesia',
+      NotifFrom.bot => b.isEmpty ? 'Telesia' : b,
       NotifFrom.team => t.isEmpty ? (b.isEmpty ? 'Team' : b) : t,
-      NotifFrom.work => b.isEmpty ? 'SubMac' : b,
+      NotifFrom.work => b.isEmpty ? 'Telesia' : b,
     };
   }
 

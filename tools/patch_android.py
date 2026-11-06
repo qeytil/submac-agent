@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turns the folder `flutter create` makes into SubMac's Android app.
+"""Turns the folder `flutter create` makes into Telesia's Android app.
 Run from the repo root after `flutter create`. Used by every workflow, so release and dev builds match."""
 import glob
 import os
@@ -34,7 +34,7 @@ perms = '''<uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
-    <!-- In-app updates (feature/app-update): open Android's installer for a downloaded SubMac update. -->
+    <!-- In-app updates (feature/app-update): open Android's installer for a downloaded Telesia update. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <queries>
         <intent><action android:name="android.speech.RecognitionService"/></intent>
@@ -60,7 +60,7 @@ perms = '''<uses-permission android:name="android.permission.INTERNET"/>
 s = s.replace("<application", perms, 1)
 s = s.replace('xmlns:android="http://schemas.android.com/apk/res/android"',
               'xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"', 1)
-s = s.replace('android:label="agent"', 'android:label="SubMac Agent"')
+s = s.replace('android:label="agent"', 'android:label="Telesia"')
 assert 'android:name="${applicationName}"' in s, "applicationName placeholder missing"
 s = s.replace('android:name="${applicationName}"', 'android:name=".SubMacApp"', 1)
 # "Share to SubMac": accept text and files from other apps.
@@ -81,7 +81,7 @@ share = '''</intent-filter>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="com.submac.agent" android:host="login-callback"/>
             </intent-filter>
-            <!-- "Hire in SubMac" from a public bot page: submac://hire?bot=<code>&ref=<ref> -->
+            <!-- "Hire in Telesia" from a public bot page: submac://hire?bot=<code>&ref=<ref> -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
@@ -134,7 +134,7 @@ components = '''
         <service android:name=".TaskService" android:exported="false" android:foregroundServiceType="dataSync"/>
         <receiver android:name=".AlarmReceiver" android:exported="false"/>
         <service android:name=".NotifListener" android:exported="true"
-            android:label="SubMac"
+            android:label="Telesia"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter>
         </service>
@@ -143,7 +143,7 @@ components = '''
             android:permission="com.google.android.c2dm.permission.SEND">
             <intent-filter><action android:name="com.google.android.c2dm.intent.RECEIVE"/></intent-filter>
         </receiver>
-        <!-- Files SubMac shares into WhatsApp: read-only, one-time grants, never exported. -->
+        <!-- Files Telesia shares into WhatsApp: read-only, one-time grants, never exported. -->
         <provider android:name=".WaFiles" android:authorities="com.submac.agent.wafiles"
             android:exported="false" android:grantUriPermissions="true"/>
         <!-- In-app updates: the joined update file for the installer (read-only, one-time grants, never exported),
@@ -153,7 +153,7 @@ components = '''
         <receiver android:name=".UpdateDone" android:exported="true">
             <intent-filter><action android:name="android.intent.action.DOWNLOAD_COMPLETE"/></intent-filter>
         </receiver>
-        <receiver android:name=".QuickWidget" android:exported="true" android:label="SubMac">
+        <receiver android:name=".QuickWidget" android:exported="true" android:label="Telesia">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/submac_widget"/>
         </receiver>

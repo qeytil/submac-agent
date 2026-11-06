@@ -1331,7 +1331,7 @@ class HealthTools {
         ReportPart.table('', ['When', 'Note'], [for (final e in symptoms.reversed.take(20)) [e['at'], e['text']]]),
       ],
       if (visitRows.isNotEmpty) ...[ReportPart.heading('Visits'), ReportPart.table('', ['Date', 'Place', 'Reason', 'Found', 'Tests', 'Advice'], visitRows)],
-      ReportPart.text('Made with SubMac from what the family recorded. It is not a medical record or a diagnosis; the doctor\'s own notes come first.'),
+      ReportPart.text('Made with Telesia from what the family recorded. It is not a medical record or a diagnosis; the doctor\'s own notes come first.'),
     ];
     final bytes = await BizPdf.report('Health summary: ${p['name']}', 'Prepared ${_day(_today())}', parts);
     return _saved(await _out('Health summary ${p['name']}', 'pdf', bytes));

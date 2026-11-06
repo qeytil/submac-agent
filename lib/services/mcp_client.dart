@@ -186,7 +186,7 @@ class McpClient {
     await _rpc('initialize', {
       'protocolVersion': '2025-03-26',
       'capabilities': {},
-      'clientInfo': {'name': 'SubMac Agent', 'version': '1.4.0'},
+      'clientInfo': {'name': 'Telesia Agent', 'version': '1.4.0'},
     });
     try {
       await _rpc('notifications/initialized', null, true);

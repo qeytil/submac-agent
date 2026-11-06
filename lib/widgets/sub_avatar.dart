@@ -23,7 +23,7 @@ class AvatarSpec {
 
   /// Names a person reads in the picker.
   static const colorNames = {
-    'ink': 'Ink', 'red': 'SubMac red', 'ember': 'Ember', 'saffron': 'Saffron', 'sage': 'Sage', 'moss': 'Moss',
+    'ink': 'Ink', 'red': 'Telesia red', 'ember': 'Ember', 'saffron': 'Saffron', 'sage': 'Sage', 'moss': 'Moss',
     'sea': 'Sea', 'indigo': 'Indigo', 'plum': 'Plum', 'rose': 'Rose', 'sand': 'Sand', 'stone': 'Stone',
   };
 

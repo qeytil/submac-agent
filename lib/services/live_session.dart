@@ -181,7 +181,7 @@ class LiveSession extends ChangeNotifier {
   Future<void> start() async {
     try {
       if (!await _rec.hasPermission()) {
-        _fail('SubMac needs the microphone for Live. Allow it in Android settings.');
+        _fail('Telesia needs the microphone for Live. Allow it in Android settings.');
         return;
       }
       FlutterPcmSound.setLogLevel(LogLevel.none);

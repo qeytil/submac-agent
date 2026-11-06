@@ -19,7 +19,7 @@ class AppLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'SubMac',
+      label: 'Telesia',
       image: true,
       child: SvgPicture.asset(
         tile ? tileAsset : plainAsset,

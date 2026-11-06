@@ -256,7 +256,7 @@ class SiteGate {
   }
 
   static String fixNote(SiteReport r) => '# Your page is not ready yet\n'
-      'SubMac checked the page you built before your final reply. It is not delivered yet.\n${r.text}\n'
+      'Telesia checked the page you built before your final reply. It is not delivered yet.\n${r.text}\n'
       'Fix every problem now with your tools (append_file to finish a file, edit_file for small fixes, write the missing files). '
       'Do not send the final reply until the page is complete. Keep the user\'s choices exactly as they asked.';
 

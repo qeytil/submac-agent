@@ -468,7 +468,7 @@ object TaskBubble {
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
-        val et = textBox(c, "Tell ${state.optString("who", "SubMac")} something", draft)
+        val et = textBox(c, "Tell ${state.optString("who", "Telesia")} something", draft)
         input = et
         val sendIt = {
             val t = et.text.toString().trim()
@@ -486,7 +486,7 @@ object TaskBubble {
         card.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10f) })
 
         val open = TextView(c)
-        open.text = "Open SubMac"
+        open.text = "Open Telesia"
         open.typeface = sans(c)
         open.textSize = 12.5f
         open.setTextColor(MUTED)
@@ -541,7 +541,7 @@ object TaskBubble {
         val ask = s.optJSONObject("ask")
         pillText?.text = if (ask != null) "Needs your OK" else step
         pillDot?.alert = ask != null
-        whoTv?.text = s.optString("who", "SubMac")
+        whoTv?.text = s.optString("who", "Telesia")
         stepTv?.text = step
         val list = msgs
         if (list != null) {
@@ -634,7 +634,7 @@ object TaskBubble {
         row.gravity = Gravity.CENTER_VERTICAL or Gravity.START
         val first = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         when {
-            ask.optBoolean("needsApp") -> row.addView(pillButton(c, "Open SubMac", strong = true) { send("open"); hideNow() }, first)
+            ask.optBoolean("needsApp") -> row.addView(pillButton(c, "Open Telesia", strong = true) { send("open"); hideNow() }, first)
             kind == "question" -> {
                 val opts = ask.optJSONArray("options")
                 val n = opts?.length() ?: 0

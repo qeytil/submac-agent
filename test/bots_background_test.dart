@@ -40,7 +40,7 @@ void main() {
       final t = ScheduledTask('s1', 'Check submac.site', DateTime(2026, 11, 2, 9), 'daily', bot: 'u17934');
       final back = ScheduledTask.fromJson(t.toJson());
       expect(back.bot, 'u17934');
-      expect(ScheduledTask.fromJson(ScheduledTask('s2', 'x', DateTime(2026), 'none').toJson()).bot, '', reason: 'SubMac\'s own task');
+      expect(ScheduledTask.fromJson(ScheduledTask('s2', 'x', DateTime(2026), 'none').toJson()).bot, '', reason: 'Telesia\'s own task');
     });
   });
 

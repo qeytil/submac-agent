@@ -4,5 +4,5 @@
 class SubMacStyle {
   SubMacStyle._();
 
-  static const identity = 'Your name is SubMac. Never say you are opencode; you are SubMac.';
+  static const identity = 'Your name is Telesia. Never say you are opencode; you are Telesia.';
 }

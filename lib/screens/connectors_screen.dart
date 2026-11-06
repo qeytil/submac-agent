@@ -105,7 +105,7 @@ class _ConnectorsScreenState extends State<ConnectorsScreen> {
         CardRow(
           title: 'Websites I can sign in to',
           leading: const PhoneAppTile(Icons.key_outlined),
-          subtitle: 'Logins SubMac uses for you on websites. Passwords stay on this phone.',
+          subtitle: 'Logins Telesia uses for you on websites. Passwords stay on this phone.',
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginsScreen())),
         ),
         head('On this phone'),
@@ -149,7 +149,7 @@ class _ConnectorsScreenState extends State<ConnectorsScreen> {
         CardRow(
           title: 'Any API',
           leading: const PhoneAppTile(Icons.add_rounded),
-          subtitle: 'A base link and a key. SubMac learns to use it.',
+          subtitle: 'A base link and a key. Telesia learns to use it.',
           action: 'Add',
           onAction: () => _customSheet(context, null),
         ),
@@ -611,7 +611,7 @@ class _McpEditScreenState extends State<McpEditScreen> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Read only'),
-            subtitle: const Text('SubMac can look things up here but never change, send or delete anything. '
+            subtitle: const Text('Telesia can look things up here but never change, send or delete anything. '
                 'When off, it still asks you before every change.'),
             value: _readOnly,
             onChanged: (v) => setState(() => _readOnly = v),

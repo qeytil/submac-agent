@@ -85,7 +85,7 @@ void main() {
     test('the running line names who and what, never "Running your scheduled task"', () {
       expect(NotifText.running('Nova', 'Hourly news'), 'Nova · Hourly news');
       expect(NotifText.running('Nova', ''), 'Nova');
-      expect(NotifText.running('', 'Weather'), 'SubMac · Weather');
+      expect(NotifText.running('', 'Weather'), 'Telesia · Weather');
       expect(NotifText.running('Nova', '**Send me** the news every hour').toLowerCase(), isNot(contains('running')));
     });
   });
@@ -104,14 +104,14 @@ void main() {
       expect(NotifChannels.retired, containsAll(['submac_tasks_v2', 'submac_bot_msgs']));
     });
 
-    test('titles: SubMac for the agent, the bot by name, the team by name', () {
-      expect(NotifText.title(NotifFrom.agent, bot: 'Nova'), 'SubMac');
+    test('titles: Telesia for the agent, the bot by name, the team by name', () {
+      expect(NotifText.title(NotifFrom.agent, bot: 'Nova'), 'Telesia');
       expect(NotifText.title(NotifFrom.bot, bot: 'Nova'), 'Nova');
       expect(NotifText.title(NotifFrom.team, bot: 'Nova', team: 'Launch team'), 'Launch team');
       expect(NotifText.teamLine('Nova', '**Draft** is ready.'), 'Nova: Draft is ready.');
     });
 
-    test('a bot face is its first letter on its avatar colour; the agent keeps SubMac red', () {
+    test('a bot face is its first letter on its avatar colour; the agent keeps Telesia red', () {
       final f = NotifFace.ofBot('bot-1', 'nova', null);
       expect(f.initial, 'N');
       expect(f.color, isNot(0));
@@ -122,7 +122,7 @@ void main() {
   });
 
   group('NotifRoute: where a reply typed in a notification goes', () {
-    test('team, bot chat and SubMac chat', () {
+    test('team, bot chat and Telesia chat', () {
       final team = NotifRoute.parse('office/o1')!;
       expect((team.from, team.id, team.payload), (NotifFrom.team, 'o1', 'office/o1'));
       final bot = NotifRoute.parse('conv/c-bot', isBotConv: (c) => c == 'c-bot')!;
@@ -142,7 +142,7 @@ void main() {
     expect(BgRun.outreach(wakeKind: 'work', want: 'call', allowed: 'call', quiet: false), 'call');
   });
 
-  group('routing with SubMac closed (mock engine)', () {
+  group('routing with Telesia closed (mock engine)', () {
     late Directory tmp;
     late AppState s;
     late Bot b;
@@ -197,7 +197,7 @@ void main() {
       expect(sent('notifyFrom').map((a) => a!['body']), ['Top story: the bridge reopened.']);
     });
 
-    test('SubMac\'s own scheduled task ends with an Agent notification: "SubMac" and the result', () {
+    test('Telesia\'s own scheduled task ends with an Agent notification: "Telesia" and the result', () {
       final list = <ChatMessage>[ChatMessage(id: 'u', role: 'user', content: 'Weather?')];
       final run = AgentRun(convId: 'own1', side: false, title: 'Weather');
       final reply = ChatMessage(id: 'r', role: 'assistant', content: 'Here is the weather:\nRain from 3 pm, 24°C. Take an umbrella.');
@@ -208,7 +208,7 @@ void main() {
       final n = sent('notifyFrom');
       expect(n, hasLength(1));
       expect(n.single!['channel'], NotifChannels.agent);
-      expect(n.single!['title'], 'SubMac');
+      expect(n.single!['title'], 'Telesia');
       expect(n.single!['body'], 'Rain from 3 pm, 24°C. Take an umbrella.');
       expect(n.single!['color'], NotifFace.agentAccent);
       expect(s.scheduledConvsForTest, isNot(contains('own1')));
@@ -268,7 +268,7 @@ void main() {
       expect((n.single!['channel'], n.single!['title'], n.single!['body']), (NotifChannels.bots, 'Nova', 'Sunny, 26°C all afternoon.'));
     });
 
-    test('Reply in SubMac\'s own notification answers as SubMac', () async {
+    test('Reply in Telesia\'s own notification answers as Telesia', () async {
       s.listsForTest['own3'] = <ChatMessage>[];
       await s.notificationReplyForTest('conv/own3', 'Also tomorrow?');
       await _settle();
@@ -277,7 +277,7 @@ void main() {
       list.add(ChatMessage(id: 'a', role: 'assistant', content: 'Tomorrow: dry, 22°C.'));
       run.wrote.add('a');
       s.ocRunEndedForTest('own3', list, run);
-      expect(sent('notifyFrom').single!['title'], 'SubMac');
+      expect(sent('notifyFrom').single!['title'], 'Telesia');
       expect(sent('notifyFrom').single!['channel'], NotifChannels.agent);
     });
 
@@ -291,7 +291,7 @@ void main() {
       expect(started.where((r) => r.convId == b.convId), isEmpty, reason: 'never the bot\'s private chat');
     });
 
-    test('team work with SubMac off screen follows the unattended rules (no approval card nobody can see)', () {
+    test('team work with Telesia off screen follows the unattended rules (no approval card nobody can see)', () {
       final key = TeamKey.of('o9', b.id, job: TeamKey.job());
       expect(s.unattendedRun(key), isTrue);
       s.appVisible = true;

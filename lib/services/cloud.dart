@@ -35,7 +35,7 @@ class CloudUsage {
   String get line {
     switch (state) {
       case 'limit':
-        return message.isNotEmpty ? message : 'You\'ve done a lot today! SubMac is resting until tomorrow.';
+        return message.isNotEmpty ? message : 'You\'ve done a lot today! Telesia is resting until tomorrow.';
       case 'light':
         return 'Busy day! Replies are a little shorter until tomorrow.';
       case 'notice':
@@ -100,8 +100,8 @@ class CallMinutes {
 
   /// The friendly line when there are no minutes left.
   String get usedUpMessage => !enabled
-      ? 'Calls are switched off for your account. You can still type to SubMac.'
-      : 'Today\'s call minutes are used up. They come back $resetText. You can still type to SubMac.';
+      ? 'Calls are switched off for your account. You can still type to Telesia.'
+      : 'Today\'s call minutes are used up. They come back $resetText. You can still type to Telesia.';
 
   static DateTime _nextUtcMidnight() {
     final n = DateTime.now().toUtc();
@@ -176,7 +176,7 @@ class Cloud {
   /// The one provider the app talks to. Its "key" is the signed-in user's session, added per request.
   static final ProviderConfig provider = ProviderConfig(
     id: providerId,
-    name: 'SubMac',
+    name: 'Telesia',
     baseUrl: _base,
     defaultModel: submac,
     models: [submac, imageModel],
@@ -299,9 +299,9 @@ class Cloud {
       msg = status == 401
           ? 'Please sign in again.'
           : status == 429
-              ? 'SubMac is very busy right now. Please try again in a moment.'
+              ? 'Telesia is very busy right now. Please try again in a moment.'
               : status >= 500 || status == 0
-                  ? 'SubMac couldn\'t get an answer just now. Please try again in a moment.'
+                  ? 'Telesia couldn\'t get an answer just now. Please try again in a moment.'
                   : 'Something went wrong. Please try again.';
     }
     return CloudException(msg, status: status, code: code);

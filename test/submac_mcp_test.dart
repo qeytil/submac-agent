@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// requests shown as SubMac's ask card. Proven against opencode 1.19.5 in the sandbox the same day (connected, a call
 /// round trip, a 75 s call with the long timeout, a bash permission, a question).
 void main() {
-  group('SubMac MCP server', () {
+  group('Telesia MCP server', () {
     late SubMacMcp mcp;
     final calls = <String>[];
     setUp(() async {
@@ -91,7 +91,7 @@ void main() {
       expect(tools[1]['inputSchema'], {'type': 'object', 'properties': {}});
     });
 
-    test('tools/call runs the SubMac tool and returns its text', () async {
+    test('tools/call runs the Telesia tool and returns its text', () async {
       final (_, j) = await post({
         'jsonrpc': '2.0',
         'id': 3,
@@ -120,7 +120,7 @@ void main() {
     });
   });
 
-  group('opencode asks on SubMac\'s card', () {
+  group('opencode asks on Telesia\'s card', () {
     late List<(String, String, String, List<String>)> shown;
     late List<(String, String)> permits;
     late List<(String, List<List<String>>?)> answers;

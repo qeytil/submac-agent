@@ -35,12 +35,12 @@ String botModelLabel(String setting, {ByokStore? store}) {
     if (pick == null) return '${BotModelWords.defaultLabel} · ${ByokRef.parse(s)!.model} is not available';
     return '${pick.model.label} · ${pick.provider.label}';
   }
-  return 'SubMac';
+  return 'Telesia';
 }
 
 class BotModelWords {
   BotModelWords._();
-  static const defaultLabel = 'Default (same as SubMac)';
+  static const defaultLabel = 'Default (same as Telesia)';
   static const defaultValue = 'auto';
 }
 
@@ -87,7 +87,7 @@ class _ModelSheet extends StatelessWidget {
             ListTile(
               key: const ValueKey('model-submac'),
               leading: const AppLogo(size: 32),
-              title: const Text('SubMac'),
+              title: const Text('Telesia'),
               subtitle: Text(tr('Included in your plan'), style: AppText.microStyle.copyWith(color: p.muted)),
               trailing: check(forBot ? (!onDefault && picked == null) : picked == null),
               onTap: () => Navigator.pop(context, ByokRef.submac),

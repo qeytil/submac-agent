@@ -92,7 +92,7 @@ class SubMacMcp {
             'tools': {'listChanged': false},
           },
           'serverInfo': {'name': name, 'version': version},
-          'instructions': 'SubMac: tools that act on this phone and the user\'s SubMac account. The chat shows pictures, '
+          'instructions': 'Telesia: tools that act on this phone and the user\'s Telesia account. The chat shows pictures, '
               '.svg/.html/.png/.mp4 files you make when you name their path (see the submac skill).',
         });
       case 'ping':

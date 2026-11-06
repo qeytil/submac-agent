@@ -51,7 +51,7 @@ final selectedReply = ValueNotifier<String?>(null);
 void startReply(BuildContext context, ChatMessage m) {
   final state = context.read<AppState>();
   final bot = Bots.I.byConv(state.currentId);
-  final author = m.role == 'user' ? 'You' : (bot?.name ?? 'SubMac');
+  final author = m.role == 'user' ? 'You' : (bot?.name ?? 'Telesia');
   final body = ReplyCodec.bodyOf(m.content);
   if (body.trim().isEmpty) return;
   selectedReply.value = null;
@@ -62,7 +62,7 @@ void startReply(BuildContext context, ChatMessage m) {
 /// (it reads like the question at the top of a page); a long one in the reading sans.
 /// Tap for a quiet Copy · Edit row, long-press for the sheet.
 /// Shown when Edit and resend is tapped while a run is going in this chat (CB-13).
-const editBusyNote = 'SubMac is still answering. Stop it first, then edit your message.';
+const editBusyNote = 'Telesia is still answering. Stop it first, then edit your message.';
 
 class UserMessageView extends StatelessWidget {
   final ChatMessage message;
@@ -592,7 +592,7 @@ String withMadeBy(String text, Bot? bot) {
       : code != null
           ? Rewards.linkFor(code)
           : 'https://submac.site';
-  return '${text.trimRight()}\n\n— Made by ${bot.name} on SubMac · $link';
+  return '${text.trimRight()}\n\n— Made by ${bot.name} on Telesia · $link';
 }
 
 /// A message from the SubMac team (sent from the dashboard "in chat"). Also listed in "From SubMac".
@@ -619,7 +619,7 @@ class TeamMessageCard extends StatelessWidget {
           Row(children: [
             Icon(Icons.verified_rounded, size: 16, color: p.text),
             const SizedBox(width: 6),
-            Text('SubMac team', style: AppText.sectionStyle.copyWith(color: p.text)),
+            Text('Telesia team', style: AppText.sectionStyle.copyWith(color: p.text)),
           ]),
           const SizedBox(height: 8),
           ReplyView(message: message),

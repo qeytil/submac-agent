@@ -12,7 +12,7 @@ import 'motion.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 
-String _who(String id) => Bots.I.byId(id)?.name ?? 'SubMac';
+String _who(String id) => Bots.I.byId(id)?.name ?? 'Telesia';
 
 /// Plan 5.2: the one approval card, the same everywhere (Today, a bot's job page, a team chat, Needs your OK):
 /// Approve · Edit · Not now. Similar asks come as one card ("3 emails to send") with Approve all · Review · Not now.

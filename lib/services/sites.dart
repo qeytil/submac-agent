@@ -64,7 +64,7 @@ class Site {
     return 'Free link · $days ${days == 1 ? 'day' : 'days'} left';
   }
 
-  String get hostName => host == SiteHost.vercel ? 'Vercel' : 'SubMac free link';
+  String get hostName => host == SiteHost.vercel ? 'Vercel' : 'Telesia free link';
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -205,7 +205,7 @@ class Sites extends ChangeNotifier {
     var total = 0;
     void add(String rel, List<int> bytes) {
       total += bytes.length;
-      if (total > maxBytes) throw PublishException('This site is bigger than 5 MB. Ask SubMac to make the pictures smaller, then publish again.');
+      if (total > maxBytes) throw PublishException('This site is bigger than 5 MB. Ask Telesia to make the pictures smaller, then publish again.');
       out.add(SiteFile(rel, bytes));
     }
 
@@ -338,13 +338,13 @@ class Sites extends ChangeNotifier {
       final ext = f.path.contains('.') ? f.path.split('.').last.toLowerCase() : '';
       final text = _textExt.contains(ext);
       if (!text && !canBase64) {
-        throw PublishException('This site has pictures or fonts, and your Vercel connection only takes text files. Use the free SubMac link instead.');
+        throw PublishException('This site has pictures or fonts, and your Vercel connection only takes text files. Use the free Telesia link instead.');
       }
       final data = text ? utf8.decode(f.bytes, allowMalformed: true) : base64Encode(f.bytes);
       total += data.length;
       payload.add({pathKey: f.path, dataKey: data, if (!text) 'encoding': 'base64'});
     }
-    if (total > 4 * 1024 * 1024) throw PublishException('This site is too big for Vercel from the phone (4 MB). Ask SubMac to make the pictures smaller.');
+    if (total > 4 * 1024 * 1024) throw PublishException('This site is too big for Vercel from the phone (4 MB). Ask Telesia to make the pictures smaller.');
 
     final name = s.vercelProject.isNotEmpty ? s.vercelProject : projectName(s);
     Future<String> send([String? teamId]) => client
@@ -400,7 +400,7 @@ class Sites extends ChangeNotifier {
     if (t.contains('unauthor') || t.contains('forbidden') || t.contains('401') || t.contains('403')) {
       return 'Vercel needs you to sign in again. Open Apps > Vercel and connect it, then publish again.';
     }
-    if (t.contains('team')) return 'Vercel asked which team to use. Open Apps > Vercel and give SubMac access to your personal account.';
+    if (t.contains('team')) return 'Vercel asked which team to use. Open Apps > Vercel and give Telesia access to your personal account.';
     return 'Vercel didn\'t take the site this time. Try Publish again in a minute.';
   }
 

@@ -183,7 +183,7 @@ class _AccountPage extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You need the internet for this.')));
       return;
     }
-    await SharePlus.instance.share(ShareParams(text: Rewards.inviteText(link, code), subject: 'Join me on SubMac'));
+    await SharePlus.instance.share(ShareParams(text: Rewards.inviteText(link, code), subject: 'Join me on Telesia'));
   }
 
   Future<void> _deleteAccount(BuildContext context, AppState state) async {
@@ -379,7 +379,7 @@ class _VoicePage extends StatelessWidget {
   List<Widget> _wakeRows(WakeWord w, Palette p) {
     String subtitle;
     if (!w.enabled && (w.setup == WakeSetup.off || w.setup == WakeSetup.ready)) {
-      subtitle = tr('Say “Hello SubMac” and SubMac wakes up to listen');
+      subtitle = tr('Say “Hello SubMac” and Telesia wakes up to listen');
     } else {
       subtitle = w.statusLine;
     }
@@ -484,7 +484,7 @@ class _PrivacyPage extends StatelessWidget {
     return _Page('Privacy', [
       _Group([
         ListTile(
-          title: const Text('What SubMac knows about you'),
+          title: const Text('What Telesia knows about you'),
           subtitle: Text(!state.memoryEnabled ? 'Off' : '${state.memory.facts.length} remembered'),
           onTap: () => _push(context, const MemoryScreen()),
         ),
@@ -566,7 +566,7 @@ class _AdvancedPage extends StatelessWidget {
       state.setApprovalMode('ask');
       return;
     }
-    if (await _confirm(context, 'Do routine work alone?', 'SubMac still asks before paying, sending, posting or deleting.', 'Turn on')) {
+    if (await _confirm(context, 'Do routine work alone?', 'Telesia still asks before paying, sending, posting or deleting.', 'Turn on')) {
       state.setApprovalMode('full');
     }
   }
@@ -619,7 +619,7 @@ class _HelpPage extends StatelessWidget {
         ),
         ListTile(
           title: Text(ft('Email us')),
-          onTap: () => open('mailto:${AppConfig.supportEmail}?subject=SubMac%20Agent%20${AppConfig.version}'),
+          onTap: () => open('mailto:${AppConfig.supportEmail}?subject=Telesia%20Agent%20${AppConfig.version}'),
         ),
         ListTile(title: Text(tr('Terms')), onTap: () => open(AppConfig.termsUrl)),
         ListTile(title: Text(tr('Privacy policy')), onTap: () => open(AppConfig.privacyUrl)),
@@ -653,21 +653,21 @@ class PrivacyScreen extends StatelessWidget {
       appBar: AppBar(title: Text(tr('Privacy'))),
       body: ListView(padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 20, 32), children: [
         h('Your chats'),
-        b('Chats live on this phone. A backup is kept in your SubMac account so they come back on a new phone. '
+        b('Chats live on this phone. A backup is kept in your Telesia account so they come back on a new phone. '
             'You can delete any chat, all chats, or your whole account at any time.'),
-        h('When SubMac thinks'),
-        b('To answer you, only your message and the context it needs are sent securely through SubMac\'s server to an AI partner that works on our behalf. '
+        h('When Telesia thinks'),
+        b('To answer you, only your message and the context it needs are sent securely through Telesia\'s server to an AI partner that works on our behalf. '
             'A fair daily allowance is counted per account.'),
         h('Your data is yours'),
-        b('SubMac never sells your data and never gives it to third parties for their own use. '
+        b('Telesia never sells your data and never gives it to third parties for their own use. '
             'Your chats are not used for advertising.'),
         h('Your logins'),
         b('Logins you save for websites, and the sign-ins for apps you connect, are encrypted and stay on this phone. '
             'The AI never sees your saved passwords.'),
         h('Payments'),
-        b('If you buy a package or pay as you go, a licensed payment partner takes the payment. SubMac never sees your mobile money PIN or card details.'),
+        b('If you buy a package or pay as you go, a licensed payment partner takes the payment. Telesia never sees your mobile money PIN or card details.'),
         h('Phone access'),
-        b('SubMac only uses the permissions you turn on (files, screen control, SMS, notifications), and asks before anything that pays, sends or deletes.'),
+        b('Telesia only uses the permissions you turn on (files, screen control, SMS, notifications), and asks before anything that pays, sends or deletes.'),
         h('Questions'),
         b('Write to ${AppConfig.supportEmail}.'),
         const SizedBox(height: 18),
@@ -866,11 +866,11 @@ class _CustomInstructionsScreenState extends State<CustomInstructionsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('What should SubMac know about you?', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text('What should Telesia know about you?', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           TextField(controller: _about, maxLines: 6, minLines: 4, maxLength: 1500),
           const SizedBox(height: 16),
-          const Text('How should SubMac reply?', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text('How should Telesia reply?', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           TextField(controller: _how, maxLines: 6, minLines: 4, maxLength: 1500),
         ],
@@ -926,8 +926,8 @@ class FullAccessTile extends StatelessWidget {
         title: Text(tr('Full access')),
         subtitle: Text(
           tr(FullAccess.I.on
-              ? 'On: SubMac and your bots act without asking. Payments and purchases still ask every time.'
-              : 'Off: SubMac and your bots ask before sending, deleting or changing things for you. Small, safe steps go ahead.'),
+              ? 'On: Telesia and your bots act without asking. Payments and purchases still ask every time.'
+              : 'Off: Telesia and your bots ask before sending, deleting or changing things for you. Small, safe steps go ahead.'),
           style: AppText.microStyle.copyWith(color: p.muted),
         ),
         value: FullAccess.I.on,
@@ -936,7 +936,7 @@ class FullAccessTile extends StatelessWidget {
               !await _confirm(
                   context,
                   tr('Turn on Full access?'),
-                  tr('SubMac and your bots will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.'),
+                  tr('Telesia and your bots will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.'),
                   tr('Turn on'))) {
             return;
           }

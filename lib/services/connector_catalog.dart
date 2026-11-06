@@ -86,7 +86,7 @@ class ConnectorCatalog {
       blurb: 'Read, search and send email',
       fields: [ConnField('email', 'Gmail address'), ConnField('password', 'App password', secret: true, hint: '16 letters')],
       helpUrl: 'https://myaccount.google.com/apppasswords',
-      help: 'Turn on 2-Step Verification, then create an "App password" for SubMac and paste it here.',
+      help: 'Turn on 2-Step Verification, then create an "App password" for Telesia and paste it here.',
     ),
     ConnDef(
       id: 'yahoo', name: 'Yahoo Mail', category: 'Email', kind: 'email',
@@ -372,7 +372,7 @@ class ConnectorCatalog {
       id: 'github', name: 'GitHub', category: 'Websites and code', blurb: 'Repos, issues, pull requests',
       fields: _token, base: 'https://api.github.com',
       headers: {'Authorization': 'Bearer {token}', 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'},
-      helpUrl: 'https://github.com/settings/tokens', help: 'Create a token (classic) with the repo and workflow scopes, so SubMac can save your code, build your app and host your site.',
+      helpUrl: 'https://github.com/settings/tokens', help: 'Create a token (classic) with the repo and workflow scopes, so Telesia can save your code, build your app and host your site.',
       examples: 'GET /user/repos?per_page=20; GET /repos/{o}/{r}/issues; POST /repos/{o}/{r}/issues {"title":"..."}',
       test: ['GET', '/user'],
     ),

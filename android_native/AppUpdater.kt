@@ -56,7 +56,7 @@ object AppUpdater {
                         val code = (call.argument<Any?>("code") as? Number)?.toLong() ?: 0L
                         val sha = call.argument<String>("sha256") ?: ""
                         val size = (call.argument<Any?>("size") as? Number)?.toLong() ?: 0L
-                        val title = call.argument<String>("title") ?: "SubMac update"
+                        val title = call.argument<String>("title") ?: "Telesia update"
                         result.success(start(ctx, code, urls, sha, size, title))
                     }
                     "status" -> Thread {
@@ -135,7 +135,7 @@ object AppUpdater {
         for ((i, u) in urls.withIndex()) {
             val req = DownloadManager.Request(Uri.parse(u))
                 .setTitle(if (urls.size > 1) "$title (${i + 1}/${urls.size})" else title)
-                .setDescription("Downloading the new version of SubMac")
+                .setDescription("Downloading the new version of Telesia")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true)
@@ -328,7 +328,7 @@ object AppUpdater {
         val p = prefs(ctx)
         if (s["state"] == "ready" && !p.getBoolean("notified", false)) {
             p.edit().putBoolean("notified", true).apply()
-            Notifier.task(ctx, 7401, "Your SubMac update is ready. Tap to install.", "", "update", "info")
+            Notifier.task(ctx, 7401, "Your Telesia update is ready. Tap to install.", "", "update", "info")
         }
     }
 }

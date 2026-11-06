@@ -139,7 +139,7 @@ void main() {
       expect(find.descendant(of: find.byType(StatusWord), matching: find.byType(Icon)), findsNothing);
     });
 
-    testWidgets('the status word rests (does not pulse) while SubMac works', (t) async {
+    testWidgets('the status word rests (does not pulse) while Telesia works', (t) async {
       // Owner (2026-10-31): the progress word no longer breathes; it says what SubMac is doing and stays still.
       await t.pumpWidget(_host(const StatusWord('Thinking')));
       await t.pumpAndSettle(); // would time out if the word kept animating
@@ -265,7 +265,7 @@ void main() {
               const SizedBox(width: Lux.gutter - Space.x1),
               ChatWordmark(onTap: () {}),
               const Spacer(),
-              BarIcon(icon: 'phone', tooltip: 'Call SubMac', onTap: () {}),
+              BarIcon(icon: 'phone', tooltip: 'Call Telesia', onTap: () {}),
               BarIcon(icon: 'plus', tooltip: 'New chat', onTap: () {}),
               const SizedBox(width: Lux.gutter - Space.x3),
             ]),
@@ -300,7 +300,7 @@ void main() {
         await t.pump(const Duration(milliseconds: 500));
         await t.pump(const Duration(milliseconds: 500));
         // No app name in the header.
-        expect(find.text('SubMac'), findsNothing);
+        expect(find.text('Telesia'), findsNothing);
         if (autoUpdateGoldenFiles) await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/v2_chat_${dark ? 'dark' : 'light'}.png'));
         await t.pumpWidget(const SizedBox());
       });
@@ -343,11 +343,11 @@ void main() {
           onEnd: () {},
         );
 
-    testWidgets('a SubMac call and a bot call look different, with plain controls', (t) async {
+    testWidgets('a Telesia call and a bot call look different, with plain controls', (t) async {
       await t.pumpWidget(_host(call(), still: true, scroll: false));
       await t.pump();
       expect(find.byKey(const ValueKey('submac-call')), findsOneWidget);
-      expect(find.text('SubMac'), findsOneWidget);
+      expect(find.text('Telesia'), findsOneWidget);
       expect(find.text('Mute'), findsOneWidget);
       expect(find.text('End'), findsOneWidget);
       // No Material buttons and no filled or outlined controls.

@@ -43,19 +43,19 @@ Future<void> showSaveSheet(BuildContext context, String path) async {
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
                 title: Text(mime.startsWith('image/') ? 'Pictures' : mime.startsWith('video/') ? 'Movies' : 'Music'),
-                subtitle: const Text('In the SubMac folder, shows in your gallery'),
+                subtitle: const Text('In the Telesia folder, shows in your gallery'),
                 onTap: () => Navigator.pop(ctx, 'media'),
               ),
             ListTile(
               leading: const Icon(Icons.folder_outlined),
               title: const Text('Documents'),
-              subtitle: const Text('Documents › SubMac'),
+              subtitle: const Text('Documents › Telesia'),
               onTap: () => Navigator.pop(ctx, 'documents'),
             ),
             ListTile(
               leading: const Icon(Icons.download_outlined),
               title: const Text('Downloads'),
-              subtitle: const Text('Download › SubMac'),
+              subtitle: const Text('Download › Telesia'),
               onTap: () => Navigator.pop(ctx, 'downloads'),
             ),
             _head(ctx, 'In a project'),

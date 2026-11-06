@@ -30,7 +30,7 @@ Map<String, dynamic> _part(String session, String id, String tool, Map<String, d
     };
 
 void main() {
-  group('routing a SubMac call to the turn that made it', () {
+  group('routing a Telesia call to the turn that made it', () {
     test('a run_tool call in the turn\'s own session routes to it; another session\'s does not', () async {
       final r = McpRoutes();
       final mine = {'sesBot'};
@@ -110,7 +110,7 @@ void main() {
     test('the main agent cannot run a bot tool through run_tool', () async {
       final g = SubMacGateway(tools: () => OcToolScope.of(app: app), run: (n, a) async => 'ran $n');
       expect(await g.call('run_tool', {'name': 'bot_followup', 'arguments': {'in_minutes': 20, 'instruction': 'x'}}),
-          startsWith('Error: no SubMac tool named "bot_followup"'));
+          startsWith('Error: no Telesia tool named "bot_followup"'));
     });
 
     test('a bot gets its own tools, office tools during office work, and the app\'s cut by its powers', () {
@@ -130,7 +130,7 @@ void main() {
     expect(OcRunEnd.replyOf([old, think, step], {'t', 's'}), '');
   });
 
-  test('source: no SubMac call or ask falls back to the chat on screen', () {
+  test('source: no Telesia call or ask falls back to the chat on screen', () {
     final src = File('lib/state/agent_runner.dart').readAsStringSync();
     expect(src, isNot(contains('home ?? currentId')));
     expect(src, isNot(contains('conv.isEmpty ? (currentId')));

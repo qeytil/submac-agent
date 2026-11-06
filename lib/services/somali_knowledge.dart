@@ -60,7 +60,7 @@ class SomaliKnowledge {
   static final List<Map<String, dynamic>> definitions = [
     _fn(
         'somali_knowledge',
-        'Search SubMac\'s Somali knowledge library before answering anything about Somali language (grammar, words, '
+        'Search Telesia\'s Somali knowledge library before answering anything about Somali language (grammar, words, '
             'spelling, proverbs, idioms, dialects, names), Somali culture and etiquette, Islam in Somali daily life, '
             'weddings and family customs, clans (neutral facts only), history, regions and cities, poetry and music, '
             'food, holidays, mobile money and modern Somali life. Returns the best passages with their ids.',

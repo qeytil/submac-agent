@@ -360,7 +360,7 @@ object Overlay {
             row.orientation = LinearLayout.HORIZONTAL
             row.gravity = Gravity.CENTER_VERTICAL
             val et = EditText(c)
-            et.hint = "Message SubMac"
+            et.hint = "Message Telesia"
             et.setHintTextColor(MUTED)
             et.setTextColor(PAPER)
             et.typeface = sans(c)

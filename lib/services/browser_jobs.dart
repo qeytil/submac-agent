@@ -571,8 +571,8 @@ class BrowserJobs extends ChangeNotifier {
 
   String _system(BrowserJob j) {
     final rules = userRules?.call() ?? '';
-    return '''You are SubMac's browser agent: you use websites on a phone for the user, quickly and carefully, like an expert.
-You drive SubMac's built-in browser (Chromium, mobile layout).
+    return '''You are Telesia's browser agent: you use websites on a phone for the user, quickly and carefully, like an expert.
+You drive Telesia's built-in browser (Chromium, mobile layout).
 ${rules.isEmpty ? '' : '\nThe user\'s own rules (they come first):\n$rules\n'}
 WHAT YOU SEE EVERY STEP
 - The page: title and URL, the numbered interactive elements ("[12] button "Add to cart" @64,71": number, kind, label, where on the screenshot in %; * marks elements that are new since your last step; "(below, scrolls in)" means the action scrolls it in for you), the text in view, notices (pop-ups, sign-in, payment page).

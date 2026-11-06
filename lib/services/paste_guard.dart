@@ -50,9 +50,9 @@ class PasteGuard {
     'ar': 'هذه الرسالة أطول من أن تُرسل',
   };
   static const _prompt = {
-    'en': 'It is about {kb} KB, more than SubMac can read at once. Send it as a file, or have it summarised a part at a time.',
-    'so': 'Waa qiyaastii {kb} KB, in ka badan inta SubMac hal mar akhrin karo. U dir fayl ahaan, ama qayb qayb ha loo soo koobo.',
-    'ar': 'حجمها نحو {kb} كيلوبايت، أكثر مما يقرأه SubMac دفعة واحدة. أرسلها كملف، أو اطلب تلخيصها جزءًا جزءًا.',
+    'en': 'It is about {kb} KB, more than Telesia can read at once. Send it as a file, or have it summarised a part at a time.',
+    'so': 'Waa qiyaastii {kb} KB, in ka badan inta Telesia hal mar akhrin karo. U dir fayl ahaan, ama qayb qayb ha loo soo koobo.',
+    'ar': 'حجمها نحو {kb} كيلوبايت، أكثر مما يقرأه Telesia دفعة واحدة. أرسلها كملف، أو اطلب تلخيصها جزءًا جزءًا.',
   };
   static const _attach = {'en': 'Attach as a file', 'so': 'U dir fayl ahaan', 'ar': 'إرفاقها كملف'};
   static const _parts = {'en': 'Summarise in parts', 'so': 'Qayb qayb u soo koob', 'ar': 'تلخيصها على أجزاء'};

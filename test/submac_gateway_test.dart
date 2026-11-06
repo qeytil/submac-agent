@@ -29,14 +29,14 @@ void main() {
     final all = await g.call('find_tools', {});
     expect(all, contains('- remember:'));
     expect(all, contains('- read_pdf:'));
-    expect(await g.call('find_tools', {'query': 'zzz'}), startsWith('No SubMac tool'));
+    expect(await g.call('find_tools', {'query': 'zzz'}), startsWith('No Telesia tool'));
   });
 
   test('run runs the named tool with its arguments (object or JSON text); unknown names never run', () async {
     expect(await g.call('run_tool', {'name': 'remember', 'arguments': {'text': 'hi'}}), 'ok remember');
     expect(await g.call('run_tool', {'name': 'read_pdf', 'arguments': '{"path":"a.pdf"}'}), 'ok read_pdf');
     expect(ran, ['remember {"text":"hi"}', 'read_pdf {"path":"a.pdf"}']);
-    expect(await g.call('run_tool', {'name': 'nope'}), startsWith('Error: no SubMac tool'));
+    expect(await g.call('run_tool', {'name': 'nope'}), startsWith('Error: no Telesia tool'));
     expect(await g.call('run_tool', {}), startsWith('Error: name is required'));
     expect(ran.length, 2);
   });

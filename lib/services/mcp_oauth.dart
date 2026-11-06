@@ -213,7 +213,7 @@ class McpOAuth {
                 'jsonrpc': '2.0',
                 'id': 1,
                 'method': 'initialize',
-                'params': {'protocolVersion': '2025-03-26', 'capabilities': {}, 'clientInfo': {'name': 'SubMac Agent', 'version': '1.8'}},
+                'params': {'protocolVersion': '2025-03-26', 'capabilities': {}, 'clientInfo': {'name': 'Telesia Agent', 'version': '1.8'}},
               }))
           .timeout(const Duration(seconds: 20));
       if (r.statusCode == 401 || r.statusCode == 403) return r.headers['www-authenticate'] ?? 'Bearer';
@@ -256,7 +256,7 @@ class McpOAuth {
       }
       if (meta != null && meta['registration_endpoint'] != null) break;
     }
-    if (meta == null) throw Exception('$appName does not offer a sign-in SubMac can use.');
+    if (meta == null) throw Exception('$appName does not offer a sign-in Telesia can use.');
     final reg = meta['registration_endpoint'] as String?;
     if (reg == null) throw Exception('$appName only works with apps it has approved one by one, so it cannot be connected by sign-in yet.');
 
@@ -266,7 +266,7 @@ class McpOAuth {
         .post(Uri.parse(reg),
             headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
             body: jsonEncode({
-              'client_name': 'SubMac Agent',
+              'client_name': 'Telesia Agent',
               'client_uri': 'https://submac.site',
               'redirect_uris': [redirect],
               'grant_types': ['authorization_code', 'refresh_token'],
@@ -279,7 +279,7 @@ class McpOAuth {
     final client = Map<String, dynamic>.from(jsonDecode(regRes.body) as Map);
     final clientId = '${client['client_id'] ?? ''}';
     final clientSecret = client['client_secret'] == null ? '' : '${client['client_secret']}';
-    if (clientId.isEmpty) throw Exception('$appName did not accept SubMac.');
+    if (clientId.isEmpty) throw Exception('$appName did not accept Telesia.');
 
     // 3) Sign in, in the browser, with PKCE.
     final verifier = _rand(48);
@@ -327,7 +327,7 @@ class McpOAuth {
           '<body style="font-family:sans-serif;background:#faf9f6;color:#121110;display:flex;align-items:center;justify-content:center;height:90vh;text-align:center">'
           '<div><div style="width:14px;height:14px;border-radius:50%;background:#c2361b;margin:0 auto 18px"></div>'
           '<h2 style="font-weight:500">${ok ? '$appName is connected' : 'Sign-in was not finished'}</h2>'
-          '<p style="color:#6b665c">You can go back to SubMac.</p></div></body>');
+          '<p style="color:#6b665c">You can go back to Telesia.</p></div></body>');
       await req.response.close();
       if (!got.isCompleted) got.complete(Map<String, String>.from(q));
     });

@@ -6,7 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('New SubMac logo', () {
+  group('New Telesia logo', () {
     test('launcher icon sources exist at full size', () {
       for (final f in ['assets/icon.png', 'assets/icon_ios.png', 'assets/icon_fg.png', 'assets/icon_bg.png', 'assets/icon_mono.png']) {
         final file = File(f);
@@ -30,7 +30,7 @@ void main() {
       expect(pub, contains('- assets/brand/'));
     });
 
-    test('the launch screen is SubMac, not the white Flutter template (light and dark, Android 12+)', () {
+    test('the launch screen is Telesia, not the white Flutter template (light and dark, Android 12+)', () {
       for (final f in ['android_native/res/drawable/launch_background.xml', 'android_native/res/drawable-v21/launch_background.xml']) {
         final x = File(f).readAsStringSync();
         expect(x, contains('@color/submac_launch_sky'), reason: f);
@@ -65,7 +65,7 @@ void main() {
       final pic = find.byType(SvgPicture);
       expect(pic, findsOneWidget);
       expect(t.getSize(pic), const Size(48, 48));
-      expect(find.bySemanticsLabel('SubMac'), findsOneWidget);
+      expect(find.bySemanticsLabel('Telesia'), findsOneWidget);
       expect(find.text('S'), findsNothing); // the old serif letter is gone
     });
 

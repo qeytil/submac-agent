@@ -196,7 +196,7 @@ class TaskBubble {
     }
     final id = focus!.id;
     final bot = Bots.I.byConv(id);
-    final who = bot?.name ?? 'SubMac';
+    final who = bot?.name ?? 'Telesia';
     final run = app.runs.where((r) => r.convId == id && !r.side).firstOrNull;
     final lines = bubbleLines(app.messagesOf(id).map((m) => (m.role, m.content)));
     final state = bubbleState(

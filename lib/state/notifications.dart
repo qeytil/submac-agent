@@ -34,7 +34,7 @@ extension AppStateNotifications on AppState {
   /// SubMac's own result for [convId] ("SubMac", red), with a Reply into that chat. Nothing when the reply says
   /// nothing (a watcher's NO_CHANGE, an empty run).
   Future<void> _notifyAgent(String convId, String reply, {String task = '', bool failed = false}) async {
-    final body = failed ? 'Couldn’t finish${task.isEmpty ? ' your task' : ' “${BgRun.title(task, fallback: '')}”'}. Open SubMac to see why.' : NotifText.result(reply, task: task);
+    final body = failed ? 'Couldn’t finish${task.isEmpty ? ' your task' : ' “${BgRun.title(task, fallback: '')}”'}. Open Telesia to see why.' : NotifText.result(reply, task: task);
     if (body.isEmpty) return;
     await SystemBridge.I.notifyFrom(
         id: agentNoteId(convId),

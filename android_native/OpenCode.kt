@@ -174,16 +174,16 @@ object OpenCode {
     private fun config(baseUrl: String, skills: String, providers: List<Map<String, String>>, models: List<String>,
                        byok: String = ""): String {
         val list = providers.filter { Regex("[a-z0-9-]{1,32}").matches(it["id"] ?: "") }
-            .ifEmpty { listOf(mapOf("id" to "submac", "name" to "SubMac", "path" to "", "source" to "opencode")) }
+            .ifEmpty { listOf(mapOf("id" to "submac", "name" to "Telesia", "path" to "", "source" to "opencode")) }
         val names = models.filter { Regex("[a-z0-9.-]{1,48}").matches(it) }.ifEmpty { listOf("submac") }
         val prov = org.json.JSONObject()
         for (p in list) {
             val path = (p["path"] ?: "").let { if (it.isEmpty() || Regex("/lane/[a-z-]{1,20}").matches(it)) it else "" }
             val ms = org.json.JSONObject()
-            for (m in names) ms.put(m, org.json.JSONObject().put("name", if (m == "submac") "SubMac" else m).put("tool_call", true))
+            for (m in names) ms.put(m, org.json.JSONObject().put("name", if (m == "submac") "Telesia" else m).put("tool_call", true))
             prov.put(p.getValue("id"), org.json.JSONObject()
                 .put("npm", "@ai-sdk/openai-compatible")
-                .put("name", p["name"] ?: "SubMac")
+                .put("name", p["name"] ?: "Telesia")
                 .put("options", org.json.JSONObject()
                     .put("baseURL", baseUrl + path)
                     .put("apiKey", "via-proxy")

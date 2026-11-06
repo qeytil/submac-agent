@@ -2053,7 +2053,7 @@ class BrowserAgent extends ChangeNotifier {
       if (_autoLoginTried.contains(k)) return null;
       _autoLoginTried.add(k);
       final res = await _login(c, '');
-      if (res.startsWith('ok')) return 'This is a sign-in page, so SubMac started the sign-in: ${res.substring(3)}';
+      if (res.startsWith('ok')) return 'This is a sign-in page, so Telesia started the sign-in: ${res.substring(3)}';
       return 'This is a sign-in page. $res';
     } catch (_) {
       return null;

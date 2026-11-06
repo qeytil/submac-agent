@@ -10,7 +10,7 @@ void main() {
   test('one driver at a time; the holder keeps going; another gets a plain "in use"', () {
     var now = DateTime(2026, 11, 3, 13);
     final l = ScreenLease(clock: () => now);
-    expect(l.take('chatA', label: 'SubMac'), isNull);
+    expect(l.take('chatA', label: 'Telesia'), isNull);
     expect(l.take('chatA'), isNull);
     final no = l.take('team:o1:b2', label: 'Nova');
     expect(no, startsWith('Error: the phone screen is in use'));

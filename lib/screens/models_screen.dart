@@ -36,7 +36,7 @@ class ModelsScreen extends StatelessWidget {
                 ListTile(
                   key: const ValueKey('chat-model'),
                   leading: chat == null ? const AppLogo(size: 36) : BrandLogo(chat.provider.logo, chat.provider.label, size: 36),
-                  title: Text(chat == null ? 'SubMac' : chat.model.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  title: Text(chat == null ? 'Telesia' : chat.model.label, maxLines: 1, overflow: TextOverflow.ellipsis),
                   subtitle: Text(chat == null ? tr('Included in your plan') : '${chat.provider.label} · ${tr('your key')}',
                       style: AppText.microStyle.copyWith(color: p.muted)),
                   trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
@@ -71,8 +71,8 @@ class ModelsScreen extends StatelessWidget {
                 padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2, Space.x5, 0),
                 child: Text(
                   tr('Bring your own key: use models from OpenAI, Anthropic, Google, OpenRouter and more with your own account. '
-                      'Keys stay encrypted on this phone and are never sent to SubMac. Calls go straight to the provider, '
-                      'so they do not use your SubMac allowance.'),
+                      'Keys stay encrypted on this phone and are never sent to Telesia. Calls go straight to the provider, '
+                      'so they do not use your Telesia allowance.'),
                   style: AppText.microStyle.copyWith(color: p.muted),
                 ),
               ),
@@ -344,7 +344,7 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
       context: context,
       builder: (d) => AlertDialog(
         title: Text('${tr('Remove')} ${pr.label}?'),
-        content: Text(tr('Its keys are deleted from this phone. Chats and bots using its models go back to SubMac.')),
+        content: Text(tr('Its keys are deleted from this phone. Chats and bots using its models go back to Telesia.')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
           TextButton(

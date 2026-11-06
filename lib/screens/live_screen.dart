@@ -41,7 +41,7 @@ Future<void> openLive(BuildContext context, {String mode = ''}) async {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(Cloud.calls.value.out
             ? Cloud.calls.value.usedUpMessage
-            : 'Voice isn\'t available right now. You can still type to SubMac.')));
+            : 'Voice isn\'t available right now. You can still type to Telesia.')));
     return;
   }
   if (!context.mounted) return;
@@ -110,7 +110,7 @@ class _LiveScreenState extends State<LiveScreen> {
         context: context,
         builder: (c) => AlertDialog(
           title: const Text('Keep Live on top'),
-          content: const Text('To talk with SubMac while you use other apps, allow "Display over other apps" for SubMac.'),
+          content: const Text('To talk with Telesia while you use other apps, allow "Display over other apps" for Telesia.'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Not now'))),
             TextButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Allow'))),
@@ -282,7 +282,7 @@ class CallView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Space.x6),
-            Text('SubMac', style: Brand.display(size: 40, color: p.text)),
+            Text('Telesia', style: Brand.display(size: 40, color: p.text)),
           ])
         : Column(key: const ValueKey('bot-call'), mainAxisSize: MainAxisSize.min, children: [
             RepaintBoundary(

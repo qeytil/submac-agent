@@ -336,7 +336,7 @@ class LlmClient {
     final raw = err is Map ? err['code'] : null;
     // Older servers put a number (the upstream status) in `code`: that is a dropped model, not a Contract A code.
     if (raw is num || raw == null) {
-      return LlmException('SubMac lost the connection for a moment. Please try again.', status: raw is num ? raw.toInt() : 502);
+      return LlmException('Telesia lost the connection for a moment. Please try again.', status: raw is num ? raw.toInt() : 502);
     }
     final code = '$raw';
     final known = StreamPolicy.finalCodes.contains(code) || StreamPolicy.retryCodes.contains(code) || code == 'too_long';

@@ -472,7 +472,7 @@ class BillingNotice {
       case 'no_plan':
         return tr('You need a plan for this.');
       case 'busy':
-        return tr('SubMac is busy. Try again soon.');
+        return tr('Telesia is busy. Try again soon.');
     }
     return tr("This reply couldn't be sent.");
   }

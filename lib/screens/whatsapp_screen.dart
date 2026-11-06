@@ -81,7 +81,7 @@ class _WhatsAppScreenState extends State<WhatsAppScreen> with WidgetsBindingObse
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 32),
                 children: [
-                  note('SubMac reads and sends WhatsApp for you. You approve every message. Nothing leaves this phone.'),
+                  note('Telesia reads and sends WhatsApp for you. You approve every message. Nothing leaves this phone.'),
                   if (_st.isEmpty) note('Not available on this device.'),
                   head('On this phone'),
                   CardRow(
@@ -91,7 +91,7 @@ class _WhatsAppScreenState extends State<WhatsAppScreen> with WidgetsBindingObse
                     subtitle: personal || business ? 'Installed' : 'Install WhatsApp or WhatsApp Business from the Play Store',
                     done: personal || business,
                   ),
-                  head('What SubMac needs'),
+                  head('What Telesia needs'),
                   CardRow(
                     title: 'Notification access',
                     subtitle: 'To see new WhatsApp messages, list who wrote, reply from the notification, and wake bots that watch a chat',
@@ -103,7 +103,7 @@ class _WhatsAppScreenState extends State<WhatsAppScreen> with WidgetsBindingObse
                   CardRow(
                     title: 'Phone control',
                     subtitle: 'To open a chat, press Send or Call, read a conversation and share files. Android shows this as '
-                        'Accessibility > SubMac. It only acts when you or your bot asked',
+                        'Accessibility > Telesia. It only acts when you or your bot asked',
                     done: a11y,
                     action: a11y ? null : 'Allow',
                     onAction: a11y ? null : () => SystemBridge.I.openPermission('accessibility'),
@@ -131,7 +131,7 @@ class _WhatsAppScreenState extends State<WhatsAppScreen> with WidgetsBindingObse
                   head('Privacy'),
                   SurfaceGroup(margin: const EdgeInsetsDirectional.fromSTEB(Space.x4, 0, Space.x4, Space.x3), children: [
                   SwitchListTile(
-                    title: const Text('Keep new messages for SubMac'),
+                    title: const Text('Keep new messages for Telesia'),
                     subtitle: Text('${_st['chats'] ?? 0} chats saved on this phone, newest 40 messages each, 7 days',
                         style: TextStyle(color: p.muted, fontSize: AppText.micro)),
                     value: _st['capture'] != false,
@@ -143,7 +143,7 @@ class _WhatsAppScreenState extends State<WhatsAppScreen> with WidgetsBindingObse
                   ]),
                   CardRow(
                     title: 'Clear saved WhatsApp messages',
-                    subtitle: 'Removes them from SubMac on this phone. WhatsApp itself is not touched',
+                    subtitle: 'Removes them from Telesia on this phone. WhatsApp itself is not touched',
                     action: 'Clear',
                     onAction: () async {
                       await SystemBridge.I.waClear();

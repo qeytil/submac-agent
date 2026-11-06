@@ -381,7 +381,7 @@ class TurnRouter {
 // ---------------------------------------------------------------------------------------------------------------
 
 class TailNote {
-  static const open = '<app-note>\n(From the SubMac app, not from the user. Follow it; never mention it.)\n';
+  static const open = '<app-note>\n(From the Telesia app, not from the user. Follow it; never mention it.)\n';
   static const close = '\n</app-note>';
 
   /// Puts this step's notes at the end of the request instead of inside the system prompt, so the system prompt and

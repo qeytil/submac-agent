@@ -42,13 +42,13 @@ class PushReceiver : BroadcastReceiver() {
             val key = x.getString("message_id") ?: x.getString("google.message_id") ?: (title + body)
             val id = 9600 + Math.floorMod(key.hashCode(), 300)
             if (botId.isNotEmpty()) {
-                Notifier.bot(ctx, id, if (title.isEmpty()) "SubMac" else title, body, payload, reply = chatId.isNotEmpty())
+                Notifier.bot(ctx, id, if (title.isEmpty()) "Telesia" else title, body, payload, reply = chatId.isNotEmpty())
             } else {
                 val kind = when (x.getString("kind")) {
                     "done", "scheduled", "attention", "info" -> x.getString("kind")!!
                     else -> "attention"
                 }
-                Notifier.task(ctx, id, if (title.isEmpty()) "SubMac" else title, body, payload, kind)
+                Notifier.task(ctx, id, if (title.isEmpty()) "Telesia" else title, body, payload, kind)
             }
         } catch (_: Throwable) {
             // A bad push must never crash the app.

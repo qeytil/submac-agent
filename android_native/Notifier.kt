@@ -67,8 +67,8 @@ object Notifier {
         for (old in RETIRED) {
             try { nm.deleteNotificationChannel(old) } catch (_: Exception) {}
         }
-        nm.createNotificationChannel(chimed(ctx, AGENT, "SubMac", NotificationManager.IMPORTANCE_DEFAULT,
-            "SubMac's own results: a task finished, a scheduled task's result"))
+        nm.createNotificationChannel(chimed(ctx, AGENT, "Telesia", NotificationManager.IMPORTANCE_DEFAULT,
+            "Telesia's own results: a task finished, a scheduled task's result"))
         nm.createNotificationChannel(chimed(ctx, BOTS, "Bots", NotificationManager.IMPORTANCE_DEFAULT,
             "When one of your bots has something for you"))
         nm.createNotificationChannel(chimed(ctx, TEAMS, "Teams", NotificationManager.IMPORTANCE_DEFAULT,
@@ -77,7 +77,7 @@ object Notifier {
             "A teammate needs your answer or decision"))
         nm.createNotificationChannel(
             NotificationChannel(WORK, "Background work", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shown quietly while a bot, a team or a scheduled task works with SubMac closed"
+                description = "Shown quietly while a bot, a team or a scheduled task works with Telesia closed"
                 setSound(null, null)
                 enableVibration(false)
                 setShowBadge(false)
@@ -120,7 +120,7 @@ object Notifier {
         )
         nm.createNotificationChannel(
             NotificationChannel(WAKE, "Hello SubMac", NotificationManager.IMPORTANCE_MIN).apply {
-                description = "Shown while SubMac listens for its name"
+                description = "Shown while Telesia listens for its name"
                 setShowBadge(false)
                 setSound(null, null)
             }
@@ -168,7 +168,7 @@ object Notifier {
             builder(ctx, TASKS)
                 .setSmallIcon(R.drawable.ic_stat_submac)
                 .setColor(0xFF17150F.toInt())
-                .setContentTitle("SubMac")
+                .setContentTitle("Telesia")
                 .setContentText("Something is ready for you.")
                 .build()
         )
@@ -317,7 +317,7 @@ object Notifier {
         if (nl > 0) first = text.substring(0, nl).trim()
         val ch = if (high) ASKS else channel
         val accent = if (agent) AGENT_RED else if (color != 0) color else INK
-        val name = if (title.isBlank()) "SubMac" else title
+        val name = if (title.isBlank()) "Telesia" else title
         val b = builder(ctx, ch)
             .setSmallIcon(R.drawable.ic_stat_submac)
             .setColor(accent)
@@ -471,7 +471,7 @@ object Notifier {
             team(ctx, id, to.substring(7), name, "", text, "", 0, false, true)
             return
         }
-        val agent = name == "SubMac"
+        val agent = name == "Telesia"
         val b = builder(ctx, if (agent) AGENT else BOTS)
             .setSmallIcon(R.drawable.ic_stat_submac)
             .setColor(if (agent) AGENT_RED else INK)

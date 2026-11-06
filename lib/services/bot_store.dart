@@ -78,18 +78,18 @@ class BotStore extends ChangeNotifier {
   /// SubMac's own bots, always there (they need no internet).
   List<StoreBot> get builtIns => [
         for (final t in BotTemplates.all)
-          StoreBot(id: 'builtin:${t.id}', name: t.name, role: t.role, icon: t.icon, blurb: t.pitch, author: 'SubMac', builtIn: true, package: t.export()),
+          StoreBot(id: 'builtin:${t.id}', name: t.name, role: t.role, icon: t.icon, blurb: t.pitch, author: 'Telesia', builtIn: true, package: t.export()),
       ];
 
   static String _plain(Object e) {
     final s = '$e';
     if (s.contains('42P01') || s.contains('PGRST205') || s.contains('does not exist') || s.contains('schema cache')) {
-      return 'The community Bot Store is not open yet. SubMac\'s own bots are here.';
+      return 'The community Bot Store is not open yet. Telesia\'s own bots are here.';
     }
     if (s.contains('SocketException') || s.contains('Failed host lookup') || s.contains('TimeoutException')) {
-      return 'No connection right now. SubMac\'s own bots are here; the rest load when you are back online.';
+      return 'No connection right now. Telesia\'s own bots are here; the rest load when you are back online.';
     }
-    return 'The community bots are resting for a moment. SubMac\'s own bots are here.';
+    return 'The community bots are resting for a moment. Telesia\'s own bots are here.';
   }
 
   Future<void> refresh() async {
@@ -165,7 +165,7 @@ class BotStore extends ChangeNotifier {
       return 'Not published: ${b.name}\'s setup ${warn.join(', ')}. Edit its instructions, knowledge or skills and try again.';
     }
     final row = {
-      'author_name': author.trim().isEmpty ? 'A SubMac user' : author.trim().substring(0, math.min(40, author.trim().length)),
+      'author_name': author.trim().isEmpty ? 'A Telesia user' : author.trim().substring(0, math.min(40, author.trim().length)),
       'name': pkg['name'],
       'role': pkg['role'],
       'icon': pkg['icon'],
@@ -189,7 +189,7 @@ class BotStore extends ChangeNotifier {
       await refresh();
       return null;
     } catch (e) {
-      return _plain(e).replaceFirst('The community bots are resting for a moment. SubMac\'s own bots are here.', 'Publishing is resting for a moment. Try again shortly.');
+      return _plain(e).replaceFirst('The community bots are resting for a moment. Telesia\'s own bots are here.', 'Publishing is resting for a moment. Try again shortly.');
     }
   }
 
@@ -263,7 +263,7 @@ class BotStore extends ChangeNotifier {
       }
       return b == null ? (null, 'That bot could not be added.') : (b, null);
     } catch (e) {
-      return (null, _plain(e).contains('not open yet') ? 'Adding by code is not available yet. Ask for the file instead.' : 'SubMac is resting for a moment. Try again shortly.');
+      return (null, _plain(e).contains('not open yet') ? 'Adding by code is not available yet. Ask for the file instead.' : 'Telesia is resting for a moment. Try again shortly.');
     }
   }
 
@@ -305,7 +305,7 @@ class BotStore extends ChangeNotifier {
       if (row == null) return (null, null, 'That bot is no longer in the Bot Store.');
       return (StoreBot.fromRow(row, _me), null, null);
     } catch (e) {
-      return (null, null, _plain(e).replaceFirst('The community bots are resting for a moment. SubMac\'s own bots are here.', 'SubMac is resting for a moment. Try again shortly.'));
+      return (null, null, _plain(e).replaceFirst('The community bots are resting for a moment. Telesia\'s own bots are here.', 'Telesia is resting for a moment. Try again shortly.'));
     }
   }
 

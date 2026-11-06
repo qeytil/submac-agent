@@ -584,6 +584,6 @@ class RosterRow extends StatelessWidget {
 ({String line, DateTime? at}) teamLast(Office o) {
   final x = o.posts.where((e) => e.kind != 'update' && e.text.trim().isNotEmpty).lastOrNull;
   if (x == null) return (line: '${o.members.length} ${o.members.length == 1 ? 'bot' : 'bots'}', at: null);
-  final who = x.from == 'you' ? tr('You') : (Bots.I.byId(x.from)?.name ?? 'SubMac');
+  final who = x.from == 'you' ? tr('You') : (Bots.I.byId(x.from)?.name ?? 'Telesia');
   return (line: '$who: ${x.text.replaceAll(RegExp(r'\s+'), ' ').trim()}', at: x.at);
 }

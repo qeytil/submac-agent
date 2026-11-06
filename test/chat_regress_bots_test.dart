@@ -228,7 +228,7 @@ void main() {
       expect(wakes, 1);
     });
 
-    test('CB-21: an 08:30 routine missed while SubMac was stopped is caught up at 08:40, then armed for tomorrow', () async {
+    test('CB-21: an 08:30 routine missed while Telesia was stopped is caught up at 08:40, then armed for tomorrow', () async {
       final b = bot(time: '08:30');
       final id = Bots.alarmId(b, 'rq');
       // Yesterday evening: the routine is armed as usual.
@@ -306,7 +306,7 @@ void main() {
   });
 
   // ---------------------------------------------------------------- CB-46 an alarm that cold-starts the app
-  group('CB-46 a wake that comes before SubMac is ready is kept and run once', () {
+  group('CB-46 a wake that comes before Telesia is ready is kept and run once', () {
     late Directory tmp;
     late AppState s;
     late Bot b;
@@ -345,7 +345,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 10));
       expect(started, isEmpty);
       expect(Bots.I.heldForTest.map((w) => w.key), ['cb46|rq|2026-10-25T09:00'], reason: 'the wake was dropped without a trace');
-      expect(b.journal.last.text, contains('before SubMac was ready'));
+      expect(b.journal.last.text, contains('before Telesia was ready'));
       // A redelivered alarm neither runs it nor holds it twice.
       expect(await Bots.I.fire(Bots.alarmId(b, 'rq')), isFalse);
       expect(Bots.I.heldForTest, hasLength(1));
@@ -362,7 +362,7 @@ void main() {
       expect(Bots.I.heldForTest, isEmpty);
     });
 
-    test('a wake that finds SubMac ready runs straight away and holds nothing', () async {
+    test('a wake that finds Telesia ready runs straight away and holds nothing', () async {
       s.repo.testUserId = 'u46';
       expect(await Bots.I.fire(Bots.alarmId(b, 'rq')), isTrue);
       await Future<void>.delayed(const Duration(milliseconds: 10));

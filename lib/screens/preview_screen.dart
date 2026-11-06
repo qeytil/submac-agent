@@ -150,7 +150,7 @@ class _FilePreview extends StatelessWidget {
           padding: const EdgeInsets.all(32),
           child: Text(
               const {'xls', 'doc', 'ppt'}.contains(e)
-                  ? 'This is an old spreadsheet or document (.xls, .doc or .ppt). Share it to open it in another app, or ask SubMac to turn it into a new one.'
+                  ? 'This is an old spreadsheet or document (.xls, .doc or .ppt). Share it to open it in another app, or ask Telesia to turn it into a new one.'
                   : 'This kind of file can\'t be shown here. Use Share to open it in another app.',
               textAlign: TextAlign.center, style: TextStyle(color: p.muted)),
         ),

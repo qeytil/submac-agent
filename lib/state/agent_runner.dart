@@ -121,7 +121,7 @@ extension AppStateAgentRunner on AppState {
     try {
       await SystemBridge.I.notify(
           id: 9800 + (convId.hashCode % 90).abs(),
-          title: bot?.name ?? 'SubMac',
+          title: bot?.name ?? 'Telesia',
           body: text,
           payload: bot != null ? 'botchat/${bot.id}' : 'conv/$convId',
           kind: 'attention');
@@ -165,7 +165,7 @@ extension AppStateAgentRunner on AppState {
           tools: () => _mcpTools(conv),
           run: (n, a) async {
             if (conv == null) {
-              return 'Error: SubMac could not tell which chat this call came from (several are working). Call it once more.';
+              return 'Error: Telesia could not tell which chat this call came from (several are working). Call it once more.';
             }
             if (n == 'add_mcp_server') return addMcpServerFromChat(a);
             return _runRouted(n, a, conv);
@@ -526,7 +526,7 @@ extension AppStateAgentRunner on AppState {
 
   String _screenLabel(String who) {
     if (who.startsWith('team:')) return Bots.I.byId(who.split(':').last)?.name ?? 'a team member';
-    return Bots.I.byConv(who)?.name ?? 'SubMac';
+    return Bots.I.byConv(who)?.name ?? 'Telesia';
   }
 
   /// team_task: a team's lead gives its team a job (from a routine, a follow-up, or the owner asking in its chat).

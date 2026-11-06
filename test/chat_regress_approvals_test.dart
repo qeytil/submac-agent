@@ -195,7 +195,7 @@ void main() {
       expect(cancelled, hasLength(1), reason: 'the notification goes once the ask is answered');
     });
 
-    testWidgets('no notification while SubMac is on screen', (t) async {
+    testWidgets('no notification while Telesia is on screen', (t) async {
       final posted = <String>[];
       OutboundGuard.notify = ({required int id, required String title, required String body, required String payload}) async => posted.add(body);
       addTearDown(OutboundGuard.reset);

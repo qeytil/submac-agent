@@ -26,7 +26,7 @@ void main() {
     return out;
   }
 
-  test('no raw curves or animation durations outside SubMac motion', () {
+  test('no raw curves or animation durations outside Telesia motion', () {
     final named = RegExp(r'\b(duration|reverseDuration|transitionDuration|reverseTransitionDuration|delay|themeAnimationDuration)\s*:');
     final problems = <String>[];
     for (final f in uiFiles()) {

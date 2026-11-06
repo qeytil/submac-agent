@@ -263,7 +263,7 @@ class DocMaker {
     final doc = PdfDocument();
     doc.pageSettings.margins.all = 54;
     doc.documentInformation.title = title;
-    doc.documentInformation.creator = 'SubMac';
+    doc.documentInformation.creator = 'Telesia';
     var page = doc.pages.add();
     final w = page.getClientSize().width;
     var y = 0.0;

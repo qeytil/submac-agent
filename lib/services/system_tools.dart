@@ -29,7 +29,7 @@ Map<String, dynamic> _s(String d, [List<String>? e]) => <String, dynamic>{'type'
 class SystemTools {
   static final settingsTool = _fn(
     'app_settings',
-    'See or change SubMac settings when the user asks ("turn on dark mode", "make the wake word more sensitive", '
+    'See or change Telesia settings when the user asks ("turn on dark mode", "make the wake word more sensitive", '
         '"stop asking me before actions", "use the Puck voice"). action=list shows every setting with its value; '
         'set changes one. open_permission opens the Android screen where the user allows a permission '
         '(overlay, accessibility, sms, notifications, battery, microphone, app). Passwords cannot be read or changed here.',
@@ -170,8 +170,8 @@ class SystemTools {
   static final scheduleTools = [
     _fn(
       'schedule_task',
-      'Schedule a task for SubMac to do later, once or repeating (for example "every morning at 7 send me the news", '
-          '"remind me at 5pm to call mum", "every Friday check my email for invoices"). SubMac runs it at that time, '
+      'Schedule a task for Telesia to do later, once or repeating (for example "every morning at 7 send me the news", '
+          '"remind me at 5pm to call mum", "every Friday check my email for invoices"). Telesia runs it at that time, '
           'even with the app closed, and sends a notification with the result.',
       {
         'task': _s('What to do, written as a complete instruction'),
@@ -241,8 +241,8 @@ class SystemTools {
       '(app_settings open_permission accessibility), then try again.';
 
   static const _phoneStalled = 'Phone control is switched on, but Android has stopped it (this happens after an update or when '
-      'battery saving closes apps). Tell the user in one short sentence: open Accessibility, turn SubMac off and on once, and set '
-      'SubMac\'s battery use to Unrestricted so it stays on. Offer to open it (app_settings open_permission accessibility).';
+      'battery saving closes apps). Tell the user in one short sentence: open Accessibility, turn Telesia off and on once, and set '
+      'Telesia\'s battery use to Unrestricted so it stays on. Offer to open it (app_settings open_permission accessibility).';
 
   static String _offText = _phoneOff;
 
@@ -354,7 +354,7 @@ class SystemTools {
         final raw = await SystemBridge.I.notifList(limit: lim, query: '${a['query'] ?? ''}', app: '${a['app'] ?? ''}');
         if (raw.isEmpty) {
           return notifRead
-              ? 'No matching notifications since SubMac was allowed to see them.'
+              ? 'No matching notifications since Telesia was allowed to see them.'
               : 'Notification reading is off. Ask the user to allow it (app_settings open_permission notifRead).';
         }
         final nb = StringBuffer();
@@ -442,7 +442,7 @@ class SystemTools {
       {'key': 'theme', 'value': themeName(app.themeMode), 'allowed': 'system, light, dark'},
       {'key': 'reply_language', 'value': app.replyLanguage, 'allowed': 'auto, Somali, English, Arabic'},
       {'key': 'approval_mode', 'value': app.approvalMode, 'allowed': 'ask (New: confirm every change), full (Trusted: routine changes without asking; still confirms money, sending and deleting)'},
-      {'key': 'actions_enabled', 'value': '${app.agentEnabled}', 'allowed': 'true, false (lets SubMac take actions)'},
+      {'key': 'actions_enabled', 'value': '${app.agentEnabled}', 'allowed': 'true, false (lets Telesia take actions)'},
       {'key': 'memory', 'value': '${app.memoryEnabled}', 'allowed': 'true, false'},
       {'key': 'live_voice', 'value': app.liveVoice, 'allowed': LiveSession.voices.join(', ')},
       {'key': 'wake_word', 'value': '${w.enabled}', 'allowed': 'true, false ("Hello SubMac")'},
@@ -622,7 +622,7 @@ class Scheduler extends ChangeNotifier {
   /// The foreground line while the task runs with SubMac closed: "<Bot name> · <task title>" for a bot's task.
   static String alarmLabel(ScheduledTask t) {
     final bot = t.bot.isEmpty ? null : Bots.I.byId(t.bot);
-    return BgRun.line(bot?.name ?? 'SubMac', BgRun.title(t.task));
+    return BgRun.line(bot?.name ?? 'Telesia', BgRun.title(t.task));
   }
 
   static Future<void> _disarm(String id) async {
@@ -739,7 +739,7 @@ class Scheduler extends ChangeNotifier {
     await _arm(t.id, t.next, t);
     await _save();
     return 'Scheduled (${t.id}): "${t.task}" at ${_fmt(t.next)}${repeat == 'none' ? '' : ', repeating $repeat'}. '
-        '${watch ? 'It is a watcher: it is checked each time and notifies only when something new turns up.' : bot.isNotEmpty ? 'You will be woken then to do it yourself and message the result.' : 'SubMac will run it and send a notification.'}';
+        '${watch ? 'It is a watcher: it is checked each time and notifies only when something new turns up.' : bot.isNotEmpty ? 'You will be woken then to do it yourself and message the result.' : 'Telesia will run it and send a notification.'}';
   }
 
   Future<String> cancel(String id) async {

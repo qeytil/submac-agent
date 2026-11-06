@@ -144,7 +144,7 @@ void main() {
     });
   });
 
-  group('SubMac calls route only to the turn that made them', () {
+  group('Telesia calls route only to the turn that made them', () {
     test('a call from a session no running turn owns is refused, not run as the only live turn', () async {
       final r = McpRoutes();
       final owned = {'sesMain'};
@@ -196,7 +196,7 @@ void main() {
       expect(OpenCodeEngine.shouldRestart(stale: false, turnsInFlight: 0, appBusy: false), isFalse);
     });
 
-    test('SubMac\'s MCP server is re-added only by a turn running alone', () {
+    test('Telesia\'s MCP server is re-added only by a turn running alone', () {
       expect(OpenCodeEngine.mayResync(0), isTrue);
       expect(OpenCodeEngine.mayResync(1), isTrue);
       expect(OpenCodeEngine.mayResync(2), isFalse);
@@ -329,7 +329,7 @@ void main() {
       expect(tt, contains('newSession(title:'));
       expect(tt, contains('conv: key'));
       expect(tt, isNot(contains('b.convId')));
-      expect(tt, isNot(contains('_teamConv')), reason: 'member asks used to land in the "SubMac team" chat');
+      expect(tt, isNot(contains('_teamConv')), reason: 'member asks used to land in the "Telesia team" chat');
       expect(tt, contains('teamLive[key]'));
       expect(tt, contains('oc.endTurn()'));
       final routed = _between(runner, 'Future<String> _runRouted(', 'String _screenLabel(');

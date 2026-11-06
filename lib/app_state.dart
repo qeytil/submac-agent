@@ -188,7 +188,7 @@ class AppState extends ChangeNotifier {
       '- NEVER say you are doing something "in the background", or that you will "report back" or "let them know when it is '
       'done", unless live_task returned a task id (like T1) in this call. Otherwise do it now, or say you cannot.\n'
       '- live_task is only for genuinely long jobs: website work (browsing, signing in, forms, booking, shopping), deep '
-      'research, documents. It hands the job to the full SubMac agent, which keeps running after the call and posts the result in '
+      'research, documents. It hands the job to the full Telesia agent, which keeps running after the call and posts the result in '
       'the chat with a notification. Say the task id when you start one.\n'
       '- Use task_status when they ask how it is going and stop_task to stop one.\n'
       '- Messages starting with [Task update] come from the app, not the user. Tell the user the news in one or two short sentences. '
@@ -206,7 +206,7 @@ class AppState extends ChangeNotifier {
       'type': 'function',
       'function': {
         'name': 'live_task',
-        'description': 'Start a REAL tracked task run by the full SubMac agent (browser, connected apps, saved logins, files, '
+        'description': 'Start a REAL tracked task run by the full Telesia agent (browser, connected apps, saved logins, files, '
             'documents, research). Only for long jobs: websites, research, documents. Phone steps (apps, WhatsApp, taps) you do '
             'yourself instead. Returns a task id (T1...); the result arrives later as a [Task update] and in the chat.',
         'parameters': {
@@ -629,10 +629,10 @@ class AppState extends ChangeNotifier {
     'type': 'function',
     'function': {
       'name': 'add_mcp_server',
-      'description': 'Connect an MCP server to SubMac from its address (and its key or token, when the user gives one). It is saved '
-          'in the user\'s Apps, and its tools become SubMac tools. Without a key, SubMac opens the server\'s own sign-in if it has one. '
+      'description': 'Connect an MCP server to Telesia from its address (and its key or token, when the user gives one). It is saved '
+          'in the user\'s Apps, and its tools become Telesia tools. Without a key, Telesia opens the server\'s own sign-in if it has one. '
           'This is how to add MCP servers here; the engine\'s own config file is managed by the app. Composio: pass the user\'s '
-          'key as token (ck_... or ak_...); SubMac knows its address. If it fails, report the error; never say it connected.',
+          'key as token (ck_... or ak_...); Telesia knows its address. If it fails, report the error; never say it connected.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -652,7 +652,7 @@ class AppState extends ChangeNotifier {
     'type': 'function',
     'function': {
       'name': 'sites',
-      'description': 'The websites the user published from SubMac. action "list" shows each one (title, where, address, status). '
+      'description': 'The websites the user published from Telesia. action "list" shows each one (title, where, address, status). '
           'action "unpublish" takes one offline (only when the user asks): pass site as its title or address.',
       'parameters': {
         'type': 'object',
@@ -670,7 +670,7 @@ class AppState extends ChangeNotifier {
     'type': 'function',
     'function': {
       'name': 'projects',
-      'description': 'The user\'s SubMac projects (folders of chats, files and standing instructions). When they say "my project" or '
+      'description': 'The user\'s Telesia projects (folders of chats, files and standing instructions). When they say "my project" or '
           '"add this to my project", this is the tool. action: "list" | "create" (name, optional note) | "add_chat" (puts THIS chat in '
           'the project, so it keeps its context) | "save_file" (copies a file from the workspace by path, or saves content as name, into '
           'the project\'s files) | "add_note" (adds a standing note or instruction to the project). project = its name.',

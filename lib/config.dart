@@ -1,5 +1,5 @@
 class AppConfig {
-  static const appName = 'SubMac Agent';
+  static const appName = 'Telesia';
   /// Shown in Settings; keep in step with pubspec.yaml.
   static const version = '1.13.79';
   static const supportEmail = 'contact@submac.site';

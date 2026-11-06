@@ -38,7 +38,7 @@ import 'bots_workspace.dart';
 /// Teams (plan 5: Offices merged into Team). A team is a few bots with a lead (the Chief in their own tools), a shared
 /// task list and a folder in Files. The data is still the Office model, migrated in place (Offices.migrateToTeams).
 
-String _name(String id) => id == 'you' ? 'You' : (Bots.I.byId(id)?.name ?? 'SubMac');
+String _name(String id) => id == 'you' ? 'You' : (Bots.I.byId(id)?.name ?? 'Telesia');
 
 String _ago(DateTime t) {
   final d = DateTime.now().difference(t);
@@ -347,7 +347,7 @@ class _TeamChatState extends State<TeamChat> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr('Keep working while you\'re away')),
-        content: Text(tr('Allow SubMac to keep running so your team can work and reach you.')),
+        content: Text(tr('Allow Telesia to keep running so your team can work and reach you.')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Not now'))),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Allow'))),
@@ -787,7 +787,7 @@ class _PostView extends StatelessWidget {
       // Progress is one plain line: who, and what they are doing. No icons.
       return Padding(
         padding: const EdgeInsetsDirectional.fromSTEB(40, 3, 0, 3),
-        child: Text('${b?.name ?? 'SubMac'} · ${x.text}', style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.35)),
+        child: Text('${b?.name ?? 'Telesia'} · ${x.text}', style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.35)),
       );
     }
     if (x.kind == 'answer') return GestureDetector(onLongPress: () => _menu(context), child: _AnswerView(x));
@@ -803,7 +803,7 @@ class _PostView extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Text(b?.name ?? 'SubMac', style: TextStyle(color: p.text, fontWeight: FontWeight.w600, fontSize: AppText.meta)),
+                Text(b?.name ?? 'Telesia', style: TextStyle(color: p.text, fontWeight: FontWeight.w600, fontSize: AppText.meta)),
                 if (x.kind == 'report') Text('  ·  Daily report', style: TextStyle(color: p.muted, fontSize: AppText.micro)),
                 if (x.kind == 'ask') Text('  ·  Needs you', style: TextStyle(color: p.muted, fontSize: AppText.micro)),
                 const Spacer(),
@@ -902,7 +902,7 @@ class _AnswerViewState extends State<_AnswerView> {
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(lead?.name ?? 'SubMac', style: TextStyle(color: p.text, fontWeight: FontWeight.w600, fontSize: AppText.meta)),
+            Text(lead?.name ?? 'Telesia', style: TextStyle(color: p.text, fontWeight: FontWeight.w600, fontSize: AppText.meta)),
             const SizedBox(height: 4),
             ExpandableText(text: x.text, title: lead?.name ?? '', child: Directionality(textDirection: textDirOf(x.text), child: MarkdownView(x.text))),
             for (final (i, part) in x.parts.indexed) ...[

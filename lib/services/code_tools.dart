@@ -948,7 +948,7 @@ class CodeTools {
   // ---------------------------------------------------------------- package docs
 
   static Future<dynamic> _getJson(String url) async {
-    final r = await http.get(Uri.parse(url), headers: {'Accept': 'application/json', 'User-Agent': 'SubMac (https://submac.site)'}).timeout(const Duration(seconds: 30));
+    final r = await http.get(Uri.parse(url), headers: {'Accept': 'application/json', 'User-Agent': 'Telesia (https://submac.site)'}).timeout(const Duration(seconds: 30));
     if (r.statusCode == 404) throw Exception('Error: not found in the registry. Check the exact package name (action search).');
     if (r.statusCode != 200) throw Exception('Error: the registry answered ${r.statusCode}.');
     return jsonDecode(utf8.decode(r.bodyBytes, allowMalformed: true));

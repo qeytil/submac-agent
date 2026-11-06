@@ -86,7 +86,7 @@ void main() {
   });
 
   group('fallback', () {
-    test('default follows SubMac\'s model (the owner\'s chats)', () {
+    test('default follows Telesia\'s model (the owner\'s chats)', () {
       ByokStore.I.resetForTests();
       expect(OcLane.botSetting('auto'), ByokRef.submac);
       expect(OcLane.pick(background: true, botModel: 'auto'), {'providerID': OcLane.bot, 'modelID': Cloud.submac});
@@ -111,7 +111,7 @@ void main() {
       expect(OcLane.pick(background: true, botModel: '$_pid|gpt-x'), {'providerID': OcLane.bot, 'modelID': Cloud.submac});
     });
 
-    test('SubMac chosen for the bot stays SubMac even when the owner\'s chats use an own model', () {
+    test('Telesia chosen for the bot stays Telesia even when the owner\'s chats use an own model', () {
       _withProvider(chat: '$_pid|gpt-x');
       expect(OcLane.botModelUnavailable('submac'), isFalse);
       expect(OcLane.pick(background: true, botModel: 'submac'), {'providerID': OcLane.bot, 'modelID': Cloud.submac});
@@ -129,7 +129,7 @@ void main() {
     test('profile words', () {
       _withProvider();
       expect(botModelLabel('auto'), BotModelWords.defaultLabel);
-      expect(botModelLabel('submac'), 'SubMac');
+      expect(botModelLabel('submac'), 'Telesia');
       expect(botModelLabel('$_pid|claude-opus-4'), contains('Claude Opus 4'));
       expect(botModelLabel('$_pid|missing'), startsWith(BotModelWords.defaultLabel));
       expect(botModelLabel('$_pid|missing'), contains('not available'));

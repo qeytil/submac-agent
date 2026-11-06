@@ -393,7 +393,7 @@ Future<String?> connectBotApp(BuildContext context, BotApp a) async {
   final state = context.read<AppState>();
   if (a.kind == 'connector') {
     final d = ConnectorCatalog.byId(a.ref);
-    if (d == null) return '${a.name} is not available in this version of SubMac.';
+    if (d == null) return '${a.name} is not available in this version of Telesia.';
     await showModalBottomSheet<void>(sheetAnimationStyle: SubMotion.sheet, context: context, isScrollControlled: true, builder: (_) => ConnectSheet(d));
     return null;
   }

@@ -619,7 +619,7 @@ void main() {
       expect(Lux.railWidth, 84);
     });
 
-    testWidgets('the rail keeps its sizes and its foot; the small "+" became the SubMac mark', (t) async {
+    testWidgets('the rail keeps its sizes and its foot; the small "+" became the Telesia mark', (t) async {
       _size(t, _phone);
       await t.pumpWidget(_app(state()));
       await t.pumpAndSettle();
@@ -628,7 +628,7 @@ void main() {
       final mark = find.byKey(const ValueKey('rail-submac'));
       expect(mark, findsOneWidget);
       final sem = t.ensureSemantics();
-      expect(find.bySemanticsLabel('Back to SubMac'), findsOneWidget);
+      expect(find.bySemanticsLabel('Back to Telesia'), findsOneWidget);
       sem.dispose();
       expect(find.byKey(const ValueKey('rail-new-bot')), findsOneWidget);
       expect(find.byKey(const ValueKey('rail-store')), findsOneWidget);
@@ -636,7 +636,7 @@ void main() {
       expect(t.getSize(find.byKey(const ValueKey('rail-edge'))).width, Lux.railWidth);
     });
 
-    testWidgets('the SubMac mark goes back to the main chat', (t) async {
+    testWidgets('the Telesia mark goes back to the main chat', (t) async {
       _size(t, _phone);
       final s = state();
       await t.pumpWidget(_app(s, home: Builder(

@@ -790,11 +790,11 @@ class _Rail extends StatelessWidget {
                       Center(
                         child: Semantics(
                           button: true,
-                          label: tr('Back to SubMac'),
+                          label: tr('Back to Telesia'),
                           excludeSemantics: true,
                           child: IconButton(
                             key: const ValueKey('rail-submac'),
-                            tooltip: tr('Back to SubMac'),
+                            tooltip: tr('Back to Telesia'),
                             onPressed: onHome,
                             icon: const AppLogo(size: IconSize.lg),
                           ),

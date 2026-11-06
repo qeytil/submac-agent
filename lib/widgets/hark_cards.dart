@@ -442,7 +442,7 @@ class _PageCardState extends State<PageCard> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                       Text(_title, maxLines: 2, overflow: TextOverflow.ellipsis, style: Brand.serif(size: AppText.title, color: p.text, height: 1.2)),
                       const SizedBox(height: Space.x1),
-                      Text(ready ? 'Page built by SubMac' : 'Getting the page from your account',
+                      Text(ready ? 'Page built by Telesia' : 'Getting the page from your account',
                           style: AppText.metaStyle.copyWith(color: p.muted)),
                       if (ready) ...[
                         const SizedBox(height: Space.x3),

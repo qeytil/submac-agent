@@ -22,7 +22,7 @@ class TaskService : Service() {
         private const val NOTE_ID = 7201
         /** The longest a single hold lasts; every new start or update renews it. */
         private const val HOLD_MS = 30L * 60L * 1000L
-        @Volatile var text = "SubMac · Working"
+        @Volatile var text = "Telesia · Working"
         @Volatile private var running = false
 
         fun start(ctx: Context, line: String) {
@@ -132,7 +132,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val missed = intent.getStringExtra("missed")
         if (missed != null) {
             val note = intent.getIntExtra("note", 0)
-            Notifier.missed(ctx, note, missed, intent.getStringExtra("name") ?: "SubMac", intent.getStringExtra("reason") ?: "")
+            Notifier.missed(ctx, note, missed, intent.getStringExtra("name") ?: "Telesia", intent.getStringExtra("reason") ?: "")
             if (SubMacApp.engineIfRunning() != null) Bridge.send("botMissed", missed)
             return
         }
@@ -148,7 +148,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val replyTo = intent.getStringExtra("reply_to")
         if (replyTo != null) {
             val text = android.app.RemoteInput.getResultsFromIntent(intent)?.getCharSequence("reply_text")?.toString()?.trim() ?: ""
-            val name = intent.getStringExtra("name") ?: "SubMac"
+            val name = intent.getStringExtra("name") ?: "Telesia"
             Notifier.replied(ctx, intent.getIntExtra("note", 0), name, text, replyTo)
             if (text.isNotEmpty()) {
                 // The app may be closed: the foreground service and its wake lock carry the answer (headless engine).
@@ -161,7 +161,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val id = intent.getStringExtra("id") ?: return
         // The line Dart gave when it set the alarm ("<Bot name> · <task title>"); Dart updates it once it runs.
         val label = intent.getStringExtra("label") ?: ""
-        TaskService.start(ctx, if (label.isEmpty()) "SubMac · Getting ready" else label)
+        TaskService.start(ctx, if (label.isEmpty()) "Telesia · Getting ready" else label)
         SubMacApp.engine(ctx)
         Bridge.send("alarm", id)
     }

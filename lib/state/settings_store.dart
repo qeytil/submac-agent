@@ -137,7 +137,7 @@ extension AppStateSettings on AppState {
           kind: 'login',
           convId: browserChat(),
           title: '$site needs your login',
-          prompt: 'SubMac will sign in for you. Your password goes straight into the page; the AI never sees it.',
+          prompt: 'Telesia will sign in for you. Your password goes straight into the page; the AI never sees it.',
           site: site,
         ));
     BrowserAgent.I.confirmLogin = (site, user) async {
@@ -145,7 +145,7 @@ extension AppStateSettings on AppState {
         kind: 'login_confirm',
         convId: browserChat(),
         title: 'Sign in to $site?',
-        prompt: user.isEmpty ? 'SubMac will use the login you saved on this phone.' : 'SubMac will use your saved login: $user',
+        prompt: user.isEmpty ? 'Telesia will use the login you saved on this phone.' : 'Telesia will use your saved login: $user',
         site: site,
         options: const ['Continue', 'Use another account'],
       ));
@@ -227,7 +227,7 @@ extension AppStateSettings on AppState {
       conversations = await repo.listConversations();
     } catch (e) {
       if (conversations.isEmpty) {
-        banner = Calm.offline('$e') ? 'You\'re offline. Your chats will appear when you\'re back online.' : 'Your chats didn\'t load. Pull down or reopen SubMac to try again.';
+        banner = Calm.offline('$e') ? 'You\'re offline. Your chats will appear when you\'re back online.' : 'Your chats didn\'t load. Pull down or reopen Telesia to try again.';
       }
     }
     loadingConversations = false;

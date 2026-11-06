@@ -154,7 +154,7 @@ class Updater extends ChangeNotifier {
         'urls': r.urls(AppConfig.supabaseUrl),
         'sha256': r.sha256,
         'size': r.sizeBytes,
-        'title': 'SubMac ${r.versionName}',
+        'title': 'Telesia ${r.versionName}',
       });
     } catch (e) {
       debugPrint('update start failed: $e');

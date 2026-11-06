@@ -40,7 +40,7 @@ class MediaCoder {
       'type': 'function',
       'function': {
         'name': 'code_media',
-        'description': 'Create an image, sound, music or short animation by writing JavaScript that SubMac runs on the phone (free and instant). '
+        'description': 'Create an image, sound, music or short animation by writing JavaScript that Telesia runs on the phone (free and instant). '
             'Use it for drawings, posters, logos, patterns, charts-as-art, generative art, illustrations, icons, wallpapers, '
             'sound effects, melodies, beats and ambient audio. The result is shown to the user and saved to the Library. '
             'If it returns an error, fix the code and call again. Never redeclare the given names (canvas, ctx, out, W, H, helpers).\n'
@@ -52,8 +52,8 @@ class MediaCoder {
             'kind=video: define `function frame(t, ctx)` (t = seconds) that draws one frame; it is recorded at fps for duration seconds (WebM).\n'
             'Helpers: W, H, DUR, SR, rand() (seeded), rnd(a,b), noise(x,y) (smooth 2D noise 0..1), lerp(a,b,t), ease(t), hsl(h,s,l), '
             'note("A4")→Hz, midi(n)→Hz, env(param, t, {a,d,s,r,peak,hold}) ADSR, osc(type,freq,t,len,gain), noiseBuf(sec), '
-            'C = SubMac colours {paper:"#f4f0e7", ink:"#17150f", red:"#c2361b", night:"#000000", wash:"#f6dfd6", brass:"#b08d57", slate:"#5b7083"}, '
-            'font(px, "serif"|"sans"|"mono", weight?, italic?) → a CSS font string using SubMac fonts (Instrument Serif, Geist, Geist Mono),  await loadImage(url), await load(scriptUrl) for a library from a CDN, console.log for notes.',
+            'C = Telesia colours {paper:"#f4f0e7", ink:"#17150f", red:"#c2361b", night:"#000000", wash:"#f6dfd6", brass:"#b08d57", slate:"#5b7083"}, '
+            'font(px, "serif"|"sans"|"mono", weight?, italic?) → a CSS font string using Telesia fonts (Instrument Serif, Geist, Geist Mono),  await loadImage(url), await load(scriptUrl) for a library from a CDN, console.log for notes.',
         'parameters': {
           'type': 'object',
           'properties': {

@@ -25,7 +25,7 @@ class SetupTools {
           '"monday.com", "Asana", "Jira & Confluence", "Linear", "Miro", "PayPal", "Stripe", "Square", "Wix", "Webflow", "Granola", '
           '"Intercom", "Vercel", "Supabase", "Cloudflare", "Exa Search", "Hugging Face", "DeepWiki"): the connect sheet shows, the user taps Connect and signs in, no key needed (same as connect_app). '
           'Zapier reaches Gmail, Google Sheets, Calendar, Slack and 8,000 more apps. Or pass a url (and a token if the user has one); '
-          'if the server wants a sign-in and no token is given, SubMac opens the sign-in for the user. Its tools become available right away.',
+          'if the server wants a sign-in and no token is given, Telesia opens the sign-in for the user. Its tools become available right away.',
       {
         'app': {'type': 'string', 'description': 'Name of a ready-made app to connect by sign-in.'},
         'name': {'type': 'string'},

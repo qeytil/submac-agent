@@ -622,7 +622,7 @@ class ByokStore extends ChangeNotifier {
   /// The name of a model setting as shown in pickers ("SubMac", or "Claude Sonnet 4.5 · Anthropic").
   String labelOf(String? setting, {bool withProvider = false}) {
     final pick = resolve(setting);
-    if (pick == null) return 'SubMac';
+    if (pick == null) return 'Telesia';
     return withProvider ? '${pick.model.label} · ${pick.provider.label}' : pick.model.label;
   }
 

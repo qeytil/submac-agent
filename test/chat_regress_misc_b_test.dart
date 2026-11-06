@@ -28,7 +28,7 @@ class _Docs extends PathProviderPlatform with MockPlatformInterfaceMixin {
   Future<String?> getApplicationSupportPath() async => dir;
 }
 
-const _busyNote = 'SubMac is still answering. Stop it first, then edit your message.';
+const _busyNote = 'Telesia is still answering. Stop it first, then edit your message.';
 
 /// A chat on screen with two turns: W ("first question") -> its answer, then X -> its answer.
 class _Chat {
@@ -91,7 +91,7 @@ void main() {
   // ---------------------------------------------------------------- CB-13 the reply quote
   group('CB-13 edit and resend keeps the reply quote', () {
     test('an edited reply still quotes the message it replied to', () async {
-      const ref = ReplyRef(id: 'wa', author: 'SubMac', quote: 'The first answer');
+      const ref = ReplyRef(id: 'wa', author: 'Telesia', quote: 'The first answer');
       final t = await _chat('u13a', xContent: ReplyCodec.encode(ref, 'why is that?'));
       // The edit box shows only the user's own words (bodyOf); the user changes them.
       expect(ReplyCodec.bodyOf(t.x.content), 'why is that?');
@@ -103,7 +103,7 @@ void main() {
       final d = ReplyCodec.decode(edited.content);
       expect(d.ref, isNotNull, reason: 'the edit dropped the reply quote: "${edited.content}"');
       expect(d.ref!.id, 'wa');
-      expect(d.ref!.author, 'SubMac');
+      expect(d.ref!.author, 'Telesia');
       expect(d.ref!.quote, 'The first answer');
       expect(d.body, 'why is that, exactly?');
       // Saved the same way (it syncs and comes back after a restart).
@@ -124,7 +124,7 @@ void main() {
   });
 
   // ---------------------------------------------------------------- CB-13 does nothing while busy
-  group('CB-13 edit while SubMac is answering says so', () {
+  group('CB-13 edit while Telesia is answering says so', () {
     test('editAndResend during a run sends nothing, changes nothing and tells the caller', () async {
       final t = await _chat('u13c');
       final running = t.s.regenerate();

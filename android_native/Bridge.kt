@@ -138,7 +138,7 @@ object Bridge {
                         Notifier.task(
                             ctx,
                             call.argument<Int>("id") ?: 1,
-                            call.argument<String>("title") ?: "SubMac",
+                            call.argument<String>("title") ?: "Telesia",
                             call.argument<String>("body") ?: "",
                             call.argument<String>("payload") ?: "",
                             call.argument<String>("kind") ?: "done"
@@ -151,7 +151,7 @@ object Bridge {
                             ctx,
                             call.argument<Int>("id") ?: 9100,
                             call.argument<String>("bot") ?: "",
-                            call.argument<String>("name") ?: "SubMac",
+                            call.argument<String>("name") ?: "Telesia",
                             call.argument<String>("reason") ?: "",
                             call.argument<Boolean>("full") ?: false
                         )
@@ -165,7 +165,7 @@ object Bridge {
                         Notifier.bot(
                             ctx,
                             call.argument<Int>("id") ?: 9200,
-                            call.argument<String>("name") ?: "SubMac",
+                            call.argument<String>("name") ?: "Telesia",
                             call.argument<String>("body") ?: "",
                             call.argument<String>("payload") ?: "",
                             call.argument<Boolean>("reply") ?: false
@@ -178,7 +178,7 @@ object Bridge {
                             ctx,
                             call.argument<Int>("id") ?: 9200,
                             call.argument<String>("channel") ?: Notifier.BOTS,
-                            call.argument<String>("title") ?: "SubMac",
+                            call.argument<String>("title") ?: "Telesia",
                             call.argument<String>("body") ?: "",
                             call.argument<String>("payload") ?: "",
                             call.argument<Boolean>("reply") ?: false,
@@ -208,7 +208,7 @@ object Bridge {
                             ctx,
                             call.argument<Int>("id") ?: 9900,
                             call.argument<String>("approval") ?: "",
-                            call.argument<String>("name") ?: "SubMac",
+                            call.argument<String>("name") ?: "Telesia",
                             call.argument<String>("title") ?: "",
                             call.argument<String>("body") ?: ""
                         )
@@ -532,7 +532,7 @@ object Bridge {
                                 else j(false, "opened_for_user", r.optString("detail") + " The message is ready in WhatsApp for the user to tap Send.")
                             }
                         }
-                        hands == null -> j(false, "phone_control_off", "Phone control is off. Turn it on in SubMac > Apps > WhatsApp.")
+                        hands == null -> j(false, "phone_control_off", "Phone control is off. Turn it on in Telesia > Apps > WhatsApp.")
                         act == "send_name" || act == "open_name" -> {
                             WhatsApp.openHome(ctx, pkg)
                             android.os.SystemClock.sleep(1200)
@@ -598,7 +598,7 @@ object Bridge {
             val values = android.content.ContentValues().apply {
                 put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
                 put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
-                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "$dir/SubMac")
+                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "$dir/Telesia")
                 put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val resolver = ctx.contentResolver
@@ -607,15 +607,15 @@ object Bridge {
             values.clear()
             values.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
             resolver.update(uri, values, null, null)
-            return "$dir/SubMac/$name"
+            return "$dir/Telesia/$name"
         }
         @Suppress("DEPRECATION")
-        val outDir = File(android.os.Environment.getExternalStoragePublicDirectory(dir), "SubMac")
+        val outDir = File(android.os.Environment.getExternalStoragePublicDirectory(dir), "Telesia")
         outDir.mkdirs()
         val out = File(outDir, name)
         src.copyTo(out, overwrite = true)
         android.media.MediaScannerConnection.scanFile(ctx, arrayOf(out.absolutePath), arrayOf(mime), null)
-        return "$dir/SubMac/$name"
+        return "$dir/Telesia/$name"
     }
 
     fun openPermission(name: String) {

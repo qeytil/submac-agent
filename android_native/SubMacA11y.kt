@@ -316,7 +316,7 @@ class SubMacA11y : AccessibilityService() {
         main.post {
             try {
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cm.setPrimaryClip(ClipData.newPlainText("SubMac", text))
+                cm.setPrimaryClip(ClipData.newPlainText("Telesia", text))
             } catch (_: Throwable) {}
             latch.countDown()
         }

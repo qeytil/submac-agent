@@ -49,7 +49,7 @@ extension AppStateLive on AppState {
           : SystemTools.phoneControl
               ? 'Phone: phone control is on. You can open apps, read the screen, tap, type and use WhatsApp yourself.'
               : 'Phone: phone control is off. You can still open apps, set alarms and draft messages; to tap, type or press Send '
-                  'in other apps, ask the user to turn on Phone control in SubMac settings.')
+                  'in other apps, ask the user to turn on Phone control in Telesia settings.')
       ..writeln()
       ..writeln(AppState._liveRules)
       ..writeln()
@@ -179,7 +179,7 @@ extension AppStateLive on AppState {
     });
     if (err != null) return err;
     _tgConv = reuse ?? lastOwnConvId;
-    return c.future.timeout(const Duration(minutes: 20), onTimeout: () => 'Still working on it. Check the SubMac app for the result.');
+    return c.future.timeout(const Duration(minutes: 20), onTimeout: () => 'Still working on it. Check the Telesia app for the result.');
   }
 
   Future<String?> startBackgroundTask(String task,
@@ -353,7 +353,7 @@ extension AppStateLive on AppState {
     final ref = submacRef;
     final sb = StringBuffer();
     for (final t in real) {
-      final line = '${t.role == 'user' ? 'User' : 'SubMac'}: ${AppState._clip(t.text.trim(), 400)}\n';
+      final line = '${t.role == 'user' ? 'User' : 'Telesia'}: ${AppState._clip(t.text.trim(), 400)}\n';
       if (sb.length + line.length > 6000) break;
       sb.write(line);
     }
@@ -363,7 +363,7 @@ extension AppStateLive on AppState {
       final raw = await LlmClient().complete(source: 'live', maxTokens: 400, provider: ref.provider, model: ref.model, messages: [
         {
           'role': 'system',
-          'content': 'You read the transcript of a voice call between the user and their assistant SubMac. Reply with JSON only: '
+          'content': 'You read the transcript of a voice call between the user and their assistant Telesia. Reply with JSON only: '
               '{"recap":"...","facts":["..."]}. recap: at most 3 short lines in the language of the call: what was discussed, '
               'what was decided or done, and any next step. facts: 0 to 3 lasting facts about the user worth remembering '
               '(who they are, preferences, people, goals, important dates), each one short sentence in the third person. '

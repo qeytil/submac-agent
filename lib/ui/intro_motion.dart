@@ -36,8 +36,8 @@ class IntroMotion {
   /// The white dot lands last (2200 to 2450); the soft impact (and the sound's second note) as it touches down (2295).
   static const double dotStart = 0.733, dotEnd = 0.817, dotLand = 0.765;
 
-  /// Selection ticks across the letter reveal: one as the reveal passes each letter of "SubMac" (6 at most).
-  static const String word = 'SubMac';
+  /// Selection ticks across the letter reveal: one as the reveal passes each letter of the wordmark (Telesia: 7).
+  static const String word = 'Telesia';
   /// How far the reveal edge has travelled (0..1 across the word) at draw progress [d] (0..1).
   static double revealEdge(double d) => easeInOut.transform(d.clamp(0.0, 1.0));
 

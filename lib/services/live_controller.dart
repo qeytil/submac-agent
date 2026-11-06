@@ -62,7 +62,7 @@ class LiveController extends ChangeNotifier {
       voice: (voice != null && voice.isNotEmpty) ? voice : app.liveVoice,
       systemPrompt: '${persona == null || persona.isEmpty ? '' : '$persona\n\n'}${app.liveSystemPrompt(convId: convId)}\n'
           '- When the user wants to end the call (end the call, hang up, bye, that is all), say a short goodbye and call end_call.\n'
-          '- You can change SubMac settings with app_settings when the user asks (theme, voice, wake word sensitivity, approval mode...).',
+          '- You can change Telesia settings with app_settings when the user asks (theme, voice, wake word sensitivity, approval mode...).',
       toolsEnabled: true,
       runTool: _runTool,
       tools: <Map<String, dynamic>>[endCallTool, ...app.liveTools()],

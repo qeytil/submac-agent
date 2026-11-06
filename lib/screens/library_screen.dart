@@ -98,7 +98,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Text('Nothing here yet', style: Brand.serif(size: 30, color: p.text)),
                       const SizedBox(height: 8),
-                      Text('Images and files SubMac creates for you will appear here.',
+                      Text('Images and files Telesia creates for you will appear here.',
                           textAlign: TextAlign.center, style: TextStyle(color: p.muted, height: 1.4)),
                     ]),
                   ),

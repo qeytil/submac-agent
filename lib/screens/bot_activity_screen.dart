@@ -193,7 +193,7 @@ class TeamFiles {
       final text = f.bytes != null ? utf8.decode(f.bytes!) : await File(f.path!).readAsString();
       return await importText(text);
     } catch (_) {
-      return 'That file isn\'t a SubMac bot or team.';
+      return 'That file isn\'t a Telesia bot or team.';
     }
   }
 
@@ -209,7 +209,7 @@ class TeamFiles {
       final o = await Offices.I.importOffice(j);
       return o == null ? 'That team could not be added.' : '${o.name} joined your teams. New tasks wait for your OK at first.';
     }
-    return 'That file isn\'t a SubMac bot or team.';
+    return 'That file isn\'t a Telesia bot or team.';
   }
 
   static void toast(BuildContext context, String? msg) {

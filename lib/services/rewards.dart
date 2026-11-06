@@ -170,7 +170,7 @@ class Rewards {
 
   /// The text people share to invite a friend.
   static String inviteText(String link, String code) =>
-      'I use SubMac, an AI agent with bots that work for me. Get it here: $link\nWhen you sign up, use my invite code $code.';
+      'I use Telesia, an AI agent with bots that work for me. Get it here: $link\nWhen you sign up, use my invite code $code.';
 }
 
 class ActiveReward {
@@ -254,7 +254,7 @@ class RewardState {
     final parts = <String>[
       if (activeReferral > 0) '$activeReferral ${activeReferral == 1 ? 'friend who joined' : 'friends who joined'}',
       if (activeCreator > 0) '$activeCreator ${activeCreator == 1 ? 'hire' : 'hires'} of your bots',
-      if (activeGrant > 0) activeGrant == 1 ? 'a gift from SubMac' : '$activeGrant gifts from SubMac',
+      if (activeGrant > 0) activeGrant == 1 ? 'a gift from Telesia' : '$activeGrant gifts from Telesia',
     ];
     return '+${short(bonus)} today from ${parts.isEmpty ? 'rewards' : _join(parts)}';
   }

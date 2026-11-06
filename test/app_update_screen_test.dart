@@ -20,7 +20,7 @@ Release _rel() => Release(
       versionName: '1.13.53',
       notes: _notes,
       storage: 'r2',
-      fileUrl: 'https://pub-x.r2.dev/android/86-0a1b2c3d/SubMac-86.apk',
+      fileUrl: 'https://pub-x.r2.dev/android/86-0a1b2c3d/Telesia-86.apk',
       sizeBytes: 66270000,
       sha256: 'a' * 64,
       requiredAt: DateTime.utc(2026, 11, 1, 9),

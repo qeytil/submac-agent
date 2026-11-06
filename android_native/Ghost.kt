@@ -108,7 +108,7 @@ class Ghost(private val svc: SubMacA11y) {
             }
             // no coloured dot: a quiet text badge
             pill.addView(TextView(svc).apply {
-                text = "SubMac is using your phone"
+                text = "Telesia is using your phone"
                 setTextColor(0xFFF4F0E7.toInt())
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             })

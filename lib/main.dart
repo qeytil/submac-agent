@@ -48,10 +48,10 @@ Future<void> main() async {
   // Errors never crash the app or paint a red screen: log them and keep going.
   FlutterError.onError = (d) {
     FlutterError.presentError(d);
-    debugPrint('SubMac UI error: ${LogScrub.clean(d.exceptionAsString())}');
+    debugPrint('Telesia UI error: ${LogScrub.clean(d.exceptionAsString())}');
   };
   PlatformDispatcher.instance.onError = (e, st) {
-    debugPrint('SubMac error: ${LogScrub.clean(e)}');
+    debugPrint('Telesia error: ${LogScrub.clean(e)}');
     return true;
   };
   ErrorWidget.builder = (d) => const SizedBox.shrink();

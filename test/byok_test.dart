@@ -150,7 +150,7 @@ void main() {
       expect(OcLane.isByok(m), isTrue);
     });
 
-    test('falls back to SubMac for unusable choices', () {
+    test('falls back to Telesia for unusable choices', () {
       ByokStore.I.resetForTests(ByokConfig(providers: [_prov()]), {'k1': 'secret'});
       for (final s in ['byok-1a2b3c4d|off-model', 'byok-1a2b3c4d|missing', 'byok-ffffffff|gpt-x', 'submac', 'garbage']) {
         final m = OcLane.pick(background: false, userModel: s);

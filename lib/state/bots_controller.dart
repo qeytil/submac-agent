@@ -123,7 +123,7 @@ extension AppStateBots on AppState {
     final id = local.prefs.getString(AppState._teamConvKey);
     if (id != null && conversations.any((c) => c.id == id)) return id;
     try {
-      final c = await repo.createConversation(title: 'SubMac team');
+      final c = await repo.createConversation(title: 'Telesia team');
       conversations.insert(0, c);
       _lists[c.id] = <ChatMessage>[];
       await local.prefs.setString(AppState._teamConvKey, c.id);
@@ -222,7 +222,7 @@ extension AppStateBots on AppState {
     final key = Bots.I.wakeKey(b) ?? '${b.id}|$reason|$instruction';
     if (!await _awaitWakeReady()) {
       if (kind != 'chat' && await Bots.I.holdWake(b, key, reason, instruction, kind)) {
-        b.log('note', 'Woken for $reason before SubMac was ready. I will do it as soon as SubMac is ready.');
+        b.log('note', 'Woken for $reason before Telesia was ready. I will do it as soon as Telesia is ready.');
         await Bots.I.save();
       }
       return;
@@ -1098,7 +1098,7 @@ extension AppStateBots on AppState {
     _notifyConvs.add(convId);
     _notifReplyConvs.add(convId);
     final bot = Bots.I.byConv(convId);
-    await SystemBridge.I.keepAlive(true, text: NotifText.running(bot?.name ?? 'SubMac', 'Your reply'));
+    await SystemBridge.I.keepAlive(true, text: NotifText.running(bot?.name ?? 'Telesia', 'Your reply'));
     _notify();
     unawaited(_runAgent(convId));
   }

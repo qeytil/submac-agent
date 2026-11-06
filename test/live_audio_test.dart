@@ -62,7 +62,7 @@ void main() {
   });
 
   group('EchoGate', () {
-    test('passes everything while SubMac is silent', () {
+    test('passes everything while Telesia is silent', () {
       final g = EchoGate();
       final c = tone(40, 0.02);
       final r = g.process(c, pcmRms(c), playing: false);
@@ -100,7 +100,7 @@ void main() {
       }
     });
 
-    test('the user talking over SubMac opens it, with the first words kept', () {
+    test('the user talking over Telesia opens it, with the first words kept', () {
       final g = EchoGate();
       for (var i = 0; i < 50; i++) {
         final c = tone(40, 0.04);
@@ -126,7 +126,7 @@ void main() {
       expect(g.process(c, pcmRms(c), playing: true, speakerLevel: 0.15).send, [c]);
     });
 
-    test('with a strong echo the user still gets through, in SubMac\'s pauses or by speaking up', () {
+    test('with a strong echo the user still gets through, in Telesia\'s pauses or by speaking up', () {
       final g = EchoGate();
       for (var i = 0; i < 100; i++) {
         final c = tone(40, 0.3); // echo at the speaker's own level
@@ -135,7 +135,7 @@ void main() {
       expect(g.bargeIn, isFalse);
       var opened = false;
       for (var i = 0; i < 15 && !opened; i++) {
-        final c = tone(40, 0.25); // normal voice while SubMac pauses between sentences
+        final c = tone(40, 0.25); // normal voice while Telesia pauses between sentences
         opened = g.process(c, pcmRms(c), playing: true, speakerLevel: 0.0).send.any((b) => !isSilence(b));
       }
       expect(opened, isTrue);
@@ -146,7 +146,7 @@ void main() {
       }
       opened = false;
       for (var i = 0; i < 15 && !opened; i++) {
-        final c = tone(40, 0.35); // speaking up over SubMac
+        final c = tone(40, 0.35); // speaking up over Telesia
         opened = g2.process(c, pcmRms(c), playing: true, speakerLevel: 0.3).send.any((b) => !isSilence(b));
       }
       expect(opened, isTrue);
@@ -162,7 +162,7 @@ void main() {
       }
     });
 
-    test('closes again after a false start, and resets when SubMac stops', () {
+    test('closes again after a false start, and resets when Telesia stops', () {
       final g = EchoGate(releaseMs: 400);
       for (var i = 0; i < 40; i++) {
         final c = tone(40, 0.01);
@@ -201,7 +201,7 @@ void main() {
       expect(goAwayMoveNow(now: by, deadline: by, generating: true, toolRunning: true), isTrue);
     });
 
-    test('app notes wait until SubMac has finished speaking', () {
+    test('app notes wait until Telesia has finished speaking', () {
       expect(injectMayGo(speaking: true, generating: false, toolRunning: false, waited: Duration.zero), isFalse);
       expect(injectMayGo(speaking: false, generating: true, toolRunning: false, waited: Duration.zero), isFalse);
       expect(injectMayGo(speaking: false, generating: false, toolRunning: true, waited: Duration.zero), isFalse);

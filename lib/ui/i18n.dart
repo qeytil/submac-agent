@@ -175,7 +175,7 @@ class Strings {
       // Agent core (v1.14): status words and the resume banner.
       'Tidying the answer': 'Jawaabta ayaan habaynayaa',
       'Picking up where it left off': 'Halkii ay ka joogsatay ayaan ka sii wadayaa',
-      'A task stopped when SubMac closed. It is picking up where it left off.': 'Hawl ayaa istaagtay markii SubMac xirmay. Halkii ay ka joogsatay ayay ka sii socotaa.',
+      'A task stopped when Telesia closed. It is picking up where it left off.': 'Hawl ayaa istaagtay markii Telesia xirmay. Halkii ay ka joogsatay ayay ka sii socotaa.',
       // Sign-in
       'Ask. Make. Get it done.': 'Weydii. Samee. Dhammee.',
       'Continue with Google': 'Ku sii wad Google',
@@ -191,8 +191,8 @@ class Strings {
       'Please confirm you are 18 or older and agree to the Terms and Privacy Policy.':
           'Fadlan xaqiiji inaad tahay 18 jir ama ka weyn oo aad aqbashay Shuruudaha iyo Siyaasadda Arrimaha Gaarka ah.',
       'Before you start': 'Intaadan bilaabin',
-      'SubMac is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.':
-          'SubMac waxaa loogu talagalay dadka 18 jir iyo ka weyn. Fadlan akhri oo aqbal Shuruudaha Isticmaalka iyo Siyaasadda Arrimaha Gaarka ah.',
+      'Telesia is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.':
+          'Telesia waxaa loogu talagalay dadka 18 jir iyo ka weyn. Fadlan akhri oo aqbal Shuruudaha Isticmaalka iyo Siyaasadda Arrimaha Gaarka ah.',
       'Agree and continue': 'Aqbal oo sii wad',
       'Sign out': 'Ka bax',
       "We couldn't save your agreement. Check your connection, then try again.":
@@ -218,7 +218,7 @@ class Strings {
       'Default': 'Asalka',
       'Use this look': 'Isticmaal muuqaalkan',
       'Ink': 'Madow',
-      'SubMac red': 'Casaanka SubMac',
+      'Telesia red': 'Casaanka Telesia',
       'Ember': 'Dhuxul',
       'Saffron': 'Jaalle',
       'Sage': 'Cagaar khafiif ah',
@@ -253,12 +253,12 @@ class Strings {
       'What can I do?': 'Maxaan kuu qabtaa?',
       'Hi {name}. What can I do?': 'Salaan {name}. Maxaan kuu qabtaa?',
       'More': 'Wax kale',
-      'Ask SubMac anything': 'Wax walba weydii SubMac',
+      'Ask Telesia anything': 'Wax walba weydii Telesia',
       'Add to the task, or ask anything': 'Hawsha ku dar, ama wax weydii',
       // Today
       'Needs your OK': 'Oggolaanshahaaga ayay sugaysaa',
       'Done while you were away': 'La qabtay intaad maqnayd',
-      'From SubMac': 'Ka timid SubMac',
+      'From Telesia': 'Ka timid Telesia',
       'Coming up': 'Soo socda',
       'See all': 'Dhammaan arag',
       'Nothing to approve.': 'Wax la oggolaado ma jiro.',
@@ -308,7 +308,7 @@ class Strings {
       'Live voice': 'Codka tooska ah',
       'Not available right now': 'Hadda lama heli karo',
       // Voice > Hello SubMac
-      'Say “Hello SubMac” and SubMac wakes up to listen': 'Dheh “Hello SubMac” si SubMac u tooso oo dhagoos go',
+      'Say “Hello SubMac” and Telesia wakes up to listen': 'Dheh “Hello SubMac” si Telesia u tooso oo dhagoos go',
       'Sensitivity': 'Xasaasiyad',
       'Resume the voice pack': 'Sii wad codka',
       // Visual card (the agent's own drawings)
@@ -387,10 +387,10 @@ class Strings {
       'Allow always (Full access)': 'Had iyo jeer oggolow (Awood buuxda)',
       'Message': 'Fariin',
       'Full access': 'Awood buuxda',
-      'On: SubMac and your bots act without asking. Payments and purchases still ask every time.': 'Shidan: SubMac iyo botyadaadu way shaqeeyaan iyagoon ku weydiin. Lacag bixinta iyo wax iibsiga weli mar walba waa la ku weydiinayaa.',
-      'Off: SubMac and your bots ask before sending, deleting or changing things for you. Small, safe steps go ahead.': 'Dansan: SubMac iyo botyadaadu way ku weydiiyaan ka hor intaanay wax dirin, tirtirin ama beddelin. Tallaabooyinka yaryar ee ammaanka ah way socdaan.',
+      'On: Telesia and your bots act without asking. Payments and purchases still ask every time.': 'Shidan: Telesia iyo botyadaadu way shaqeeyaan iyagoon ku weydiin. Lacag bixinta iyo wax iibsiga weli mar walba waa la ku weydiinayaa.',
+      'Off: Telesia and your bots ask before sending, deleting or changing things for you. Small, safe steps go ahead.': 'Dansan: Telesia iyo botyadaadu way ku weydiiyaan ka hor intaanay wax dirin, tirtirin ama beddelin. Tallaabooyinka yaryar ee ammaanka ah way socdaan.',
       'Turn on Full access?': 'Ma shidaa Awoodda buuxda?',
-      'SubMac and your bots will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.': 'SubMac iyo botyadaadu waxay kuu diri doonaan, dhejin doonaan, beddeli doonaan oo tirtiri doonaan wax iyagoon ku weydiin. Lacag bixinta iyo wax iibsiga weli mar walba waa la ku weydiinayaa. Waad dami kartaa mar kasta.',
+      'Telesia and your bots will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.': 'Telesia iyo botyadaadu waxay kuu diri doonaan, dhejin doonaan, beddeli doonaan oo tirtiri doonaan wax iyagoon ku weydiin. Lacag bixinta iyo wax iibsiga weli mar walba waa la ku weydiinayaa. Waad dami kartaa mar kasta.',
       'Turn on': 'Shid',
       'Trusted': 'La aamini karo',
       'Float': 'Sabbee',
@@ -425,7 +425,7 @@ class Strings {
       // Bots workspace (2026-10-24)
       'A team needs at least two bots. Make another bot first, then put them together.': 'Koox waxay u baahan tahay ugu yaraan laba bot. Marka hore samee bot kale, kadibna isku dar.',
       'Allow': 'Oggolow',
-      'Allow SubMac to keep running so your team can work and reach you.': 'U oggolow SubMac inuu sii shaqeeyo si kooxdaadu u shaqeyso oo kuu soo gaarto.',
+      'Allow Telesia to keep running so your team can work and reach you.': 'U oggolow Telesia inuu sii shaqeeyo si kooxdaadu u shaqeyso oo kuu soo gaarto.',
       'Ask the lead to check now': 'Weydii hoggaamiyaha inuu hadda eego',
       'Bot store': 'Dukaanka botyada',
       'Bots work for you: research, keep track, message you when it matters.': 'Botyadu adigay kuu shaqeeyaan: way baaraan, way la socdaan, wayna kuu soo qoraan marka ay muhiim tahay.',
@@ -457,7 +457,7 @@ class Strings {
       'Profile': 'Astaanta',
       'Say hi, or give a job.': 'Salaan, ama shaqo sii.',
       'Show bots': 'Muuji botyada',
-      'Back to SubMac': 'Ku noqo SubMac',
+      'Back to Telesia': 'Ku noqo Telesia',
       'Tasks': 'Hawlaha',
       'Team': 'Koox',
       'Team folder': 'Galka kooxda',
@@ -511,7 +511,7 @@ class Strings {
       // Bug hunt (v1.13.102): keys used but missing, and banners with {holes}. Need a native read.
       'Copy': 'Koobiyee',
       'Copied': 'Waa la koobiyeeyay',
-      'SubMac is still answering. Stop it first, then edit your message.': 'SubMac weli wuu jawaabayaa. Marka hore jooji, kadibna wax ka beddel fariintaada.',
+      'Telesia is still answering. Stop it first, then edit your message.': 'Telesia weli wuu jawaabayaa. Marka hore jooji, kadibna wax ka beddel fariintaada.',
       'Reply': 'Ka jawaab',
       'Select text': 'Dooro qoraalka',
       'Skills': 'Xirfadaha',
@@ -612,7 +612,7 @@ class Strings {
       // Agent core (v1.14): status words and the resume banner.
       'Tidying the answer': 'جارٍ ترتيب الإجابة',
       'Picking up where it left off': 'متابعة من حيث توقفت',
-      'A task stopped when SubMac closed. It is picking up where it left off.': 'توقفت مهمة عند إغلاق SubMac. تتم متابعتها الآن من حيث توقفت.',
+      'A task stopped when Telesia closed. It is picking up where it left off.': 'توقفت مهمة عند إغلاق Telesia. تتم متابعتها الآن من حيث توقفت.',
       // Sign-in
       'Ask. Make. Get it done.': 'اسأل. اصنع. أنجز.',
       'Continue with Google': 'المتابعة باستخدام Google',
@@ -628,8 +628,8 @@ class Strings {
       'Please confirm you are 18 or older and agree to the Terms and Privacy Policy.':
           'يرجى تأكيد أن عمرك 18 عامًا أو أكثر وموافقتك على الشروط وسياسة الخصوصية.',
       'Before you start': 'قبل أن تبدأ',
-      'SubMac is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.':
-          'SubMac مخصص لمن تبلغ أعمارهم 18 عامًا فأكثر. يرجى قراءة شروط الاستخدام وسياسة الخصوصية والموافقة عليهما.',
+      'Telesia is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.':
+          'Telesia مخصص لمن تبلغ أعمارهم 18 عامًا فأكثر. يرجى قراءة شروط الاستخدام وسياسة الخصوصية والموافقة عليهما.',
       'Agree and continue': 'موافقة ومتابعة',
       'Sign out': 'تسجيل الخروج',
       "We couldn't save your agreement. Check your connection, then try again.": 'تعذّر حفظ موافقتك. تحقّق من اتصالك ثم حاول مرة أخرى.',
@@ -654,7 +654,7 @@ class Strings {
       'Default': 'الافتراضي',
       'Use this look': 'استخدم هذا المظهر',
       'Ink': 'حبر',
-      'SubMac red': 'أحمر SubMac',
+      'Telesia red': 'أحمر Telesia',
       'Ember': 'جمر',
       'Saffron': 'زعفران',
       'Sage': 'مريمية',
@@ -689,12 +689,12 @@ class Strings {
       'What can I do?': 'كيف أساعدك؟',
       'Hi {name}. What can I do?': 'مرحبًا {name}. كيف أساعدك؟',
       'More': 'المزيد',
-      'Ask SubMac anything': 'اسأل SubMac أي شيء',
+      'Ask Telesia anything': 'اسأل Telesia أي شيء',
       'Add to the task, or ask anything': 'أضف إلى المهمة أو اسأل أي شيء',
       // Today
       'Needs your OK': 'بانتظار موافقتك',
       'Done while you were away': 'أُنجز أثناء غيابك',
-      'From SubMac': 'من SubMac',
+      'From Telesia': 'من Telesia',
       'Coming up': 'القادم',
       'See all': 'عرض الكل',
       'Nothing to approve.': 'لا شيء بانتظار الموافقة.',
@@ -744,7 +744,7 @@ class Strings {
       'Live voice': 'الصوت المباشر',
       'Not available right now': 'غير متاح الآن',
       // Voice > Hello SubMac
-      'Say “Hello SubMac” and SubMac wakes up to listen': 'قل «Hello SubMac» ليصحو SubMac ويستمع',
+      'Say “Hello SubMac” and Telesia wakes up to listen': 'قل «Hello SubMac» ليصحو Telesia ويستمع',
       'Sensitivity': 'الحساسية',
       'Resume the voice pack': 'متابعة تنزيل الصوت',
       // Visual card (the agent's own drawings)
@@ -823,10 +823,10 @@ class Strings {
       'Allow always (Full access)': 'السماح دائمًا (وصول كامل)',
       'Message': 'رسالة',
       'Full access': 'وصول كامل',
-      'On: SubMac and your bots act without asking. Payments and purchases still ask every time.': 'مفعّل: يعمل SubMac وبوتاتك دون أن يسألوك. الدفع والشراء يطلبان موافقتك دائمًا.',
-      'Off: SubMac and your bots ask before sending, deleting or changing things for you. Small, safe steps go ahead.': 'متوقف: يسألك SubMac وبوتاتك قبل الإرسال أو الحذف أو التغيير. الخطوات الصغيرة الآمنة تتم مباشرة.',
+      'On: Telesia and your bots act without asking. Payments and purchases still ask every time.': 'مفعّل: يعمل Telesia وبوتاتك دون أن يسألوك. الدفع والشراء يطلبان موافقتك دائمًا.',
+      'Off: Telesia and your bots ask before sending, deleting or changing things for you. Small, safe steps go ahead.': 'متوقف: يسألك Telesia وبوتاتك قبل الإرسال أو الحذف أو التغيير. الخطوات الصغيرة الآمنة تتم مباشرة.',
       'Turn on Full access?': 'تفعيل الوصول الكامل؟',
-      'SubMac and your bots will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.': 'سيقوم SubMac وبوتاتك بالإرسال والنشر والتغيير والحذف نيابة عنك دون سؤال مسبق. الدفع والشراء يطلبان موافقتك دائمًا. يمكنك إيقاف ذلك في أي وقت.',
+      'Telesia and your bots will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.': 'سيقوم Telesia وبوتاتك بالإرسال والنشر والتغيير والحذف نيابة عنك دون سؤال مسبق. الدفع والشراء يطلبان موافقتك دائمًا. يمكنك إيقاف ذلك في أي وقت.',
       'Turn on': 'تفعيل',
       'Trusted': 'موثوق',
       'Float': 'تعويم',
@@ -861,7 +861,7 @@ class Strings {
       // Bots workspace (2026-10-24)
       'A team needs at least two bots. Make another bot first, then put them together.': 'يحتاج الفريق إلى بوتين على الأقل. أنشئ بوتًا آخر أولًا، ثم اجمعهما معًا.',
       'Allow': 'سماح',
-      'Allow SubMac to keep running so your team can work and reach you.': 'اسمح لـ SubMac بالاستمرار في العمل حتى يعمل فريقك ويتواصل معك.',
+      'Allow Telesia to keep running so your team can work and reach you.': 'اسمح لـ Telesia بالاستمرار في العمل حتى يعمل فريقك ويتواصل معك.',
       'Ask the lead to check now': 'اطلب من القائد التحقق الآن',
       'Bot store': 'متجر البوتات',
       'Bots work for you: research, keep track, message you when it matters.': 'البوتات تعمل لأجلك: تبحث وتتابع وتراسلك عندما يهم الأمر.',
@@ -893,7 +893,7 @@ class Strings {
       'Profile': 'الملف',
       'Say hi, or give a job.': 'قل مرحبًا، أو أعطِ مهمة.',
       'Show bots': 'إظهار البوتات',
-      'Back to SubMac': 'العودة إلى SubMac',
+      'Back to Telesia': 'العودة إلى Telesia',
       'Tasks': 'المهام',
       'Team': 'فريق',
       'Team folder': 'مجلد الفريق',
@@ -947,7 +947,7 @@ class Strings {
       // Bug hunt (v1.13.102): keys used but missing, and banners with {holes}. Need a native read.
       'Copy': 'نسخ',
       'Copied': 'تم النسخ',
-      'SubMac is still answering. Stop it first, then edit your message.': 'لا يزال SubMac يجيب. أوقفه أولاً، ثم عدّل رسالتك.',
+      'Telesia is still answering. Stop it first, then edit your message.': 'لا يزال Telesia يجيب. أوقفه أولاً، ثم عدّل رسالتك.',
       'Reply': 'رد',
       'Select text': 'تحديد النص',
       'Skills': 'المهارات',

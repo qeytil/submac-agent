@@ -233,10 +233,10 @@ class ToolNames {
       'Error: there is no tool named "${'$name'.trim().isEmpty ? '?' : name}". Use one of the tools you were given.';
 
   /// Why a run that kept calling tools that do not exist was stopped (shown to the user).
-  static const stopText = 'Stopped: the AI kept asking for a tool SubMac doesn\'t have. Send your message again or put it another way.';
+  static const stopText = 'Stopped: the AI kept asking for a tool Telesia doesn\'t have. Send your message again or put it another way.';
 
   /// The short reply the chat keeps when that stop ended a run that wrote nothing (CB-42): never an empty answer.
-  static const stopReply = 'I couldn\'t finish this: I kept reaching for a tool SubMac doesn\'t have. Please send it again or put it '
+  static const stopReply = 'I couldn\'t finish this: I kept reaching for a tool Telesia doesn\'t have. Please send it again or put it '
       'another way.';
 
   /// Genkit's own "Tool … not found": a backstop in case a name ever slips past [resolve]. Never a dropped line.

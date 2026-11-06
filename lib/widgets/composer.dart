@@ -244,7 +244,7 @@ class _ComposerState extends State<Composer> {
       if (!mic.isGranted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text('SubMac needs the microphone to hear you.'),
+            content: const Text('Telesia needs the microphone to hear you.'),
             action: mic.isPermanentlyDenied ? SnackBarAction(label: 'Allow', onPressed: openAppSettings) : null,
           ));
         }
@@ -408,7 +408,7 @@ class _ComposerState extends State<Composer> {
             ),
             ListTile(
               title: const Text('Talk live'),
-              subtitle: const Text('A voice conversation with SubMac'),
+              subtitle: const Text('A voice conversation with Telesia'),
               onTap: () {
                 Navigator.pop(ctx);
                 openLive(context);
@@ -577,7 +577,7 @@ class _ComposerState extends State<Composer> {
                       style: TextStyle(fontSize: Lux.read, height: 1.4, color: p.text),
                       decoration: InputDecoration(
                         // While a task works, the box says plainly that a message can steer it.
-                        hintText: _listening ? 'Speak now…' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask SubMac anything')),
+                        hintText: _listening ? 'Speak now…' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask Telesia anything')),
                         hintMaxLines: 1,
                         hintStyle: TextStyle(color: p.faint),
                         filled: false,

@@ -252,7 +252,7 @@ class TelegramBridge extends ChangeNotifier {
     }
     unawaited(_typing());
     try {
-      final reply = await (onMessage?.call(text, from) ?? Future.value('SubMac is not ready yet.'));
+      final reply = await (onMessage?.call(text, from) ?? Future.value('Telesia is not ready yet.'));
       await deliver(reply);
     } catch (e) {
       await send('Sorry, that did not work: $e');
@@ -287,7 +287,7 @@ class TelegramBridge extends ChangeNotifier {
         .replaceAll('**', '')
         .replaceAll(RegExp(r'\n{3,}'), '\n\n')
         .trim();
-    if (t.isEmpty && files.isEmpty) t = 'Done. The details are in the SubMac app.';
+    if (t.isEmpty && files.isEmpty) t = 'Done. The details are in the Telesia app.';
     if (t.isNotEmpty) await send(t);
     for (final f in files) {
       await _sendFile(f);

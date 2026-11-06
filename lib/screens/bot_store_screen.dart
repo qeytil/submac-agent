@@ -79,7 +79,7 @@ class _BotStoreScreenState extends State<BotStoreScreen> {
               ),
               const SizedBox(height: 16),
               if (own.isNotEmpty) ...[
-                _Head('Made by SubMac'),
+                _Head('Made by Telesia'),
                 for (final s in own) StoreCard(item: s),
                 const SizedBox(height: 14),
               ],
@@ -158,7 +158,7 @@ class StoreCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     [
-                      'by ${s.author.isEmpty ? 'a SubMac user' : s.author}${s.mine ? ' (you)' : ''}',
+                      'by ${s.author.isEmpty ? 'a Telesia user' : s.author}${s.mine ? ' (you)' : ''}',
                       if (!s.builtIn && s.hires > 0) '${s.hires} added',
                     ].join(' · '),
                     maxLines: 1,
@@ -482,7 +482,7 @@ Future<void> shareBotSheet(BuildContext context, Bot b) async {
       }
       key = code.replaceAll('-', '');
     }
-    await SharePlus.instance.share(ShareParams(text: 'Meet ${b.name}, my ${b.role.isEmpty ? 'bot' : b.role} on SubMac. Get your own copy: ${Rewards.I.botLink(key)}', subject: b.name));
+    await SharePlus.instance.share(ShareParams(text: 'Meet ${b.name}, my ${b.role.isEmpty ? 'bot' : b.role} on Telesia. Get your own copy: ${Rewards.I.botLink(key)}', subject: b.name));
     return;
   }
   final (code, err) = await BotStore.I.shareCode(b);
@@ -490,7 +490,7 @@ Future<void> shareBotSheet(BuildContext context, Bot b) async {
     messenger.showSnackBar(SnackBar(content: Text(err ?? 'Not ready yet.')));
     return;
   }
-  await SharePlus.instance.share(ShareParams(text: 'Get my bot ${b.name} (${b.role}) in SubMac: open SubMac > Bots > Bot Store > Add from code: $code', subject: b.name));
+  await SharePlus.instance.share(ShareParams(text: 'Get my bot ${b.name} (${b.role}) in Telesia: open Telesia > Bots > Bot Store > Add from code: $code', subject: b.name));
 }
 
 /// Publish (or update) your bot in the Bot Store.

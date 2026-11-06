@@ -23,7 +23,7 @@ void main() {
     expect(t, isNot(contains('- bot_make:')), reason: 'only the Chief makes bots');
     expect(t, contains('bots/boc1/'));
     expect(t, contains('Never say you are opencode'));
-    expect(t, isNot(contains('Your name is SubMac')));
+    expect(t, isNot(contains('Your name is Telesia')));
   });
 
   test('bot tools run through the gateway by name', () async {

@@ -186,7 +186,7 @@ extension AppStateChat on AppState {
         }
       }
     } catch (_) {
-      return 'SubMac couldn\'t reach the server. Check your connection and try again.';
+      return 'Telesia couldn\'t reach the server. Check your connection and try again.';
     }
     for (final r in List.of(runs)) {
       r.stop();

@@ -520,7 +520,7 @@ class _AuthScreenState extends State<AuthScreen> {
               const Spacer(),
               const AppLogo(size: 56),
               const SizedBox(height: 20),
-              Text('SubMac', style: Brand.serif(size: 52, color: p.text)),
+              Text('Telesia', style: Brand.serif(size: 52, color: p.text)),
               const SizedBox(height: 6),
               Text(tr('Ask. Make. Get it done.'),
                   textAlign: TextAlign.center, style: TextStyle(fontSize: AppText.body, color: p.muted, height: 1.45)),
@@ -561,7 +561,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   textAlign: TextAlign.center, style: Brand.serif(size: AppText.displayLarge, color: p.text)),
             ),
             const SizedBox(height: Space.x3),
-            Text(tr('SubMac is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.'),
+            Text(tr('Telesia is for people aged 18 and over. Please read and agree to our Terms of Use and Privacy Policy.'),
                 textAlign: TextAlign.center, style: AppText.bodyStyle.copyWith(color: p.muted)),
             const SizedBox(height: Space.x5),
             _consentTick(),
@@ -759,7 +759,7 @@ String friendlyAuthError(String raw) {
   if (e.contains('invalid') && e.contains('email')) return 'That email doesn\'t look right. Check it and try again.';
   if (e.contains('password') && (e.contains('weak') || e.contains('at least'))) return 'Choose a longer password, at least 6 characters.';
   if (e.contains('rate limit') || e.contains('too many') || e.contains('429')) return 'Too many tries. Wait a minute and try again.';
-  if (e.contains('timeout')) return 'SubMac is slow to answer right now. Check your connection, then try again.';
+  if (e.contains('timeout')) return 'Telesia is slow to answer right now. Check your connection, then try again.';
   if (e.contains('socket') || e.contains('host lookup') || e.contains('network') || e.contains('connection')) return 'No internet connection. Check your data or Wi-Fi.';
   return 'Something went wrong. Please try again.';
 }

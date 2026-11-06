@@ -256,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
             menuLabel: bot != null ? '${bot.name}. Menu. Hold for the profile' : 'Menu. Hold for this chat',
-            callLabel: bot != null ? 'Call ${bot.name}' : 'Call SubMac',
+            callLabel: bot != null ? 'Call ${bot.name}' : 'Call Telesia',
             onCall: () => bot != null ? state.callBot(bot) : openLive(context),
             onNew: state.newChat,
             // Replies left: only while billing is on (zero width otherwise).
@@ -286,7 +286,7 @@ class ChatFloatBar extends StatelessWidget {
     this.onMenuHold,
     this.menuLabel = 'Menu',
     required this.onCall,
-    this.callLabel = 'Call SubMac',
+    this.callLabel = 'Call Telesia',
     required this.onNew,
     this.middle,
   });

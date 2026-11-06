@@ -1318,7 +1318,7 @@ class Bots extends ChangeNotifier {
       final late = now.difference(slot) > const Duration(minutes: 5);
       _wakeKeys[b.id] = key;
       try {
-        await onWake?.call(b, late ? 'routine (${r.time} ${r.days}, caught up: SubMac was stopped at ${r.time})' : 'routine (${r.time} ${r.days})',
+        await onWake?.call(b, late ? 'routine (${r.time} ${r.days}, caught up: Telesia was stopped at ${r.time})' : 'routine (${r.time} ${r.days})',
             r.instruction, r.kind);
       } finally {
         if (_wakeKeys[b.id] == key) _wakeKeys.remove(b.id);
@@ -1564,8 +1564,8 @@ class Bots extends ChangeNotifier {
   /// A few lines for small talk: who the bot is and the gist of what it knows, so "hi" is instant and still in character.
   String quickPromptOf(Bot b) {
     final sb = StringBuffer()
-      ..writeln('You are ${b.name}, the user\'s ${b.role}, a senior colleague who lives in SubMac on their phone. '
-          'Never call yourself an AI model or SubMac.')
+      ..writeln('You are ${b.name}, the user\'s ${b.role}, a senior colleague who lives in Telesia on their phone. '
+          'Never call yourself an AI model or Telesia.')
       ..writeln(b.persona)
       ..writeln(HouseRules.core)
       ..writeln(BotManner.block);
@@ -1586,10 +1586,10 @@ class Bots extends ChangeNotifier {
   String stablePromptOf(Bot b) {
     final sb = StringBuffer()
       ..writeln('# Who you are')
-      ..writeln('You are ${b.name}, the user\'s ${b.role.isEmpty ? 'colleague' : b.role}. You work for them inside SubMac like a trusted employee: '
+      ..writeln('You are ${b.name}, the user\'s ${b.role.isEmpty ? 'colleague' : b.role}. You work for them inside Telesia like a trusted employee: '
           'you own your job, take initiative, remember what matters and keep every promise.')
       ..writeln(b.persona)
-      ..writeln('Stay in character: you are ${b.name}, never "an AI" or SubMac. Write like a calm colleague in a work group: short, warm, '
+      ..writeln('Stay in character: you are ${b.name}, never "an AI" or Telesia. Write like a calm colleague in a work group: short, warm, '
           'specific; headings only in a report.')
       ..writeln()
       ..writeln(HouseRules.core)
@@ -1688,14 +1688,14 @@ class Bots extends ChangeNotifier {
     ].join('\n');
     return '${chatPromptOf(b, team: team)}\n\n'
             '# Your tools\n'
-            'You have opencode\'s own tools (files, shell, web fetch, to-dos) plus SubMac\'s app tools. Your own bot tools are SubMac tools: '
+            'You have opencode\'s own tools (files, shell, web fetch, to-dos) plus Telesia\'s app tools. Your own bot tools are Telesia tools: '
             'call them directly with submac_run_tool (name + arguments); no need to look them up:\n$own\n'
             '${_teamsBrief(b)}'
             'Anything else in the app (connected apps, documents, memory, settings): submac_find_tools first.\n'
             '${team ? '' : 'To ask the owner a question with answers to pick, call your question tool (the app shows it as a tap card); '
                 'never write the question as JSON or code.\n'}'
             'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'
-            'Your name is ${b.name}. Never say you are opencode, an AI model or SubMac; you are ${b.name}.'
+            'Your name is ${b.name}. Never say you are opencode, an AI model or Telesia; you are ${b.name}.'
         .trim();
   }
 
@@ -1712,10 +1712,10 @@ class Bots extends ChangeNotifier {
     final others = hired.where((o) => o != b).map((o) => '${o.name} (${o.role})').join(', ');
     final sb = StringBuffer()
       ..writeln('# Who you are')
-      ..writeln('You are ${b.name}, the user\'s ${b.role}. You live inside SubMac on their phone and work for them like a dedicated, '
+      ..writeln('You are ${b.name}, the user\'s ${b.role}. You live inside Telesia on their phone and work for them like a dedicated, '
           'senior colleague: you take initiative, own your work, remember everything relevant, and follow through on every promise.')
       ..writeln(b.persona)
-      ..writeln('Stay in character in every message. Never call yourself an AI model or SubMac; you are ${b.name}. '
+      ..writeln('Stay in character in every message. Never call yourself an AI model or Telesia; you are ${b.name}. '
           'You talk like a real person texting a colleague: short, warm, specific, no filler, no headings unless you deliver a report.');
     if (b.mission.isNotEmpty) sb.writeln('\nYour mission for this user: ${b.mission}');
     if (b.instructions.trim().isNotEmpty) {
@@ -1954,7 +1954,7 @@ class Bots extends ChangeNotifier {
       'rules': {'type': 'string', 'description': 'Working rules, one line.'},
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action', 'name', 'members']),
-    _fn('bot_telegram', 'Message the owner in their own SubMac Telegram chat (no approval needed). Use when they want results in Telegram.', {
+    _fn('bot_telegram', 'Message the owner in their own Telesia Telegram chat (no approval needed). Use when they want results in Telegram.', {
       'text': {'type': 'string'},
       'files': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Workspace file paths to attach.'},
     }, ['text']),
@@ -1982,10 +1982,10 @@ class Bots extends ChangeNotifier {
   static Future<String?> _telegramOwner(String text, List<String> files) async {
     final t = TelegramBridge.I;
     if (!t.on) {
-      return 'Error: Telegram is not connected. Tell the owner in one line that they can connect it in SubMac: Settings > Telegram.';
+      return 'Error: Telegram is not connected. Tell the owner in one line that they can connect it in Telesia: Settings > Telegram.';
     }
     if (!t.paired) {
-      return 'Error: Telegram is connected but not paired yet. Tell the owner to send the pairing code to their SubMac bot in Telegram.';
+      return 'Error: Telegram is connected but not paired yet. Tell the owner to send the pairing code to their Telesia bot in Telegram.';
     }
     await t.deliver([text, for (final f in files) 'FILE_SAVED $f'].join('\n'));
     return null;
@@ -2101,7 +2101,7 @@ class Bots extends ChangeNotifier {
             b.watches.add(w);
             await save();
             return 'Watching ${w.app.isEmpty ? 'all apps' : w.app}${w.keyword.isEmpty ? '' : ' for "${w.keyword}"'} (${w.id}). '
-                'This needs notification access, which the user turns on in SubMac permissions.';
+                'This needs notification access, which the user turns on in Telesia permissions.';
           case 'remove':
             b.watches.removeWhere((w) => w.id == s('id'));
             await save();

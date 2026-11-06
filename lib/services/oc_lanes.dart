@@ -41,8 +41,8 @@ class OcLane {
   /// The providers written into opencode's config (OpenCode.kt builds the JSON): id, shown name, proxy path and the
   /// `x-submac-source` header. Every provider offers the same [models].
   static List<Map<String, String>> providers() => [
-        {'id': fg, 'name': 'SubMac', 'path': '', 'source': 'opencode'},
-        for (final e in bgSources.entries) {'id': e.key, 'name': 'SubMac (${e.value})', 'path': '$lanePath${e.value}', 'source': e.value},
+        {'id': fg, 'name': 'Telesia', 'path': '', 'source': 'opencode'},
+        for (final e in bgSources.entries) {'id': e.key, 'name': 'Telesia (${e.value})', 'path': '$lanePath${e.value}', 'source': e.value},
       ];
 
   /// The SubMac model a bot's turn runs on: its own setting (`auto` or `providerId|model`) when that names one of

@@ -34,7 +34,7 @@ class FeedbackWords {
     'Saving your feedback',
     'Try again',
     'Thank you',
-    'Your feedback reached the SubMac team.',
+    'Your feedback reached the Telesia team.',
     'Done',
     'You are offline. Your feedback is kept here; send it when you are back online.',
     'Sign in to send feedback.',
@@ -70,7 +70,7 @@ class FeedbackWords {
       'Saving your feedback': 'Fikraddaada ayaa la kaydinayaa',
       'Try again': 'Isku day mar kale',
       'Thank you': 'Mahadsanid',
-      'Your feedback reached the SubMac team.': 'Fikraddaadu waxay gaartay kooxda SubMac.',
+      'Your feedback reached the Telesia team.': 'Fikraddaadu waxay gaartay kooxda Telesia.',
       'Done': 'Dhammaad',
       'You are offline. Your feedback is kept here; send it when you are back online.':
           'Internet ma haysid. Fikraddaada halkan ayay ku kaydsan tahay; dir marka internetku soo laabto.',
@@ -106,7 +106,7 @@ class FeedbackWords {
       'Saving your feedback': 'جارٍ حفظ ملاحظاتك',
       'Try again': 'حاول مرة أخرى',
       'Thank you': 'شكراً لك',
-      'Your feedback reached the SubMac team.': 'وصلت ملاحظاتك إلى فريق SubMac.',
+      'Your feedback reached the Telesia team.': 'وصلت ملاحظاتك إلى فريق Telesia.',
       'Done': 'تم',
       'You are offline. Your feedback is kept here; send it when you are back online.':
           'أنت غير متصل بالإنترنت. ملاحظاتك محفوظة هنا؛ أرسلها عند عودة الاتصال.',

@@ -67,7 +67,7 @@ class _MeetingSheetState extends State<_MeetingSheet> {
       if (!mounted) return;
       setState(() {
         _phase = 'error';
-        _error = 'The microphone didn\'t start. Check SubMac may use it, then try again.';
+        _error = 'The microphone didn\'t start. Check Telesia may use it, then try again.';
       });
     }
   }

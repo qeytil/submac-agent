@@ -42,7 +42,7 @@ void main() {
       expect(OcLane.modelFor('submac|submac-think'), 'submac-think');
       expect(OcLane.modelFor('submac-fast'), 'submac-fast');
       expect(OcLane.modelFor('submac|submac-image'), 'submac', reason: 'not a chat model');
-      expect(OcLane.modelFor('openai|gpt-4o'), 'submac', reason: 'SubMac Cloud is the only provider');
+      expect(OcLane.modelFor('openai|gpt-4o'), 'submac', reason: 'Telesia Cloud is the only provider');
       expect(OcLane.modelFor('submac|nonsense'), 'submac');
       expect(OcLane.pick(background: true, botModel: 'submac|submac-smart')['modelID'], 'submac-smart');
       expect(OcLane.pick(background: false, botModel: 'submac|submac-smart'),
