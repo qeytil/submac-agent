@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import 'byok.dart';
+import 'output_limits.dart';
 
 /// The user's own providers written into opencode's config (owner 2026-11-03, docs/byok.md).
 ///
@@ -29,10 +30,34 @@ class ByokOpencode {
   /// The environment variable that carries a provider's active key.
   static String envName(String providerId) => 'SUBMAC_BYOK_${providerId.substring(ByokProvider.prefix.length).toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '_')}';
 
-  /// Without a known output limit opencode asks for 32,000 output tokens, which many models refuse (seen in the mock
-  /// run). Unknown limits get these safer defaults; the user can set the real ones per model.
+  /// Without a known output limit opencode asks for 32,000 output tokens, which some servers refuse (seen in the mock
+  /// run). A model the provider gave no output limit for gets its family's known maximum, else
+  /// [OutputLimits.fallback] (it was a flat 8,192 before 2026-11-06, which cut long replies short: OpenAI's model list
+  /// carries no limits at all).
   static const defaultContext = 128000;
-  static const defaultOutput = 8192;
+  static const defaultOutput = OutputLimits.fallback;
+
+  /// The output limit written for [m]: the provider's own figure, else the family's maximum, else the fallback; never
+  /// more than half the model's window. opencode keeps `context - output` tokens for the chat itself and compacts the
+  /// chat when it is over that: an output limit as big as the window (a GPT-5 with no listed window gets the 128,000
+  /// default) would make it compact on every step.
+  static int outputOf(ByokModel m) {
+    final out = OutputLimits.forModel(m.id, known: m.output);
+    final half = (m.context ?? defaultContext) ~/ 2;
+    return out > half && half > 0 ? half : out;
+  }
+
+  /// The largest output limit of the usable models (opencode's own ceiling must not be below it).
+  static int maxOutput(List<ByokProvider> providers, String? Function(ByokProvider) secretOf) {
+    var m = 0;
+    for (final p in usable(providers, secretOf)) {
+      for (final x in p.enabledModels) {
+        final o = outputOf(x);
+        if (o > m) m = o;
+      }
+    }
+    return m;
+  }
 
   /// Providers that go into the config: enabled, with at least one enabled model, and a key when one is needed.
   static List<ByokProvider> usable(List<ByokProvider> providers, String? Function(ByokProvider) secretOf) => [
@@ -61,7 +86,7 @@ class ByokOpencode {
               'tool_call': m.tools ?? true,
               if (m.reasoning != null) 'reasoning': m.reasoning,
               if (m.vision != null) 'attachment': m.vision,
-              'limit': {'context': m.context ?? defaultContext, 'output': m.output ?? defaultOutput},
+              'limit': {'context': m.context ?? defaultContext, 'output': outputOf(m)},
             },
         },
       };
@@ -87,4 +112,5 @@ class ByokOpencode {
   static Map<String, dynamic> providersOf(ByokStore s) => providers(s.providers, s.activeSecret);
   static Map<String, String> envOf(ByokStore s) => env(s.providers, s.activeSecret);
   static String signatureOf(ByokStore s) => signature(s.providers, s.activeSecret);
+  static int maxOutputOf(ByokStore s) => maxOutput(s.providers, s.activeSecret);
 }

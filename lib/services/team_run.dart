@@ -12,6 +12,7 @@ import 'llm_client.dart';
 import 'bots.dart';
 import 'no_reply.dart';
 import 'offices.dart';
+import 'output_limits.dart';
 import 'quick_lane.dart';
 import 'system_bridge.dart';
 import 'team_floor.dart';
@@ -139,7 +140,7 @@ class TeamRun extends ChangeNotifier {
       };
 
   /// One model answer for [b] on the agent core (no tools, one step).
-  Future<String> _once(Bot b, String system, String user, {int maxTokens = 1500, String? office}) async {
+  Future<String> _once(Bot b, String system, String user, {int maxTokens = OutputLimits.answer, String? office}) async {
     // On opencode, a one-answer call (who speaks, the plan, the combined answer) is one plain model call: no agent core.
     final a = ask;
     if (ocTurn != null && a != null) return a(b, system, user, maxTokens: maxTokens);
@@ -154,7 +155,7 @@ class TeamRun extends ChangeNotifier {
       {List<Map<String, dynamic>> tools = const [],
       List<Map<String, dynamic>> extra = const [],
       Future<String> Function(ToolCall c, Map<String, dynamic> args)? onExtra,
-      int maxTokens = 1500,
+      int maxTokens = OutputLimits.answer,
       int maxSteps = memberSteps,
       bool Function()? stopped,
       String? office,
@@ -690,7 +691,7 @@ class TeamRun extends ChangeNotifier {
       final questions = <String>[];
       final parts = <({Bot bot, String ask})>[];
       // A failed model call ends here (the outer catch says so); only an unreadable reply falls back to "everyone".
-      final raw = await _once(lead, sys, job, maxTokens: 900, office: o.id);
+      final raw = await _once(lead, sys, job, maxTokens: OutputLimits.structured, office: o.id);
       try {
         final m = RegExp(r'\{[\s\S]*\}').firstMatch(raw);
         final j = m == null ? null : jsonDecode(m.group(0)!);
@@ -857,7 +858,7 @@ class TeamRun extends ChangeNotifier {
             'is back, write ONE clear answer for the owner: the result first, then what matters, then the next step if there is one. '
             'Credit a teammate by name only where it helps. Plain, calm words in the owner\'s language.';
         try {
-          final r = await _agent(lead, sys, 'Start the work.', extra: offs, maxSteps: plan.parts.length + 3, maxTokens: 2000,
+          final r = await _agent(lead, sys, 'Start the work.', extra: offs, maxSteps: plan.parts.length + 3, maxTokens: OutputLimits.answer,
               stopped: () => _stopped.contains(o.id), office: o.id, onExtra: (c, a) async {
             final p = byTool[c.name];
             if (p == null) return 'Error: no such teammate.';
@@ -944,7 +945,7 @@ class TeamRun extends ChangeNotifier {
       }
       final tools = toolsFor?.call(b) ?? const <Map<String, dynamic>>[];
       final raw = (await _agent(b, sys, part,
-              tools: tools, maxTokens: 1500, stopped: () => _stopped.contains(o.id), office: o.id, summarizeOnHalt: true))
+              tools: tools, maxTokens: OutputLimits.answer, stopped: () => _stopped.contains(o.id), office: o.id, summarizeOnHalt: true))
           .text
           .trim();
       b.log('work', 'Team part for ${o.name}: ${_short(part, 60)}', team: true);
@@ -980,7 +981,7 @@ class TeamRun extends ChangeNotifier {
         'owner\'s task.${_ownerSaid(o)}\nWrite ONE clear answer for the owner: the result first, then what matters, then the next step if '
         'there is one. Merge the parts; credit a teammate by name only where it helps. Plain, calm words in the owner\'s language.';
     final user = 'The task: ${plan.job}\n\n${[for (final p in parts) '## ${p.bot.name} (${p.bot.role})\n${p.text}'].join('\n\n')}';
-    final r = (await _once(lead, sys, user, maxTokens: 2000, office: o.id)).trim();
+    final r = (await _once(lead, sys, user, maxTokens: OutputLimits.answer, office: o.id)).trim();
     return r.isEmpty ? parts.map((p) => p.text).join('\n\n') : r;
   }
 

@@ -40,7 +40,8 @@ object OpenCode {
     @Synchronized
     fun start(ctx: Context, baseUrl: String, token: String, pass: String, wantPort: Int, cwd: String? = null,
               skills: Map<String, String> = emptyMap(), providers: List<Map<String, String>> = emptyList(),
-              models: List<String> = emptyList(), byokProviders: String = "", byokEnv: Map<String, String> = emptyMap()): Int {
+              models: List<String> = emptyList(), byokProviders: String = "", byokEnv: Map<String, String> = emptyMap(),
+              modelOutput: Int = 0, outputTokenMax: Int = 0): Int {
         if (running()) return port
         val lib = File(ctx.applicationInfo.nativeLibraryDir)
         val ld = File(lib, "libocld.so")
@@ -75,7 +76,7 @@ object OpenCode {
             File(skillDir, name).apply { mkdirs() }.resolve("SKILL.md").writeText(body)
         }
         val cfg = File(root, "opencode.json")
-        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillDir.path, providers, models, byokProviders))
+        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillDir.path, providers, models, byokProviders, modelOutput))
         val pb = ProcessBuilder(ld.path, "--library-path", links.path, bin.path, "serve", "--hostname", "127.0.0.1", "--port", "$wantPort")
         pb.directory(work)
         pb.redirectErrorStream(true)
@@ -95,6 +96,9 @@ object OpenCode {
         env["OPENCODE_CONFIG"] = cfg.path
         env["OPENCODE_SERVER_PASSWORD"] = pass
         env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
+        // opencode asks each model for min(its limit.output, this ceiling) output tokens; unset, the ceiling is 32,000,
+        // which cut long replies short (owner 2026-11-06). The app passes the largest limit of any configured model.
+        if (outputTokenMax > 0) env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"] = "$outputTokenMax"
         // The user's own provider keys (BYOK, owner 2026-11-03): only in this process's environment, named by the
         // config as {env:SUBMAC_BYOK_<ID>}; never written to opencode.json or logged.
         for ((k, v) in byokEnv) if (Regex("SUBMAC_BYOK_[A-Z0-9_]{1,40}").matches(k) && v.isNotEmpty()) env[k] = v
@@ -172,7 +176,7 @@ object OpenCode {
      *  (OpenCodeAsks). SubMac's own tools come through SubMac's MCP server (registered by the app after start) and ask
      *  through SubMac's own approval card. */
     private fun config(baseUrl: String, skills: String, providers: List<Map<String, String>>, models: List<String>,
-                       byok: String = ""): String {
+                       byok: String = "", modelOutput: Int = 0): String {
         val list = providers.filter { Regex("[a-z0-9-]{1,32}").matches(it["id"] ?: "") }
             .ifEmpty { listOf(mapOf("id" to "submac", "name" to "SubMac", "path" to "", "source" to "opencode")) }
         val names = models.filter { Regex("[a-z0-9.-]{1,48}").matches(it) }.ifEmpty { listOf("submac") }
@@ -180,7 +184,14 @@ object OpenCode {
         for (p in list) {
             val path = (p["path"] ?: "").let { if (it.isEmpty() || Regex("/lane/[a-z-]{1,20}").matches(it)) it else "" }
             val ms = org.json.JSONObject()
-            for (m in names) ms.put(m, org.json.JSONObject().put("name", if (m == "submac") "SubMac" else m).put("tool_call", true))
+            for (m in names) {
+                val model = org.json.JSONObject().put("name", if (m == "submac") "SubMac" else m).put("tool_call", true)
+                // The output limit (owner 2026-11-06): without one opencode asked for its 32,000 default. The server
+                // clamps it to what the route it picks can do. context 0 keeps opencode's behaviour as before (no
+                // automatic compaction by window size; the app and the server handle long chats).
+                if (modelOutput > 0) model.put("limit", org.json.JSONObject().put("context", 0).put("output", modelOutput))
+                ms.put(m, model)
+            }
             prov.put(p.getValue("id"), org.json.JSONObject()
                 .put("npm", "@ai-sdk/openai-compatible")
                 .put("name", p["name"] ?: "SubMac")

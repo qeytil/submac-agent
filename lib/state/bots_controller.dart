@@ -629,12 +629,12 @@ extension AppStateBots on AppState {
 
   /// One plain answer for a team (who speaks, the plan, the combined answer): one model call on the bots' lane,
   /// counted toward the bot's own budget (estimated from the text, about 4 characters a token).
-  Future<String> _teamAsk(Bot b, String system, String user, {int maxTokens = 1500}) async {
+  Future<String> _teamAsk(Bot b, String system, String user, {int maxTokens = OutputLimits.answer}) async {
     final route = submacRef;
     await RateLimiter.acquire(route.provider, (system.length + user.length) ~/ 4 + maxTokens, local, onWait: (_) {}, cancelled: () => false);
     // No chat id: a team's decision is no part of the bot's private chat (bots team audit 2026-11-04).
     final t = await (LlmClient()..background = true)
-        .complete(source: 'office', maxTokens: maxTokens, provider: route.provider, model: route.model, messages: [
+        .complete(source: 'office', maxTokens: maxTokens, continues: ReplyContinuation.maxContinues, provider: route.provider, model: route.model, messages: [
       {'role': 'system', 'content': system},
       {'role': 'user', 'content': user},
     ]);
@@ -648,7 +648,9 @@ extension AppStateBots on AppState {
     final route = submacRef;
     try {
       await RateLimiter.acquire(route.provider, 1500, local, onWait: (_) {}, cancelled: () => false);
-      final t = await (LlmClient()..background = _backgroundLane(asker.convId)).complete(source: 'bot', maxTokens: 1200, provider: route.provider, model: route.model, messages: [
+      // An expert view is a full answer: the model's own maximum, continued when it is cut (was 1,200, owner 2026-11-06).
+      final t = await (LlmClient()..background = _backgroundLane(asker.convId)).complete(
+          source: 'bot', maxTokens: OutputLimits.answer, continues: ReplyContinuation.maxContinues, provider: route.provider, model: route.model, messages: [
         {'role': 'system', 'content': '${Bots.I.chatPromptOf(expert)}\n\nYour colleague ${asker.name} (${asker.role}) asks for your expert view. Answer concisely and concretely.'},
         {'role': 'user', 'content': question},
       ]);
@@ -1234,7 +1236,7 @@ extension AppStateBots on AppState {
     final route = submacRef;
     try {
       await RateLimiter.acquire(route.provider, 1500, local, onWait: (_) {}, cancelled: () => false);
-      final raw = await LlmClient().complete(source: 'agent', maxTokens: 1500, provider: route.provider, model: route.model, messages: [
+      final raw = await LlmClient().complete(source: 'agent', maxTokens: OutputLimits.structured, provider: route.provider, model: route.model, messages: [
         {
           'role': 'system',
           'content': 'You design AI colleagues ("bots") that live in a phone app, work on what the user asks and can call the user. '

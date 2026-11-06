@@ -11,6 +11,7 @@ import 'byok.dart';
 import 'byok_opencode.dart';
 import 'cloud.dart';
 import 'oc_lanes.dart';
+import 'output_limits.dart';
 import 'submac_gateway.dart';
 import 'submac_mcp.dart';
 import 'tools.dart';
@@ -126,6 +127,10 @@ class OpenCodeEngine {
       // which go only into the engine's environment (the config names them as {env:…}), never into a file.
       'byokProviders': jsonEncode(byok),
       'byokEnv': ByokOpencode.envOf(ByokStore.I),
+      // How long a reply may be (owner 2026-11-06, see OutputLimits): SubMac's models get an explicit output limit
+      // (the server clamps it per route), and opencode's own ceiling (32,000 unless set) is raised to the largest
+      // limit of any configured model, so no reply is cut at 32,000 or at a flat default.
+      ...startLimits(ByokOpencode.maxOutputOf(ByokStore.I)),
     });
     final m = res is Map ? res : const {};
     if (m['ok'] != true) {
@@ -139,6 +144,12 @@ class OpenCodeEngine {
     await _listen();
     await _addMcp();
   }
+
+  /// The output-limit arguments of `ocStart` (pure, for tests): SubMac's models' limit and opencode's ceiling.
+  static Map<String, int> startLimits(int byokMax) => {
+        'modelOutput': OutputLimits.submac,
+        'outputTokenMax': OutputLimits.engineMax([byokMax]),
+      };
 
   /// Registers SubMac's MCP server with the engine. The long timeout covers a call that waits on the user's OK or
   /// a browser task (opencode's default of 60 s cut such calls off: "MCP error -32001: Request timed out").
@@ -435,14 +446,88 @@ class OpenCodeTurn {
   final _tokens = <String, int>{};
   int get tokens => _tokens.values.fold(0, (a, b) => a + b);
 
-  /// The answer: the text written after the last step (or all text when there were no steps).
+  /// The newest assistant message (by its created time, then id) and how it finished (`stop`, `tool-calls`,
+  /// `length`, ...; null while it is still being written).
+  String? _lastMsg;
+  int _lastCreated = -1;
+  String? _lastFinish;
+
+  /// How the newest assistant message finished.
+  String? get lastFinish => _lastFinish;
+
+  /// The reply stopped because it ran out of room (owner 2026-11-06). opencode ends the turn quietly then; the
+  /// caller continues it ([shouldContinue], [beginContinue]).
+  bool get cutOff => !_awaitingNext && ReplyContinuation.isCut(_lastFinish);
+
+  /// How many times this turn was continued after a cut.
+  int continues = 0;
+
+  /// Sent "continue": the cut message no longer counts until the next assistant message starts.
+  bool _awaitingNext = false;
+
+  /// The text part the next text continues (the cut reply's last text), until that next text arrives.
+  String? _glueTo;
+
+  /// The turn ended because the reply ran out of room, and it may still be continued.
+  bool get shouldContinue => done && error == null && cutOff && continues < ReplyContinuation.maxContinues;
+
+  /// Still cut after every continuation: the chat says the reply may be incomplete.
+  bool get leftCut => done && error == null && cutOff && continues >= ReplyContinuation.maxContinues;
+
+  /// Before the caller sends [ReplyContinuation.prompt] to the session: the turn works again, the cut message stops
+  /// counting, and the next text is glued to the cut text (when the cut reply ended in text).
+  void beginContinue() {
+    continues++;
+    done = false;
+    _awaitingNext = true;
+    final last = parts.values.isEmpty ? null : parts.values.last;
+    _glueTo = last != null && last.kind == 'text' ? last.id : null;
+  }
+
+  /// The first text part of a chain of continued parts ([OcPart.continues]).
+  OcPart rootOf(OcPart p) {
+    var r = p;
+    var guard = 0;
+    while (r.continues != null && parts[r.continues] != null && guard++ < 50) {
+      r = parts[r.continues]!;
+    }
+    return r;
+  }
+
+  /// The whole text of the chain starting at [root]: each continuation joined on as written.
+  String chainText(OcPart root) {
+    var text = root.text;
+    var cur = root.id;
+    var guard = 0;
+    while (guard++ < 50) {
+      final next = parts.values.where((p) => p.continues == cur).firstOrNull;
+      if (next == null) break;
+      text = ReplyContinuation.join(text, next.text);
+      cur = next.id;
+    }
+    return text;
+  }
+
+  /// The answer: the text written after the last step (or all text when there were no steps). A reply continued
+  /// after a cut reads as one text.
   String get answer {
     final list = parts.values.toList();
     final lastTool = list.lastIndexWhere((p) => p.kind == 'tool');
-    final after = [for (final p in list.skip(lastTool + 1)) if (p.kind == 'text' && p.text.trim().isNotEmpty) p.text.trim()];
+    String textOf(OcPart p) => chainText(p).trim();
+    bool head(OcPart p) => p.kind == 'text' && p.continues == null && textOf(p).isNotEmpty;
+    final after = [for (final p in list.skip(lastTool + 1)) if (head(p)) textOf(p)];
     if (after.isNotEmpty) return after.join('\n\n');
-    final all = [for (final p in list) if (p.kind == 'text' && p.text.trim().isNotEmpty) p.text.trim()];
+    final all = [for (final p in list) if (head(p)) textOf(p)];
     return all.isEmpty ? '' : all.last;
+  }
+
+  /// A new text part: glued to the cut text when it is the first text after a continue.
+  OcPart _newText(String id) {
+    final p = OcPart(id, 'text');
+    final g = _glueTo;
+    if (g != null && parts[g] != null) p.continues = g;
+    _glueTo = null;
+    return p;
   }
 
   /// The state of [session] in the engine's `/session/status` answer (a map of session id to `{type}`): sessions
@@ -483,6 +568,22 @@ class OpenCodeTurn {
     return changed;
   }
 
+  void _noteFinish(Map info) {
+    final id = '${info['id']}';
+    final t = info['time'];
+    final created = t is Map && t['created'] is num ? (t['created'] as num).toInt() : 0;
+    final newer = _lastMsg == null || created > _lastCreated || (created == _lastCreated && id.compareTo(_lastMsg!) > 0);
+    if (id == _lastMsg) {
+      _lastFinish = info['finish'] is String ? info['finish'] as String : null;
+    } else if (newer) {
+      // A new assistant message: after a continue, the cut one stops counting.
+      if (_lastMsg != null) _awaitingNext = false;
+      _lastMsg = id;
+      _lastCreated = created;
+      _lastFinish = info['finish'] is String ? info['finish'] as String : null;
+    }
+  }
+
   /// Feeds one event; returns true when something visible changed.
   bool apply(Map<String, dynamic> j) {
     final props = j['properties'];
@@ -492,6 +593,7 @@ class OpenCodeTurn {
         final info = props['info'];
         if (info is Map && info['sessionID'] == session) {
           if (info['role'] == 'user') _userMsgs.add('${info['id']}');
+          if (info['role'] == 'assistant') _noteFinish(info);
           final tk = info['tokens'];
           if (info['role'] == 'assistant' && tk is Map) {
             int n(Object? v) => v is num ? v.toInt() : 0;
@@ -520,7 +622,7 @@ class OpenCodeTurn {
         }
         if (type == 'text') {
           if (p['synthetic'] == true) return false;
-          (parts[id] ??= OcPart(id, 'text')).text = '${p['text'] ?? ''}';
+          (parts[id] ??= _newText(id)).text = '${p['text'] ?? ''}';
           for (final r in parts.values) {
             if (r.kind == 'reasoning') r.status = 'completed';
           }
@@ -533,6 +635,8 @@ class OpenCodeTurn {
             if (r.kind == 'reasoning') r.status = 'completed';
           }
           final st = p['state'] is Map ? p['state'] as Map : const {};
+          // A step after a continue: the next text is a new paragraph, not the cut text going on.
+          if (!parts.containsKey(id)) _glueTo = null;
           final part = parts[id] ??= OcPart(id, 'tool');
           part.tool = '${p['tool'] ?? ''}';
           part.callId = '${p['callID'] ?? id}';
@@ -548,7 +652,7 @@ class OpenCodeTurn {
       case 'message.part.delta':
         if (props['sessionID'] != session || props['field'] != 'text' || _userMsgs.contains('${props['messageID']}')) return false;
         final id = '${props['partID']}';
-        final part = parts[id] ??= OcPart(id, reasoning ? 'reasoning' : 'text');
+        final part = parts[id] ??= (reasoning ? OcPart(id, 'reasoning') : _newText(id));
         if (part.kind == 'tool') return false;
         part.text += '${props['delta'] ?? ''}';
         return true;
@@ -597,6 +701,10 @@ class OcPart {
   String? title;
   Map<String, dynamic> input = const {};
   String? output;
+
+  /// A text part that goes on from where a cut reply stopped ([OpenCodeTurn.beginContinue]): the id of the text part
+  /// it continues. Shown and read as one text with it.
+  String? continues;
   bool get finished => status == 'completed' || status == 'error';
 }
 

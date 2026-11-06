@@ -260,7 +260,7 @@ extension AppStateAgentRunner on AppState {
       final turn = OpenCodeTurn(session);
       final shown = <String, ChatMessage>{}; // part id -> the chat row showing it
       final saved = <String>{};
-      final done = Completer<void>();
+      var done = Completer<void>();
       Future<void> save(ChatMessage m) async {
         if (!saved.add(m.id)) return;
         await _save(convId, m);
@@ -269,6 +269,15 @@ extension AppStateAgentRunner on AppState {
       void sync() {
         for (final p in turn.parts.values) {
           if (p.kind == 'text' || p.kind == 'reasoning') {
+            // The rest of a reply that was cut and continued (owner 2026-11-06): it goes on in the cut reply's row.
+            if (p.kind == 'text' && p.continues != null) {
+              final root = turn.rootOf(p);
+              final rm = shown[root.id];
+              if (rm != null) {
+                rm.content = turn.chainText(root);
+                continue;
+              }
+            }
             var m = shown[p.id];
             if (m == null) {
               if (p.text.trim().isEmpty) continue;
@@ -279,7 +288,7 @@ extension AppStateAgentRunner on AppState {
               list.add(m);
               run.wrote.add(m.id);
             }
-            m.content = p.text;
+            m.content = p.kind == 'text' ? turn.chainText(p) : p.text;
             if (p.kind == 'reasoning' && p.finished) m.streaming = false;
           } else {
             // SubMac's own tools come back from opencode as submac_<name>: shown under their own name.
@@ -375,24 +384,34 @@ extension AppStateAgentRunner on AppState {
       try {
         run.show(RunPhase.waiting, RunStatus.waiting);
         _notify();
-        await oc.prompt(session, await _partsFor(lastUser), system: _ocLayer(convId), model: laneModel);
-        final sent = DateTime.now();
-        var drops = oc.streamDrops;
-        var checked = sent;
-        while (!done.isCompleted && !run.cancelled) {
-          await Future.any([done.future, Future<void>.delayed(const Duration(seconds: 1))]);
-          if (done.isCompleted || run.cancelled) break;
-          // The event stream dropped, or nothing changed for a while: ask the engine itself, so a lost stream or a
-          // stopped engine never leaves the chat "Working" forever (bug hunt 2026-11-06).
-          final now = DateTime.now();
-          if (OcWatch.due(now: now, sent: sent, seen: seen, checked: checked, dropped: oc.streamDrops != drops)) {
-            checked = now;
-            drops = oc.streamDrops;
-            if (await oc.recover(turn, since: began)) {
-              sync();
-              if (!done.isCompleted) done.complete();
+        final layer = _ocLayer(convId);
+        await oc.prompt(session, await _partsFor(lastUser), system: layer, model: laneModel);
+        while (true) {
+          final sent = DateTime.now();
+          var drops = oc.streamDrops;
+          var checked = sent;
+          while (!done.isCompleted && !run.cancelled) {
+            await Future.any([done.future, Future<void>.delayed(const Duration(seconds: 1))]);
+            if (done.isCompleted || run.cancelled) break;
+            // The event stream dropped, or nothing changed for a while: ask the engine itself, so a lost stream or a
+            // stopped engine never leaves the chat "Working" forever (bug hunt 2026-11-06).
+            final now = DateTime.now();
+            if (OcWatch.due(now: now, sent: sent, seen: seen, checked: checked, dropped: oc.streamDrops != drops)) {
+              checked = now;
+              drops = oc.streamDrops;
+              if (await oc.recover(turn, since: began)) {
+                sync();
+                if (!done.isCompleted) done.complete();
+              }
             }
           }
+          // The reply stopped because it ran out of room (finish "length"): opencode ends the turn quietly there, so
+          // the reply used to stop mid-sentence. It is continued in the same session (owner 2026-11-06).
+          if (run.cancelled || stopped != null || !turn.shouldContinue) break;
+          turn.beginContinue();
+          done = Completer<void>();
+          run.show(RunPhase.writing, RunStatus.writing);
+          await oc.prompt(session, [{'type': 'text', 'text': ReplyContinuation.prompt}], system: layer, model: laneModel);
         }
       } finally {
         await sub.cancel();
@@ -419,6 +438,12 @@ extension AppStateAgentRunner on AppState {
       if (!run.cancelled) await _ocShowVisuals(convId, turn, list, shown, run, began);
       for (final m in list.where((m) => shown.containsValue(m)).toList()) {
         await save(m);
+      }
+      // Still cut after every continuation: say so under the reply instead of leaving it to look finished.
+      if (!run.cancelled && turn.leftCut) {
+        final note = ChatMessage(id: _uuid.v4(), role: 'assistant', error: ReplyContinuation.cutNote)..animateIn = true;
+        list.add(note);
+        run.wrote.add(note.id);
       }
       if (turn.error != null && !run.cancelled) {
         // A BYOK key refused or out of quota: the provider's next key takes over for the next turn (owner 2026-11-03).
@@ -666,6 +691,13 @@ extension AppStateAgentRunner on AppState {
           break;
         }
         if (turn.error != null) break;
+        // A part cut for length is continued in the same session (owner 2026-11-06), within the same 30 minutes.
+        if (turn.shouldContinue && !(stopped?.call() ?? false)) {
+          turn.beginContinue();
+          await oc.prompt(s, [{'type': 'text', 'text': ReplyContinuation.prompt}], system: system, model: laneModel);
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          continue;
+        }
         // Idle with nothing written in the first seconds may be the state before the prompt started: keep waiting.
         if (turn.done && (turn.parts.isNotEmpty || DateTime.now().difference(from) > const Duration(seconds: 8))) break;
         if (stopped?.call() ?? false) {
@@ -720,7 +752,9 @@ extension AppStateAgentRunner on AppState {
     // Pictures, video and sound the member made with media_generate show under its reply in the team chat (team tool
     // steps are not shown there), and only there.
     final made = MediaGen.cardsFromOutputs([for (final p in turn.parts.values) if (p.kind == 'tool' && p.output != null) p.output!]);
-    return TurnVisuals.attach(turn.answer, made);
+    // Still cut after every continuation: the team chat says so instead of the part looking finished.
+    final answer = turn.leftCut && turn.answer.isNotEmpty ? '${turn.answer}\n\n_(${ReplyContinuation.cutNote})_' : turn.answer;
+    return TurnVisuals.attach(answer, made);
   }
 
   /// An opencode permission or question from team work ([key]): asked in the team, never in the member's private
