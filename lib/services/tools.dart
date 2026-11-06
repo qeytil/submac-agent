@@ -531,6 +531,13 @@ class AgentTools {
         return '${done ? 'Moved' : 'Moving'} ${_short((args['path'] ?? '').toString())} to Trash';
       case 'generate_image':
         return done ? 'Created an image' : 'Creating an image';
+      case 'media_generate':
+        return switch ('${args['kind'] ?? ''}') {
+          'video' => done ? 'Made the video' : 'Making the video',
+          'speech' => done ? 'Recorded the voice' : 'Recording the voice',
+          'audio' => done ? 'Made the sound' : 'Making the sound',
+          _ => done ? 'Made the picture' : 'Making the picture',
+        };
       case 'ai_call':
         final m = _clip((args['model'] ?? '').toString());
         final w = switch ((args['task'] ?? '').toString()) {

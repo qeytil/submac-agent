@@ -49,7 +49,7 @@ class ToolScope {
     if (const {'schedule_task', 'list_scheduled', 'cancel_scheduled'}.contains(name)) return schedule;
     if (MediaCoder.names.contains(name) ||
         AiModels.names.contains(name) ||
-        const {'generate_image', 'generate_video', 'make_image', 'make_video'}.contains(name)) {
+        const {'generate_image', 'generate_video', 'make_image', 'make_video', 'media_generate'}.contains(name)) {
       return media;
     }
     if (LifeTools.names.contains(name)) return life;

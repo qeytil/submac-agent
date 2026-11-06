@@ -25,7 +25,7 @@ class ToolEffects {
 
   static const idempotent = <String>{
     'todo', 'write_file', 'edit_file', 'make_document', 'images_to_pdf', 'code_build', 'code_snapshot', 'code_project',
-    'generate_image', 'generate_video', 'generate_media', 'code_media', 'ai_call', 'browser_open', 'browser_back',
+    'generate_image', 'generate_video', 'generate_media', 'media_generate', 'code_media', 'ai_call', 'browser_open', 'browser_back',
     'browser_forward', 'browser_reload', 'browser_scroll', 'app_settings', 'data_sheet',
   };
 

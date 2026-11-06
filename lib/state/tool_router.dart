@@ -420,8 +420,9 @@ extension AppStateTools on AppState {
     if (SetupTools.names.contains(name)) return SetupTools.execute(this, name, args);
     if (MediaCoder.names.contains(name)) return MediaCoder.execute(name, args);
     if (AiModels.names.contains(name)) return AiModels.I.execute(name, args, callId: callId);
-    if (name == 'generate_image') return _generateImage(args);
-    if (name == 'generate_video') return _generateVideo(args);
+    if (MediaGen.names.contains(name)) return _mediaGenerate(args, convId);
+    if (name == 'generate_image') return _generateImage(args, convId);
+    if (name == 'generate_video') return _generateVideo(args, convId);
     if (name == 'ask_user') return _askUserTool(args, convId);
     if (name == OutboundGuard.draftTool) return _emailDraftTool(args, convId);
     if (name == 'sites') return _sitesTool(args);
@@ -506,12 +507,59 @@ extension AppStateTools on AppState {
     return AgentTools.execute(name, args);
   }
 
-  Future<String> _generateImage(Map<String, dynamic> args) async {
+  /// Where the media a chat makes is saved (media providers, owner 2026-11-04): the owner's chats in media/, a bot's
+  /// private chat in its own folder, team work in its team's folder, so a team's results stay with the team.
+  Future<String> _mediaFolder(String? convId) async {
+    final ws = await AgentTools.workspaceDir();
+    if (TeamKey.isKey(convId)) {
+      final o = Offices.I.byId(TeamKey.officeOf(convId));
+      if (o != null) return MediaGen.folderFor(ws, teamFolder: TeamRun.folderOf(o));
+    }
+    final b = Bots.I.byConv(convId);
+    return MediaGen.folderFor(ws, botFolder: b == null ? '' : Bots.botFolder(b));
+  }
+
+  /// The turn that called a tool was stopped (its chat's Stop, or its team work ended): long media jobs end with it.
+  bool _callerStopped(String? convId) {
+    final r = runs.where((r) => r.convId == convId && !r.side).firstOrNull;
+    if (r != null) return r.cancelled;
+    final team = AppStateAgentRunner.teamLive[convId];
+    return team != null && team();
+  }
+
+  /// A long media job's progress on the calling chat's working line.
+  void _mediaProgress(String? convId, String line) {
+    for (final r in runs.where((r) => r.convId == convId && !r.side)) {
+      r.show(RunPhase.tool, line);
+    }
+    _throttledNotify();
+  }
+
+  /// media_generate: the user's own media provider, called from the phone; the result is saved in the calling chat's
+  /// folder and comes back as a card in that chat (or, for team work, under the member's team reply).
+  Future<String> _mediaGenerate(Map<String, dynamic> args, String? convId) async {
+    return MediaGen.I.generate(
+      args,
+      folder: await _mediaFolder(convId),
+      workspace: await AgentTools.workspaceDir(),
+      cancelled: () => _callerStopped(convId),
+      progress: (line) => _mediaProgress(convId, line),
+    );
+  }
+
+  Future<String> _generateImage(Map<String, dynamic> args, [String? convId]) async {
     final prompt = '${args['prompt'] ?? ''}'.trim();
     if (prompt.isEmpty) return 'Error: give a prompt that describes the picture.';
-    // No picture model on SubMac's server yet (no submac-image route): say so, and name the ways that still work, so
-    // the agent still answers with a visual (owner 2026-11-04).
-    if (!Cloud.features.value.image) return AgentTools.imageOffNote;
+    if (!Cloud.features.value.image) {
+      // No picture model on SubMac's server: the user's own image provider makes it (owner 2026-11-04, "no server
+      // image model needed"), so "draw X" works with their key.
+      if (MediaProviderStore.I.has(MediaKind.image)) {
+        return MediaGen.I.generateImageCompat(args,
+            folder: await _mediaFolder(convId), cancelled: () => _callerStopped(convId), progress: (line) => _mediaProgress(convId, line));
+      }
+      // Neither: say so, and name the ways that still work, so the agent still answers with a visual (owner 2026-11-04).
+      return AgentTools.imageOffNote;
+    }
     try {
       final bytes = await Cloud.image(prompt, size: TurnVisuals.sizeFor(args));
       final ws = await AgentTools.workspaceDir();
@@ -525,8 +573,10 @@ extension AppStateTools on AppState {
     }
   }
 
-  Future<String> _generateVideo(Map<String, dynamic> args) async =>
-      'Error: making videos is not available yet. Tell the user plainly, and offer a slideshow video from pictures instead if it helps.';
+  Future<String> _generateVideo(Map<String, dynamic> args, [String? convId]) async => MediaProviderStore.I.has(MediaKind.video)
+      // The user's own video provider (Settings > Media models) makes it.
+      ? _mediaGenerate({...args, 'kind': 'video'}, convId)
+      : 'Error: making videos is not available yet. Tell the user plainly, and offer a slideshow video from pictures instead if it helps.';
 
   void _clearAwaiting(String id) {
     if (awaitingReply != id) return;

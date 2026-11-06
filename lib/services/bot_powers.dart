@@ -61,7 +61,7 @@ class BotPowers {
     if (SystemTools.names.contains(name) || PhoneTools.names.contains(name) || WhatsAppTools.names.contains(name)) return 'phone';
     if (CodeTools.names.contains(name)) return 'files';
     if (AgentTools.fileNames.contains(name) ||
-        const {'generate_image', 'generate_video', 'make_image', 'make_video'}.contains(name) ||
+        const {'generate_image', 'generate_video', 'make_image', 'make_video', 'media_generate'}.contains(name) ||
         DocMaker.names.contains(name) ||
         DocTools.names.contains(name) ||
         AiModels.names.contains(name) ||

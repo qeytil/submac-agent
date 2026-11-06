@@ -146,7 +146,7 @@ class SubMacGateway {
   /// until it loads it.
   static const skill = '''---
 name: submac
-description: "SubMac app tools on this phone: a real browser for websites (sign in, forms, shopping, booking), control of the phone and its other apps (tap, type, scroll, alarms, SMS, contacts, calendar, WhatsApp), connected apps (Gmail, Calendar, GitHub...), the user's MCP servers, connectors, memory, reading PDFs/Word/photos, making documents and media, pictures and how to show images, charts, drawings, pages and videos in the chat, the app's settings, projects and pages. Load when a task needs the phone's apps or the user's accounts, or a visual answer."
+description: "SubMac app tools on this phone: a real browser for websites (sign in, forms, shopping, booking), control of the phone and its other apps (tap, type, scroll, alarms, SMS, contacts, calendar, WhatsApp), connected apps (Gmail, Calendar, GitHub...), the user's MCP servers, connectors, memory, reading PDFs/Word/photos, making documents and media, pictures, video, speech and music with the user's own media providers, how to show images, charts, drawings, pages and videos in the chat, the app's settings, projects and pages. Load when a task needs the phone's apps or the user's accounts, or a visual answer."
 ---
 
 # SubMac app tools
@@ -166,6 +166,7 @@ What is there:
 - Reading: PDFs, Word documents, text in photos.
 - Making: documents, images to PDF, media conversions.
 - Visuals: the chat shows pictures, drawings, charts, pages and videos. `generate_image` makes a photo-like picture (when it is listed). For charts, diagrams, icons, posters and anything with exact shapes or text, write the file yourself: an `.svg` (hand-written SVG), an `.html` page (inline SVG or a canvas/JS chart; it opens full screen), or a `.png` from a script when `python3` is on PATH. `code_media` draws a picture, poster or short animation from JavaScript. Then name the file's path in your answer, or put `![what it is](path)` on its own line: the chat draws it there and a tap opens it full screen. Never paste base64 into the answer.
+- Media with the user's own providers: `media_generate` (kind image, video, speech or audio) makes pictures, video, spoken audio (text to speech) and music or sound effects with the media providers the user set up in Settings > Media models (their own keys, called from the phone; look it up with find_tools "media"; it exists only while one is set up). Use it when the user asks for generated media or says to use their provider; never make media they did not ask for. `provider` picks one of theirs by name (empty = their default); `input_image` edits or animates a picture. Video takes minutes: say it is on its way; progress shows in the chat and stopping the chat cancels it. The result shows as a card by itself; do not repeat its path. `generate_image` also uses their image provider when SubMac has no picture model.
 - The app: settings, projects, pages (sites).
 
 Risky actions ask the user on SubMac's approval card; wait for the result. If a tool fails, say so plainly; never say it worked.
