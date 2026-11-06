@@ -43,6 +43,7 @@ import 'services/agent_loop.dart';
 import 'services/quick_lane.dart';
 import 'services/opencode.dart';
 import 'services/oc_lanes.dart';
+import 'services/output_limits.dart';
 import 'services/oc_scope.dart';
 import 'services/submac_gateway.dart';
 import 'services/turn_visuals.dart';

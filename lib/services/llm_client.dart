@@ -9,6 +9,7 @@ import '../models.dart';
 import 'cloud.dart';
 import 'context_window.dart';
 import 'house_rules.dart';
+import 'output_limits.dart';
 import 'stream_policy.dart';
 import 'usage_accounting.dart';
 
@@ -295,7 +296,29 @@ class LlmClient {
     return LlmResult(buf.toString(), [for (final k in keys) calls[k]!], finish, tin + tout, tin, tout, usedIn == null ? 0 : usedCached);
   }
 
+  /// One plain answer (no streaming, no tools). [continues]: how many times a reply that stopped for length
+  /// (`finish_reason: "length"`) is continued, joined into one answer (owner 2026-11-06: replies were cut short).
+  /// 0 keeps a short, capped answer as it is (a yes/no check, a title).
   Future<String> complete({
+    required ProviderConfig provider,
+    required String model,
+    required List<Map<String, dynamic>> messages,
+    int? maxTokens,
+    String source = 'agent',
+    int continues = 0,
+  }) async {
+    var r = await completeOnce(provider: provider, model: model, messages: messages, maxTokens: maxTokens, source: source);
+    var text = r.text;
+    for (var i = 0; i < continues && ReplyContinuation.isCut(r.finish) && text.isNotEmpty; i++) {
+      r = await completeOnce(
+          provider: provider, model: model, messages: ReplyContinuation.messages(messages, text), maxTokens: maxTokens, source: source);
+      text = ReplyContinuation.join(text, r.text);
+    }
+    return text;
+  }
+
+  /// One plain call: the answer's text and why it ended (`stop`, `length`, ...).
+  Future<({String text, String? finish})> completeOnce({
     required ProviderConfig provider,
     required String model,
     required List<Map<String, dynamic>> messages,
@@ -322,11 +345,17 @@ class LlmClient {
       final e = _cloudError(resp.statusCode, resp.body);
       throw LlmException(e.message, status: e.status, code: e.code, retryAfter: parseRetryAfter(resp.headers['retry-after']));
     }
-    final j = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
-    final choices = j['choices'] as List?;
-    if (choices == null || choices.isEmpty) return '';
-    final msg = (choices.first as Map)['message'] as Map?;
-    return (msg?['content'] ?? '').toString();
+    return answerOf(jsonDecode(utf8.decode(resp.bodyBytes)));
+  }
+
+  /// The text and finish reason of a non-streamed chat completion body (pure, for tests).
+  static ({String text, String? finish}) answerOf(Object? j) {
+    final choices = j is Map ? j['choices'] as List? : null;
+    if (choices == null || choices.isEmpty) return (text: '', finish: null);
+    final c = choices.first as Map;
+    final msg = c['message'] as Map?;
+    final fr = c['finish_reason'];
+    return (text: (msg?['content'] ?? '').toString(), finish: fr is String ? fr : null);
   }
 
   /// An SSE `error` event (Contract A: busy, too_long, limit_daily, limit_total, no_plan, blocked, server) as an

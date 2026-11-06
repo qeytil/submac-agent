@@ -1,0 +1,12 @@
+--- a/supabase/live/ai-chat-v45.js
++++ b/supabase/live/ai-chat-v46.js
+@@ -185,7 +185,8 @@
+   };
+   for (const [k, v] of Object.entries(extra)) caps[k.toLowerCase()] = Number(v);
+   const hay = (String(r.provider ?? "") + " " + String(r.model ?? "")).toLowerCase();
+-  let cap = 0;
++  const own = Number(r.max_output_tokens);
++  let cap = Number.isFinite(own) && own > 0 ? Math.floor(own) : 0;
+   for (const [k, v] of Object.entries(caps)) {
+     if (!k || !Number.isFinite(v) || v <= 0 || !hay.includes(k)) continue;
+     cap = cap ? Math.min(cap, Math.floor(v)) : Math.floor(v);
