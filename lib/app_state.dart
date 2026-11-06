@@ -34,6 +34,8 @@ import 'services/ai_models.dart';
 import 'services/setup_tools.dart';
 import 'services/projects.dart';
 import 'services/byok.dart';
+import 'services/media_gen.dart';
+import 'services/media_providers.dart';
 import 'services/cloud.dart';
 import 'services/llm_client.dart';
 import 'agent/core.dart';

@@ -263,6 +263,13 @@ extension AppStateAgentStream on AppState {
         return ('Creating an image', none);
       case 'generate_video':
         return ('Making a video', none);
+      case 'media_generate':
+        return (switch ('${args['kind'] ?? ''}') {
+          'video' => 'Making a video',
+          'speech' => 'Recording the voice',
+          'audio' => 'Making the sound',
+          _ => 'Creating an image',
+        }, none);
       case 'generate_media':
         return (args['kind'] == 'video' ? 'Making a video' : 'Creating an image', none);
       case 'code_media':

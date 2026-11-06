@@ -38,7 +38,8 @@ class AiMediaCall extends StatelessWidget {
 
   /// True when this call is (or will become) a media card, so the chat draws it instead of a step line.
   static bool shows(String name, String? result) {
-    if (name != AiModels.call) return false;
+    // media_generate (the user's media providers) answers with the same MEDIA_CARD as ai_call.
+    if (name != AiModels.call && name != 'media_generate') return false;
     if (result == null) return true;
     return AiModels.readCard(result) != null;
   }
@@ -46,7 +47,11 @@ class AiMediaCall extends StatelessWidget {
   String get _task {
     try {
       final j = jsonDecode(arguments);
-      return j is Map ? '${j['task'] ?? ''}' : '';
+      if (j is! Map) return '';
+      final t = '${j['task'] ?? ''}';
+      if (t.isNotEmpty) return t;
+      // media_generate names a kind instead of a task.
+      return switch ('${j['kind'] ?? ''}') { 'audio' => 'music', final k => k };
     } catch (_) {
       return '';
     }

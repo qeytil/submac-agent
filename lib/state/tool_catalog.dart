@@ -19,6 +19,7 @@ extension AppStateToolCatalog on AppState {
         ...MediaCoder.definitions,
         // The user's own AI models (their base URL + key, called from the phone).
         ...AiModels.definitions,
+        ...MediaGen.definitions(MediaProviderStore.I),
         AppState.sayTool,
         AppState.todoTool,
         // CB-42: an email to write is a draft card in the chat whenever there is no email_send to use: no mail account
@@ -46,7 +47,8 @@ extension AppStateToolCatalog on AppState {
           AppState.sitesTool,
           AppState.projectsTool,
           ..._mcpToolDefs(),
-          if (hasImageModel) AgentTools.imageTool,
+          // generate_image runs on the server's picture model, or on the user's own image provider when it has none.
+          if (hasImageModel || MediaProviderStore.I.has(MediaKind.image)) AgentTools.imageTool,
         ],
       ];
 

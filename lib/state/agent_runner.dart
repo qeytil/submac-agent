@@ -70,6 +70,9 @@ extension AppStateAgentRunner on AppState {
         AgentTools.imageTool,
         // The user's own AI models (their base URL + key), as the old chat had them: pictures, video, speech.
         ...AiModels.definitions,
+        // The user's media providers (Settings > Media models): media_generate, only while one is set up. Found with
+        // find_tools like every app tool, never in the per-message listing (owner 2026-11-04).
+        ...MediaGen.definitions(MediaProviderStore.I),
         AppState.connectAppTool,
         ...ConnectorCatalog.definitions(),
         ConnectorCatalog.apiCallTool,
@@ -680,7 +683,10 @@ extension AppStateAgentRunner on AppState {
     if (aborted) return '';
     if (turn.error != null && OcLane.isByok(laneModel)) await ByokStore.I.rotateAfter(laneModel['providerID']!, turn.error);
     if (turn.error != null && turn.answer.isEmpty) throw OpenCodeError(turn.error!);
-    return turn.answer;
+    // Pictures, video and sound the member made with media_generate show under its reply in the team chat (team tool
+    // steps are not shown there), and only there.
+    final made = MediaGen.cardsFromOutputs([for (final p in turn.parts.values) if (p.kind == 'tool' && p.output != null) p.output!]);
+    return TurnVisuals.attach(turn.answer, made);
   }
 
   /// An opencode permission or question from team work ([key]): asked in the team, never in the member's private
