@@ -55,6 +55,8 @@ class _FilesScreenState extends State<FilesScreen> {
   }
 
   Future<void> _open(String dir) async {
+    // Left before the workspace was found: nothing to show (setState after dispose).
+    if (!mounted) return;
     setState(() {
       _dir = dir;
       _loading = true;

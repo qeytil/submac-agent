@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 /// Pictures, drawings, charts, pages and videos an opencode turn made, shown in the chat (owner, 2026-11-04: "there is
 /// no visual like image or video or graphics output ability, why?").
@@ -142,6 +143,19 @@ class TurnVisuals {
   ///
   /// [skip] names more top-level folders to leave out (the owner's chat leaves out bots/ and teams/, which other turns
   /// write to at the same time).
+  /// [madeSince] off the UI thread: the walk lists up to 3000 entries with blocking file calls, which held the chat
+  /// still for a moment at the end of every turn on a full workspace (bug hunt 2026-11-06). Runs in place under
+  /// `flutter test`, where a background isolate would never finish inside a fake clock.
+  static Future<List<String>> madeSinceAsync(Directory root, DateTime since, {Set<String> skip = const {}}) async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return madeSince(root, since, skip: skip);
+    final path = root.path;
+    try {
+      return await Isolate.run(() => madeSince(Directory(path), since, skip: skip));
+    } catch (_) {
+      return madeSince(root, since, skip: skip);
+    }
+  }
+
   static List<String> madeSince(Directory root, DateTime since,
       {Set<String> skip = const {}, int maxDepth = 4, int maxEntries = 3000, int max = maxCards}) {
     final found = <(DateTime, String)>[];

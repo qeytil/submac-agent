@@ -232,7 +232,61 @@ class OpenCodeEngine {
         final j = jsonDecode(line.substring(5).trim());
         if (j is Map<String, dynamic>) _events.add(j);
       } catch (_) {}
-    }, onDone: () => _sse = null, onError: (_) => _sse = null, cancelOnError: true);
+    }, onDone: _streamLost, onError: (_) => _streamLost(), cancelOnError: true);
+  }
+
+  /// How many times the event stream dropped since the app started (bug hunt 2026-11-06). A turn waiting on events
+  /// that never come (the socket closed while the phone slept, the engine restarted) notices it by this count and
+  /// recovers with [recover] instead of showing "Working" forever.
+  int streamDrops = 0;
+
+  void _streamLost() {
+    _sse = null;
+    streamDrops++;
+  }
+
+  /// Opens the event stream again when it dropped (no-op while it is up or the engine never started).
+  Future<void> relisten() async {
+    if (_port == 0 || _sse != null) return;
+    try {
+      await _listen();
+    } catch (_) {}
+  }
+
+  /// The session's state as the engine reports it now: idle | busy | retry, or null when the engine did not answer.
+  /// opencode lists only sessions that are not idle.
+  Future<String?> statusOf(String session) async {
+    if (_port == 0) return null;
+    try {
+      final r = await _client.get(_u('/session/status'), headers: _auth).timeout(const Duration(seconds: 5));
+      if (r.statusCode != 200) return null;
+      return OpenCodeTurn.statusIn(jsonDecode(r.body), session);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// A turn whose events stopped coming: reconnects the stream, then asks the engine itself. When the session is
+  /// idle its messages are read back into [turn] (so the answer shows) and the turn ends; when the engine is gone the
+  /// turn ends with an error. Returns true when [turn] ended.
+  Future<bool> recover(OpenCodeTurn turn, {required DateTime since}) async {
+    await relisten();
+    final st = await statusOf(turn.session);
+    if (st == null) {
+      try {
+        final run = await _ch.invokeMethod('ocStatus');
+        if (run is Map && run['running'] == true) return false;
+      } catch (_) {}
+      turn.error ??= 'The engine stopped while it was working. Send your message again to retry.';
+      return true;
+    }
+    if (st != 'idle') return false;
+    try {
+      final r = await _client.get(_u('/session/${turn.session}/message'), headers: _auth).timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) turn.applySnapshot(jsonDecode(r.body), since: since);
+    } catch (_) {}
+    turn.done = true;
+    return true;
   }
 
   Future<Map<String, String>> _map() async {
@@ -339,6 +393,21 @@ class OpenCodeEngine {
   }
 }
 
+/// When a waiting turn asks the engine directly instead of waiting on events (bug hunt 2026-11-06): not in the first
+/// seconds after the prompt (the session may not have started), at most every 10 s, and only when the event stream
+/// dropped or nothing visible changed for 30 s (a long silent step just answers "busy").
+class OcWatch {
+  static const settle = Duration(seconds: 8);
+  static const every = Duration(seconds: 10);
+  static const quiet = Duration(seconds: 30);
+
+  static bool due({required DateTime now, required DateTime sent, required DateTime seen, required DateTime checked, required bool dropped}) {
+    if (now.difference(sent) < settle) return false;
+    if (now.difference(checked) < every) return false;
+    return dropped || now.difference(seen) >= quiet;
+  }
+}
+
 class OpenCodeError implements Exception {
   OpenCodeError(this.message);
   final String message;
@@ -374,6 +443,44 @@ class OpenCodeTurn {
     if (after.isNotEmpty) return after.join('\n\n');
     final all = [for (final p in list) if (p.kind == 'text' && p.text.trim().isNotEmpty) p.text.trim()];
     return all.isEmpty ? '' : all.last;
+  }
+
+  /// The state of [session] in the engine's `/session/status` answer (a map of session id to `{type}`): sessions
+  /// missing from it are idle.
+  static String? statusIn(Object? body, String session) {
+    if (body is! Map) return null;
+    final st = body[session];
+    if (st == null) return 'idle';
+    return st is Map ? '${st['type'] ?? 'busy'}' : 'busy';
+  }
+
+  /// Folds the session's messages as the engine stores them (`[{info, parts}]`) into this turn: the parts of the
+  /// assistant messages started at or after [since]. Used when live events were missed (see OpenCodeEngine.recover).
+  /// Returns true when something visible changed.
+  bool applySnapshot(Object? body, {required DateTime since}) {
+    if (body is! List) return false;
+    final from = since.millisecondsSinceEpoch;
+    var changed = false;
+    for (final m in body) {
+      if (m is! Map) continue;
+      final info = m['info'];
+      if (info is! Map || info['sessionID'] != session || info['role'] != 'assistant') continue;
+      final t = info['time'];
+      final created = t is Map && t['created'] is num ? (t['created'] as num).toInt() : 0;
+      if (created < from) continue;
+      if (apply({'type': 'message.updated', 'properties': {'info': info}})) changed = true;
+      final ps = m['parts'];
+      if (ps is! List) continue;
+      for (final p in ps) {
+        if (p is Map && apply({'type': 'message.part.updated', 'properties': {'part': p}})) changed = true;
+      }
+    }
+    // Read after the fact: nothing is still being thought.
+    for (final r in parts.values) {
+      if (r.kind == 'reasoning') r.status = 'completed';
+    }
+    reasoning = false;
+    return changed;
   }
 
   /// Feeds one event; returns true when something visible changed.

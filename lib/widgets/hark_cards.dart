@@ -366,13 +366,35 @@ class _PageCardState extends State<PageCard> {
     if (_isFile) {
       final path = _path;
       var head = '';
+      // The card is rebuilt with the chat (every streamed batch): the whole page file used to be read again on each
+      // build. Now only its first 4 KB, and only when the file changed (bug hunt 2026-11-06).
       try {
-        if (path != null && File(path).existsSync()) head = File(path).readAsStringSync();
+        if (path != null) {
+          final st = File(path).statSync();
+          if (st.type == FileSystemEntityType.notFound) {
+            head = '';
+          } else {
+            final key = '$path|${st.modified.millisecondsSinceEpoch}|${st.size}';
+            if (key != _headKey) {
+              final raf = File(path).openSync();
+              try {
+                _head = utf8.decode(raf.readSync(4000), allowMalformed: true);
+              } finally {
+                raf.closeSync();
+              }
+              _headKey = key;
+            }
+            head = _head;
+          }
+        }
       } catch (_) {}
-      return pageTitleOf(head.length > 4000 ? head.substring(0, 4000) : head, _html.split('\n').first.trim());
+      return pageTitleOf(head, _html.split('\n').first.trim());
     }
     return 'Page';
   }
+
+  String? _headKey;
+  String _head = '';
 
   /// Hold: Publish and Share (the file, or the live link once published, from the preview).
   void _more(BuildContext context, String path) => showMessageActions(context, actions: [
