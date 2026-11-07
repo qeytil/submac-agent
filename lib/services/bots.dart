@@ -1690,49 +1690,22 @@ class Bots extends ChangeNotifier {
   /// out (no team work in the 1:1 conversation).
   String chatPromptOf(Bot b, {bool team = true}) => '${stablePromptOf(b)}\n\n${memoryPromptOf(b)}\n\n${livePromptOf(b, team: team)}'.trim();
 
-  /// What a bot's opencode turn gets after opencode's own prompt (owner, 2026-11-03: bots on opencode, "better, smart
-  /// and powerful"). opencode stays the engine with its own tools; this says who the bot is, what it knows and owns,
-  /// and how its own SubMac tools are called (through submac_run_tool, no lookup needed).
   /// The teams a bot is in, for its brief (set by the app): one line per team, empty when none.
   String Function(Bot b)? teamsOf;
 
-  /// The brief of a bot's opencode turn. [team]: false (default) for its private chat with the owner, whose brief
-  /// leaves out the team lines of its journal; true for its team work.
   /// The owner's connected apps this bot may use, one line each with how to call them (set by the app). In the brief,
   /// so a bot knows they are there: it used to look only for its own tools and told the owner an app they had
   /// connected was "not connected" (2026-11-05).
   List<String> Function(Bot b)? connectedAppsOf;
 
-  /// [direct]: the bot's own engine calls every tool by name; opencode reaches the app's tools through submac_run_tool.
-  String _connectedBrief(Bot b, {bool direct = false}) {
+  /// The owner's connected apps for a bot's brief: signed in already, called directly by name (the bot engine is given
+  /// every tool in the request; there is no find/run gateway any more).
+  String _connectedBrief(Bot b) {
     final l = connectedAppsOf?.call(b) ?? const <String>[];
     if (l.isEmpty) return '';
-    final how = direct
-        ? 'call them directly by name (name + arguments)'
-        : 'call them with submac_run_tool (name + arguments)';
     return '\n# The owner\'s connected apps you can use\n${l.join('\n')}\n'
-        'They are signed in already: $how. Never ask the owner for keys or tokens '
+        'They are signed in already: call them directly by name (name + arguments). Never ask the owner for keys or tokens '
         'of these apps, and never say one is not connected before you tried it.\n';
-  }
-
-  String opencodeBriefOf(Bot b, {bool team = false}) {
-    final own = [
-      for (final d in definitionsFor(b))
-        '- ${(d['function'] as Map)['name']}: ${'${(d['function'] as Map)['description']}'.split('. ').first}',
-    ].join('\n');
-    return '${chatPromptOf(b, team: team)}\n\n'
-            '# Your tools\n'
-            'You have opencode\'s own tools (files, shell, web fetch, to-dos) plus SubMac\'s app tools. Your own bot tools are SubMac tools: '
-            'call them directly with submac_run_tool (name + arguments); no need to look them up:\n$own\n'
-            '${_teamsBrief(b)}'
-            '${_missionBrief(b)}'
-            '${_connectedBrief(b)}'
-            'Anything else in the app (connected apps, documents, memory, settings): submac_find_tools first.\n'
-            '${team ? '' : 'To ask the owner a question with answers to pick, call your question tool (the app shows it as a tap card); '
-                'never write the question as JSON or code.\n'}'
-            'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'
-            'Your name is ${b.name}. Never say you are opencode, an AI model or SubMac; you are ${b.name}.'
-        .trim();
   }
 
   /// The brief of a bot's turn on SubMac's own bot engine (owner 2026-11-07, `lib/bot_agent/`). Unlike an opencode turn,
@@ -1748,7 +1721,7 @@ class Bots extends ChangeNotifier {
             'Your tools are listed in this request. Call one directly by its name with its arguments. Your own tools:\n$own\n'
             '${_teamsBrief(b)}'
             '${_missionBrief(b)}'
-            '${_connectedBrief(b, direct: true)}'
+            '${_connectedBrief(b)}'
             '${team ? '' : 'To ask the owner a question with answers to pick, call your question tool (the app shows it as a tap card); '
                 'never write the question as JSON or code.\n'}'
             'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'

@@ -301,12 +301,12 @@ void main() {
     for (final n in Missions.names) {
       expect(BotPowers.allowed({'web', 'browser', 'phone', 'files', 'apps'}, n), isTrue, reason: n);
     }
-    expect(Bots.I.opencodeBriefOf(b), contains('# Missions'));
+    expect(Bots.I.agentBriefOf(b), contains('# Missions'));
     final m = await Missions.I.start('bot', 'b1', 'Write the weekly report every Friday');
     Bots.I.missionOf = (x) => Missions.I.brief(m);
     addTearDown(() => Bots.I.missionOf = null);
-    expect(Bots.I.opencodeBriefOf(b), contains('# Your mission'));
-    expect(Bots.I.opencodeBriefOf(b), contains('Write the weekly report every Friday'));
+    expect(Bots.I.agentBriefOf(b), contains('# Your mission'));
+    expect(Bots.I.agentBriefOf(b), contains('Write the weekly report every Friday'));
   });
 
   test('mission.json is valid JSON with the owner, goal and budget', () async {

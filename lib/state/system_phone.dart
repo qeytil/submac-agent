@@ -103,13 +103,14 @@ extension AppStateSystem on AppState {
     Bots.I.teamsOf = (b) => [
           for (final o in Offices.I.offices)
             if (o.chiefId == b.id)
-              '- You lead "${o.name}"${o.goal.isEmpty ? '' : ' (goal: ${o.goal})'}. Give it a job with submac_run_tool name "team_task", '
-                  'arguments {"team": "${o.name}", "task": "..."}; for regular team work, make a bot_routine whose instruction says to do that.'
+              '- You lead "${o.name}"${o.goal.isEmpty ? '' : ' (goal: ${o.goal})'}. Give it a job with your team_task tool '
+                  '(arguments {"team": "${o.name}", "task": "..."}); for regular team work, make a bot_routine whose instruction says to do that.'
             else if (o.members.contains(b.id))
               '- You are in "${o.name}", led by ${Bots.I.byId(o.chiefId)?.name ?? 'its lead'}. Team folder: ${TeamRun.folderOf(o)}/.',
         ].join('\n');
-    // Teams run on opencode (owner, 2026-11-03): every member's part and the lead's work are opencode turns with the
-    // bot's own brief and tools; one-answer calls (who speaks, the plan, the combined answer) are one plain model call.
+    // Teams run on SubMac's own bot engine (owner 2026-11-07; opencode before): every member's part and the lead's
+    // work are engine turns with the bot's own brief and tools; one-answer calls (who speaks, the plan, the combined
+    // answer) are one plain model call.
     TeamRun.I
       ..ocTurn = teamTurn
       ..ask = _teamAsk

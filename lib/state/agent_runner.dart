@@ -103,14 +103,6 @@ extension AppStateAgentRunner on AppState {
     );
   }
 
-  /// The only text added to opencode's own prompt: the name SubMac (owner, 2026-11-03). A bot's chat gets the bot's
-  /// own brief instead (who it is, what it knows and owns, its tools).
-  String _ocLayer([String? convId]) {
-    final b = Bots.I.byConv(convId);
-    // The bot's private chat: its brief without its team work (that stays in the team chat).
-    return b == null ? SubMacStyle.identity : Bots.I.opencodeBriefOf(b);
-  }
-
   /// A run nobody is watching could not do something without the owner's OK: one notification says what, and the
   /// bot's journal keeps it (BgRun, 2026-11-05).
   Future<void> _bgNeeds(String convId, String what) async {
@@ -423,7 +415,7 @@ extension AppStateAgentRunner on AppState {
       try {
         run.show(RunPhase.waiting, RunStatus.waiting);
         _notify();
-        final layer = _ocLayer(convId);
+        final layer = SubMacStyle.identity;
         await oc.prompt(session, await _partsFor(lastUser), system: layer, model: laneModel);
         while (true) {
           final sent = DateTime.now();

@@ -430,7 +430,7 @@ void main() {
       expect(s.botConnectedApps(scoped), isEmpty, reason: 'Telegram is not one of its apps');
       Bots.I.connectedAppsOf = s.botConnectedApps;
       addTearDown(() => Bots.I.connectedAppsOf = null);
-      final brief = Bots.I.opencodeBriefOf(free);
+      final brief = Bots.I.agentBriefOf(free);
       expect(brief, contains("The owner's connected apps you can use"));
       expect(brief, contains('never say one is not connected before you tried it'));
     });

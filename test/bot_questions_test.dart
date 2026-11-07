@@ -187,8 +187,8 @@ void main() {
 
     test("the private brief points the bot at the question tool; the team brief does not", () {
       final b = Bot(id: 'qb1', name: 'Quill', role: 'Analyst', persona: '');
-      expect(Bots.I.opencodeBriefOf(b), contains('call your question tool'));
-      expect(Bots.I.opencodeBriefOf(b, team: true), isNot(contains('call your question tool')));
+      expect(Bots.I.agentBriefOf(b), contains('call your question tool'));
+      expect(Bots.I.agentBriefOf(b, team: true), isNot(contains('call your question tool')));
     });
   });
 }

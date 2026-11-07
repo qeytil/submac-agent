@@ -76,11 +76,11 @@ void main() {
       b.log('work', 'Answered the owner about the budget');
       b.log('work', 'Team part for Coffee: compare supplier prices', team: true);
       b.log('work', 'Coffee: reply', team: true);
-      final private = Bots.I.opencodeBriefOf(b);
+      final private = Bots.I.agentBriefOf(b);
       expect(private, contains('Answered the owner about the budget'));
       expect(private, isNot(contains('compare supplier prices')));
       expect(private, isNot(contains('Coffee: reply')));
-      final team = Bots.I.opencodeBriefOf(b, team: true);
+      final team = Bots.I.agentBriefOf(b, team: true);
       expect(team, contains('compare supplier prices'));
       expect(team, contains('Answered the owner about the budget'));
     });
@@ -270,7 +270,7 @@ void main() {
       await TeamRun.I.work;
       expect(nova.journal.where((e) => e.text.startsWith('Team part for')).every((e) => e.team), isTrue);
       expect(nova.journal.any((e) => e.team), isTrue);
-      expect(Bots.I.opencodeBriefOf(nova), isNot(contains('Team part for')));
+      expect(Bots.I.agentBriefOf(nova), isNot(contains('Team part for')));
     });
 
     test('a teammate\'s @mentions are no longer capped per hour; a chain of bot turns stops at its depth', () async {
