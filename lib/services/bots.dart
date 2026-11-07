@@ -522,7 +522,10 @@ class Bot {
   }
 
   void log(String kind, String text, {bool team = false}) {
-    journal.add(JournalEntry(DateTime.now(), kind, text.length > 300 ? '${text.substring(0, 300)}…' : text, team: team));
+    // A message keeps more of itself than a status line (bug audit 2026-11-07): the next run reads the last few in
+    // full to see what it already sent, so a news bot stops resending the same items.
+    final cap = kind == 'message' || kind == 'note' ? 600 : 300;
+    journal.add(JournalEntry(DateTime.now(), kind, text.length > cap ? '${text.substring(0, cap)}…' : text, team: team));
     while (journal.length > 200) {
       journal.removeAt(0);
     }
@@ -1879,6 +1882,20 @@ class Bots extends ChangeNotifier {
       sb.writeln('\n# Follow-ups you promised');
       for (final f in b.followups) {
         sb.writeln('- ${f.at.toIso8601String().substring(0, 16)}: ${f.instruction}');
+      }
+    }
+    // Each wake is its own turn, so a bot could not tell what it had already sent and sent the same news again
+    // (bug audit 2026-11-07). Its last few messages go in the prompt in full, not just their first line.
+    final sent = b.journal.reversed
+        .where((j) => (j.kind == 'message' || j.kind == 'note') && (team || !j.team))
+        .take(3)
+        .toList()
+        .reversed;
+    if (sent.isNotEmpty) {
+      sb.writeln('\n# What you sent recently (never send the same thing twice)');
+      for (final j in sent) {
+        final t = j.text.length > 500 ? '${j.text.substring(0, 500)}…' : j.text;
+        sb.writeln('- ${j.at.toIso8601String().substring(5, 16).replaceFirst('T', ' ')}: ${t.replaceAll('\n', ' / ')}');
       }
     }
     final recent = b.journal.reversed.where((j) => team || !j.team).take(8).toList().reversed;

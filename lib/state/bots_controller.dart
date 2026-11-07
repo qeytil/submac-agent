@@ -482,25 +482,25 @@ extension AppStateBots on AppState {
           _ringText.remove(b.id);
           if (rang.startsWith('Voice calls are not available')) break; // already sent as a notification
           if (Bots.I.allow(b, 'message') == 'message') {
-            b.log('message', visible.split('\n').first);
+            b.log('message', visible);
             Bots.I.spent(b, 'message');
             if (!looking) {
               await _notifyBot(b, visible);
             }
           } else {
-            b.log('note', visible.split('\n').first);
+            b.log('note', visible);
             await Bots.I.save();
           }
         }
       case 'message':
-        b.log('message', visible.split('\n').first);
+        b.log('message', visible);
         Bots.I.spent(b, 'message');
         Events.I.botMessaged(b.id);
         if (!looking) {
           await _notifyBot(b, visible);
         }
       default:
-        b.log('note', visible.split('\n').first);
+        b.log('note', visible);
         await Bots.I.save();
     }
   }
