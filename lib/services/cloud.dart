@@ -193,6 +193,19 @@ class Cloud {
   static void markBackgroundPaused() =>
       background.value = BackgroundShare(ratio: 1, paused: true, day: BackgroundShare.today());
 
+  /// The bots' share from a reply. The engine makes the model calls and consumes its replies, so the native proxy
+  /// reads `x-submac-bg` for the app (bug audit 2026-11-07); Dart-side calls come through [readHeaders].
+  static void noteBackgroundShare(String raw) {
+    final bg = double.tryParse(raw);
+    if (bg == null) return;
+    final cur = background.value;
+    // A "paused" reading stays for the rest of the UTC day; a fresh day starts from the server's number.
+    if (!cur.pausedNow) {
+      final r = bg.clamp(0.0, 1.0).toDouble();
+      background.value = BackgroundShare(ratio: r, paused: r >= 1, day: BackgroundShare.today());
+    }
+  }
+
   /// Time until the share comes back (midnight UTC), plus a few minutes so the server has turned the day too.
   static Duration untilBackgroundResets() {
     final n = DateTime.now().toUtc();
@@ -249,12 +262,8 @@ class Cloud {
     ContextWindow.note(h['x-submac-window'], filtered: filtered);
     // Billing (when on): weighted tokens left. Absent with billing off, so nothing changes then.
     Billing.I.noteHeaders(h);
-    final bg = double.tryParse(h['x-submac-bg'] ?? '');
-    if (bg != null) {
-      final cur = background.value;
-      // A "paused" reading stays for the rest of the UTC day; a fresh day starts from the server's number.
-      if (!cur.pausedNow) background.value = BackgroundShare(ratio: bg, paused: bg >= 1, day: BackgroundShare.today());
-    }
+    final bg = h['x-submac-bg'];
+    if (bg != null) noteBackgroundShare(bg);
     final r = double.tryParse(h['x-submac-usage'] ?? '');
     final st = h['x-submac-state'];
     if (r == null && st == null) return;

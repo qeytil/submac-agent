@@ -23,6 +23,8 @@ extension AppStateSystem on AppState {
       if (bot != null) unawaited(_missedCall(bot));
     };
     b.onNotifEvent = (e) => unawaited(Bots.I.notificationEvent(e));
+    // The engine makes the model calls and consumes its replies; the native proxy passes their bots'-share header on.
+    b.onBackgroundShare = Cloud.noteBackgroundShare;
     Bots.I.onWake = _botWake;
     Bots.I.onReport = _botReport;
     Bots.I.working = (bot) => _officeBusy.contains(bot.id) || (bot.convId.isNotEmpty && runs.any((r) => r.convId == bot.convId && !r.side));
