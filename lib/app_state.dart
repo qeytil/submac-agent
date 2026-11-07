@@ -97,6 +97,7 @@ import 'services/telegram_bridge.dart';
 import 'services/doc_maker.dart';
 import 'services/life_tools.dart';
 import 'services/offices.dart';
+import 'services/missions.dart';
 import 'services/bot_status.dart';
 import 'services/bot_manner.dart';
 import 'services/team_run.dart';
@@ -120,6 +121,7 @@ import 'services/outbound_guard.dart';
 part 'state/agent_runner.dart';
 part 'state/agent_stream.dart';
 part 'state/bots_controller.dart';
+part 'state/missions_controller.dart';
 part 'state/chat_controller.dart';
 part 'state/connectors.dart';
 part 'state/live_calls.dart';
@@ -306,6 +308,9 @@ class AppState extends ChangeNotifier {
   /// Bot chats with a wake running now (and the kind of wake).
   final Map<String, String> _botWakeConvs = {};
 
+  /// The final reply of a team's mission job, by its run key, for Missions.runEnded.
+  final Map<String, String> _missionReplies = {};
+
   /// CB-17: the rows the running (or just finished) wake in each bot chat wrote itself. A silent wake removes only
   /// these, never what the owner typed meanwhile or the quick replies to it.
   final Map<String, Set<String>> _wakeRows = {};
@@ -322,6 +327,7 @@ class AppState extends ChangeNotifier {
         'mention' => 10,
         'react' => browsing ? 60 : 25,
         'assign' => browsing ? 60 : 25,
+        'mission' => browsing ? 80 : 40,
         'task' || 'unblock' => browsing ? 60 : 25,
         _ => 10, // chief, review, digest
       };

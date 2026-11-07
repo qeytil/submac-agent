@@ -362,8 +362,12 @@ extension AppStateAgentRunner on AppState {
       final laneBot = Bots.I.byConv(convId);
       final bg = _backgroundLane(convId);
       final laneModel = OcLane.pick(background: bg, officeWork: bg && _officeCtx.containsKey(convId), botModel: laneBot?.model);
+      // A mission run (owner 2026-11-07) also stops at the mission's own daily token budget, whichever comes first.
       final guard = OcBgGuard(
-          background: bg, budgetLeft: OcBgGuard.leftOf(laneBot?.tokenBudgetK ?? 0, laneBot?.tokensTodayNow ?? 0), byok: OcLane.isByok(laneModel));
+          background: bg,
+          budgetLeft: Missions.minLeft(OcBgGuard.leftOf(laneBot?.tokenBudgetK ?? 0, laneBot?.tokensTodayNow ?? 0),
+              bg && laneBot != null ? Missions.I.leftFor('bot', laneBot.id) : null),
+          byok: OcLane.isByok(laneModel));
       String? stopped;
       // SubMac's tools may have changed since opencode listed them (an app connected, its tools loaded). Re-listed
       // only while no other turn works (OpenCodeEngine.syncMcp).
@@ -434,6 +438,8 @@ extension AppStateAgentRunner on AppState {
         if (bot != null && turn.tokens > 0) {
           bot.addTokens(turn.tokens);
           unawaited(Bots.I.save());
+          // ...and toward its mission while a mission run goes on.
+          if (bg) Missions.I.addTokens('bot', bot.id, turn.tokens);
         }
       }
       for (final m in shown.values) {
@@ -658,7 +664,10 @@ extension AppStateAgentRunner on AppState {
       family.add(s);
       final turn = OpenCodeTurn(s);
       turnRef.add(turn);
-      final guard = OcBgGuard(background: background, budgetLeft: OcBgGuard.leftOf(b.tokenBudgetK, b.tokensTodayNow), byok: OcLane.isByok(laneModel));
+      final guard = OcBgGuard(
+          background: background,
+          budgetLeft: Missions.minLeft(OcBgGuard.leftOf(b.tokenBudgetK, b.tokensTodayNow), office == null ? null : Missions.I.leftFor('team', office)),
+          byok: OcLane.isByok(laneModel));
       if (assign != null) _teamAssign[key] = assign;
       if (office != null) _officeCtx[key] = office;
       if (officeJob != null) ocOfficeJob[key] = officeJob;
@@ -746,6 +755,8 @@ extension AppStateAgentRunner on AppState {
         if (turn.tokens > 0) {
           b.addTokens(turn.tokens);
           unawaited(Bots.I.save());
+          // Team work while the team's mission runs counts toward the mission's budget.
+          if (office != null) Missions.I.addTokens('team', office, turn.tokens);
         }
         _ocBgStopped(why, turn, b);
       }

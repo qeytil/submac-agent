@@ -221,7 +221,8 @@ extension AppStateBots on AppState {
     // otherwise kept and run once SubMac is ready, never dropped without a word.
     final key = Bots.I.wakeKey(b) ?? '${b.id}|$reason|$instruction';
     if (!await _awaitWakeReady()) {
-      if (kind != 'chat' && await Bots.I.holdWake(b, key, reason, instruction, kind)) {
+      // A mission retries by itself (Missions.wake): its wake is never held with a stale plan in it.
+      if (kind != 'chat' && kind != 'mission' && await Bots.I.holdWake(b, key, reason, instruction, kind)) {
         b.log('note', 'Woken for $reason before SubMac was ready. I will do it as soon as SubMac is ready.');
         await Bots.I.save();
       }
@@ -266,7 +267,11 @@ extension AppStateBots on AppState {
         ? 'It is the user\'s quiet hours now (${b.quietFrom}:00 to ${b.quietTo}:00): do not message or call; @note or [no reply] only.'
         : 'Today you may still send ${b.messagesLeft} message(s) and make ${b.callsLeft} call(s).';
     final String task;
-    if (kind == 'chat') {
+    if (kind == 'mission') {
+      // Mission mode (owner 2026-11-07): the instruction carries the goal, plan, log and rules (Missions.wakeInstruction).
+      task = '$botWakeMark[Woken: $reason. ${now.toIso8601String().substring(0, 16).replaceFirst('T', ' ')}]\n$instruction\n'
+          '${b.quietNow() ? 'It is the owner\'s quiet hours: work, but do not message or call them.' : ''}'.trim();
+    } else if (kind == 'chat') {
       task = '$botWakeMark[$reason]\n$instruction\nWrite directly to the user (they are watching this chat). Keep it short.';
     } else {
       final what = instruction.isEmpty
@@ -302,7 +307,8 @@ extension AppStateBots on AppState {
     // With SubMac closed the foreground service (and its wake lock) carries the work; its line names the bot and the
     // task: "<Bot name> · <task title>" (2026-11-05).
     if (kind != 'chat' && !appVisible) {
-      unawaited(SystemBridge.I.keepAlive(true, text: BgRun.line(b.name, BgRun.title(Bots.isHeartbeat(asked) ? '' : asked))));
+      final title = kind == 'mission' ? 'Mission: ${Missions.I.liveOf('bot', b.id)?.goal ?? ''}' : (Bots.isHeartbeat(asked) ? '' : asked);
+      unawaited(SystemBridge.I.keepAlive(true, text: BgRun.line(b.name, BgRun.title(title))));
     }
     String? err;
     try {
@@ -359,7 +365,7 @@ extension AppStateBots on AppState {
 
   /// Busy (a run or another wake in its own chat): come back in 15 minutes, once (not one more follow-up per busy wake).
   Future<void> _wakeLater(Bot b, String instruction, String kind) async {
-    if (kind == 'chat' || Bots.hasPendingFollowup(b, instruction, kind)) return;
+    if (kind == 'chat' || kind == 'mission' || Bots.hasPendingFollowup(b, instruction, kind)) return;
     b.followups.add(BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', DateTime.now().add(const Duration(minutes: 15)),
         instruction.isEmpty ? Bots.heartbeat : instruction, kind, local: true));
     await Bots.I.save();
@@ -410,6 +416,10 @@ extension AppStateBots on AppState {
     if (list == null) return;
     // Offline or the provider was busy: a routine or promised follow-up is not lost, it runs again in 10 minutes (once).
     final failure = _wakeFailure(b.convId);
+    if (kind == 'mission') {
+      await _missionBotOutcome(b, list, reply, failure);
+      return;
+    }
     if (kind != 'chat' && (failure == 'offline' || failure == 'busy')) {
       await _dropWakeTurn(b.convId);
       if (!instruction.startsWith('(retry) ')) {
@@ -849,6 +859,7 @@ extension AppStateBots on AppState {
       String failure = '';
       var finished = true;
       try {
+        if (j.kind == 'mission') _missionReplies.remove(key);
         reply = await teamTurn(b, key, system, task,
             stopped: () => Offices.I.stoppedSince(o.id, startedAt),
             // Answering the owner in the team chat is the owner's own conversation (foreground lane); the rest is
@@ -862,6 +873,7 @@ extension AppStateBots on AppState {
               _throttledNotify();
             });
         if (Offices.I.stoppedSince(o.id, startedAt)) finished = false;
+        if (j.kind == 'mission') _missionReplies[key] = reply;
       } catch (e) {
         failure = AppState.failureOf('$e');
         if (failure == 'other') failure = '';
@@ -971,6 +983,10 @@ extension AppStateBots on AppState {
       if (!Offices.I.stoppedSince(o.id, startedAt)) TeamStatus.I.failBot(o.id, b.id, e);
     } finally {
       _officeJobs.remove(key);
+      // A team's mission run ended (not when it went back in line to retry): the mission notes it and comes back by itself.
+      if (j.kind == 'mission' && !Offices.I.queue.any((q) => q.officeId == j.officeId && q.kind == 'mission')) {
+        unawaited(_missionTeamEnded(o, _missionReplies.remove(key) ?? ''));
+      }
       Offices.I.saveSoon();
       if (_officeJobs.isEmpty && !runs.any((r) => !r.side) && !(TelegramBridge.I.on && TelegramBridge.I.paired && !appVisible)) {
         unawaited(SystemBridge.I.keepAlive(false));

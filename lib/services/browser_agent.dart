@@ -5,7 +5,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart' show GlobalKey;
+import 'package:flutter/widgets.dart' show GlobalKey, Size;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'browser/actions.dart';
@@ -47,6 +47,11 @@ class BrowserTab {
 
   /// The browser task (subagent) that owns this tab, so parallel tasks never touch each other's pages.
   String? owner;
+
+  /// Its off-screen web view (a HeadlessInAppWebView) when the tab was opened with no screen to draw it on (SubMac
+  /// started by an alarm, owner 2026-11-07); null for a normal tab drawn by the browser layer.
+  HeadlessInAppWebView? headlessView;
+  bool get headless => headlessView != null;
 
   /// Files the page offered to download (newest last).
   final List<String> offered = [];
@@ -223,11 +228,20 @@ class BrowserAgent extends ChangeNotifier {
   Future<bool> onCreateWindow(CreateWindowAction a) async {
     final t = BrowserTab(_nextId++, windowId: a.windowId);
     t.url = a.request.url?.toString() ?? '';
-    t.owner = tab?.owner;
+    final opener = tab;
+    t.owner = opener?.owner;
     tabs.add(t);
     current = tabs.length - 1;
     if (t.owner != null) _jobTab[t.owner!] = t.id;
     notifyListeners();
+    // A pop-up of an off-screen page is off-screen too (nothing would ever draw it).
+    if (opener?.headless == true || wantHeadless) {
+      try {
+        await _headlessTab(t);
+      } catch (_) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -308,6 +322,9 @@ class BrowserAgent extends ChangeNotifier {
     active = false;
     windowOpen = false;
     expanded = false;
+    for (final t in tabs) {
+      _disposeHeadless(t);
+    }
     tabs.clear();
     current = 0;
     lastShot = null;
@@ -388,6 +405,83 @@ class BrowserAgent extends ChangeNotifier {
     }
   }
 
+  // ---- with no screen (owner 2026-11-07: browser use with the app closed) ----
+  /// True when nothing can draw the browser now: SubMac was started by an alarm, or it is in the background. Set by
+  /// the app. A tab opened then is an off-screen web view instead of a widget in the browser layer, whose platform
+  /// view is only created when a frame is drawn (with no screen it never was, so every step failed on "not ready").
+  static bool Function()? noScreen;
+
+  /// The off-screen web view could not start on this phone this session: tasks with no screen go straight to the
+  /// read-only mode (FetchBrowser).
+  bool headlessFailed = false;
+
+  /// Tests: what starts the off-screen web view of [t] (the real one is HeadlessInAppWebView).
+  static Future<void> Function(BrowserTab t)? headlessStarter;
+
+  bool get wantHeadless => noScreen?.call() ?? false;
+
+  Future<void> _startHeadless(BrowserTab t) async {
+    final f = headlessStarter;
+    if (f != null) return f(t);
+    final v = HeadlessInAppWebView(
+      windowId: t.windowId,
+      initialUrlRequest: t.windowId != null ? null : URLRequest(url: WebUri(t.openUrl ?? 'about:blank')),
+      initialSettings: settings,
+      initialUserScripts: userScripts,
+      // A phone-sized page, so sites serve their mobile layout and screenshots look like the card's.
+      initialSize: const Size(412, 915),
+      onWebViewCreated: (c) => onCreated(t, c),
+      onLoadStart: (c, u) => onLoadStart(t, u),
+      onLoadStop: (c, u) => onLoadStop(t, u),
+      onProgressChanged: (c, p) => onProgress(t, p),
+      onUpdateVisitedHistory: (c, u, _) => onUrlChanged(t, u),
+      onReceivedError: (c, req, err) => onError(t, req, err.description),
+      onReceivedHttpError: (c, req, res) {
+        if ((res.statusCode ?? 0) >= 500) onError(t, req, 'the site answered with error ${res.statusCode}');
+      },
+      onCreateWindow: (c, a) => onCreateWindow(a),
+      onCloseWindow: (c) => onCloseWindow(t),
+      onJsAlert: (c, r) async {
+        onDialog(t, 'alert', r.message ?? '');
+        return JsAlertResponse(handledByClient: true, action: JsAlertResponseAction.CONFIRM);
+      },
+      onJsConfirm: (c, r) async {
+        final ok = await onConfirm(t, r.message ?? '');
+        return JsConfirmResponse(handledByClient: true, action: ok ? JsConfirmResponseAction.CONFIRM : JsConfirmResponseAction.CANCEL);
+      },
+      onJsPrompt: (c, r) async {
+        onDialog(t, 'prompt', r.message ?? '');
+        return JsPromptResponse(handledByClient: true, action: JsPromptResponseAction.CONFIRM, value: r.defaultValue ?? '');
+      },
+      onDownloadStartRequest: (c, r) => onDownload(t, r.url.toString(), r.suggestedFilename ?? ''),
+    );
+    t.headlessView = v;
+    await v.run();
+  }
+
+  /// Gives tab [t] its off-screen web view and waits for it. Throws when it cannot start (then [headlessFailed]).
+  Future<void> _headlessTab(BrowserTab t) async {
+    try {
+      await _startHeadless(t);
+      await t.ready.future.timeout(loadLimit);
+    } catch (e) {
+      headlessFailed = true;
+      _disposeHeadless(t);
+      tabs.remove(t);
+      if (tabs.isEmpty) active = false;
+      current = tabs.isEmpty ? 0 : current.clamp(0, tabs.length - 1).toInt();
+      notifyListeners();
+      throw StateError('no screen: the off-screen browser could not start ($e)');
+    }
+  }
+
+  void _disposeHeadless(BrowserTab t) {
+    final v = t.headlessView;
+    if (v == null) return;
+    t.headlessView = null;
+    unawaited(v.dispose().catchError((Object _) {}));
+  }
+
   // ---- tabs ----
   Future<BrowserTab> _newTab([String? url]) async {
     final t = BrowserTab(_nextId++, openUrl: url);
@@ -395,11 +489,16 @@ class BrowserAgent extends ChangeNotifier {
     current = tabs.length - 1;
     active = true;
     notifyListeners();
+    if (wantHeadless) {
+      await _headlessTab(t);
+      return t;
+    }
     await t.ready.future.timeout(loadLimit);
     return t;
   }
 
   void _closeTab(int i) {
+    _disposeHeadless(tabs[i]);
     tabs.removeAt(i);
     if (tabs.isEmpty) {
       close();

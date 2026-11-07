@@ -4,7 +4,7 @@ import 'bots.dart';
 import 'cloud.dart';
 import 'llm_client.dart';
 import 'oc_lanes.dart';
-import '../models.dart' show ProviderConfig;
+import '../models.dart' show ModelRef, ProviderConfig, ToolCall;
 
 /// Where one of a bot's model calls goes (owner 2026-11-06: "bots do not use the model set in their profile").
 ///
@@ -93,5 +93,74 @@ class BotLlm {
     final pick = r.byok;
     if (pick != null) return byokCall(pick, messages, maxTokens: maxTokens);
     return cloudCall(r.submacModel, messages, maxTokens: maxTokens, continues: continues, source: source, background: background, provider: provider);
+  }
+}
+
+/// Where a bot's browser task thinks (owner 2026-11-07): the browser agent (agent/core.dart) ran on SubMac's model for
+/// every caller. It now follows the bot's profile like its other calls ([BotModelRoute]):
+///  - a bot on one of the owner's OpenAI-compatible providers: that provider, straight from the phone (tool calls and
+///    screenshots in the OpenAI shape; screenshots only when the model is not marked as text-only);
+///  - a bot on an Anthropic or Gemini key: SubMac's model (their protocols need the tool shape converted; not done);
+///  - a bot on a SubMac model: that model; SubMac's own tasks: SubMac's model as before.
+class BotBrowserModel {
+  const BotBrowserModel._(this.byok, this.submac, this.note);
+
+  final ByokPick? byok;
+  final ModelRef? submac;
+
+  /// Why the bot's own model was not used ('' when it was, or there is no bot).
+  final String note;
+
+  bool get onOwnModel => byok != null;
+
+  /// A model with screenshots: a BYOK model marked as text-only gets the page text alone.
+  bool get sees => byok == null || byok!.model.vision != false;
+
+  static BotBrowserModel of(Bot? b, ModelRef submacRef, {ByokStore? store}) {
+    if (b == null) return BotBrowserModel._(null, submacRef, '');
+    final r = BotModelRoute.of(b, store: store);
+    final pick = r.byok;
+    if (pick != null) {
+      if (!ByokFetch.toolChatOk(pick.provider)) {
+        return BotBrowserModel._(null, submacRef, '${pick.provider.kind.label} keys are not used for browser steps yet; SubMac\'s model runs them.');
+      }
+      if (pick.model.tools == false) return BotBrowserModel._(null, submacRef, '${pick.model.label} has no tool calling; SubMac\'s model runs browser steps.');
+      return BotBrowserModel._(pick, null, '');
+    }
+    return BotBrowserModel._(null, ModelRef(submacRef.provider, r.submacModel.isEmpty ? submacRef.model : r.submacModel), '');
+  }
+
+  /// [messages] with picture parts taken out (a text-only model gets the page text alone).
+  static List<Map<String, dynamic>> withoutImages(List<Map<String, dynamic>> messages) => [
+        for (final m in messages)
+          if (m['content'] is List)
+            {
+              ...m,
+              'content': [
+                for (final p in m['content'] as List)
+                  if (!(p is Map && (p['type'] == 'image_url' || p['type'] == 'image'))) p
+              ]
+            }
+          else
+            m
+      ];
+
+  /// Tests: the BYOK step call.
+  static Future<LlmResult> Function(ByokPick pick, List<Map<String, dynamic>> messages, List<Map<String, dynamic>> tools)? stepOverride;
+
+  /// One browser step on the bot's own provider. Throws [LlmException] on a provider error (the task ends with it).
+  static Future<LlmResult> byokStep(ByokPick pick, List<Map<String, dynamic>> messages, List<Map<String, dynamic>> tools) async {
+    final o = stepOverride;
+    if (o != null) return o(pick, messages, tools);
+    final st = ByokStore.I;
+    try {
+      final a = await ByokFetch.I.toolChat(pick.provider, st.activeSecret(pick.provider), pick.model.id, messages, tools,
+          maxTokens: BotLlm.capFor(pick, 4096));
+      return LlmResult(a.text, [for (final c in a.calls) ToolCall(id: c['id']!, name: c['name']!, arguments: c['arguments']!)], a.finish,
+          a.tokens, a.tokensIn, a.tokensOut);
+    } on ByokError catch (e) {
+      await st.rotateAfter(pick.provider.id, e.message).catchError((Object _) => null);
+      throw LlmException(e.message, status: e.status);
+    }
   }
 }

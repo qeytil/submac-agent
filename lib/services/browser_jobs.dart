@@ -7,6 +7,7 @@ import '../models.dart';
 import 'browser/loop_guard.dart';
 import 'browser/shots.dart';
 import 'browser_agent.dart';
+import 'fetch_browser.dart';
 import 'llm_client.dart';
 import 'tool_output_clean.dart';
 import '../agent/core.dart';
@@ -28,6 +29,13 @@ class BrowserJob {
 
   /// Started by a scheduled task while the user is away: it never waits on them and never asks.
   final bool unattended;
+
+  /// Read-only mode (owner 2026-11-07): no screen and no off-screen web view, so its browser steps run on plain HTTP
+  /// (FetchBrowser: open, follow links, find, read on). Set at the start or by the first step that could not start.
+  bool fetchMode = false;
+
+  /// The bot whose task this is ('' = SubMac's own), so the browser agent thinks on that bot's own model.
+  String botId = '';
 
   /// running | needs (waiting for an answer) | checkin (time box reached) | done | failed | stopped
   String status = 'running';
@@ -346,6 +354,9 @@ class BrowserJobs extends ChangeNotifier {
     }
   }
 
+  /// The bot a chat (or team key) belongs to, so its browser task runs on that bot's model (set by the app).
+  String Function(String convId)? botOf;
+
   /// The chat agent's tool calls. [unattended] marks a run started by a scheduled task (nobody is watching).
   Future<String> execute(String name, Map<String, dynamic> a, String convId,
       {bool Function()? parentCancelled, bool unattended = false}) async {
@@ -360,7 +371,10 @@ class BrowserJobs extends ChangeNotifier {
         final mins = (a['check_in_minutes'] is num ? (a['check_in_minutes'] as num).toInt() : int.tryParse('${a['check_in_minutes']}') ?? 20)
             .clamp(5, 60)
             .toInt();
-        final j = BrowserJob('b${_next++}', goal, '${a['details'] ?? ''}'.trim(), convId, mins, unattended: unattended);
+        final j = BrowserJob('b${_next++}', goal, '${a['details'] ?? ''}'.trim(), convId, mins, unattended: unattended)
+          ..botId = botOf?.call(convId) ?? ''
+          // No screen, and the off-screen web view already failed on this phone: straight to read-only mode.
+          ..fetchMode = BrowserAgent.I.wantHeadless && BrowserAgent.I.headlessFailed;
         jobs.add(j);
         if (unattended) unawaited(keepAwake?.call(true) ?? Future<void>.value());
         // Finished, reported tasks beyond the newest 20 are forgotten.
@@ -499,7 +513,10 @@ class BrowserJobs extends ChangeNotifier {
       say?.call(j.convId, j.resultFence());
     }
     notifyListeners();
-    if (j.finished) onEnded?.call(j);
+    if (j.finished) {
+      FetchBrowser.I.forget(j.id);
+      onEnded?.call(j);
+    }
     if (!jobs.any((x) => x.live)) {
       // The whole fleet is idle: the shared step count starts fresh, and a background wake lock is let go.
       _fleet = 0;
@@ -606,7 +623,11 @@ WHEN STUCK (never the same failing action twice in a row)
 - Captcha or one-time code: ask_user. Site refuses the in-app browser: try its mobile URL or another site.
 - If a whole approach fails twice, change the approach (re-plan), not the click.
 
-${j.unattended ? '''
+${j.fetchMode ? '''
+READ-ONLY MODE (SubMac is closed and no browser view can run): browser_open (url), browser_click (a link NUMBER from the page's
+link list), browser_find, browser_scroll / browser_read work on plain page reads with numbered links. Typing, sign-in, forms,
+scripts and payments do not work: if the goal needs them, finish with success:false saying it needs SubMac open.
+''' : ''}${j.unattended ? '''
 THIS RUN IS IN THE BACKGROUND (a scheduled task; the user is not watching):
 - Never wait for an answer and never ask (no ask_user, no "about" question). If a step needs the user's OK — money, posting, sending, a password — stop and finish with success:false and one line saying exactly what needs approving.
 - Keep the result to one plain line a notification can show.
@@ -889,8 +910,26 @@ ${j.details.isEmpty ? '' : 'Details: ${j.details}\n'}''';
     }
     if (BrowserAgent.names.contains(tc.name)) j.now = BrowserAgent.I.label(tc.name, a);
     notifyListeners();
-    return runZoned(() => runTool!(j, tc.name, a, tc.id), zoneValues: {#smBrowserJob: j.id, #smUnattended: j.unattended});
+    if (j.fetchMode && BrowserAgent.names.contains(tc.name)) return FetchBrowser.I.execute(j.id, tc.name, a);
+    final out = await runZoned(() => runTool!(j, tc.name, a, tc.id), zoneValues: {#smBrowserJob: j.id, #smUnattended: j.unattended});
+    // With no screen the real browser may not start at all (no frame draws its view, and the off-screen one failed):
+    // the task carries on in read-only mode instead of failing every step (owner 2026-11-07).
+    if (BrowserAgent.names.contains(tc.name) && BrowserAgent.I.wantHeadless && noBrowserView(out)) {
+      j.fetchMode = true;
+      BrowserAgent.I.headlessFailed = true;
+      final again = FetchBrowser.readTools.contains(tc.name) ? await FetchBrowser.I.execute(j.id, tc.name, a) : FetchBrowser.needsScreen(tc.name);
+      return '$fetchModeNote\n\n$again';
+    }
+    return out;
   }
+
+  /// What a browser step answers when no web view could be made (no screen, the off-screen one failed).
+  static bool noBrowserView(String out) =>
+      out.startsWith('Error:') && RegExp(r'not ready|TimeoutException|no screen|off-screen browser could not start', caseSensitive: false).hasMatch(out);
+
+  static const fetchModeNote = 'SubMac is closed and the real browser could not start, so this task continues in READ-ONLY mode: '
+      'browser_open (a url), browser_click (a link number), browser_find, browser_scroll/browser_read work on plain page reads; '
+      'typing, signing in, forms and payments do not. For searches open a search URL directly.';
 
   static void _remember(BrowserJob j, String f) {
     final v = f.length > 400 ? '${f.substring(0, 400)}…' : f;
@@ -996,10 +1035,23 @@ class _BrowserHooks extends CoreHooks {
     if (!j.live || j.cancelled) return 'Stopped: the task ended.';
     // A new message or a warning arrived after an earlier action of this turn: look again before acting.
     if (j.inbox.isNotEmpty || _alert != null) return 'Skipped: a new message or a warning arrived. Look at the page again before acting.';
-    final isBrowser = BrowserAgent.names.contains(tc.name);
+    // Read-only mode has no live page to fingerprint: its steps are counted, but the loop guard and screenshots are the
+    // real browser's.
+    final readOnly = j.fetchMode;
+    final isBrowser = BrowserAgent.names.contains(tc.name) && !readOnly;
     final fpBefore = isBrowser ? BrowserAgent.I.snapFor(j.id).fingerprint : '';
     final out = await jobs._do(j, tc, args);
     final step = _Step(tc, out)..thought = _thought.isEmpty ? null : _thought;
+    if (BrowserAgent.names.contains(tc.name) && j.fetchMode && j.live) {
+      j.budget.steps++;
+      j.segmentSteps++;
+      jobs._fleet++;
+      final p = FetchBrowser.I.pageOf(j.id);
+      if (p != null) {
+        final v = '${Uri.tryParse(p.url)?.host ?? ''}${Uri.tryParse(p.url)?.path ?? ''} — ${p.title.length > 40 ? p.title.substring(0, 40) : p.title}';
+        if (j.visited.isEmpty || j.visited.last != v) j.visited.add(v);
+      }
+    }
     if (isBrowser && j.live) {
       step.shotCall = tc.id;
       j.budget.steps++;

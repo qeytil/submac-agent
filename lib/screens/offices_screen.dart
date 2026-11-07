@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/mission_section.dart';
 import '../app_state.dart';
 import '../services/bots.dart';
 import '../services/offices.dart';
@@ -962,6 +963,8 @@ class _TasksTab extends StatelessWidget {
         Text('${st.doneWeek} done this week · ${st.open} open${st.blocked > 0 ? ' · ${st.blocked} blocked' : ''}',
             style: TextStyle(color: p.muted, fontSize: AppText.meta)),
         for (final k in o.kpis) Text(k.line, style: TextStyle(color: p.muted, fontSize: AppText.meta)),
+        // Mission mode (owner 2026-11-07): the team works toward a goal on its own; its lead plans and hands out the work.
+        MissionSection(kind: 'team', ownerId: o.id, ownerName: o.name),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: Icon(Icons.folder_open_outlined, color: p.text),

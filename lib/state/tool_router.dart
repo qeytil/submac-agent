@@ -5,8 +5,22 @@ part of '../app_state.dart';
 extension AppStateTools on AppState {
   void _wireBrowserJobs() {
     final j = BrowserJobs.I;
+    // A bot's browser task thinks on the bot's own model (owner 2026-11-07, BotBrowserModel); SubMac's on SubMac's.
+    j.botOf = (convId) => Bots.I.byConv(convId)?.id ?? '';
+    // With no screen (started by an alarm, or SubMac in the background) the browser opens off-screen web views, and
+    // falls back to read-only page reads when those cannot start (owner 2026-11-07, docs/bot-autonomy.md).
+    BrowserAgent.noScreen = () => headless || !appVisible;
     j.llm = (job, payload, tools) async {
-      final route = submacRef;
+      final pick = BotBrowserModel.of(job.botId.isEmpty ? null : Bots.I.byId(job.botId), submacRef);
+      final own = pick.byok;
+      if (own != null) {
+        final msgs = pick.sees ? payload : BotBrowserModel.withoutImages(payload);
+        final r = await BotBrowserModel.byokStep(own, msgs, tools);
+        final bot = Bots.I.byId(job.botId);
+        if (bot != null && r.tokens > 0) bot.addTokens(r.tokens);
+        return r;
+      }
+      final route = pick.submac ?? submacRef;
       final run = _jobRuns[job.id] ??= AgentRun(convId: job.convId, side: true, title: 'Browser');
       run.cancelled = job.cancelled;
       job.steerHook = () => run.client?.cancelForSteer();
@@ -428,6 +442,7 @@ extension AppStateTools on AppState {
     if (name == 'sites') return _sitesTool(args);
     if (name == 'projects') return _projectsTool(args, convId);
     if (name == 'connect_app') return requestConnect('${args['app'] ?? ''}', why: '${args['why'] ?? ''}', convId: convId);
+    if (Missions.names.contains(name)) return _missionTool(name, args, convId);
     if (Bots.names.contains(name)) return Bots.I.execute(name, args, convId);
     if (SkillLibrary.names.contains(name)) {
       final who = Bots.I.byConv(convId);

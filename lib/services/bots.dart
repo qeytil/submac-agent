@@ -18,6 +18,7 @@ import 'no_reply.dart';
 import 'house_rules.dart';
 import 'skill_library.dart';
 
+import 'missions.dart';
 import 'system_bridge.dart';
 import 'team_key.dart';
 import 'full_access.dart';
@@ -1709,6 +1710,7 @@ class Bots extends ChangeNotifier {
             'You have opencode\'s own tools (files, shell, web fetch, to-dos) plus SubMac\'s app tools. Your own bot tools are SubMac tools: '
             'call them directly with submac_run_tool (name + arguments); no need to look them up:\n$own\n'
             '${_teamsBrief(b)}'
+            '${_missionBrief(b)}'
             '${_connectedBrief(b)}'
             'Anything else in the app (connected apps, documents, memory, settings): submac_find_tools first.\n'
             '${team ? '' : 'To ask the owner a question with answers to pick, call your question tool (the app shows it as a tap card); '
@@ -1716,6 +1718,17 @@ class Bots extends ChangeNotifier {
             'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'
             'Your name is ${b.name}. Never say you are opencode, an AI model or SubMac; you are ${b.name}.'
         .trim();
+  }
+
+  /// The bot's mission block (Missions, owner 2026-11-07), set by the app; '' = none.
+  String Function(Bot b)? missionOf;
+
+  String _missionBrief(Bot b) {
+    final t = (missionOf?.call(b) ?? '').trim();
+    return t.isEmpty
+        ? '\n# Missions\nWhen the owner asks you to take on a goal on your own (work toward it over days without them), start it with '
+            'mission_plan giving "goal" and the first steps; it then wakes you by itself. Only the owner starts missions.\n'
+        : '\n$t\n';
   }
 
   String _teamsBrief(Bot b) {
@@ -1885,6 +1898,8 @@ class Bots extends ChangeNotifier {
   List<Map<String, dynamic>> definitionsFor(Bot? b) => [
         for (final d in definitions)
           if (!_chiefOnly.contains((d['function'] as Map)['name']) || (b != null && isChief(b))) d,
+        // Mission mode (owner 2026-11-07): every bot can carry a mission once the owner gives it one.
+        ...Missions.definitions,
       ];
 
   static Map<String, dynamic> _fn(String name, String desc, Map<String, dynamic> props, List<String> req) => {

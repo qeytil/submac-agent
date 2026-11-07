@@ -47,6 +47,8 @@ class BotPowers {
     'bot_remember', 'bot_desk', 'bot_followup', 'bot_routine', 'bot_watch', 'bot_call', 'bot_ask', 'knowledge_search', 'knowledge_read', 'bot_lesson',
     // A message to the owner's own Telegram chat is like a notification: never taken away by a switched-off power.
     'bot_telegram',
+    // Mission mode: its plan, log and own wakes are the bot's own bookkeeping, never a power the owner switches off.
+    'mission_plan', 'mission_update', 'mission_schedule_next', 'mission_done',
     // The Chief's hiring tools are its core duty: they are never taken away by a switched-off power
     // (bot_make used to fall through groupOf to 'apps' and vanish when apps was off).
     'bot_make', 'team_make',

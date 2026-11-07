@@ -69,7 +69,8 @@ class _BrowserLayerState extends State<BrowserLayer> {
               color: p.bg.withAlpha(255),
               child: IndexedStack(
                 index: b.tabs.isEmpty ? 0 : b.current.clamp(0, b.tabs.length - 1),
-                children: [for (final t in b.tabs) KeyedSubtree(key: t.key, child: BrowserLayer.webViewBuilder(t))],
+                // An off-screen tab (opened with SubMac closed) already has its own web view: never a second one.
+                children: [for (final t in b.tabs) KeyedSubtree(key: t.key, child: t.headless ? const SizedBox.shrink() : BrowserLayer.webViewBuilder(t))],
               ),
             ),
           ),

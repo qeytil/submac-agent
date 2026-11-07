@@ -13,7 +13,9 @@ class BootReceiver : BroadcastReceiver() {
             val bots = fp.getString("flutter.bots_v1", "") ?: ""
             val offices = fp.getString("flutter.offices_v1", "") ?: ""
             val tasks = fp.getString("flutter.scheduled", "") ?: ""
-            if (bots.contains("\"active\":true") || (offices.length > 4) || tasks.length > 4) {
+            // Missions switched on (Missions.prefOn, 2026-11-07): ids of bots' and teams' missions that wake themselves.
+            val missions = fp.getString("flutter.missions_on_v1", "") ?: ""
+            if (bots.contains("\"active\":true") || (offices.length > 4) || tasks.length > 4 || missions.isNotEmpty()) {
                 // Not started from here: a receiver's process is frozen seconds after it returns (and Android 15 lets
                 // no dataSync service start from a boot broadcast), so Dart never finished setting the alarms. An
                 // exact alarm a few seconds from now starts SubMac with its foreground service instead (2026-11-05).
