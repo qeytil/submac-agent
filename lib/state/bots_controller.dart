@@ -245,13 +245,6 @@ extension AppStateBots on AppState {
       }
       return;
     }
-    // A busy day, or the bots' share of today's allowance is used: the owner's own chats come first, so background
-    // work waits for tomorrow (one note a day, no retries; the next wake after midnight UTC runs as usual).
-    // A bot on its own BYOK model (owner 2026-11-03) is not held back by SubMac's allowance.
-    if (kind != 'chat' && !OcLane.isByok(OcLane.pick(background: true, botModel: b.model)) && (Cloud.usage.value.light || Cloud.usage.value.resting || Cloud.background.value.pausedNow)) {
-      _notePaused(b);
-      return;
-    }
     // A plain check-in first asks the fast model one yes/no question on a few lines (~500 tokens) instead of
     // waking the bot with its whole prompt (~20k) only to end with [no reply], which is how most check-ins end.
     if (kind == 'work' && instruction.trim().isEmpty && !await _worthWaking(b)) {
@@ -260,6 +253,8 @@ extension AppStateBots on AppState {
       await Bots.I.save();
       return;
     }
+    // Owner 2026-11-07: a bot is governed by the allowance in its own profile ([b.overBudget], checked above), never
+    // by a hardcoded account-wide guard. SubMac's server still refuses a SubMac call when the whole account is out.
     if (!await _ensureBotConv(b)) return;
     b.lastWake = DateTime.now();
     final now = DateTime.now();
@@ -677,29 +672,17 @@ extension AppStateBots on AppState {
   }
 
   void _officePump() {
-    // Offices pause on a busy day so the owner's own chats keep their allowance; they pick up again tomorrow. A bot on
-    // one of the owner's own models (BYOK) is not billed by SubMac, so its team work goes on (owner 2026-11-06: its
-    // profile's model must hold everywhere).
-    final dayHeld = Cloud.usage.value.light || Cloud.usage.value.resting;
-    if (!dayHeld) _officeWatchdog();
+    // Owner 2026-11-07: team work is governed by each bot's own allowance (checked in _officeRun), not by a hardcoded
+    // account-wide day gate.
+    _officeWatchdog();
     final q = Offices.I.queue;
     if (q.isEmpty) return;
-    final bgPaused = Cloud.background.value.pausedNow;
     var changed = false;
     DateTime? nextRetry;
     // Every ready job starts now (owner 2026-11-04): no cap on how many bots work at once, a bot may do several jobs
     // side by side, and a bot talking with the owner in its own chat still does its team work (each piece of work has
     // its own opencode session). The bots' share and each bot's own budget still hold.
     for (final j in List.of(q)) {
-      final jb = Bots.I.byId(j.botId);
-      final ownModel = jb != null && BotModelRoute.of(jb).isByok;
-      if (dayHeld && !ownModel) continue;
-      // The bots' share of today's allowance is used: office work waits for the next UTC day (owner replies still run).
-      if (bgPaused && j.kind != 'reply' && !ownModel) {
-        final at = DateTime.now().add(Cloud.untilBackgroundResets());
-        if (nextRetry == null || at.isBefore(nextRetry)) nextRetry = at;
-        continue;
-      }
       if (!j.ready) {
         if (nextRetry == null || j.after!.isBefore(nextRetry)) nextRetry = j.after;
         continue;

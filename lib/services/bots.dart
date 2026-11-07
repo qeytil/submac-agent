@@ -312,8 +312,9 @@ class Bot {
   /// None of its routines needs the phone, so by default it keeps working in the cloud.
   bool get cloudFit => routines.every((r) => !needsPhone(r.instruction, r.kind, local: r.local));
 
-  /// It keeps working in the cloud (jobs that need the phone always stay on the phone).
-  bool get cloudOn => cloudChoice ?? cloudFit;
+  /// Owner 2026-11-07: the digital person runs on this phone, never in the cloud. Always false, so the cloud runner
+  /// (bot-run) never picks a bot up. Kept as a getter so older settings, the sync payload and the tests keep working.
+  bool get cloudOn => false;
 
   /// Takes the setup from the account (another phone changed it). Memory, desk, journal, knowledge and the day's
   /// counters stay as they are here.

@@ -698,14 +698,10 @@ extension AppStateAgentRunner on AppState {
     final oc = OpenCodeEngine.I;
     _ocWire(oc);
     SaveGuard.I.newTurn(key);
-    // Team work nobody is watching bills to the bots' share (owner 2026-11-03, see OcLane): when the share is used
-    // up today it waits for tomorrow, as the old team path did on ai-chat's background_paused.
+    // Team work nobody is watching bills to the bots' share (owner 2026-11-03, see OcLane). Owner 2026-11-07: it is
+    // governed by each bot's own allowance, not pre-paused by a hardcoded account-wide gate; SubMac's server refusal
+    // is the backstop.
     final laneModel = OcLane.pick(background: background, officeWork: true, botModel: b.model);
-    // A member on its own BYOK model does not use the bots' share, so it is not paused with it (owner 2026-11-03).
-    if (background && Cloud.background.value.pausedNow && !OcLane.isByok(laneModel)) {
-      _notePaused(b);
-      throw OpenCodeError('${AppState.bgPausedText}.');
-    }
     final dbg = AppState.debugTeamTurn;
     if (dbg != null) return dbg(b, key, system, task, model: laneModel, background: background, officeJob: officeJob);
     await oc.ensure(turn: true);

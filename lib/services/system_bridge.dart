@@ -267,7 +267,7 @@ class SystemBridge {
       await _call('clearTasks');
     } catch (_) {}
   }
-  Future<void> keepAlive(bool on, {String text = 'Working on your task'}) => _call('keepAlive', {'on': on, 'text': text});
+  Future<void> keepAlive(bool on, {String text = 'SubMac is active'}) => _call('keepAlive', {'on': on, 'text': text});
   /// [label]: the line the foreground service shows when the alarm starts SubMac ("<Bot name> · <task title>").
   Future<void> scheduleAlarm(String id, DateTime at, {String label = ''}) =>
       _call('scheduleAlarm', {'id': id, 'at': at.millisecondsSinceEpoch, if (label.isNotEmpty) 'label': label});

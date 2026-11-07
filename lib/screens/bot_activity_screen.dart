@@ -59,13 +59,13 @@ class BotActivityScreen extends StatelessWidget {
                   ? 'Busy'
                   : 'Full';
 
-  /// "Busy day, 40% of its daily limit" or just "Busy day".
+  /// "Busy day, 40% of its allowance" or just "Busy day".
   static String usageLine(Bot b) {
     final used = b.tokensTodayNow;
     final word = dayWord(used);
     if (b.tokenBudgetK <= 0) return word;
     final pct = (100 * used / (b.tokenBudgetK * 1000)).clamp(0, 100).round();
-    return '$word, $pct% of its daily limit';
+    return '$word, $pct% of its allowance';
   }
 
   /// Daily limit choices, in plain words.
@@ -256,12 +256,35 @@ class BotPowersSection extends StatelessWidget {
         if (g == 'whatsapp' && !b.powersOff.contains(g) && !b.powersOff.contains('phone'))
           _WaTrust(bot: b),
       ],
-      // The bot's model moved to the top of its profile settings (BotModelRow, owner 2026-11-05).
-      ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Daily limit'),
+      // The bot's model and its allowance sit at the top of its profile settings (BotModelRow / BotAllowanceRow,
+      // owner 2026-11-07).
+    ]);
+  }
+}
+
+/// The bot's own allowance (owner 2026-11-07): the one daily cap that governs how much a bot may work. It is set here,
+/// in the bot's own profile, and never by a hardcoded account-wide guard. 0 = no limit. Its use is drawn as a gauge in
+/// the bot's Activity screen.
+class BotAllowanceRow extends StatelessWidget {
+  const BotAllowanceRow({super.key, required this.bot});
+  final Bot bot;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final b = bot;
+    final used = b.tokensTodayNow;
+    final cap = b.tokenBudgetK;
+    final pct = cap <= 0 ? null : (100 * used / (cap * 1000)).clamp(0, 100).round();
+    final level = BotActivityScreen.budgetChoices[cap] ?? 'Custom';
+    return SurfaceRow(
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      child: ListTile(
+        key: const ValueKey('bot-allowance'),
+        contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
+        title: const Text('Allowance'),
         subtitle: Text(
-          '${BotActivityScreen.budgetChoices[b.tokenBudgetK] ?? 'Custom'} · today: ${BotActivityScreen.usageLine(b)}.',
+          cap <= 0 ? 'No limit · today: ${BotActivityScreen.usageLine(b)}' : '$level · $pct% used today',
           style: TextStyle(color: p.muted),
         ),
         trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
@@ -287,7 +310,7 @@ class BotPowersSection extends StatelessWidget {
           await Bots.I.save();
         },
       ),
-    ]);
+    );
   }
 }
 

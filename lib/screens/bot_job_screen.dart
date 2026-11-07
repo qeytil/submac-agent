@@ -521,6 +521,7 @@ class _SettingsTab extends StatelessWidget {
         },
       ),
       BotModelRow(bot: b),
+      BotAllowanceRow(bot: b),
       _Pick(
         label: 'Off hours',
         value: '${b.quietFrom}-${b.quietTo}',
@@ -620,21 +621,13 @@ class _SettingsTab extends StatelessWidget {
       ),
       SurfaceRow(
         margin: const EdgeInsets.symmetric(vertical: 2),
-        child: SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
-        title: const Text('Works while you\'re away'),
-        subtitle: Text(
-            b.cloudFit
-                ? 'Runs without your phone.'
-                : 'Runs without your phone. Calls and texts still wait for your phone.',
-            style: TextStyle(color: p.muted)),
-        value: b.cloudOn,
-        onChanged: (v) async {
-          b.cloudChoice = v;
-          await Bots.I.save();
-          await Bots.I.arm(b);
-        },
-      ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
+          leading: Icon(Icons.smartphone_rounded, color: p.text),
+          title: const Text('Runs on this phone'),
+          subtitle: Text('Active 24/7 on this phone. SubMac does not run your bots in the cloud.',
+              style: TextStyle(color: p.muted)),
+        ),
       ),
       _Head('Tools'),
       BotSetupSection(bot: b),

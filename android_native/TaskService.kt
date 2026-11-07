@@ -22,7 +22,7 @@ class TaskService : Service() {
         private const val NOTE_ID = 7201
         /** The longest a single hold lasts; every new start or update renews it. */
         private const val HOLD_MS = 30L * 60L * 1000L
-        @Volatile var text = "SubMac · Working"
+        @Volatile var text = "SubMac is active"
         @Volatile private var running = false
 
         fun start(ctx: Context, line: String) {
@@ -57,18 +57,20 @@ class TaskService : Service() {
 
     private fun note(): Notification {
         Notifier.ensureChannels(this)
-        // Background work channel (silent, low): who works and on what, "Nova · Hourly news" (2026-11-05). The
-        // result comes as its own notification when the work ends.
-        return Notifier.builder(this, Notifier.WORK)
+        // Always "SubMac is active" (owner 2026-11-07); the bot and its task are the second line, "Nova · Hourly news".
+        // The result comes as its own notification when the work ends.
+        val line = text.trim()
+        val b = Notifier.builder(this, Notifier.WORK)
             .setSmallIcon(R.drawable.ic_stat_submac)
             .setColor(0xFF17150F.toInt())
-            .setContentTitle(text)
+            .setContentTitle("SubMac is active")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .setCategory(Notification.CATEGORY_PROGRESS)
             .setContentIntent(Notifier.openIntent(this, "tasks", 7202))
-            .build()
+        if (line.isNotEmpty() && !line.equals("SubMac is active", ignoreCase = true)) b.setContentText(line)
+        return b.build()
     }
 
     /** New line on the running notification, and the wake lock renewed. */

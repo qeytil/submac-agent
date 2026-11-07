@@ -287,7 +287,7 @@ object Bridge {
                         result.success(true)
                     }
                     "keepAlive" -> {
-                        if (call.argument<Boolean>("on") == true) TaskService.start(ctx, call.argument<String>("text") ?: "Working on your task")
+                        if (call.argument<Boolean>("on") == true) TaskService.start(ctx, call.argument<String>("text") ?: "SubMac is active")
                         else TaskService.stop(ctx)
                         result.success(true)
                     }
