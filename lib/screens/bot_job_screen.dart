@@ -16,6 +16,7 @@ import '../services/trust.dart';
 import '../theme.dart';
 import '../widgets/avatar_picker.dart';
 import '../widgets/approval_card.dart';
+import '../widgets/mission_section.dart';
 import '../widgets/model_picker.dart';
 import '../widgets/surface.dart';
 import 'bot_activity_screen.dart';
@@ -395,6 +396,8 @@ class _JobTab extends StatelessWidget {
       ApprovalList(botId: b.id),
       for (final t in needs) _Line(icon: Icons.hourglass_empty_rounded, text: t.text, sub: t.note.isEmpty ? 'Waiting on you' : t.note, onTap: () => _task(context, b, t)),
       if (!hasNeeds) _Muted('Nothing needs you right now.'),
+      // Mission mode (owner 2026-11-07): goal, autonomy on/off, budget, stop, plan and activity log.
+      MissionSection(kind: 'bot', ownerId: b.id, ownerName: b.name),
       _Head('Working on'),
       if (working.isEmpty) _Muted(b.active ? 'Nothing open. Give ${b.name} a job in the chat.' : 'Not working for you yet.'),
       for (final t in working.take(12))

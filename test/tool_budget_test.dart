@@ -17,6 +17,7 @@ import 'package:agent/services/connector_catalog.dart';
 import 'package:agent/services/setup_tools.dart';
 import 'package:agent/services/bots.dart';
 import 'package:agent/services/offices.dart';
+import 'package:agent/services/missions.dart';
 import 'package:agent/services/whatsapp.dart';
 
 /// Guards the token cost of the toolbox: every agent step sends these schemas, so growth here
@@ -29,6 +30,7 @@ void main() {
       'browserJobs': BrowserJobs.definitions, 'agent': AgentTools.definitions, 'phone': PhoneTools.definitions,
       'docTools': DocTools.definitions, 'docMaker': DocMaker.definitions, 'connectors': ConnectorCatalog.definitions(),
       'apiCall': [ConnectorCatalog.apiCallTool], 'setup': SetupTools.definitions, 'bots': Bots.definitions, 'offices': Offices.definitions,
+      'missions': Missions.definitions,
       'whatsapp': [WhatsAppTools.definition],
     };
     var total = 0, n = 0;
@@ -48,6 +50,9 @@ void main() {
     // owner in Telegram with SubMac closed. Bot tools reach opencode through find_tools, not with every step.
     // 11500 -> 11560 (team turns, 2026-11-06): office_watch (~40 tokens) lets a bot wait for a teammate's post instead
     // of polling ("analyze Nova's research once it posts"). Office tools are offered only under a team key.
-    expect(total ~/ 4, lessThan(11560));
+    // 11560 -> 11970 (bot autonomy, 2026-11-07): the four mission tools (~400 tokens: plan, update/needs_you,
+    // schedule_next, done) let a bot or team work toward a goal over many background runs. They are bot tools (offered
+    // through the bot's brief and find_tools), never in the owner's own chat.
+    expect(total ~/ 4, lessThan(11970));
   });
 }

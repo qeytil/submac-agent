@@ -32,6 +32,7 @@ extension AppStateSystem on AppState {
     // teams and chats are loaded (it used to find no team or bot yet and was dropped).
     b.onNotifReply = (to, text) => unawaited(_alarmGate.run(() => _notificationReply(to, text)));
     Offices.I.pump = _officePump;
+    _wireMissions();
     CodeGit.connect = (why) async {
       final r = await requestConnect('GitHub', why: why);
       return r.contains('is connected') || r.contains('already connected');
@@ -202,6 +203,12 @@ extension AppStateSystem on AppState {
       await TeamRun.I.restore();
       _officePump();
     } catch (_) {}
+    try {
+      // Missions (owner 2026-11-07): loaded from their files before the alarm gate opens, and every mission that is on
+      // gets its alarm again (after a restart its time may have passed: it then wakes in a minute).
+      await Missions.I.init();
+      await Missions.I.armAll();
+    } catch (_) {}
     await sideInits;
     TelegramBridge.I.onMessage = _telegramAsk;
     // Awaited (it only reads the saved token; polling runs on its own) so a bot's first background task can already
@@ -255,6 +262,11 @@ extension AppStateSystem on AppState {
       final queued = await Offices.I.fire(id);
       _officePump();
       if (!queued && !runs.any((r) => !r.side) && _officeBusy.isEmpty) await SystemBridge.I.keepAlive(false);
+      return;
+    }
+    if (id.startsWith('mission|')) {
+      final woke = await Missions.I.fire(id);
+      if (!woke && !runs.any((r) => !r.side) && _officeBusy.isEmpty) await SystemBridge.I.keepAlive(false);
       return;
     }
     if (id.startsWith('bot|')) {

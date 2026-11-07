@@ -215,7 +215,7 @@ class OfficeJob {
   final String instruction;
   final DateTime at;
 
-  int get rank => switch (kind) { 'reply' => 0, 'mention' || 'assign' || 'react' || 'unblock' => 1, 'review' => 2, 'task' => 3, 'digest' => 4, _ => 5 };
+  int get rank => switch (kind) { 'reply' => 0, 'mention' || 'assign' || 'react' || 'unblock' || 'mission' => 1, 'review' => 2, 'task' => 3, 'digest' => 4, _ => 5 };
 
   Map<String, dynamic> toJson() =>
       {'o': officeId, 'b': botId, 'k': kind, 't': taskId, 'i': instruction, 'at': at.toIso8601String(), 'af': after?.toIso8601String(), if (tries > 0) 'tr': tries, if (thread.isNotEmpty) 'th': thread,
@@ -1187,6 +1187,9 @@ class Offices extends ChangeNotifier {
     return p;
   }
 
+  /// The team's mission block for [b]'s prompt ('' = none; set by the app, Missions).
+  String Function(Office o, Bot b)? missionOf;
+
   /// The office job bot [botId] is doing in team [officeId] right now: its kind and chain (set by the app).
   ({String kind, int depth, String cause})? Function(String botId, String officeId)? jobOf;
 
@@ -1531,6 +1534,9 @@ class Offices extends ChangeNotifier {
         if (o.tasks.where((t) => t.owner == id && t.status == 'doing').map((t) => t.title).firstOrNull case final d?) '${_botName(id)}: "$d"'
     ];
     if (busy.isNotEmpty) sb.writeln('Working on: ${busy.join('; ')}');
+    // The team's mission (owner 2026-11-07): the lead sees the plan and log; members see the goal, so their part fits.
+    final mission = missionOf?.call(o, b) ?? '';
+    if (mission.isNotEmpty) sb.writeln('\n$mission');
     if (o.brief.isNotEmpty || o.decisions.isNotEmpty) {
       sb.writeln('\n# Brief and decisions');
       for (final x in o.brief.reversed.take(25).toList().reversed) {
@@ -1629,6 +1635,13 @@ class Offices extends ChangeNotifier {
             'work with your tools, then report back in the team chat: the result first (links, numbers, file names; long work goes in '
             'the team folder with docs_share), addressed to whoever handed it to you. Do only your own part; do not hand it on or '
             'restate it. If the message was not really asking you for anything, reply with exactly ${NoReply.token}.$check$end';
+      case 'mission':
+        // The team's mission woke its lead (owner 2026-11-07): the lead decides and hands out the work by itself.
+        return '${job.instruction}\n'
+            'You lead this mission for the team. Hand parts to teammates with lines that start with their name ("Nova: …") in your posts '
+            'or office_post: that starts their turn now and they report back (you are woken by their reports). Do lead work yourself only '
+            'when nobody else fits. Keep the mission plan (mission_plan with "who") and log (mission_update) current, then '
+            'mission_schedule_next or mission_done.$end';
       case 'react':
         // A watch fired: the teammate this bot was waiting for just posted (owner 2026-11-06).
         return '${job.instruction}\n'

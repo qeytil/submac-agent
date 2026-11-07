@@ -349,6 +349,76 @@ class ByokFetch {
     }
   }
 
+  /// Can [p] take a tool-calling chat in the OpenAI shape (messages with tool_calls/tool rows, image parts, tools)?
+  /// The browser agent's steps need that (owner 2026-11-07: a bot's browser task on the bot's own model).
+  static bool toolChatOk(ByokProvider p) => !p.kind.isAnthropic && p.kind != ByokKind.gemini;
+
+  /// One tool-calling step to an OpenAI-compatible [p] (no stream): [messages] and [tools] go as they are.
+  static http.Request toolChatRequest(ByokProvider p, String? key, String model, List<Map<String, dynamic>> messages,
+      List<Map<String, dynamic>> tools, {int? maxTokens}) {
+    final r = http.Request('POST', Uri.parse('${p.apiBase}/chat/completions'));
+    r.body = jsonEncode({
+      'model': model,
+      'messages': messages,
+      if (tools.isNotEmpty) 'tools': tools,
+      if (tools.isNotEmpty) 'tool_choice': 'auto',
+      'stream': false,
+      if (maxTokens != null) 'max_tokens': maxTokens,
+    });
+    r.headers.addAll({'content-type': 'application/json', 'accept': 'application/json', ...p.headers, ...authHeaders(p.kind, key)});
+    return r;
+  }
+
+  /// The answer of a tool-calling step: its words, tool calls, finish reason and tokens.
+  static ({String text, List<Map<String, String>> calls, String? finish, int tokens, int tokensIn, int tokensOut}) toolChatAnswer(Object? json) {
+    if (json is! Map) throw ByokError('The provider answered, but not with a chat reply.');
+    final ch = json['choices'];
+    if (ch is! List || ch.isEmpty || ch.first is! Map) throw ByokError('The provider answered, but not with a chat reply.');
+    final c0 = ch.first as Map;
+    final msg = c0['message'] is Map ? c0['message'] as Map : const {};
+    final content = msg['content'];
+    final text = content is String ? content : content is List ? content.map((e) => e is Map ? '${e['text'] ?? ''}' : '').join() : '';
+    final calls = <Map<String, String>>[];
+    var i = 0;
+    for (final t in (msg['tool_calls'] is List ? msg['tool_calls'] as List : const [])) {
+      if (t is! Map) continue;
+      final f = t['function'] is Map ? t['function'] as Map : const {};
+      final args = f['arguments'];
+      calls.add({'id': '${t['id'] ?? 'call_${i++}'}', 'name': '${f['name'] ?? ''}', 'arguments': args is String ? args : jsonEncode(args ?? {})});
+    }
+    final u = json['usage'] is Map ? json['usage'] as Map : const {};
+    int n(Object? v) => v is num ? v.toInt() : 0;
+    return (
+      text: text,
+      calls: calls,
+      finish: c0['finish_reason'] == null ? null : '${c0['finish_reason']}',
+      tokens: n(u['total_tokens']),
+      tokensIn: n(u['prompt_tokens']),
+      tokensOut: n(u['completion_tokens'])
+    );
+  }
+
+  Future<({String text, List<Map<String, String>> calls, String? finish, int tokens, int tokensIn, int tokensOut})> toolChat(
+      ByokProvider p, String? key, String model, List<Map<String, dynamic>> messages, List<Map<String, dynamic>> tools,
+      {int? maxTokens}) async {
+    final r = toolChatRequest(p, key, model, messages, tools, maxTokens: maxTokens);
+    int code;
+    String body;
+    try {
+      (code, body) = await _send(r, timeout: const Duration(seconds: 120));
+    } catch (e) {
+      throw ByokError(networkLine(e, r.url.toString()));
+    }
+    if (code < 200 || code >= 300) throw ByokError(errorLine(code, body, key: key), status: code);
+    Object? j;
+    try {
+      j = jsonDecode(body);
+    } catch (_) {
+      throw ByokError('The provider answered, but not with a chat reply.');
+    }
+    return toolChatAnswer(j);
+  }
+
   /// Tests [p] with [key]: lists models; when the provider has no list (404/405) and [model] is given, sends one tiny
   /// chat request instead. Returns a short success line; throws [ByokError] with a plain message.
   Future<String> test(ByokProvider p, String? key, {String? model}) async {
