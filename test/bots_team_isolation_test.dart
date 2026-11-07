@@ -328,14 +328,17 @@ void main() {
       expect(run, contains('Offices.I.post(o, b.id'));
     });
 
-    test('a team turn asks, routes and browses under its key, not the member\'s chat', () {
+    test('a team turn runs on SubMac\'s bot engine under its key, not the member\'s chat', () {
       final tt = _between(runner, 'Future<String> teamTurn(', 'Future<String?> _teamPermission(');
-      expect(tt, contains('newSession(title:'));
-      expect(tt, contains('conv: key'));
+      expect(tt, contains('BotAgentEngine('));
+      expect(tt, contains('BotBrowserModel.of(b, submacRef)'));
+      expect(tt, contains('convId: key'));
+      expect(tt, isNot(contains('OpenCodeEngine')), reason: 'team work no longer runs on opencode');
+      expect(tt, isNot(contains('newSession(')), reason: 'team work opens no opencode session');
       expect(tt, isNot(contains('b.convId')));
       expect(tt, isNot(contains('_teamConv')), reason: 'member asks used to land in the "SubMac team" chat');
       expect(tt, contains('teamLive[key]'));
-      expect(tt, contains('oc.endTurn()'));
+      expect(runner, contains('if (TeamKey.isKey(convId)) return;'), reason: 'no team key ever runs as a chat turn');
       final routed = _between(runner, 'Future<String> _runRouted(', 'String _screenLabel(');
       expect(routed, contains('runToolWithApproval(name, args, convId: conv)'));
       expect(routed, isNot(contains('convId: home')));

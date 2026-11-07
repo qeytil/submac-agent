@@ -227,6 +227,9 @@ extension AppStateAgentRunner on AppState {
   /// Runs one opencode turn for the newest user message of [convId]. [side] and [chain] are kept for the callers
   /// (bots, calls): opencode queues a message sent while a reply is still being written, so both run the same way.
   Future<void> _runAgent(String convId, {bool side = false, int chain = 0}) async {
+    // Team work never runs as a chat turn: it has its own engine turn (_teamTurn), and opencode is reserved for the
+    // owner's chat. This is a backstop against the main chat list being borrowed for a team key.
+    if (TeamKey.isKey(convId)) return;
     final list = _lists[convId] ?? messages;
     _lists[convId] = list;
     ChatMessage? lastUser;
@@ -266,9 +269,8 @@ extension AppStateAgentRunner on AppState {
       run.show(RunPhase.starting, RunStatus.starting);
       _notify();
       // A bot's own turn runs on SubMac's bot engine, never opencode (owner 2026-11-07): opencode is reserved for
-      // the SubMac agent (the owner's chat). Everything below is the opencode path and does not apply to bots. A team
-      // or office conversation (TeamKey) keeps its own path for now, even though byConv maps it to its bot.
-      final turnBot = TeamKey.isKey(convId) ? null : Bots.I.byConv(convId);
+      // the SubMac agent (the owner's chat). Everything below is the opencode path and does not apply to bots.
+      final turnBot = Bots.I.byConv(convId);
       if (turnBot != null) {
         await _runBotTurn(convId, run, list, turnBot);
         // The same follow-up as the opencode path (a message the owner sent while the bot worked) — queued as a
@@ -849,6 +851,11 @@ extension AppStateAgentRunner on AppState {
     }
   }
 
+/// One bot's part of a team's work, on SubMac's own bot engine (owner 2026-11-07): opencode is reserved for the
+  /// owner's chat. The turn is the same loop as a bot's own chat ([BotAgentEngine]), but it writes no chat rows: its
+  /// team key is no conversation, and only its answer is posted to the team chat by its caller. Its own BYOK model
+  /// answers when it can take tools; otherwise SubMac's office lane does. Every tool is called by name through the
+  /// app's router under [key] (team_assign, team_task, the office tools and the bot's own).
   Future<String> _teamTurn(Bot b, String key, String system, String task,
       {bool Function()? stopped,
       Future<String> Function(String member, String ask)? assign,
@@ -857,148 +864,139 @@ extension AppStateAgentRunner on AppState {
       String? office,
       String? officeJob,
       void Function(String line)? onStatus}) async {
-    final oc = OpenCodeEngine.I;
-    _ocWire(oc);
     SaveGuard.I.newTurn(key);
-    // Team work nobody is watching bills to the bots' share (owner 2026-11-03, see OcLane). Owner 2026-11-07: it is
-    // governed by each bot's own allowance, not pre-paused by a hardcoded account-wide gate; SubMac's server refusal
-    // is the backstop.
+    // The model this turn runs on, kept for the debug hook and the BYOK key rotation (tests read it).
     final laneModel = OcLane.pick(background: background, officeWork: true, botModel: b.model);
     final dbg = AppState.debugTeamTurn;
     if (dbg != null) return dbg(b, key, system, task, model: laneModel, background: background, officeJob: officeJob);
-    await oc.ensure(turn: true);
+    final model = BotBrowserModel.of(b, submacRef);
+    final own = model.byok;
+    final submac = model.submac ?? submacRef;
+    // Answering the owner in the team chat is the owner's own conversation; the rest is office work on the bots'
+    // share (the same lane opencode's office provider billed to).
+    final source = background ? UsageSource.office : UsageSource.agent;
+    final until = DateTime.now().add(const Duration(minutes: 30));
     var over = false;
-    bool live() => over || (stopped?.call() ?? false);
-    final family = <String>{};
-    String? session;
-    final turnRef = <OpenCodeTurn>[];
-    StreamSubscription<Map<String, dynamic>>? sub;
-    String? why;
-    var aborted = false;
+    var timedOut = false;
+    // The turn is over: the owner stopped the team, or it ran out of time. Also the predicate a browser or media job
+    // under this key reads to end with it.
+    bool dead() {
+      if (over || (stopped?.call() ?? false)) return true;
+      if (DateTime.now().isAfter(until)) {
+        timedOut = true;
+        return true;
+      }
+      return false;
+    }
+
+    final outs = <String>[];
+    var lastCut = false;
+    final run = AgentRun(convId: key, side: true, title: _shortTitle(task));
     try {
       await ensureMcpTools().catchError((Object _) {});
-      await oc.syncMcp().catchError((Object _) {});
-      // Its permission and question cards show in the team ([key]): never the member's private chat, the "SubMac
-      // team" chat, or the chat that happens to be open.
-      final s = await oc.newSession(title: '${b.name}: ${_shortTitle(task)}', conv: key);
-      session = s;
-      family.add(s);
-      final turn = OpenCodeTurn(s);
-      turnRef.add(turn);
-      final guard = OcBgGuard(
-          background: background,
-          budgetLeft: Missions.minLeft(OcBgGuard.leftOf(b.tokenBudgetK, b.tokensTodayNow), office == null ? null : Missions.I.leftFor('team', office)),
-          byok: OcLane.isByok(laneModel));
       if (assign != null) _teamAssign[key] = assign;
       if (office != null) _officeCtx[key] = office;
       if (officeJob != null) ocOfficeJob[key] = officeJob;
-      teamLive[key] = live;
-      _ocLive.add(key);
-      _ocFamilies[key] = family;
-      var seen = DateTime.now();
-      sub = oc.events.listen((e) {
-        _routes.watch(e, key, family);
-        if (!turn.apply(e)) return;
-        seen = DateTime.now();
-        final last = turn.parts.values.isEmpty ? null : turn.parts.values.last;
-        TeamStatus.I.phase(key, TeamStatus.phaseOf(lastKind: last?.kind, lastFinished: last?.finished ?? true, reasoning: turn.reasoning));
-        if (onStatus != null) {
-          if (last != null && last.kind == 'tool' && !last.finished) {
-            onStatus(last.title ?? stepLabel(last.tool.replaceFirst('submac_', ''), last.input));
-          } else if (turn.reasoning) {
-            onStatus('Thinking');
-          } else if (last != null && last.kind == 'text') {
-            onStatus('Writing');
+      teamLive[key] = dead;
+      final cfg = BotAgentConfig(
+        botId: b.id,
+        name: b.name,
+        folder: Bots.botFolder(b),
+        maxSteps: maxSteps.clamp(6, 80).toInt(),
+      );
+      final tools = AppState._capTools(_mcpTools(key)) ?? const <Map<String, dynamic>>[];
+      final engine = BotAgentEngine(
+        config: cfg,
+        cancelled: dead,
+        // Nobody is watching: the bot's own allowance (and its team mission's) stops office work between steps. A
+        // bot on its own key is not billed by SubMac, so that allowance never cuts its own-model work.
+        stop: () => background &&
+            own == null &&
+            (b.overBudget || (office != null && (Missions.I.leftFor('team', office) ?? 1) == 0)),
+        onStep: (r) {
+          if (r.tokens <= 0) return;
+          b.addTokens(r.tokens);
+          if (office != null) Missions.I.addTokens('team', office, r.tokens);
+          unawaited(Bots.I.save());
+        },
+        step: (messages, defs) async {
+          TeamStatus.I.phase(key, TeamPhase.working);
+          final asst = ChatMessage(id: _uuid.v4(), role: 'assistant', streaming: true);
+          final LlmResult r;
+          final pick = own;
+          if (pick != null) {
+            // The owner's own provider, straight from the phone (an OpenAI-shaped tool call).
+            r = await BotBrowserModel.byokStep(pick, messages, defs);
+            asst.content = r.content;
+          } else {
+            r = await _streamResilient(
+              run: run,
+              route: submac,
+              payload: messages,
+              tools: defs,
+              asst: asst,
+              cancelled: dead,
+              backgroundOverride: background,
+              sourceOverride: source,
+            );
+          }
+          lastCut = r.cutOff;
+          if (asst.content.trim().isNotEmpty) {
+            TeamStatus.I.phase(key, TeamPhase.typing);
+            onStatus?.call('Writing');
+          }
+          return r;
+        },
+        runTool: (call) async {
+          final args = _botArgs(call.arguments);
+          final label = stepLabel(call.name, args);
+          TeamStatus.I.phase(key, TeamPhase.working);
+          onStatus?.call(label);
+          final out = await _runRouted(call.name, args, key)
+              .catchError((Object e) => 'Error in ${call.name}: $e');
+          outs.add(out);
+          return out.length <= cfg.maxToolChars ? out : '${out.substring(0, cfg.maxToolChars)}\n...';
+        },
+      );
+      try {
+        final result = await engine.run(system: system, history: [
+          {'role': 'user', 'content': task},
+        ], tools: tools);
+        if (timedOut) throw OpenCodeError('${b.name} ran out of time (30 min).');
+        if (result.stopped == 'cancelled' || (stopped?.call() ?? false)) return '';
+        if (result.stopped == 'stopped') {
+          // Stopped mid-turn by the bot's own daily budget: it keeps what it wrote, and the team chat says why.
+          TeamStatus.I.fail(key, '${b.name} used today\'s token budget. You can raise it in their settings.');
+          if (!b.journal.any((e) => e.kind == 'budget' && DateTime.now().difference(e.at).inHours < 20)) {
+            b.log('budget', 'Stopped work: today\'s token budget is used up');
+            unawaited(Bots.I.save());
           }
         }
-      });
-      await oc.prompt(s, [{'type': 'text', 'text': task}], system: system, model: laneModel);
-      final from = DateTime.now();
-      final until = from.add(const Duration(minutes: 30));
-      var drops = oc.streamDrops;
-      var checked = from;
-      while (true) {
-        // A lost event stream or a stopped engine: asked directly, so team work never waits out the 30 min for
-        // nothing (bug hunt 2026-11-06).
-        final now = DateTime.now();
-        if (!turn.done && turn.error == null && OcWatch.due(now: now, sent: from, seen: seen, checked: checked, dropped: oc.streamDrops != drops)) {
-          checked = now;
-          drops = oc.streamDrops;
-          await oc.recover(turn, since: from.subtract(const Duration(seconds: 2)));
-        }
-        // The bots' share refused, or this bot's budget ran out: stop now (opencode would retry a 429 for 30 min).
-        why = guard.check(turn);
-        if (why != null) {
-          await oc.abort(s);
-          break;
-        }
-        if (turn.error != null) break;
-        // A part cut for length is continued in the same session (owner 2026-11-06), within the same 30 minutes.
-        if (turn.shouldContinue && !(stopped?.call() ?? false)) {
-          turn.beginContinue();
-          await oc.prompt(s, [{'type': 'text', 'text': ReplyContinuation.prompt}], system: system, model: laneModel);
-          await Future<void>.delayed(const Duration(milliseconds: 300));
-          continue;
-        }
-        // Idle with nothing written in the first seconds may be the state before the prompt started: keep waiting.
-        if (turn.done && (turn.parts.isNotEmpty || DateTime.now().difference(from) > const Duration(seconds: 8))) break;
-        if (stopped?.call() ?? false) {
-          aborted = true;
-          await oc.abort(s);
-          break;
-        }
-        // The step cap: a member that keeps going stops here and keeps what it wrote so far.
-        if (turn.parts.values.where((p) => p.kind == 'tool').length > maxSteps) {
-          await oc.abort(s);
-          break;
-        }
-        if (DateTime.now().isAfter(until)) {
-          await oc.abort(s);
-          throw OpenCodeError('${b.name} ran out of time (30 min).');
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        // Pictures, video and sound the member made with media_generate show under its reply in the team chat.
+        final made = MediaGen.cardsFromOutputs(outs);
+        // Still cut after every continuation: the team chat says so instead of the part looking finished.
+        var answer = result.reply;
+        if (lastCut && answer.isNotEmpty) answer = '$answer\n\n_(${ReplyContinuation.cutNote})_';
+        return TurnVisuals.attach(answer.trim(), made);
+      } catch (e) {
+        // A BYOK key refused or out of quota: the provider's next key takes over for the next turn.
+        final pick = own;
+        if (pick != null) await ByokStore.I.rotateAfter(pick.provider.id, '$e');
+        rethrow;
       }
     } finally {
       over = true;
-      oc.endTurn();
-      _ocLive.remove(key);
-      if (identical(_ocFamilies[key], family)) _ocFamilies.remove(key);
       screen.release(key);
       // Its screen steps (phone, browser) were owned by its key: the task bubble lets go of them now.
       TaskBubble.I.runEnded(key);
-      await sub?.cancel();
-      if (identical(teamLive[key], live)) teamLive.remove(key);
+      if (identical(teamLive[key], dead)) teamLive.remove(key);
       if (assign != null && identical(_teamAssign[key], assign)) _teamAssign.remove(key);
       if (office != null) _officeCtx.remove(key);
       if (officeJob != null) ocOfficeJob.remove(key);
-      final turn = turnRef.firstOrNull;
-      if (turn != null) {
-        if (turn.tokens > 0) {
-          b.addTokens(turn.tokens);
-          unawaited(Bots.I.save());
-          // Team work while the team's mission runs counts toward the mission's budget.
-          if (office != null) Missions.I.addTokens('team', office, turn.tokens);
-        }
-        _ocBgStopped(why, turn, b);
-      }
       if (background) unawaited(Cloud.refreshStatus());
       // The team's waiting approval cards of this work go with it (they live under its key).
       unawaited(Offices.I.expireFor(key));
-      if (session != null) unawaited(oc.dropSession(session));
     }
-    final turn = turnRef.first;
-    if (why == OcBgGuard.paused) throw OpenCodeError(turn.error ?? '${AppState.bgPausedText}.');
-    // Stopped mid-turn by the bot's own daily budget: it keeps what it wrote, and the team chat says why it stopped.
-    if (why == OcBgGuard.budget) TeamStatus.I.fail(key, '${b.name} used today\'s token budget. You can raise it in their settings.');
-    if (aborted) return '';
-    if (turn.error != null && OcLane.isByok(laneModel)) await ByokStore.I.rotateAfter(laneModel['providerID']!, turn.error);
-    if (turn.error != null && turn.answer.isEmpty) throw OpenCodeError(turn.error!);
-    // Pictures, video and sound the member made with media_generate show under its reply in the team chat (team tool
-    // steps are not shown there), and only there.
-    final made = MediaGen.cardsFromOutputs([for (final p in turn.parts.values) if (p.kind == 'tool' && p.output != null) p.output!]);
-    // Still cut after every continuation: the team chat says so instead of the part looking finished.
-    final answer = turn.leftCut && turn.answer.isNotEmpty ? '${turn.answer}\n\n_(${ReplyContinuation.cutNote})_' : turn.answer;
-    return TurnVisuals.attach(answer, made);
   }
 
   /// An opencode permission or question from team work ([key]): asked in the team, never in the member's private

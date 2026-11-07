@@ -61,7 +61,7 @@ class TeamRun extends ChangeNotifier {
   /// The most model calls one member may make for its part.
   static const memberSteps = 10;
 
-  /// Teams on opencode (owner, 2026-11-03): one opencode turn for bot [b] in a fresh session of its own, with its own
+  /// Teams on SubMac's bot engine (owner 2026-11-07; opencode before): one engine turn for bot [b] with its own
   /// brief and tools. [key] routes its tool calls (`team:<team>:<bot>`); [assign] is the lead's hand-off to a member.
   /// Set by the app; when null (tests, older callers) teams use [llm] / [ask] as before.
   Future<String> Function(Bot b, String key, String system, String task,
@@ -70,7 +70,7 @@ class TeamRun extends ChangeNotifier {
   static const assignName = 'team_assign';
   static const taskName = 'team_task';
 
-  /// The lead's hand-off on opencode: one tool for every member, by name.
+  /// The lead's hand-off: one tool for every member, by name.
   static const assignTool = {
     'type': 'function',
     'function': {
@@ -825,7 +825,7 @@ class TeamRun extends ChangeNotifier {
         Offices.I.post(o, lead.id, BotManner.handOff(b.name, ask, lang: plan.lang), assigns: false);
       }
       // No cap on how many members work at once (owner 2026-11-04): every hand-off starts now, each member in its own
-      // opencode session, side by side with the owner's chat and other bots.
+      // engine turn, side by side with the owner's chat and other bots.
       final r = await _part(o, lead, b, ask, plan, [...done]);
       _jobBots[o.id]?.remove(b.id);
       // CB-19: a part cut short by the owner's stop posts nothing (it used to say "I could not finish my part").
@@ -846,12 +846,12 @@ class TeamRun extends ChangeNotifier {
       final byTool = {for (var i = 0; i < plan.parts.length; i++) Wire.toolName(offs[i]): plan.parts[i]};
       final oc = ocTurn;
       if (oc != null && plan.parts.isNotEmpty) {
-        // On opencode: the lead works in its own session and hands parts off with team_assign (one tool, by name).
+        // The lead works in its own engine turn and hands parts off with team_assign (one tool, by name).
         final roster = [for (final p in plan.parts) '- ${p.bot.name} (${p.bot.role}): ${_short(p.ask, 300)}'].join('\n');
-        final sys = '${Bots.I.opencodeBriefOf(lead, team: true)}\n\n${BotManner.lead}\n\n# Lead the work\nYou lead the team "${o.name}". The owner '
+        final sys = '${Bots.I.agentBriefOf(lead, team: true)}\n\n${BotManner.lead}\n\n# Lead the work\nYou lead the team "${o.name}". The owner '
             'approved this plan for the task: "${plan.job}"${_ownerSaid(o)}\nPlanned parts:\n$roster\n'
-            'Hand each part to its member with submac_run_tool name "$assignName", arguments {"member": "<name>", "ask": "<their part>"}. '
-            'Parts that do not depend on each other can be handed off together; they run side by side. When a later part needs what '
+            'Hand each part to its member by calling the "$assignName" tool with arguments {"member": "<name>", "ask": "<their part>"}. '
+            'Parts that do not depend on each other can be handed off together in one step; when a later part needs what '
             'an earlier member found, hand them off one at a time and include what they need. When every part is back, write ONE clear '
             'answer for the owner: the result first, then what matters, then the next step if there is one. Credit a teammate by name '
             'only where it helps. Plain, calm words in the owner\'s language. Never forward the owner\'s message as an ask: each '
@@ -953,7 +953,7 @@ class TeamRun extends ChangeNotifier {
           ? ''
           : '\n\nWhat teammates already reported:\n${[for (final d in before) '- ${d.bot.name}: ${_short(d.text, 600)}'].join('\n')}';
       final oc = ocTurn;
-      final sys = '${oc != null ? Bots.I.opencodeBriefOf(b, team: true) : promptOf(b)}\n\n${BotManner.member(lead.name)}\n\n'
+      final sys = '${oc != null ? Bots.I.agentBriefOf(b, team: true) : promptOf(b)}\n\n${BotManner.member(lead.name)}\n\n'
           '${oc != null ? '${TeamTranscript.build(o, b, max: 12)}\n\n' : ''}# Your part\nYou are ${b.name} (${b.role.isEmpty ? 'member' : b.role}) in the team "${o.name}", led by ${lead.name}. '
           'The owner asked the team: "${plan.job}"${_ownerSaid(o)}$notes\n\n${lead.name} gave you the part below. Do it well, then reply in two '
           'pieces: first one or two short sentences to ${lead.name} for the team chat (what you did and anything they should know; name a '

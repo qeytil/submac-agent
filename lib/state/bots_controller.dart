@@ -832,7 +832,7 @@ extension AppStateBots on AppState {
             kind: text.isNotEmpty ? 'chat' : 'system', depth: j.depth, cause: j.cause);
         return;
       }
-      final system = '${Bots.I.opencodeBriefOf(b, team: true)}\n\n${Offices.I.promptFor(o, b, j)}';
+      final system = '${Bots.I.agentBriefOf(b, team: true)}\n\n${Offices.I.promptFor(o, b, j)}';
       final task = '[Office: ${o.name}]\n# Now\n${Offices.I.jobText(o, b, j)}';
       // The silent running line: "<Team> · <Bot>: <task>" (the result comes as the team's own notification).
       await SystemBridge.I.keepAlive(true,

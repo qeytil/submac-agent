@@ -66,6 +66,12 @@ extension AppStateAgentStream on AppState {
     String? effort,
     /// CB-24: [asst] still shows a dropped call's words; the first new word replaces them (this text stays before it).
     String? redoFrom,
+    /// A caller's own stop check (team work's Stop): the stream ends as if the run were cancelled.
+    bool Function()? cancelled,
+    /// A caller's own lane (a team turn always bills as office work), else this chat's.
+    bool? backgroundOverride,
+    /// The `x-submac-source` to send instead of this chat's (team work is `office`).
+    String? sourceOverride,
   }) async {
     // R2 item 1: the request is going out now; the line says what it is for (a plain step, a new message to read, a
     // reply sent back, a retry after a drop) until the first sign of life.
@@ -83,28 +89,30 @@ extension AppStateAgentStream on AppState {
     final watch = FirstWordWatch(() => run.client?.cancel());
     var redo = redoFrom;
     LlmException late() => LlmException(StreamPolicy.busyText, status: 503, code: 'busy_wait');
+    // The run's own Stop, plus whatever the caller checks (team work's Stop).
+    bool dead() => run.cancelled || (cancelled?.call() ?? false);
     var retries = 0;
     var source = UsageSource.agent;
     watch.start();
     try {
       while (true) {
-        if (run.cancelled) return LlmResult('', <ToolCall>[], 'cancelled');
+        if (dead()) return LlmResult('', <ToolCall>[], 'cancelled');
         try {
           await RateLimiter.acquire(route.provider, RateLimiter.estimateTokens(payload, useTools), local,
               onWait: (sec) {
                 run.show(RunPhase.waiting, RunStatus.queued, {'n': '$sec'});
                 _throttledNotify();
               },
-              cancelled: () => run.cancelled || watch.fired);
-          if (run.cancelled) return LlmResult('', <ToolCall>[], 'cancelled');
+              cancelled: () => dead() || watch.fired);
+          if (dead()) return LlmResult('', <ToolCall>[], 'cancelled');
           if (watch.fired) throw late();
           base();
           _notify();
           final client = LlmClient()
             ..chatId = run.convId
-            ..background = _backgroundLane(run.convId);
+            ..background = backgroundOverride ?? _backgroundLane(run.convId);
           run.client = client;
-          source = _usageSource(run.convId, side: run.side);
+          source = sourceOverride ?? _usageSource(run.convId, side: run.side);
           final r = await client.streamChat(
             provider: route.provider,
             model: route.model,
@@ -143,29 +151,29 @@ extension AppStateAgentStream on AppState {
             },
           );
           // Stopped by the 45 s first-word limit (not by the user, not to hear a new message).
-          if (watch.fired && !run.cancelled && !client.steered) throw late();
+          if (watch.fired && !dead() && !client.steered) throw late();
           return r;
         } on LlmException catch (e) {
           if (e.code == 'busy_wait') rethrow;
           // CB-45: a server that does not know `bot-chat` yet: this call (and every later one) goes as `agent`.
-          if (UsageSource.refusedBotChat(source, e) && !UsageSource.botChatRefused && asst.content.isEmpty && !run.cancelled) {
+          if (UsageSource.refusedBotChat(source, e) && !UsageSource.botChatRefused && asst.content.isEmpty && !dead()) {
             UsageSource.botChatRefused = true;
             continue;
           }
-          if (watch.fired && !run.cancelled && run.client?.steered != true) throw late();
+          if (watch.fired && !dead() && run.client?.steered != true) throw late();
           // Something was already shown, the user stopped it, or it restarts to hear them: never start over here.
-          if (run.cancelled || asst.content.isNotEmpty || watch.gotWord || run.client?.steered == true) rethrow;
+          if (dead() || asst.content.isNotEmpty || watch.gotWord || run.client?.steered == true) rethrow;
           if (!StreamPolicy.retryBeforeOutput(retriesDone: retries, gotOutput: watch.gotWord, retryable: e.isRetryable)) rethrow;
           final wait = StreamPolicy.retryWait(retryAfter: e.retryAfter, elapsed: watch.elapsed);
           if (wait == null) rethrow;
           retries++;
           for (var left = wait.inSeconds < 1 ? 1 : wait.inSeconds; left > 0; left--) {
-            if (run.cancelled || watch.fired) break;
+            if (dead() || watch.fired) break;
             run.show(RunPhase.retrying, RunStatus.retryIn, {'n': '$left', 'i': '$retries', 'm': '${StreamPolicy.autoRetries}'});
             _notify();
             await Future<void>.delayed(const Duration(seconds: 1));
           }
-          if (watch.fired && !run.cancelled) throw late();
+          if (watch.fired && !dead()) throw late();
           base();
         }
       }
