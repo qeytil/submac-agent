@@ -1,5 +1,8 @@
 # Max output: why replies were cut short, and what changed (2026-11-06, 1.13.137+207)
 
+**Status 2026-11-07: applied and deployed** — reply cap 65536, alias `submac` 65536, `ai_models.max_output_tokens`
+(gemini 65536) exposed through `ai_config_lite()`, ai-chat **v46**, bot-run **v16**. See `supabase/functions/LIVE.md`.
+
 Owner's report: something limits the model's maximum output tokens for the main agent and the bots; replies get cut.
 
 ## Every cap found

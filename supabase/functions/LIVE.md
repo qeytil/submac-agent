@@ -50,3 +50,16 @@ functions only after `20261023_billing_v2.sql` is applied (they no longer call t
 ## 2026-10-26 account-delete v11 (release 1.13.104)
 - account-delete deployed 10:52 UTC (v11, verify_jwt true): also wipes `feedback-screenshots/<uid>/`. Rollback source: v10 = this file before
   the change (commit 0a12382f; live since 2026-10-20 13:36 UTC). Smoke: throwaway account uploaded a screenshot, deleted itself, folder gone.
+
+## 2026-11-07 max output (ai-chat v46, bot-run v16; owner OK)
+- DB: `20261107_max_output.sql` applied 14:43 UTC: `billing_reply_cap_tokens` 8192 -> 65536 (the `usage_gate` reply cap that
+  clamped every reply's `max_tokens`), alias `submac` `max_output_tokens` 32768 -> 65536, and `ai_models.max_output_tokens`
+  (gemini routes 65536) exposed through `ai_config_lite()`. Tracking row `max_output_20261107`.
+- ai-chat v46 deployed 14:47 UTC (verify_jwt true) from main `e2ef59b` (esbuild bundle; blob `5458eaa9...`); ezbr_sha256
+  `954e826fec4eb73accb41cea4e04ed075d7bb90e1da782d72fb3d75664be6f7d`. Change: `providerOutCap` also honours the route's own
+  `max_output_tokens`. Rollback: redeploy `supabase/live/ai-chat-v45.js` (live v45, ezbr `29be502b...`).
+- bot-run v16 deployed 14:47 UTC (verify_jwt true) from main `e2ef59b` (single file; blob `f14cddd1...`); ezbr_sha256
+  `3851b7da3ec7c60764b952a62ec138f43fb978a3ab7861866dbd2ad61fa57daf`. Change: cloud bot model steps ask for 16384 (was 1200)
+  and a `length` / `max_tokens` stop is continued up to 2 times. Rollback: snapshot `b6f04c9` (v15, ezbr `428b758d...`).
+- Smoke: ai-chat with the anon key -> 401 `{"error":{"code":"auth"}}`; bot-run with a wrong `x-bot-run-secret` -> 401
+  `{"error":"unauthorized"}`. Both boot (no module error after deploy).
