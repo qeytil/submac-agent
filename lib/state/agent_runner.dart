@@ -265,6 +265,24 @@ extension AppStateAgentRunner on AppState {
       sentId = lastUser.id;
       run.show(RunPhase.starting, RunStatus.starting);
       _notify();
+      // A bot's own turn runs on SubMac's bot engine, never opencode (owner 2026-11-07): opencode is reserved for
+      // the SubMac agent (the owner's chat). Everything below is the opencode path and does not apply to bots. A team
+      // or office conversation (TeamKey) keeps its own path for now, even though byConv maps it to its bot.
+      final turnBot = TeamKey.isKey(convId) ? null : Bots.I.byConv(convId);
+      if (turnBot != null) {
+        await _runBotTurn(convId, run, list, turnBot);
+        // The same follow-up as the opencode path (a message the owner sent while the bot worked) — queued as a
+        // microtask so this turn is out of [runs] first, or the new turn is refused as "already running".
+        if (!run.cancelled && sentId != null && chain < 3) {
+          final newest = list.lastWhere((m) => m.role == 'user', orElse: () => list.first);
+          if (newest.role == 'user' && newest.id != sentId) {
+            final nextConv = convId;
+            final nextChain = chain + 1;
+            scheduleMicrotask(() => unawaited(_runAgent(nextConv, chain: nextChain)));
+          }
+        }
+        return;
+      }
       final oc = OpenCodeEngine.I;
       _ocWire(oc);
       await oc.ensure(turn: true);
@@ -508,6 +526,150 @@ extension AppStateAgentRunner on AppState {
     if (!run.cancelled && sentId != null && chain < 3) {
       final newest = list.lastWhere((m) => m.role == 'user', orElse: () => list.first);
       if (newest.role == 'user' && newest.id != sentId) unawaited(_runAgent(convId, chain: chain + 1));
+    }
+  }
+
+  /// A bot's own turn on SubMac's bot engine ([BotAgentEngine]), never opencode (owner 2026-11-07): a bot is a digital
+  /// person that works on its own, on the phone, under its own profile (its model, its allowance, its notes folder).
+  /// Its own BYOK model answers when that provider can take tools; otherwise SubMac's lane does. Every tool is called
+  /// directly through the app's tool router — no MCP gateway, no opencode session.
+  Future<void> _runBotTurn(String convId, AgentRun run, List<ChatMessage> list, Bot b) async {
+    final cfg = BotAgents.I.forBot(b);
+    final model = BotBrowserModel.of(b, submacRef);
+    final own = model.byok;
+    final submac = model.submac ?? submacRef;
+    final bg = _backgroundLane(convId);
+    // SubMac's tools may have changed since the last turn (an app connected, its tools loaded).
+    await ensureMcpTools().catchError((Object _) {});
+    final tools = AppState._capTools(_mcpTools(convId)) ?? const <Map<String, dynamic>>[];
+    final brief = Bots.I.agentBriefOf(b);
+    // A compacted chat keeps its summary plus the messages after the cut.
+    final cut = _compactCut(list);
+    final system = cut == null ? brief : '$brief\n\n# Earlier in this conversation\n${cut.$1}';
+    final history = _botHistory(cut?.$2 ?? list);
+    final engine = BotAgentEngine(
+      config: cfg,
+      cancelled: () => run.cancelled,
+      // Background work stops at the bot's own allowance (or its mission's). A bot on its own key is not billed by
+      // SubMac, so that allowance never cuts its own-model work (owner 2026-11-07: it must not fight BYOK).
+      stop: () => bg && own == null && (b.overBudget || (Missions.I.leftFor('bot', b.id) ?? 1) == 0),
+      onStep: (r) {
+        if (r.tokens <= 0) return;
+        b.addTokens(r.tokens);
+        if (bg) Missions.I.addTokens('bot', b.id, r.tokens);
+        unawaited(Bots.I.save());
+      },
+      step: (messages, defs) async {
+        final asst = ChatMessage(id: _uuid.v4(), role: 'assistant', streaming: true)..animateIn = true;
+        list.add(asst);
+        run.wrote.add(asst.id);
+        run.show(RunPhase.waiting, RunStatus.waiting);
+        _throttledNotify();
+        try {
+          final LlmResult r;
+          final pick = own;
+          if (pick != null) {
+            // The owner's own provider, straight from the phone (an OpenAI-shaped tool call).
+            r = await BotBrowserModel.byokStep(pick, messages, defs);
+            asst.content = r.content;
+            if (r.content.trim().isNotEmpty) run.show(RunPhase.writing, RunStatus.writing);
+          } else {
+            // SubMac's lane: the same resilient stream as the owner's chat (retries, limits, "SubMac is busy").
+            r = await _streamResilient(run: run, route: submac, payload: messages, tools: defs, asst: asst);
+          }
+          asst.streaming = false;
+          if (asst.content.trim().isEmpty) {
+            // Nothing to show for this step (a tool call, or a silent step): the tool row shows the call itself.
+            list.remove(asst);
+            run.wrote.remove(asst.id);
+          } else {
+            await _save(convId, asst);
+          }
+          _throttledNotify();
+          return r;
+        } catch (e) {
+          asst.streaming = false;
+          if (asst.content.trim().isEmpty) {
+            list.remove(asst);
+            run.wrote.remove(asst.id);
+          }
+          rethrow;
+        }
+      },
+      runTool: (call) async {
+        final args = _botArgs(call.arguments);
+        final label = stepLabel(call.name, args);
+        final row = ChatMessage(id: _uuid.v4(), role: 'assistant', toolCalls: [call])..animateIn = true;
+        list.add(row);
+        run.wrote.add(row.id);
+        run.trail.add(RunStep(label));
+        run.show(RunPhase.tool, label);
+        _throttledNotify();
+        final out = await _runRouted(call.name, args, convId)
+            .catchError((Object e) => 'Error in ${call.name}: $e');
+        final clipped = out.length <= cfg.maxToolChars ? out : '${out.substring(0, cfg.maxToolChars)}\n...';
+        final res = ChatMessage(id: _uuid.v4(), role: 'tool', toolCallId: call.id, name: call.name, content: clipped);
+        list.add(res);
+        run.wrote.add(res.id);
+        if (run.trail.isNotEmpty) run.trail.last.ended = DateTime.now();
+        await _save(convId, row);
+        await _save(convId, res);
+        _throttledNotify();
+        return clipped;
+      },
+    );
+    final result = await engine.run(system: system, history: history, tools: tools);
+    if (result.stopped == 'stopped') {
+      final note = ChatMessage(
+        id: _uuid.v4(),
+        role: 'assistant',
+        error: "Today's allowance for me is used up, so I'll pick this up again tomorrow.",
+      )..animateIn = true;
+      list.add(note);
+      run.wrote.add(note.id);
+      await _save(convId, note);
+    }
+  }
+
+  /// The conversation as model messages (OpenAI shape) for a bot turn: the user's lines, the bot's replies, and the
+  /// tool calls with their results. Thinking rows, compact markers and error rows are not part of the model's history.
+  List<Map<String, dynamic>> _botHistory(List<ChatMessage> msgs) {
+    final out = <Map<String, dynamic>>[];
+    for (final m in msgs) {
+      if (AppState.isCompactMark(m) || m.name == 'reasoning' || m.error != null) continue;
+      if (m.role == 'user') {
+        if (m.content.trim().isNotEmpty) out.add({'role': 'user', 'content': m.content});
+      } else if (m.role == 'assistant') {
+        final calls = m.toolCalls ?? const <ToolCall>[];
+        if (calls.isNotEmpty) {
+          out.add({
+            'role': 'assistant',
+            'content': m.content,
+            'tool_calls': [for (final c in calls) c.toJson()],
+          });
+        } else if (m.content.trim().isNotEmpty) {
+          out.add({'role': 'assistant', 'content': m.content});
+        }
+      } else if (m.role == 'tool') {
+        out.add({'role': 'tool', 'tool_call_id': m.toolCallId ?? '', 'name': m.name ?? '', 'content': m.content});
+      }
+    }
+    if (out.length <= 80) return out;
+    // Keep the newest rows, but never start on a tool result: a tool row must follow the assistant call it answers.
+    var start = out.length - 80;
+    while (start < out.length && out[start]['role'] == 'tool') {
+      start++;
+    }
+    return out.sublist(start);
+  }
+
+  /// A tool call's arguments as a map (a model can send malformed JSON; the tool then sees none).
+  Map<String, dynamic> _botArgs(String raw) {
+    try {
+      final v = jsonDecode(raw);
+      return v is Map<String, dynamic> ? v : <String, dynamic>{};
+    } catch (_) {
+      return <String, dynamic>{};
     }
   }
 

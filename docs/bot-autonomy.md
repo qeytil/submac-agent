@@ -93,7 +93,33 @@ web tools (`web_search`, `web_research`, `fetch_url`, opencode's `webfetch`) are
 varies by WebView version (the agent still has the numbered elements and text). Read-only mode cannot sign in or
 submit. Sites that block plain reads stay blocked.
 
+## 4. A bot's own engine (`lib/bot_agent/`)
+A bot is a "digital person" that works on its own, on the phone, under its own profile, so it no longer shares opencode
+with the SubMac agent (owner 2026-11-07). opencode is reserved for the owner's chat.
+
+- **`lib/bot_agent/bot_agent_config.dart`** — `BotAgentConfig` (the bot's id, name, notes folder and loop limits:
+  `maxSteps` 24, `maxContinues` 4, `maxToolChars` 16000) and `BotAgents`, one stable config per bot.
+- **`lib/bot_agent/bot_agent_engine.dart`** — `BotAgentEngine`: the turn loop model step → the tools it asked for →
+  model step …, until the bot answers without a tool, its allowance stops it, the turn is cancelled or the step cap is
+  reached. A reply cut for length is continued where it stopped, so a bot never sends half a sentence. It is pure: the
+  app passes the model step (`step`) and the tool runner (`runTool`) in, which is what `test/bot_agent_engine_test.dart`
+  tests. It has no MCP gateway, no opencode session, no server of its own.
+- **Route** (`lib/state/agent_runner.dart`, `_runBotTurn`): a turn whose conversation belongs to a bot
+  (`Bots.I.byConv(convId) != null`) takes this path and returns before opencode is ever touched. The model step goes to
+  the bot's own BYOK provider when it can take tools (`BotBrowserModel.of(...).byok`, OpenAI-shaped tool calls straight
+  from the phone); otherwise to SubMac's lane (the same resilient stream as the owner's chat). Every tool is called
+  directly by name through `runToolWithApproval` (no `submac_run_tool` lookup, no MCP tools).
+- **Allowance:** the bot's profile allowance (`tokenBudgetK`/`overBudget`, plus a live mission's) stops background work
+  between steps, and only when the bot is **not** on its own key. A BYOK bot is not billed by SubMac, so its allowance
+  never cuts its own-model work (owner 2026-11-07). `b.addTokens` counts the SubMac lane's tokens as they go.
+
+**Limits.** A bot's office and team work still runs under a `TeamKey` conversation and so still goes through opencode;
+only its own chat (and its scheduled wakes in it) uses this engine today. An Anthropic or Gemini BYOK key (a tool
+protocol that is not converted yet) still falls back to SubMac's lane.
+
 ## Tests
+- `test/bot_agent_engine_test.dart`: the loop on its own — a plain answer, a tool round-trip, a reply cut for length
+  continued and joined, the allowance stopping between steps, the step cap, per-step tokens, and cancellation.
 - `test/missions_test.dart`: disk state and reload, MISSION.md, own alarm + label, BootReceiver pref, fallback wake,
   schedule_next clamps, runs/tokens guardrails and day roll-over, tokens only during runs, on/off, stop, needs_you +
   answer, done, owner-only start, replace, team assign, armAll after restart, failed and unstarted runs, notification
