@@ -18,6 +18,7 @@ import 'services/first_launch.dart';
 import 'services/full_access.dart';
 import 'services/intro_sound.dart';
 import 'services/cloud.dart';
+import 'services/pending_turns.dart';
 import 'services/hire_links.dart';
 import 'services/inbox.dart';
 import 'services/rewards.dart';
@@ -168,6 +169,8 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
         Cloud.refreshStatus();
         // A task the phone killed while SubMac was away picks up where it left off.
         unawaited(state.resumeKilledRuns().catchError((Object e) => debugPrint('resume runs: $e')));
+        // An owner message the daily allowance blocked gets its turn now if the allowance is back (owner 2026-11-07).
+        unawaited(PendingTurns.I.drain());
         BotSync.I.resumed();
         SkillSync.I.resumed();
         Inbox.I.refresh();

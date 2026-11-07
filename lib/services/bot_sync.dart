@@ -216,11 +216,12 @@ class BotSync {
         as Map<String, dynamic>;
   }
 
-  /// Sync state written before setup hashes ignored key order: re-hash once, so an upgrade does not read every bot
-  /// as changed here (and push over the account's newer version).
-  void _migrate(Bot b, Map<String, dynamic> s) {
-    if (s['v'] == 2) return;
-    if ('${s['s']}'.isNotEmpty) s['s'] = setupHash(setupOf(b));
+  /// Marks sync state written before setup hashes ignored key order as migrated. The old hash is kept, NOT rewritten
+  /// from the current setup: rewriting it marked a choice the owner had just made as "already synced", so in the
+  /// upgrade round the pull took the account's older row over it and the push skipped it (a bot's model silently
+  /// reverting, owner 2026-11-07). With the old hash left in place the first round reads the local setup as changed,
+  /// the phone's copy wins and is pushed, and `s['s']` is rewritten on that push.
+  void _migrate(Map<String, dynamic> s) {
     s['v'] = 2;
   }
 
@@ -623,7 +624,7 @@ class BotSync {
             touched = true;
           }
         } else {
-          _migrate(b, s);
+          _migrate(s);
           final localH = setupHash(setupOf(b));
           if (takeRemote(fresh: '${s['s']}'.isEmpty, localChanged: s['s'] != localH, seen: s['rs'] == rh, differs: rh != localH)) {
             // Unchanged here since the last round (or never synced here): take the account's version.
@@ -838,7 +839,7 @@ class BotSync {
     for (final b in List.of(Bots.I.bots)) {
       if (_leaving) return sentSchedule;
       final s = _bs(b.id);
-      _migrate(b, s);
+      _migrate(s);
       final setup = setupOf(b);
       final sh = setupHash(setup);
       // Pending installs: drop the ones now installed, send the rest along.

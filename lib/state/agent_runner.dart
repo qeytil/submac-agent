@@ -140,6 +140,8 @@ extension AppStateAgentRunner on AppState {
       await oc.ensure();
       await ensureMcpTools().catchError((Object _) {});
       await oc.syncMcp();
+      // An owner message the daily allowance blocked runs at launch now the engine is up (owner 2026-11-07).
+      unawaited(PendingTurns.I.drain());
     } catch (e) {
       debugPrint('opencode warm start: $e');
     }
@@ -147,6 +149,8 @@ extension AppStateAgentRunner on AppState {
 
   /// Gives the engine SubMac's MCP server, and turns opencode's permission and question requests into the ask card.
   void _ocWire(OpenCodeEngine oc) {
+    // An owner message the daily allowance blocked runs again once the allowance is back (PendingTurns, 2026-11-07).
+    PendingTurns.I.run = runBlockedTurn;
     // New BYOK settings restart the engine only while no turn runs (owner 2026-11-03).
     oc.busy ??= () => _ocLive.isNotEmpty;
     // Two MCP tools only (find, run); the full SubMac set is looked up when a task needs it (SubMacGateway).
@@ -254,6 +258,8 @@ extension AppStateAgentRunner on AppState {
     }
     String? sentId;
     var engineTurn = false;
+    // This turn was the owner's own message and it hit the daily allowance (see the error block below).
+    var blockedByAllowance = false;
     try {
       if (lastUser == null) return;
       sentId = lastUser.id;
@@ -469,6 +475,15 @@ extension AppStateAgentRunner on AppState {
         final err = ChatMessage(id: _uuid.v4(), role: 'assistant', error: turn.error)..animateIn = true;
         list.add(err);
         run.wrote.add(err.id);
+        // The owner's own message that hit the daily allowance is kept and run when the allowance is back, instead of
+        // the intent vanishing (owner 2026-11-07). A bot's background work keeps waiting for its own next wake.
+        if (OcLane.isAllowanceText(turn.error)) {
+          blockedByAllowance = true; // no point draining right after hitting the wall
+          if (!side && !bg && lastUser != null) {
+            err.error = '${turn.error}\n\n_Saved. I will run this as soon as your allowance refreshes._';
+            await PendingTurns.I.add(convId, lastUser.id);
+          }
+        }
       }
     } catch (e) {
       if (!run.cancelled) {
@@ -485,12 +500,60 @@ extension AppStateAgentRunner on AppState {
       _ocRunEnded(convId, list, run);
       if (!run.finished.isCompleted) run.finished.complete();
       _notify();
+      // The allowance may be back: an owner message blocked earlier gets its turn now (owner 2026-11-07). A turn that
+      // itself just hit the allowance leaves the waiting ones for a later try.
+      if (!run.cancelled && !blockedByAllowance) unawaited(PendingTurns.I.drain());
     }
     // A message the user sent while this turn ran gets its own turn now.
     if (!run.cancelled && sentId != null && chain < 3) {
       final newest = list.lastWhere((m) => m.role == 'user', orElse: () => list.first);
       if (newest.role == 'user' && newest.id != sentId) unawaited(_runAgent(convId, chain: chain + 1));
     }
+  }
+
+  /// Runs an owner message a turn could not answer because the account's daily allowance was used up (PendingTurns,
+  /// owner 2026-11-07). Settles the waiting entry when it ran, or when the owner already moved on or the message was
+  /// answered meanwhile; keeps it for a later try when the allowance is still out or the chat is busy.
+  Future<void> runBlockedTurn(String convId, String msgId) async {
+    if (runs.any((r) => r.convId == convId)) return; // busy: leave it for the next trigger
+    var loaded = _lists[convId];
+    if (loaded == null) {
+      if (convId == currentId) {
+        loaded = messages;
+      } else {
+        try {
+          loaded = await repo.listMessages(convId);
+        } catch (_) {
+          return; // the chat may load next time
+        }
+        _lists[convId] = loaded;
+      }
+    }
+    // A final alias: closures below read it, and a reassigned local would lose its non-null promotion there.
+    final msgs = loaded;
+    final at = msgs.indexWhere((m) => m.id == msgId);
+    if (at < 0) {
+      await PendingTurns.I.remove(msgId); // the chat or the message is gone: nothing is owed
+      return;
+    }
+    final after = msgs.skip(at + 1);
+    // The owner moved on (a newer message carries the thread), or it was answered meanwhile: nothing to run.
+    if (after.any((m) => m.role == 'user') || after.any((m) => m.role == 'assistant' && m.error == null)) {
+      await PendingTurns.I.remove(msgId);
+      return;
+    }
+    final here = msgs[at];
+    final newestUser = msgs.reversed.firstWhere((m) => m.role == 'user', orElse: () => here);
+    if (newestUser.id != msgId) {
+      await PendingTurns.I.remove(msgId); // a newer message is the one to run
+      return;
+    }
+    final before = msgs.length;
+    await _runAgent(convId);
+    if (msgs.length == before) return; // nothing ran (another turn held the chat): try later
+    final tail = msgs.reversed.firstWhere((m) => m.role == 'assistant', orElse: () => here);
+    // Still out of allowance: keep it. Otherwise it ran: the entry is settled.
+    if (!OcLane.isAllowanceText(tail.error)) await PendingTurns.I.remove(msgId);
   }
 
   /// The pictures, drawings, pages and videos the turn made with opencode's own tools (a written .svg, a script's
