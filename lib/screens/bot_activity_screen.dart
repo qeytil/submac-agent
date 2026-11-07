@@ -218,7 +218,7 @@ class TeamFiles {
   }
 }
 
-/// The powers and daily budget of a bot, for its settings.
+/// The powers of a bot, for its settings. Its model and its allowance sit at the top of the profile (owner 2026-11-07).
 class BotPowersSection extends StatelessWidget {
   const BotPowersSection({super.key, required this.bot});
   final Bot bot;
