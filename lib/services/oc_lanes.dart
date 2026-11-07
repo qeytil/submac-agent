@@ -159,10 +159,15 @@ class OcBgGuard {
   }
 
   String? check(OpenCodeTurn t) {
+    // The bots'-share pause also says "allowance", so it is checked first: it never stops the owner's own chat, and
+    // for background work it means paused, not the whole account being out.
+    final sharePause = !byok && (OcLane.isPausedText(t.retry) || OcLane.isPausedText(t.error));
     // opencode retries a refused call on its own until the turn's 30 minutes run out (bug audit 2026-11-07):
     //  - the day's allowance is used up: the owner's chat said "retrying" all evening; stop now and say so.
     //  - the provider keeps failing: one call was retried 82 times; stop after [maxRetrySpan] in retry.
-    if (!byok && !background && (OcLane.isAllowanceText(t.retry) || OcLane.isAllowanceText(t.error))) return credit;
+    if (!byok && !background && !sharePause && (OcLane.isAllowanceText(t.retry) || OcLane.isAllowanceText(t.error))) {
+      return credit;
+    }
     if (t.retry != null && t.retry!.isNotEmpty) {
       _retrySince ??= clock();
       if (clock().difference(_retrySince!) > maxRetrySpan) return stuck;
@@ -170,7 +175,7 @@ class OcBgGuard {
       _retrySince = null;
     }
     if (!background) return null;
-    if (!byok && (OcLane.isPausedText(t.retry) || OcLane.isPausedText(t.error))) return paused;
+    if (sharePause) return paused;
     final left = budgetLeft;
     if (left != null && t.tokens > 0 && t.tokens >= left) return budget;
     return null;
