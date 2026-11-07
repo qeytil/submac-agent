@@ -134,7 +134,9 @@ void main() {
       expect(runner, contains('bool background = true,'), reason: 'team work is background unless the caller says otherwise');
       // Office jobs: only answering the owner's own message in the team chat is foreground (owner 2026-11-03).
       expect(File('lib/state/bots_controller.dart').readAsStringSync(), contains("background: j.kind != 'reply',"));
-      expect(runner, contains('Cloud.background.value.pausedNow'));
+      // Owner 2026-11-07: the hardcoded account-wide share gate is gone for bot work; the server's refusal is the
+      // backstop and is still recorded when a background turn ends on it.
+      expect(runner, isNot(contains('Cloud.background.value.pausedNow')));
       expect(runner, contains('Cloud.markBackgroundPaused()'));
     });
 

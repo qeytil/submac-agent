@@ -150,8 +150,10 @@ void main() {
       expect(runner, contains('botModel: laneBot?.model'));
       // Team members' and leads' parts.
       expect(runner, contains('OcLane.pick(background: background, officeWork: true, botModel: b.model)'));
-      // The allowance gate for background work reads the same choice (default included).
-      expect(ctl, contains('OcLane.isByok(OcLane.pick(background: true, botModel: b.model))'));
+      // Owner 2026-11-07: bot work is governed by the bot's own allowance in its profile, never by the account-wide
+      // gate that used to pre-pause non-BYOK bots.
+      expect(ctl, contains('b.overBudget'));
+      expect(ctl, isNot(contains('OcLane.isByok(OcLane.pick(background: true, botModel: b.model))')));
     });
   });
 

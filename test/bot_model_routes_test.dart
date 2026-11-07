@@ -257,8 +257,10 @@ void main() {
         expect(body, isNot(contains('model: route.model')), reason: f);
         expect(body, isNot(contains('ref.model')), reason: f);
       }
-      // Office work of a bot on its own model is not held back by SubMac's allowance.
-      expect(ctl, contains('if (bgPaused && j.kind != \'reply\' && !ownModel)'));
+      // Owner 2026-11-07: office work is governed by each bot's own allowance, not by the account-wide share gate.
+      expect(ctl, isNot(contains('final bgPaused')));
+      expect(ctl, isNot(contains('!ownModel')));
+      expect(ctl, contains('b.overBudget'));
     });
   });
 }
