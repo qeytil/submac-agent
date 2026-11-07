@@ -135,6 +135,7 @@ class _MissionSectionState extends State<MissionSection> {
 
   void _log(BuildContext context, Mission m) {
     showModalBottomSheet<void>(
+      sheetAnimationStyle: SubMotion.sheet,
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
