@@ -796,6 +796,11 @@ class Bots extends ChangeNotifier {
   /// brought back by [ensureChief].
   void Function()? onChiefRemoved;
 
+  /// Called as a bot is removed, before it leaves [bots] (set by AppState): its work stops with it ΓÇö its own
+  /// scheduled tasks (an alarm left behind wakes as SubMac's own task once the bot is gone), its team jobs and
+  /// membership, and its mission (bug audit 2026-11-07).
+  Future<void> Function(Bot b)? onRemoved;
+
   /// Does the cloud run this job (set by BotSync)? Then the phone sets no alarm for it.
   bool Function(Bot b, String job)? cloudOwns;
 
@@ -1397,6 +1402,8 @@ class Bots extends ChangeNotifier {
       onChiefRemoved?.call();
     }
     await disarm(b);
+    // Its work goes with it while it can still be named: its scheduled tasks, its teams and its mission.
+    await onRemoved?.call(b);
     await SkillLibrary.I.forget(b.id);
     await _p?.remove(_kKey(b.id));
     bots.remove(b);
