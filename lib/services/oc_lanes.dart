@@ -117,6 +117,10 @@ class OcLane {
   /// a 429 on its own, so it arrives as a retry status (or an error) carrying the server's message.
   static final _paused = RegExp(r'background_paused|background tasks are paused|paused until (tomorrow|midnight)', caseSensitive: false);
   static bool isPausedText(String? s) => s != null && _paused.hasMatch(s);
+
+  /// ai-chat's refusal once the account's whole daily allowance is used up (foreground and background alike).
+  static final _allowance = RegExp(r'allowance|done a lot today|refreshes tomorrow|resting until tomorrow', caseSensitive: false);
+  static bool isAllowanceText(String? s) => s != null && _allowance.hasMatch(s);
 }
 
 /// Why a background opencode turn must stop now (owner 2026-11-03), checked as its events arrive. Pure, so tested
@@ -133,6 +137,20 @@ class OcBgGuard {
 
   static const paused = 'paused', budget = 'budget';
 
+  /// The account's whole daily allowance is used up: the owner's own chat stops too (it used to retry all evening).
+  static const credit = 'credit';
+
+  /// The provider keeps refusing (one call was retried 82 times with nothing to stop it).
+  static const stuck = 'stuck';
+
+  /// How long one turn may stay in opencode's own retry state before it is stopped.
+  static const maxRetrySpan = Duration(minutes: 3);
+
+  /// Tests: the clock.
+  static DateTime Function() clock = DateTime.now;
+
+  DateTime? _retrySince;
+
   /// Tokens a bot may still use today ([budgetK] thousand a day, 0 = no budget): null when it has no budget.
   static int? leftOf(int budgetK, int usedToday) {
     if (budgetK <= 0) return null;
@@ -141,6 +159,16 @@ class OcBgGuard {
   }
 
   String? check(OpenCodeTurn t) {
+    // opencode retries a refused call on its own until the turn's 30 minutes run out (bug audit 2026-11-07):
+    //  - the day's allowance is used up: the owner's chat said "retrying" all evening; stop now and say so.
+    //  - the provider keeps failing: one call was retried 82 times; stop after [maxRetrySpan] in retry.
+    if (!byok && !background && (OcLane.isAllowanceText(t.retry) || OcLane.isAllowanceText(t.error))) return credit;
+    if (t.retry != null && t.retry!.isNotEmpty) {
+      _retrySince ??= clock();
+      if (clock().difference(_retrySince!) > maxRetrySpan) return stuck;
+    } else {
+      _retrySince = null;
+    }
     if (!background) return null;
     if (!byok && (OcLane.isPausedText(t.retry) || OcLane.isPausedText(t.error))) return paused;
     final left = budgetLeft;
