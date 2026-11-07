@@ -33,6 +33,7 @@ import 'services/ai_keys.dart';
 import 'services/ai_models.dart';
 import 'services/setup_tools.dart';
 import 'services/projects.dart';
+import 'services/bot_llm.dart';
 import 'services/byok.dart';
 import 'services/media_gen.dart';
 import 'services/media_providers.dart';
@@ -318,7 +319,9 @@ class AppState extends ChangeNotifier {
   /// planning round). Answering the owner keeps the normal limit. Near the cap the bot is told to wrap up.
   static int officeStepCap(String kind, {bool browsing = false}) => switch (kind) {
         'reply' => 30,
-        'mention' => 8,
+        'mention' => 10,
+        'react' => browsing ? 60 : 25,
+        'assign' => browsing ? 60 : 25,
         'task' || 'unblock' => browsing ? 60 : 25,
         _ => 10, // chief, review, digest
       };
@@ -505,6 +508,11 @@ class AppState extends ChangeNotifier {
   /// Test seam: when set, _runAgent registers the run (guards included) and then runs this instead of the model loop.
   @visibleForTesting
   static Future<void> Function(AppState app, AgentRun run)? debugRunAgent;
+
+  /// Tests: stands in for the engine in a team turn (after its model and lane are chosen), with that [model].
+  @visibleForTesting
+  static Future<String> Function(Bot b, String key, String system, String task,
+      {required Map<String, String> model, bool background, String? officeJob})? debugTeamTurn;
 
   /// Each picture goes to the model once; later steps get a one-line note (PLAN 1.4).
   final ImageOnce _imagesOnce = ImageOnce();
@@ -1303,8 +1311,13 @@ class ToolGate {
 
 /// One office job running now (bots team audit 2026-11-04): who, for which team, what kind, and its live line.
 class OfficeLiveJob {
-  OfficeLiveJob({required this.botId, required this.officeId, required this.kind, this.taskId = '', this.thread = '', this.instruction = ''})
+  OfficeLiveJob(
+      {required this.botId, required this.officeId, required this.kind, this.taskId = '', this.thread = '', this.instruction = '', this.depth = 0, this.cause = ''})
       : started = DateTime.now();
+
+  /// The chain this job is part of (OfficeJob.depth / cause), for the posts it makes mid-turn.
+  final int depth;
+  final String cause;
   final String botId;
   /// The owner post a thread of answers is about (OfficeJob.thread), or ''.
   final String thread;

@@ -369,7 +369,9 @@ extension AppStateBots on AppState {
   /// Is there something worth a full wake right now? Same check the cloud runner does. On any doubt (no answer,
   /// an error) the bot wakes as before.
   Future<bool> _worthWaking(Bot b) async {
-    final ref = submacRef;
+    // On the bot's own model (owner 2026-11-06): a bot on one of the owner's providers is never stopped here by
+    // SubMac's allowance, and its check is not billed to it either.
+    final route = BotModelRoute.of(b);
     String cut(String t, int n) => t.length > n ? '${t.substring(0, n)}…' : t;
     final open = b.desk.where((t) => t.status != 'done').take(12).map((t) => '- (${t.status}) ${cut(t.text, 160)}').join('\n');
     final ups = b.followups.take(6).map((f) => '- ${f.at.toIso8601String().substring(0, 16)} ${cut(f.instruction, 140)}').join('\n');
@@ -384,10 +386,9 @@ extension AppStateBots on AppState {
         'due yet is not a reason: it wakes the bot by itself. Never busywork. '
         'Reply exactly NO, or YES: <the one thing, in one line>.';
     try {
-      final t = await (LlmClient()..background = true)
-          .complete(source: 'bot', maxTokens: 60, provider: ref.provider, model: ref.model, messages: [
+      final t = await BotLlm.complete(b, [
         {'role': 'user', 'content': prompt},
-      ]);
+      ], maxTokens: 60, source: 'bot', background: true, route: route, provider: submacRef.provider);
       final a = t.trim();
       if (a.isEmpty) return true;
       return !RegExp(r'^\W*no\b', caseSensitive: false).hasMatch(a);
@@ -629,31 +630,34 @@ extension AppStateBots on AppState {
 
   /// One plain answer for a team (who speaks, the plan, the combined answer): one model call on the bots' lane,
   /// counted toward the bot's own budget (estimated from the text, about 4 characters a token).
+  /// On that bot's own model (owner 2026-11-06: the lead's plan and the "who speaks" call used to go to SubMac's model
+  /// whatever the lead's profile said).
   Future<String> _teamAsk(Bot b, String system, String user, {int maxTokens = OutputLimits.answer}) async {
-    final route = submacRef;
-    await RateLimiter.acquire(route.provider, (system.length + user.length) ~/ 4 + maxTokens, local, onWait: (_) {}, cancelled: () => false);
+    final route = BotModelRoute.of(b);
+    if (!route.isByok) {
+      await RateLimiter.acquire(submacRef.provider, (system.length + user.length) ~/ 4 + maxTokens, local, onWait: (_) {}, cancelled: () => false);
+    }
     // No chat id: a team's decision is no part of the bot's private chat (bots team audit 2026-11-04).
-    final t = await (LlmClient()..background = true)
-        .complete(source: 'office', maxTokens: maxTokens, continues: ReplyContinuation.maxContinues, provider: route.provider, model: route.model, messages: [
+    final t = await BotLlm.complete(b, [
       {'role': 'system', 'content': system},
       {'role': 'user', 'content': user},
-    ]);
+    ], maxTokens: maxTokens, continues: ReplyContinuation.maxContinues, source: 'office', background: true, route: route, provider: submacRef.provider);
     b.addTokens((system.length + user.length + t.length) ~/ 4);
     unawaited(Bots.I.save());
     return t;
   }
 
   /// One expert answer from another bot (no tools), for bot_ask.
+  /// On the expert's own model (owner 2026-11-06).
   Future<String> _botConsult(Bot asker, Bot expert, String question) async {
-    final route = submacRef;
+    final route = BotModelRoute.of(expert);
     try {
-      await RateLimiter.acquire(route.provider, 1500, local, onWait: (_) {}, cancelled: () => false);
+      if (!route.isByok) await RateLimiter.acquire(submacRef.provider, 1500, local, onWait: (_) {}, cancelled: () => false);
       // An expert view is a full answer: the model's own maximum, continued when it is cut (was 1,200, owner 2026-11-06).
-      final t = await (LlmClient()..background = _backgroundLane(asker.convId)).complete(
-          source: 'bot', maxTokens: OutputLimits.answer, continues: ReplyContinuation.maxContinues, provider: route.provider, model: route.model, messages: [
+      final t = await BotLlm.complete(expert, [
         {'role': 'system', 'content': '${Bots.I.chatPromptOf(expert)}\n\nYour colleague ${asker.name} (${asker.role}) asks for your expert view. Answer concisely and concretely.'},
         {'role': 'user', 'content': question},
-      ]);
+      ], maxTokens: OutputLimits.answer, continues: ReplyContinuation.maxContinues, source: 'bot', background: _backgroundLane(asker.convId), route: route, provider: submacRef.provider);
       expert.log('work', 'Helped ${asker.name}: ${question.length > 80 ? '${question.substring(0, 80)}…' : question}');
       unawaited(Bots.I.save());
       return t.trim();
@@ -663,9 +667,11 @@ extension AppStateBots on AppState {
   }
 
   void _officePump() {
-    // Offices pause on a busy day so the owner's own chats keep their allowance; they pick up again tomorrow.
-    if (Cloud.usage.value.light || Cloud.usage.value.resting) return;
-    _officeWatchdog();
+    // Offices pause on a busy day so the owner's own chats keep their allowance; they pick up again tomorrow. A bot on
+    // one of the owner's own models (BYOK) is not billed by SubMac, so its team work goes on (owner 2026-11-06: its
+    // profile's model must hold everywhere).
+    final dayHeld = Cloud.usage.value.light || Cloud.usage.value.resting;
+    if (!dayHeld) _officeWatchdog();
     final q = Offices.I.queue;
     if (q.isEmpty) return;
     final bgPaused = Cloud.background.value.pausedNow;
@@ -675,8 +681,11 @@ extension AppStateBots on AppState {
     // side by side, and a bot talking with the owner in its own chat still does its team work (each piece of work has
     // its own opencode session). The bots' share and each bot's own budget still hold.
     for (final j in List.of(q)) {
+      final jb = Bots.I.byId(j.botId);
+      final ownModel = jb != null && BotModelRoute.of(jb).isByok;
+      if (dayHeld && !ownModel) continue;
       // The bots' share of today's allowance is used: office work waits for the next UTC day (owner replies still run).
-      if (bgPaused && j.kind != 'reply') {
+      if (bgPaused && j.kind != 'reply' && !ownModel) {
         final at = DateTime.now().add(Cloud.untilBackgroundResets());
         if (nextRetry == null || at.isBefore(nextRetry)) nextRetry = at;
         continue;
@@ -769,7 +778,8 @@ extension AppStateBots on AppState {
   /// any other work: the owner's chats, the bot's own chat, other office jobs.
   Future<void> _officeRun(Office o, Bot b, OfficeJob j) async {
     final key = TeamKey.of(o.id, b.id, job: TeamKey.job());
-    final live = OfficeLiveJob(botId: b.id, officeId: o.id, kind: j.kind, taskId: j.taskId, thread: j.thread, instruction: j.instruction);
+    final live = OfficeLiveJob(
+        botId: b.id, officeId: o.id, kind: j.kind, taskId: j.taskId, thread: j.thread, instruction: j.instruction, depth: j.depth, cause: j.cause);
     _officeJobs[key] = live;
     final startedAt = live.started;
     _notify();
@@ -779,8 +789,7 @@ extension AppStateBots on AppState {
       if (!await _ensureBotConv(b)) {
         // No chat yet (offline, not loaded): try again in 2 minutes, a few times, not three times a second.
         if (j.tries < 5) {
-          Offices.I.enqueue(OfficeJob(officeId: j.officeId, botId: j.botId, kind: j.kind, taskId: j.taskId, instruction: j.instruction,
-              at: j.at, after: DateTime.now().add(const Duration(minutes: 2)), tries: j.tries + 1));
+          Offices.I.enqueue(j.retry(after: DateTime.now().add(const Duration(minutes: 2)), tries: j.tries + 1));
         }
         return;
       }
@@ -794,7 +803,7 @@ extension AppStateBots on AppState {
         // One small line in the team chat ("Nova · out of budget"), not a message (owner 2026-11-04).
         TeamStatus.I.flag(o.id, b.id, TeamStatus.outOfBudget,
             detail: '${b.name} used today\'s token budget, so their work continues tomorrow. You can raise it in their settings.');
-        Offices.I.enqueue(OfficeJob(officeId: o.id, botId: b.id, kind: j.kind, taskId: j.taskId, instruction: j.instruction, at: j.at, after: tomorrow));
+        Offices.I.enqueue(j.retry(after: tomorrow));
         return;
       }
       t = j.taskId.isEmpty ? null : o.task(j.taskId);
@@ -826,7 +835,8 @@ extension AppStateBots on AppState {
         final text = NoReply.clean(await _officeQuick(o, b, j.instruction));
         if (Offices.I.stoppedSince(o.id, startedAt)) return; // CB-34: the owner stopped the team meanwhile
         if (text.isEmpty && j.thread.isNotEmpty) return;
-        Offices.I.post(o, b.id, text.isNotEmpty ? text : BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)), kind: text.isNotEmpty ? 'chat' : 'system');
+        Offices.I.post(o, b.id, text.isNotEmpty ? text : BotManner.noReply(b.name, lang: BotManner.langOf(j.instruction)),
+            kind: text.isNotEmpty ? 'chat' : 'system', depth: j.depth, cause: j.cause);
         return;
       }
       final system = '${Bots.I.opencodeBriefOf(b, team: true)}\n\n${Offices.I.promptFor(o, b, j)}';
@@ -886,16 +896,15 @@ extension AppStateBots on AppState {
             await _officeNotify(o, b, share ? 'The team paused until tomorrow to save your daily allowance.' : 'The team rests until tomorrow: today\'s allowance is used up.');
           }
         }
-        Offices.I.enqueue(OfficeJob(
-            officeId: o.id, botId: b.id, kind: j.kind, taskId: j.taskId, instruction: j.instruction, at: j.at, after: DateTime.now().add(wait),
-            tries: failure == 'credit' ? j.tries : j.tries + 1));
+        Offices.I.enqueue(j.retry(after: DateTime.now().add(wait), tries: failure == 'credit' ? j.tries : j.tries + 1));
         return;
       }
       final out = BotOutcome.parse(reply);
       // The owner spoke to this bot (or it was given a task): what it wrote is posted even with a stray silence tag on
       // it (that used to throw a real answer away). Elsewhere the bot may stay quiet, which is normal.
       // A thread answer may pass when a teammate covered it (it was told so).
-      final mustAnswer = (j.kind == 'reply' && !covered) || j.kind == 'task';
+      // An assignment always reports back (owner 2026-11-06: the one who handed it out waits for it).
+      final mustAnswer = (j.kind == 'reply' && !covered) || j.kind == 'task' || j.kind == 'assign';
       if (out.text.trim().isEmpty || (out.kind == 'silent' && !mustAnswer)) {
         // CB-37: a direct request that ended with nothing to show says so (it used to leave the owner waiting).
         if (j.kind == 'reply' && mustAnswer && finished && !Offices.I.stoppedSince(o.id, startedAt)) {
@@ -909,12 +918,21 @@ extension AppStateBots on AppState {
         // Posted once: a reply the bot already put in the chat itself (office_post during the turn) or that repeats a
         // teammate is dropped by Offices.post (TeamDedupe). A reply to the owner's message links to it.
         final before = o.posts.length;
+        // Its chain goes with it (TeamReact): teammates it names, and anyone waiting for its post, take their turn next,
+        // one level deeper. An answer to a teammate's post links to that post.
         final p = Offices.I.post(o, b.id, visible.isEmpty ? out.text : visible,
-            kind: j.kind == 'digest' ? 'report' : 'chat', taskId: j.taskId, replyTo: j.kind == 'reply' ? j.thread : '');
+            kind: j.kind == 'digest' ? 'report' : 'chat',
+            taskId: j.taskId,
+            replyTo: j.kind == 'reply' ? j.thread : j.post,
+            depth: j.depth,
+            cause: j.cause);
         // An answer to the owner while they are not looking at the team (2026-11-05: a reply typed in the team's
         // notification is answered in that notification's conversation). A "[needs you]" post told them already, and a
         // dropped duplicate says nothing new.
-        if (j.kind == 'reply' && p.kind != 'ask' && o.posts.length > before && !b.quietNow()) {
+        // Also a result the owner asked for by name ("Amal, analyze Nova's research once it posts") and the lead's
+        // summary once the reports it waited for are in (owner 2026-11-06).
+        final forOwner = j.kind == 'reply' || (j.kind == 'react' && (j.instruction.contains('The owner asked:') || b.id == o.chiefId));
+        if (forOwner && p.kind != 'ask' && o.posts.length > before && !b.quietNow()) {
           await _officeNotify(o, b, p.text);
         }
         if (j.kind == 'digest') {
@@ -981,6 +999,16 @@ extension AppStateBots on AppState {
   }
 
   @visibleForTesting
+  Future<void> officeRunForTest(Office o, Bot b, OfficeJob j) => _officeRun(o, b, j);
+  @visibleForTesting
+  Future<String> teamAskForTest(Bot b, String system, String user) => _teamAsk(b, system, user);
+  @visibleForTesting
+  Future<String> officeQuickForTest(Office o, Bot b, String text) => _officeQuick(o, b, text);
+  @visibleForTesting
+  Future<String> botConsultForTest(Bot asker, Bot expert, String q) => _botConsult(asker, expert, q);
+  @visibleForTesting
+  Future<bool> worthWakingForTest(Bot b) => _worthWaking(b);
+  @visibleForTesting
   Future<void> botOutcomeForTest(Bot b, String reply, String kind) => _botOutcome(b, reply, kind);
   @visibleForTesting
   Future<void> botWakeForTest(Bot b, String reason, String instruction, String kind) => _botWake(b, reason, instruction, kind);
@@ -991,12 +1019,13 @@ extension AppStateBots on AppState {
 
   /// A one-line instant reply in the office chat, in the bot's own character.
   Future<String> _officeQuick(Office o, Bot b, String text) async {
-    final route = submacRef;
+    // On the bot's own model (owner 2026-11-06), like the rest of its team work.
+    final route = BotModelRoute.of(b);
     try {
-      await RateLimiter.acquire(route.provider, 600, local, onWait: (_) {}, cancelled: () => false);
+      if (!route.isByok) await RateLimiter.acquire(submacRef.provider, 600, local, onWait: (_) {}, cancelled: () => false);
       final recent = o.posts.reversed.take(6).toList().reversed.map((x) =>
           '${x.from == 'you' ? 'Owner' : (Bots.I.byId(x.from)?.name ?? 'System')}: ${x.text.length > 200 ? '${x.text.substring(0, 200)}…' : x.text}');
-      final t = await LlmClient().complete(source: 'office', maxTokens: 400, provider: route.provider, model: route.model, messages: [
+      final t = await BotLlm.complete(b, source: 'office', maxTokens: 400, route: route, provider: submacRef.provider, [
         {
           'role': 'system',
           'content': '${Bots.I.quickPromptOf(b)}\nYou are in the "${o.name}" team chat with the owner and your teammates'

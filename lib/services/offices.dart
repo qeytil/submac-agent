@@ -172,8 +172,30 @@ class OfficePost {
 
 /// One piece of office work waiting for a bot. Saved, so work survives the app being closed or the phone restarting.
 class OfficeJob {
-  OfficeJob({required this.officeId, required this.botId, required this.kind, this.taskId = '', this.instruction = '', DateTime? at, this.after, this.tries = 0, this.thread = ''})
+  OfficeJob(
+      {required this.officeId,
+      required this.botId,
+      required this.kind,
+      this.taskId = '',
+      this.instruction = '',
+      DateTime? at,
+      this.after,
+      this.tries = 0,
+      this.thread = '',
+      this.depth = 0,
+      this.cause = '',
+      this.post = ''})
       : at = at ?? DateTime.now();
+
+  /// How deep in a chain of bot-to-bot turns this job is (TeamReact, owner 2026-11-06): 0 = started by the owner or
+  /// the app; a turn a bot's post started is one deeper than the turn that wrote that post.
+  final int depth;
+
+  /// Who started it: a bot id (its post), 'you', or ''.
+  final String cause;
+
+  /// The team post that started it (react | assign | mention), which the answer links to; ''.
+  final String post;
 
   /// The owner post several bots were asked to answer (owner 2026-11-05: bots answering the same thing at once sent
   /// duplicates). Jobs of one thread run one after another, so each bot sees what the ones before it said and can
@@ -186,16 +208,18 @@ class OfficeJob {
   bool get ready => after == null || !after!.isAfter(DateTime.now());
   final String officeId;
   final String botId;
-  /// reply (the owner wrote) | mention (a teammate wrote) | task (do a task) | review | chief (plan and check) | digest | unblock
+  /// reply (the owner wrote) | mention (a teammate wrote) | assign (a lead or teammate handed it work in the chat) |
+  /// react (a watch fired: "when Nova posts, do this") | task (do a task) | review | chief (plan and check) | digest | unblock
   final String kind;
   final String taskId;
   final String instruction;
   final DateTime at;
 
-  int get rank => switch (kind) { 'reply' => 0, 'mention' => 1, 'unblock' => 1, 'review' => 2, 'task' => 3, 'digest' => 4, _ => 5 };
+  int get rank => switch (kind) { 'reply' => 0, 'mention' || 'assign' || 'react' || 'unblock' => 1, 'review' => 2, 'task' => 3, 'digest' => 4, _ => 5 };
 
   Map<String, dynamic> toJson() =>
-      {'o': officeId, 'b': botId, 'k': kind, 't': taskId, 'i': instruction, 'at': at.toIso8601String(), 'af': after?.toIso8601String(), if (tries > 0) 'tr': tries, if (thread.isNotEmpty) 'th': thread};
+      {'o': officeId, 'b': botId, 'k': kind, 't': taskId, 'i': instruction, 'at': at.toIso8601String(), 'af': after?.toIso8601String(), if (tries > 0) 'tr': tries, if (thread.isNotEmpty) 'th': thread,
+        if (depth > 0) 'd': depth, if (cause.isNotEmpty) 'c': cause, if (post.isNotEmpty) 'p': post};
   static OfficeJob fromJson(Map<String, dynamic> j) => OfficeJob(
       officeId: '${j['o']}',
       botId: '${j['b']}',
@@ -205,7 +229,15 @@ class OfficeJob {
       at: DateTime.tryParse('${j['at']}'),
       after: DateTime.tryParse('${j['af']}'),
       tries: (j['tr'] as num?)?.toInt() ?? 0,
-      thread: '${j['th'] ?? ''}');
+      thread: '${j['th'] ?? ''}',
+      depth: (j['d'] as num?)?.toInt() ?? 0,
+      cause: '${j['c'] ?? ''}',
+      post: '${j['p'] ?? ''}');
+
+  /// The same job again later (a retry), keeping its chain.
+  OfficeJob retry({DateTime? after, int? tries}) => OfficeJob(
+      officeId: officeId, botId: botId, kind: kind, taskId: taskId, instruction: instruction, at: at, after: after, tries: tries ?? this.tries,
+      thread: thread, depth: depth, cause: cause, post: post);
 }
 
 /// A number the office works toward ("Orders a week", target 50). The team updates it; the history draws the trend.
@@ -357,6 +389,9 @@ class Office {
   /// The owner handed the team to the lead ("lead, take over", "I'm away") until they say they are back
   /// (TeamLeadMode, owner 2026-11-05). While false, the lead leads only when the owner has been away a while.
   bool delegated = false;
+
+  /// Standing "when X posts, do Y" instructions (TeamReact, owner 2026-11-06).
+  final List<TeamWatch> watches = [];
   int unread = 0;
   /// Work waits until then (the model ran out of credit). Replies to the owner still go out.
   DateTime? holdUntil;
@@ -393,7 +428,8 @@ class Office {
         'every': checkMinutes, 'wf': workFrom, 'wt': workTo, 'dg': digestTime, 'dgc': digestCall, 'trust': trust,
         'lim': dailyLimit, 'rules': rules, 'tasks': tasks.map((e) => e.toJson()).toList(),
         'posts': posts.map((e) => e.toJson()).toList(), 'brief': brief, 'dec': decisions, 'day': dayKey,
-        'rt': runsToday, 'lt': lastTick?.toIso8601String(), 'lo': lastOwnerPost?.toIso8601String(), if (delegated) 'dg': true, 'un': unread, 'kpi': kpis.map((k) => k.toJson()).toList(), 'docs': docs.map((d) => d.toJson()).toList(),
+        'rt': runsToday, 'lt': lastTick?.toIso8601String(), 'lo': lastOwnerPost?.toIso8601String(), if (delegated) 'dl': true,
+        if (watches.isNotEmpty) 'wa': watches.map((w) => w.toJson()).toList(), 'un': unread, 'kpi': kpis.map((k) => k.toJson()).toList(), 'docs': docs.map((d) => d.toJson()).toList(),
         'hold': holdUntil?.toIso8601String(), 'fd': folder, 'v': v,
       };
 
@@ -410,7 +446,8 @@ class Office {
       checkMinutes: (j['every'] as num?)?.toInt() ?? 60,
       workFrom: (j['wf'] as num?)?.toInt() ?? 8,
       workTo: (j['wt'] as num?)?.toInt() ?? 22,
-      digestTime: '${j['dg'] ?? '19:00'}',
+      // 'dg' once also carried the hand-over flag (a true overwrote the report time): only a time is a time.
+      digestTime: j['dg'] is String ? j['dg'] as String : '19:00',
       digestCall: j['dgc'] == true,
       trust: '${j['trust'] ?? 'ask'}',
       dailyLimit: (j['lim'] as num?)?.toInt() ?? 40,
@@ -420,7 +457,7 @@ class Office {
       ..runsToday = (j['rt'] as num?)?.toInt() ?? 0
       ..lastTick = DateTime.tryParse('${j['lt']}')
       ..lastOwnerPost = DateTime.tryParse('${j['lo']}')
-      ..delegated = j['dg'] == true
+      ..delegated = j['dl'] == true || j['dg'] == true
       ..unread = (j['un'] as num?)?.toInt() ?? 0
       ..holdUntil = DateTime.tryParse('${j['hold']}')
       ..folder = '${j['fd'] ?? ''}'
@@ -428,6 +465,7 @@ class Office {
     o.tasks.addAll(l('tasks').map(OfficeTask.fromJson));
     o.posts.addAll(l('posts').map(OfficePost.fromJson));
     o.docs.addAll(l('docs').map(OfficeDoc.fromJson));
+    o.watches.addAll(l('wa').map(TeamWatch.fromJson).where((w) => !w.expired() && w.watcher.isNotEmpty));
     o.brief.addAll([for (final e in (j['brief'] as List? ?? const [])) '$e']);
     o.decisions.addAll([for (final e in (j['dec'] as List? ?? const [])) '$e']);
     for (final e in (j['kpi'] as List? ?? const [])) {
@@ -1103,7 +1141,13 @@ class Offices extends ChangeNotifier {
   /// echoing the owner's message) is dropped and the earlier post is returned instead ([dropped] counts them).
   /// [dedupe] false: a structured post that may look like a teammate's on purpose (each member's hand-back note in a
   /// team job, which carries its own part).
-  OfficePost post(Office o, String from, String text, {String kind = 'chat', String taskId = '', String replyTo = '', bool dedupe = true}) {
+  ///
+  /// Every bot post can start teammates' turns (TeamReact, owner 2026-11-06): a watch on its author, work it hands
+  /// out, a teammate it asks. [depth] and [cause] are the chain of the turn that wrote it (looked up with [jobOf]
+  /// when not given); [assigns] false for a structured team job's own posts (its plan runs its members itself);
+  /// [react] false starts nothing at all.
+  OfficePost post(Office o, String from, String text,
+      {String kind = 'chat', String taskId = '', String replyTo = '', bool dedupe = true, int? depth, String? cause, bool assigns = true, bool react = true}) {
     var body = text.trim();
     var k = kind;
     final bot = from != 'you' && from != 'system';
@@ -1135,8 +1179,75 @@ class Offices extends ChangeNotifier {
       o.posts.removeAt(0);
     }
     if (from != 'you' && kind != 'system') o.unread++;
+    if (bot && react) {
+      final job = jobOf?.call(from, o.id);
+      _react(o, p, depth: depth ?? job?.depth ?? 0, cause: cause ?? job?.cause ?? '', causeKind: job?.kind ?? '', assigns: assigns);
+    }
     saveSoon();
     return p;
+  }
+
+  /// The office job bot [botId] is doing in team [officeId] right now: its kind and chain (set by the app).
+  ({String kind, int depth, String cause})? Function(String botId, String officeId)? jobOf;
+
+  /// Posts that already started a turn for a bot ("post|bot"), so one post wakes each bot once.
+  final Set<String> _reacted = {};
+
+  /// Bot-started turns per team, for the burst guard.
+  final Map<String, List<DateTime>> _burst = {};
+  final Map<String, DateTime> _burstNoted = {};
+
+  /// Bot-started turns the loop guards held back since the app started (diagnostics and tests).
+  final List<String> held = [];
+
+  /// Starts the turns post [p] sets off (TeamReact), within the loop guards.
+  void _react(Office o, OfficePost p, {required int depth, required String cause, String causeKind = '', bool assigns = true}) {
+    final r = TeamReact.of(o, p, depth: depth, cause: cause, causeKind: causeKind, assigns: assigns);
+    held.addAll(r.skipped);
+    if (r.fired.isNotEmpty) o.watches.removeWhere((w) => r.fired.contains(w.id) || w.expired());
+    o.watches.addAll(r.added);
+    if (r.triggers.isEmpty) return;
+    final now = DateTime.now();
+    final recent = (_burst[o.id] ??= [])..removeWhere((t) => now.difference(t) > TeamReact.burstWindow);
+    for (final t in r.triggers) {
+      if (!_reacted.add('${p.id}|${t.botId}')) continue;
+      if (recent.length >= TeamReact.burst) {
+        held.add('burst:${t.botId}');
+        final noted = _burstNoted[o.id];
+        if (noted == null || now.difference(noted) > TeamReact.burstWindow) {
+          _burstNoted[o.id] = now;
+          post(o, 'system', 'The bots have been passing work back and forth a lot, so automatic replies pause for a few minutes. '
+              'Write to them to carry on.', kind: 'system');
+        }
+        continue;
+      }
+      recent.add(now);
+      enqueue(OfficeJob(officeId: o.id, botId: t.botId, kind: t.kind, instruction: t.instruction, depth: depth + 1, cause: p.from, post: p.id));
+    }
+    while (_reacted.length > 2000) {
+      _reacted.remove(_reacted.first);
+    }
+  }
+
+  /// The owner's message [text] in team [o] asks a bot to act when a teammate posts ("Amal, analyze Nova's research
+  /// once it posts"): the watches are saved and a short system line says so. [addressed]: who the message is to.
+  List<TeamWatch> addOwnerWatches(Office o, String text, {List<Bot> addressed = const []}) {
+    final ws = TeamReact.fromOwner(o, text, addressed: addressed);
+    if (ws.isEmpty) return ws;
+    for (final w in ws) {
+      o.watches.removeWhere((x) => x.watcher == w.watcher && x.from == w.from && x.by == 'you');
+      o.watches.add(w);
+    }
+    while (o.watches.length > 60) {
+      o.watches.removeAt(0);
+    }
+    final lines = <String>[];
+    for (final w in ws) {
+      lines.add('${_botName(w.watcher)} will pick this up as soon as ${_botName(w.from)} posts.');
+    }
+    post(o, 'system', lines.join('\n'), kind: 'system');
+    saveSoon();
+    return ws;
   }
 
   /// Bot posts dropped as near-duplicates since the app started (diagnostics and tests).
@@ -1206,7 +1317,9 @@ class Offices extends ChangeNotifier {
         q.botId == j.botId &&
         q.kind == j.kind &&
         q.taskId == j.taskId &&
-        (j.kind != 'reply' || q.instruction == j.instruction));
+        // One message, one turn: a bot asked about two different posts answers both (a second teammate's hand-off
+        // used to be dropped as a "duplicate" of the first).
+        ((j.kind != 'reply' && j.kind != 'mention' && j.kind != 'assign' && j.kind != 'react') || q.instruction == j.instruction));
     if (!dup) queue.add(j);
     queue.sort((a, b) => a.rank != b.rank ? a.rank.compareTo(b.rank) : a.at.compareTo(b.at));
     saveSoon();
@@ -1491,14 +1604,37 @@ class Offices extends ChangeNotifier {
               '${before.isEmpty ? 'You answer first.' : 'Already answered by ${before.join(', ')} (see the chat): add only what is new from your role; '
                   'if they covered it, reply with exactly ${NoReply.token}.'} Never repeat a teammate or the owner\'s words.$check$end';
         }
-        return 'The owner wrote to you in the team chat: "${job.instruction}"\n'
+        final waits = [
+          for (final w in o.watches)
+            if (w.watcher == b.id && w.by == 'you' && !w.expired() && job.instruction.startsWith(w.instruction)) _botName(w.from)
+        ];
+        final later = waits.isEmpty
+            ? ''
+            : 'Part of this is for later: you will be woken by yourself as soon as ${waits.join(' or ')} posts, and do it then (no need to '
+                'wait, check or ask). Do now only what can be done now; if ${waits.join(' or ')}\'s post is already in the chat, do it now. '
+                'Otherwise say in one short line that you will, nothing more.\n';
+        return 'The owner wrote to you in the team chat: "${job.instruction}"\n$later'
             'They are talking to you, so answer them yourself, in your own role. If they asked for work, do it with your tools. '
             'Do not answer for teammates, do not repeat the owner\'s words, and do not hand the work around unless they asked you to '
             'coordinate it.$check$end';
       case 'mention':
         return '${job.instruction}\n'
             'This is a teammate, not the owner. Answer in one short post only if it needs you, and do a small thing it asks now. '
-            'Do not start new work beyond it and do not @mention anyone back.$end$mayPass';
+            'Do not start new work beyond it and do not @mention anyone back just to acknowledge.$end$mayPass';
+      case 'assign':
+        // A lead (or a teammate) handed this bot work in the chat: it starts now, by itself (owner 2026-11-06: assigned
+        // bots used to wait until the owner told each one "start working").
+        return '${job.instruction}\n'
+            'This is your assignment from a teammate, not the owner, and it starts now: nobody will tell you to begin. Do the real '
+            'work with your tools, then report back in the team chat: the result first (links, numbers, file names; long work goes in '
+            'the team folder with docs_share), addressed to whoever handed it to you. Do only your own part; do not hand it on or '
+            'restate it. If the message was not really asking you for anything, reply with exactly ${NoReply.token}.$check$end';
+      case 'react':
+        // A watch fired: the teammate this bot was waiting for just posted (owner 2026-11-06).
+        return '${job.instruction}\n'
+            'Take your turn now, by yourself: do what was asked with what they posted (open the files or docs they mention), then post '
+            'your result in the team chat. If their post does not have what you were waiting for yet, reply with exactly '
+            '${NoReply.token} (you stay on the lookout only if you call office_watch again).$check$end';
       case 'task':
         final resume = (t?.attempts ?? 0) > 1 ? 'You started this before and were interrupted: continue from your chat above, do not start over.\n' : '';
         return '${job.instruction.isEmpty ? '' : '${job.instruction}\n'}${resume}Your task: [${t?.id}] ${t?.title}\n${t?.detail ?? ''}\n'
@@ -1544,7 +1680,7 @@ class Offices extends ChangeNotifier {
 
   // ---------------------------------------------------------------- office tools
 
-  static const names = {'office_board', 'office_post', 'office_brief', 'office_ask_owner', 'office_kpi', 'docs_share', 'docs_list', 'docs_read'};
+  static const names = {'office_board', 'office_post', 'office_watch', 'office_brief', 'office_ask_owner', 'office_kpi', 'docs_share', 'docs_list', 'docs_read'};
 
   static Map<String, dynamic> _fn(String name, String desc, Map<String, dynamic> props, List<String> req) => {
         'type': 'function',
@@ -1570,9 +1706,13 @@ class Offices extends ChangeNotifier {
       'result': {'type': 'string', 'description': 'What was delivered (links, numbers, file paths), or why it is blocked.'},
       'note': {'type': 'string'},
     }, ['action']),
-    _fn('office_post', 'Post a message in the office chat. Mention a teammate as @Name to wake them to answer.', {
+    _fn('office_post', 'Post a message in the office chat. Mention a teammate as @Name (or start a line with "Name:") to start their turn.', {
       'text': {'type': 'string'},
     }, ['text']),
+    _fn('office_watch', 'When teammate "from" next posts in the team chat, you are woken to do "do". Use instead of waiting.', {
+      'from': {'type': 'string'},
+      'do': {'type': 'string'},
+    }, ['from', 'do']),
     _fn('office_brief', 'Shared office memory everyone sees: add a brief note (facts, links, preferences) or record a decision; or forget a line.', {
       'action': {'type': 'string', 'enum': ['note', 'decision', 'forget']},
       'text': {'type': 'string'},
@@ -1676,21 +1816,22 @@ class Offices extends ChangeNotifier {
         }
       case 'office_post':
         if (s('text').isEmpty) return 'Error: nothing to post.';
-        post(o, b.id, s('text'));
-        // A teammate's @mention wakes the other bot as a "mention": it runs on the bots' share of the allowance and has
-        // a small step budget. A bot answering a mention can't wake anyone else (that is how two bots used to talk to
-        // each other without end). No hourly cap on mentions any more (owner 2026-11-04: no limits on bots working).
-        var woke = 0;
-        if ((job ?? currentJob?.call(b.id)) != 'mention') {
-          for (final m in RegExp(r'@([\w\u0600-\u06FF-]+)').allMatches(s('text'))) {
-            final who = _member(o, m.group(1)!);
-            if (who == null || who.id == b.id) continue;
-            if (queue.any((j) => j.officeId == o.id && j.botId == who.id && j.kind == 'mention')) continue;
-            enqueue(OfficeJob(officeId: o.id, botId: who.id, kind: 'mention', instruction: '${b.name} wrote to you in the office chat: "${s('text')}"'));
-            woke++;
-          }
+        // Teammates it names or @mentions, and anyone waiting for this bot's post, take their turn by themselves
+        // (TeamReact, owner 2026-11-06), within the loop guards (chain depth, no ping-pong, burst).
+        final p = post(o, b.id, s('text'));
+        final woke = queue.where((j) => j.officeId == o.id && j.post == p.id).length;
+        return woke > 0 ? 'Posted. $woke teammate${woke == 1 ? '' : 's'} will see it and take their turn.' : 'Posted.';
+      case 'office_watch':
+        final who = s('from').isEmpty || RegExp(r'^(anyone|any|everyone|\*)$', caseSensitive: false).hasMatch(s('from')) ? null : _member(o, s('from'));
+        if (s('from').isNotEmpty && who == null && !RegExp(r'^(anyone|any|everyone|\*)$', caseSensitive: false).hasMatch(s('from'))) {
+          return 'Error: no teammate called "${s('from')}". Team: ${o.members.map(_botName).join(', ')}.';
         }
-        return woke > 0 ? 'Posted. $woke teammate${woke == 1 ? '' : 's'} will see it.' : 'Posted.';
+        if (who?.id == b.id) return 'Error: you cannot wait for your own post.';
+        if (s('do').isEmpty) return 'Error: say what you will do then.';
+        o.watches.removeWhere((w) => w.watcher == b.id && w.from == (who?.id ?? TeamWatch.anyone) && w.by == b.id);
+        o.watches.add(TeamWatch(id: TeamWatch.newId(), watcher: b.id, from: who?.id ?? TeamWatch.anyone, instruction: s('do'), by: b.id));
+        await save();
+        return 'Saved. You will be woken by yourself as soon as ${who?.name ?? 'a teammate'} posts in the team chat; no need to check or wait.';
       case 'office_brief':
         switch (s('action')) {
           case 'decision':
