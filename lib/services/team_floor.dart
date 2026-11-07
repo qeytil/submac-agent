@@ -51,12 +51,33 @@ class TeamLeadMode {
       r"|(^\s*(please\s+)?take over\b)"
       r"|(\b(i['’]?m|i am)\s+(now\s+)?(away|offline|afk|gone|unavailable|stepping away|heading out|out for|out until|out now|off now|off for)\b)"
       r"|(\byou(['’]?re| are) in charge\b)"
-      r"|(\bwhile i['’]?m (away|out|gone|offline)\b)",
+      r"|(\bwhile i['’]?m (away|out|gone|offline)\b)"
+      // Somali (owner 2026-11-07: hand-over worked only in English): "hawsha qabso" (take the work), "maamul" /
+      // "hogaami" (manage / lead), "waan baxayaa" / "waan maqanahay" (I'm leaving / away), "adigaa mas'uul" (you
+      // are responsible).
+      r"|(\b(hawsha|shaqada|teamka|kooxda)\b[^.?!]{0,30}\b(qabso|kaxeey|maamul|hogaami)\b)"
+      r"|(\b(qabso|kaxeey|maamul|hogaami)\s+(hawsha|shaqada|teamka|kooxda)\b)"
+      r"|(\b(aniga|anigu|waan|aan)\b[^.?!]{0,20}\b(baxayaa|baxay|maqanahay|maqan|socdaa)\b)"
+      r"|(\badigaa?\s+(mas'?uul|masuul)\b)"
+      // Arabic: "تولَّ القيادة" / "خذ القيادة" (take the lead), "أنت المسؤول" (you are responsible),
+      // "أنا خارج / مشغول / غائب" (I'm out / busy / away), "سأكون غائباً" (I'll be away).
+      r"|((تول|تولّ|تولى|خذ|قد|قُد)[\u064B-\u0652]*\s*(ال)?(قيادة|زمام))"
+      r"|((أنت|انت)\s*(ال)?(مسؤول|مسئول))"
+      r"|((أنا|انا)\s*(خارج|مشغول|ذاهب|غائب|بعيد|مسافر))"
+      r"|(سأكون\s*(غائبا|غائباً|بعيدا|بعيداً|خارج))",
       caseSensitive: false);
 
   static final _reclaim = RegExp(
       r"(\b(i['’]?m|i am) back\b)|(\bback now\b)|(\b(i['’]?m|i am) here now\b)|(\bi['’]?ll take it from here\b)|(\bi will take it from here\b)"
-      r"|(\b(i['’]?ll|i will) lead( again)?\b)|(\bi['’]?m taking over\b)",
+      r"|(\b(i['’]?ll|i will) lead( again)?\b)|(\bi['’]?m taking over\b)"
+      // Somali: "waan soo noqday" (I'm back), "halkan ayaan joogaa" (I'm here), "anigaa qaadanaya" (I'll take it).
+      r"|(\b(waan|aan)\s+soo\s+noqday\b)"
+      r"|(\bhalkan\s+ayaan\s+joogaa\b)"
+      r"|(\b(anigaa|aniga)\s+(qaadanaya|qabanayaa|hogaaminaya|hoggaaminaya)\b)"
+      // Arabic: "عدت" / "رجعت" (I'm back), "أنا هنا" (I'm here), "سأتولى من هنا" (I'll take it from here).
+      r"|(^|[\s.!،؛])(عدت|رجعت)([\s.!،؛]|$)"
+      r"|((أنا|انا)\s*هنا)"
+      r"|(سأتول[ىّ]?\s*من\s*هنا)",
       caseSensitive: false);
 
   /// 'delegate' (the owner hands the team to the lead), 'reclaim' (the owner is back) or null.

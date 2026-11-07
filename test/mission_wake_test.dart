@@ -78,6 +78,10 @@ void main() {
     Offices.I.queue.clear();
     TeamRun.I.reset();
     Missions.I.resetForTest();
+    // A finished office run asks for one more pump 300 ms later (bots_controller, `_officeRun`'s last line). Let it
+    // fire here, with the queue empty, so it can never fire inside the next test and take that test's job out of the
+    // queue before its assertion (this made the team hand-off test fail only in the full suite, where timing differs).
+    await Future<void>.delayed(const Duration(milliseconds: 400));
     Missions.dirOverride = null;
     if (await tmp.exists()) await tmp.delete(recursive: true);
   });

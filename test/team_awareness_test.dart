@@ -269,6 +269,22 @@ void main() {
       expect(TeamLeadMode.rest("I'm away. Compare three laptops and make a table."), 'Compare three laptops and make a table');
     });
 
+    test('hand-over words in Somali and Arabic too (bug audit 2026-11-07)', () {
+      // Somali: "Hodan, hawsha qabso" (Hodan, take the work), "waan baxayaa" (I'm leaving), "waan soo noqday" (back).
+      expect(TeamLeadMode.commandOf('Hawsha qabso inta aan maqanahay'), 'delegate');
+      expect(TeamLeadMode.commandOf('Waan baxayaa hadda'), 'delegate');
+      expect(TeamLeadMode.commandOf("Adigaa mas'uul"), 'delegate');
+      expect(TeamLeadMode.commandOf('Waan soo noqday'), 'reclaim');
+      expect(TeamLeadMode.commandOf('Halkan ayaan joogaa'), 'reclaim');
+      // Arabic: "تولَّ القيادة" (take the lead), "أنا مشغول" (I'm busy), "عدت" (I'm back), "أنا هنا" (I'm here).
+      expect(TeamLeadMode.commandOf('تولَّ القيادة الآن'), 'delegate');
+      expect(TeamLeadMode.commandOf('أنا مشغول هذا المساء'), 'delegate');
+      expect(TeamLeadMode.commandOf('أنت المسؤول عن الفريق'), 'delegate');
+      expect(TeamLeadMode.commandOf('عدت'), 'reclaim');
+      expect(TeamLeadMode.commandOf('أنا هنا'), 'reclaim');
+      expect(TeamLeadMode.commandOf('كم سعر اللابتوب؟'), isNull, reason: 'a plain question is not a hand-over');
+    });
+
     test('peer while the owner is here, leading when away or handed over', () {
       final o = team();
       final now = DateTime.now();

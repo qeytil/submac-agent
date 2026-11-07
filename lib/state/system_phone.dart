@@ -23,6 +23,8 @@ extension AppStateSystem on AppState {
       if (bot != null) unawaited(_missedCall(bot));
     };
     b.onNotifEvent = (e) => unawaited(Bots.I.notificationEvent(e));
+    // The engine makes the model calls and consumes its replies; the native proxy passes their bots'-share header on.
+    b.onBackgroundShare = Cloud.noteBackgroundShare;
     Bots.I.onWake = _botWake;
     Bots.I.onReport = _botReport;
     Bots.I.working = (bot) => _officeBusy.contains(bot.id) || (bot.convId.isNotEmpty && runs.any((r) => r.convId == bot.convId && !r.side));
@@ -82,6 +84,19 @@ extension AppStateSystem on AppState {
       if (!Scheduler.I.tasks.any((t) => t.id == id && t.bot == bot.id)) return 'Error: no routine $id.';
       await Scheduler.I.cancel(id);
       return 'Removed.';
+    };
+    // A removed bot takes its work with it (bug audit 2026-11-07). A scheduled task left behind still fires, and
+    // with the bot gone it runs as SubMac's own task; its team jobs kept its membership alive; its mission kept
+    // waking it. All of it stops here, while the bot can still be named in the team's lines.
+    Bots.I.onRemoved = (b) async {
+      for (final t in List.of(Scheduler.I.tasks.where((t) => t.bot == b.id))) {
+        await Scheduler.I.cancel(t.id);
+      }
+      for (final o in List.of(Offices.I.offices.where((o) => o.members.contains(b.id) || o.chiefId == b.id))) {
+        await Offices.I.removeMember(o, b.id);
+      }
+      final m = Missions.I.liveOf('bot', b.id);
+      if (m != null) await Missions.I.stop(m);
     };
     Bots.I.consult = _botConsult;
     Bots.I.makeTeam = _botMakeTeam;

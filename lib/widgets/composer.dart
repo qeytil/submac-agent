@@ -14,6 +14,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import '../app_state.dart';
 import '../services/browser_agent.dart';
 import '../services/browser_jobs.dart';
+import '../services/bots.dart';
 import 'browser_card.dart';
 import '../models.dart';
 import '../screens/live_screen.dart';
@@ -796,7 +797,11 @@ class TaskBar extends StatelessWidget {
     final p = Palette.of(context);
     final state = context.watch<AppState>();
     final here = state.runsHere.any((r) => !r.side);
-    final elsewhere = state.runs.where((r) => !r.side && r.convId != state.currentId).length;
+    // A bot's own chat (or a team's work) is not "another chat": the owner asked that bot for it (bug audit
+    // 2026-11-07: "1 task working in another chat" showed when only a bot was working).
+    final elsewhere = state.runs
+        .where((r) => !r.side && r.convId != state.currentId && !Bots.I.isBotConv(r.convId))
+        .length;
     if (here || elsewhere == 0) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 16, 4),

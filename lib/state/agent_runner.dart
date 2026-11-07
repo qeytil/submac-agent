@@ -808,6 +808,15 @@ extension AppStateAgentRunner on AppState {
         b.log('budget', 'Stopped work: today\'s token budget is used up');
         unawaited(Bots.I.save());
       }
+    } else if (why == OcBgGuard.credit) {
+      // The whole daily allowance is used up (bug audit 2026-11-07): one clear line instead of opencode retrying a
+      // refused call until the turn times out.
+      turn.error = 'You\'ve used today\'s allowance. It refreshes tomorrow.';
+      if (b != null) _notePaused(b);
+    } else if (why == OcBgGuard.stuck) {
+      // A provider that keeps refusing (one call was retried 82 times): stop with a line that reads as "busy", so a
+      // bot's wake is retried later and the owner's chat is not left on "retrying".
+      turn.error = 'The model provider is busy and kept failing. Nothing you wrote was lost; try again in a few minutes.';
     }
   }
 

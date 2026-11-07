@@ -80,6 +80,28 @@ void main() {
       expect(OcBgGuard(background: true).check(limit), isNull, reason: 'the whole allowance is not the bots\' share');
     });
 
+    test('the owner\'s chat stops when the whole allowance is used up, and a provider that keeps refusing is let go', () {
+      final now = DateTime(2026, 11, 7, 20);
+      OcBgGuard.clock = () => now;
+      addTearDown(() => OcBgGuard.clock = DateTime.now);
+
+      final limit = OpenCodeTurn('s1')
+        ..apply(ev('session.status', {
+          'sessionID': 's1',
+          'status': {'type': 'retry', 'message': 'You\'ve used today\'s allowance. It refreshes tomorrow.'}
+        }));
+      expect(OcBgGuard(background: false).check(limit), OcBgGuard.credit,
+          reason: 'the owner\'s chat used to keep retrying all evening');
+
+      // A moment in retry is fine; minutes of it means the provider keeps refusing (one call was retried 82 times).
+      final busy = OcBgGuard(background: false);
+      final t = OpenCodeTurn('s1')
+        ..apply(ev('session.status', {'sessionID': 's1', 'status': {'type': 'retry', 'message': 'Provider is overloaded'}}));
+      expect(busy.check(t), isNull);
+      OcBgGuard.clock = () => now.add(const Duration(minutes: 4));
+      expect(busy.check(t), OcBgGuard.stuck);
+    });
+
     test('a bot\'s own daily budget stops its background turn once the turn has used what was left', () {
       expect(OcBgGuard.leftOf(0, 999999), isNull);
       expect(OcBgGuard.leftOf(10, 4000), 6000);

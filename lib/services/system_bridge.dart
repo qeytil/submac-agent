@@ -30,6 +30,8 @@ class SystemBridge {
   void Function(String to, String text)? onNotifReply;
   /// A phone notification matched a bot's watch.
   void Function(Map<String, dynamic> e)? onNotifEvent;
+  /// The bots' share header (`x-submac-bg`) from a reply the engine made (the native proxy reads it).
+  void Function(String value)? onBackgroundShare;
   /// The user tapped Stop on the "SubMac is using your phone" badge.
   void Function()? onPhoneStop;
   Future<void> phoneBadge(bool on) async {
@@ -113,6 +115,9 @@ class SystemBridge {
           break;
         case 'phoneStop':
           onPhoneStop?.call();
+          break;
+        case 'bgShare':
+          onBackgroundShare?.call('$a');
           break;
         case 'bubble':
           final m = Map<String, dynamic>.from(a as Map);

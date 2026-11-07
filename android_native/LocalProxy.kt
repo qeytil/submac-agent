@@ -85,7 +85,11 @@ object LocalProxy {
                 up.getOutputStream().apply { write(sb.toString().toByteArray()); flush() }
             }
             val u2 = up
-            val t = Thread { pipe(u2.getInputStream(), c.getOutputStream()); closeQuietly(c); closeQuietly(u2) }
+            val watchBg = target.startsWith(PREFIX)
+            val t = Thread {
+                if (watchBg) pipeReply(u2.getInputStream(), c.getOutputStream()) else pipe(u2.getInputStream(), c.getOutputStream())
+                closeQuietly(c); closeQuietly(u2)
+            }
             t.isDaemon = true
             t.start()
             pipe(inp, u2.getOutputStream())
@@ -138,6 +142,10 @@ object LocalProxy {
 
     const val LANE_HEADER = "x-submac-lane"
     const val SOURCE_HEADER = "x-submac-source"
+
+    /** The bots' share of the day's allowance, on every ai-chat reply. The engine consumes its replies, so Dart never
+     *  sees this header; the proxy reads it and passes it on (bug audit 2026-11-07: Settings showed a stale share). */
+    const val BG_HEADER = "x-submac-bg"
     private val laneRe = Regex("^/lane/([a-z-]{1,20})(/.*)?$")
 
     /** `/lane/<source>/rest` -> (`/rest`, source); anything else is (path, null): the foreground lane. */
@@ -165,6 +173,28 @@ object LocalProxy {
             if (last4 == 0x0D0A0D0A) return String(b.toByteArray(), Charsets.ISO_8859_1).trimEnd('\r', '\n')
         }
         return null
+    }
+
+    /** Pipes a cloud reply and, on the way, reads the bots' share header for Dart (the engine consumes its replies, so
+     *  the app never sees them). The head is forwarded byte for byte before the body, so streaming is untouched. */
+    private fun pipeReply(a: InputStream, b: OutputStream) {
+        val head = try { readHead(a) } catch (_: Throwable) { null } ?: return
+        try {
+            for (line in head.split("\r\n")) {
+                if (line.substringBefore(':').trim().equals(BG_HEADER, true)) {
+                    val v = line.substringAfter(':').trim()
+                    if (v.isNotEmpty()) Bridge.send("bgShare", v)
+                    break
+                }
+            }
+        } catch (_: Throwable) {}
+        try {
+            b.write((head + "\r\n\r\n").toByteArray(Charsets.ISO_8859_1))
+            b.flush()
+        } catch (_: Throwable) {
+            return
+        }
+        pipe(a, b)
     }
 
     private fun pipe(a: InputStream, b: OutputStream) {
