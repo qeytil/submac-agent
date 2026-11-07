@@ -1,5 +1,8 @@
--- Max output (2026-11-06). NOT APPLIED: needs the owner's OK. Project submac-agent (moeemacbvsueekuvfjbo).
--- See docs/max-output.md. Each block stands on its own; apply in this order.
+-- Max output (2026-11-07). APPLIED to project submac-agent (moeemacbvsueekuvfjbo) at 2026-11-07 14:43 UTC
+-- (Blocks 1 and 2 in one statement batch, block 3 in the next). Owner's report: replies were cut short, for the main
+-- agent and the bots. See docs/max-output.md. Each block stands on its own; apply in this order.
+-- Blocks 1-2 take effect at once (usage_gate / ai-chat read them). Block 3 needs ai-chat v46, which reads
+-- ai_models.max_output_tokens; v45 ignores the new field, so block 3 is safe to apply before the deploy.
 
 -- 1. The cap that cut every SubMac reply (main agent and bots): with billing on, usage_gate returns
 --    reply_cap = least(billing_reply_cap_tokens, today's balance) and ai-chat clamps every reply's max_tokens to it.

@@ -25,6 +25,11 @@ const CONCURRENCY = 3;        // bots worked at the same time
 const MAX_JOBS_PER_BOT = 3;   // per invocation; the rest wait for the next round
 const MAX_STEPS = 8;          // model steps per job (web reading takes a few)
 const JOB_TOKEN_CAP = 60_000; // prompt + reply tokens per job
+// Reply room per model step (was 1200, which cut long bot replies short; owner 2026-11-06). ai-chat clamps it to the
+// route's own maximum and the reply cap. A reply that still stops for length is continued up to MAX_CONTINUES times.
+const STEP_MAX_TOKENS = 16_384;
+const MAX_CONTINUES = 2;
+const CONTINUE = "Your previous reply was cut off because it reached the output length limit. Continue exactly where it stopped: do not repeat anything, just go on from the last word.";
 // Timing (PLAN.md 1.3): per model call 40 s (ai-chat ends non-streamed calls at 38 s for this runner), per job 120 s,
 // no new jobs after 60 s of a round, and nothing past 140 s of the round (edge wall clock is 150 s).
 const DEADLINE_MS = 60_000;   // stop starting new jobs (and bots) after this
@@ -146,7 +151,7 @@ async function allowanceLeft(uid: string, cap: number): Promise<boolean> {
 const PAUSE_NOTE = "Paused until tomorrow to save your daily allowance.";
 
 // ---------------------------------------------------------------- model (through ai-chat, the user's allowance)
-type ModelOut = { ok: boolean; status: number; code?: string; msg?: any; tokens: number };
+type ModelOut = { ok: boolean; status: number; code?: string; msg?: any; tokens: number; finish?: string };
 async function callModel(ctx: Ctx, body: Record<string, unknown>, until = Number.MAX_SAFE_INTEGER): Promise<ModelOut> {
   const ms = Math.min(MODEL_TIMEOUT_MS, until - Date.now());
   if (ms < 5_000) return { ok: false, status: 0, code: "job_time", tokens: 0 };
@@ -165,7 +170,7 @@ async function callModel(ctx: Ctx, body: Record<string, unknown>, until = Number
     if (!r.ok) return { ok: false, status: r.status, code: str(j?.error?.code) || `http_${r.status}`, tokens: 0 };
     const u = j.usage ?? {};
     const tokens = Number(u.total_tokens ?? 0) || (Number(u.prompt_tokens ?? 0) + Number(u.completion_tokens ?? 0));
-    return { ok: true, status: 200, msg: j.choices?.[0]?.message ?? {}, tokens };
+    return { ok: true, status: 200, msg: j.choices?.[0]?.message ?? {}, tokens, finish: str(j.choices?.[0]?.finish_reason) || undefined };
   } catch (e) {
     return { ok: false, status: 0, code: "network:" + cut(String(e), 60), tokens: 0 };
   } finally { clearTimeout(timer); }
@@ -539,14 +544,27 @@ async function work(ctx: Ctx, instruction: string, reason: string, kind: string,
   for (let step = 1; step <= MAX_STEPS; step++) {
     const last = step === MAX_STEPS || tokens >= Math.min(JOB_TOKEN_CAP, budgetLeft);
     if (last && step > 1) messages.push({ role: "user", content: "Step limit reached: finish now with what you have, ending with one tag line." });
-    const r = await callModel(ctx, { model: MODEL, messages, max_tokens: 1200, tools: TOOLS, tool_choice: last ? "none" : "auto" }, ctx.until);
+    const r = await callModel(ctx, { model: MODEL, messages, max_tokens: STEP_MAX_TOKENS, tools: TOOLS, tool_choice: last ? "none" : "auto" }, ctx.until);
     // Out of job time after real work: end with what we have instead of failing the whole job.
     if (!r.ok && r.code === "job_time" && step > 1) return { ok: true, reply: "", tokens, steps: step };
     if (!r.ok) return { ok: false, code: r.code, reply: "", tokens, steps: step };
     tokens += r.tokens;
     const msg = r.msg ?? {};
     const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
-    if (!calls.length || last) return { ok: true, reply: str(msg.content), tokens, steps: step };
+    if (!calls.length || last) {
+      // Cut for length: continue the reply instead of ending on half a sentence (owner 2026-11-06).
+      let reply = str(msg.content);
+      let fin = r.finish;
+      for (let i = 0; i < MAX_CONTINUES && (fin === "length" || fin === "max_tokens") && reply; i++) {
+        const more = await callModel(ctx, { model: MODEL, messages: [...messages, { role: "assistant", content: reply }, { role: "user", content: CONTINUE }],
+          max_tokens: STEP_MAX_TOKENS, tool_choice: "none", tools: TOOLS }, ctx.until);
+        if (!more.ok) break;
+        tokens += more.tokens;
+        reply += str(more.msg?.content);
+        fin = more.finish;
+      }
+      return { ok: true, reply, tokens, steps: step };
+    }
     messages.push({ role: "assistant", content: msg.content ?? null, tool_calls: calls });
     for (const c of calls.slice(0, 6)) {
       let args: any = {};
