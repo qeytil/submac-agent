@@ -360,7 +360,7 @@ void main() {
     });
 
     test('office tools are offered only under a team key, never in a bot\'s private chat', () {
-      final tools = _between(runner, 'List<Map<String, dynamic>> _mcpTools(', 'String _ocLayer(');
+      final tools = _between(runner, 'List<Map<String, dynamic>> _mcpTools(', 'Future<void> _bgNeeds(');
       expect(tools, contains('office: teamKey && _officeCtx.containsKey(conv)'));
       expect(tools, contains('if (teamKey && _teamAssign.containsKey(conv)) TeamRun.assignTool'));
     });

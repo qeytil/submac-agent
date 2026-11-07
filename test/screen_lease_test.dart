@@ -1,5 +1,5 @@
-// Layer 2/3 on opencode (2026-11-03): the browser and phone control reach opencode through SubMac's MCP tools, and only
-// one chat, bot or team member drives the phone's screen at a time.
+// Layer 2/3 (2026-11-03): the browser and phone control reach the owner's chat through SubMac's MCP tools (a bot's
+// engine turn is offered them by name); only one chat, bot or team member drives the phone's screen at a time.
 import 'dart:io';
 
 import 'package:agent/services/screen_lease.dart';
@@ -42,7 +42,7 @@ void main() {
   test('opencode is offered the browser agent and phone control (behind "Let it take action")', () {
     final src = File('lib/state/agent_runner.dart').readAsStringSync();
     // The app's tool list is _ocAppTools since the bots leak audit (2026-11-03); _mcpTools scopes it per caller.
-    final tools = src.substring(src.indexOf('_ocAppTools() => ['), src.indexOf('String _ocLayer'));
+    final tools = src.substring(src.indexOf('_ocAppTools() => ['), src.indexOf('List<Map<String, dynamic>> _mcpTools('));
     expect(tools, contains('if (agentEnabled) ...['));
     expect(tools, contains('...BrowserJobs.definitions'));
     expect(tools, contains('...PhoneTools.definitions'));
