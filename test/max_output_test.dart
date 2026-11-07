@@ -298,11 +298,14 @@ void main() {
       expect(File('lib/services/opencode.dart').readAsStringSync(), contains('...startLimits(ByokOpencode.maxOutputOf(ByokStore.I)),'));
     });
 
-    test('chat and team turns continue a cut reply in the same session', () {
+    test('chat and team turns continue a cut reply; a team continues in the bot engine now', () {
       final r = File('lib/state/agent_runner.dart').readAsStringSync();
-      expect(RegExp(r'turn\.beginContinue\(\);').allMatches(r).length, 2);
-      expect(RegExp(r"oc\.prompt\((session|s), \[\{'type': 'text', 'text': ReplyContinuation\.prompt\}\]").allMatches(r).length, 2);
+      // The owner's chat: its opencode session is continued.
+      expect(RegExp(r'turn\.beginContinue\(\);').allMatches(r).length, 1);
+      expect(RegExp(r"oc\.prompt\((session|s), \[\{'type': 'text', 'text': ReplyContinuation\.prompt\}\]").allMatches(r).length, 1);
       expect(r, contains('turn.leftCut'));
+      // A bot's and a team's turn (owner 2026-11-07): the bot engine continues a cut reply itself (maxContinues).
+      expect(r, contains('BotAgentEngine('));
     });
 
     test('team answers and bot consults are no longer capped at 1,200-2,000 tokens, and continue', () {

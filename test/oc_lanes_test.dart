@@ -127,9 +127,10 @@ void main() {
     test('chat turns pick their lane from the bot-wake rules; team turns are background office work (an owner\'s reply in the team chat is foreground)', () {
       expect(runner, contains('final bg = _backgroundLane(convId);'));
       expect(runner, contains('model: laneModel'));
-      // A chat turn and a team turn, each with its continue-after-a-length-cut prompt (owner 2026-11-06).
-      expect(RegExp(r'oc\.prompt\(').allMatches(runner).length, 4);
-      expect(RegExp(r'oc\.prompt\([^;]*model: laneModel').allMatches(runner).length, 4, reason: 'every prompt names its lane');
+      // The owner's chat runs on opencode: its opening prompt and its continue-after-a-length-cut prompt. A bot's
+      // and a team's turn no longer use opencode (owner 2026-11-07); their cut replies are continued by the bot engine.
+      expect(RegExp(r'oc\.prompt\(').allMatches(runner).length, 2);
+      expect(RegExp(r'oc\.prompt\([^;]*model: laneModel').allMatches(runner).length, 2, reason: 'every prompt names its lane');
       expect(runner, contains('OcLane.pick(background: background, officeWork: true, botModel: b.model)'));
       expect(runner, contains('bool background = true,'), reason: 'team work is background unless the caller says otherwise');
       // Office jobs: only answering the owner's own message in the team chat is foreground (owner 2026-11-03).

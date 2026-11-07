@@ -275,7 +275,7 @@ extension AppStateAgentRunner on AppState {
         await _runBotTurn(convId, run, list, turnBot);
         // The same follow-up as the opencode path (a message the owner sent while the bot worked) — queued as a
         // microtask so this turn is out of [runs] first, or the new turn is refused as "already running".
-        if (!run.cancelled && sentId != null && chain < 3) {
+        if (!run.cancelled && chain < 3) {
           final newest = list.lastWhere((m) => m.role == 'user', orElse: () => list.first);
           if (newest.role == 'user' && newest.id != sentId) {
             final nextConv = convId;
