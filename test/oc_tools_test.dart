@@ -216,7 +216,7 @@ void main() {
 
     test('bot_remember: a token is never saved; the same fact twice is one line', () async {
       final r = await Bots.I.execute(
-          'bot_remember', {'fact': 'Telegram bot token: 8762508852:AAEN4wOgMHOQ2jnkBJC2Orcny74eYJ0Qs3I (my bot)'}, b.convId);
+          'bot_remember', {'fact': 'Telegram bot token: 123456789:AAHfakeTokenForTestsOnly_1234567890 (my bot)'}, b.convId);
       expect(r, startsWith('Error: not saved'));
       expect(b.memory, isEmpty);
       expect(await Bots.I.execute('bot_remember', {'fact': 'Prefers news in Somali.'}, b.convId), 'Remembered.');
@@ -337,7 +337,7 @@ void main() {
 
     test("an app call's path loses the base's own path when the model repeats it (the doubled token: 404)", () {
       const tg = 'https://api.telegram.org/bot{token}';
-      expect(ConnectorCatalog.normPath(tg, '/bot8762508852:AAEN4wOg/sendMessage'), '/sendMessage');
+      expect(ConnectorCatalog.normPath(tg, '/bot123456789:AAHfake/sendMessage'), '/sendMessage');
       expect(ConnectorCatalog.normPath(tg, 'bot{token}/getMe'), '/getMe');
       expect(ConnectorCatalog.normPath(tg, 'sendMessage'), '/sendMessage');
       expect(ConnectorCatalog.normPath(tg, '/botany/plants'), '/botany/plants', reason: 'only a whole segment is the base');
@@ -361,7 +361,7 @@ void main() {
           });
       final r = await ConnectorCatalog.execute('app_telegram', {
         'method': 'POST',
-        'url': '/bot8762508852:AAEN4wOgMHOQ2jnkBJC2Orcny74eYJ0Qs3I/sendMessage',
+        'url': '/bot123456789:AAHfakeTokenForTestsOnly_1234567890/sendMessage',
         'body': {'chat_id': 1, 'text': 'hi'},
       });
       expect(r, startsWith('HTTP 200'));
@@ -374,10 +374,10 @@ void main() {
         'result': [
           {'update_id': 1, 'message': {'chat': {'id': 111, 'type': 'private'}, 'text': '/start'}},
           {'update_id': 2, 'message': {'chat': {'id': -500, 'type': 'group'}, 'text': 'hi all'}},
-          {'update_id': 3, 'my_chat_member': {'chat': {'id': 8367489844, 'type': 'private'}}},
+          {'update_id': 3, 'my_chat_member': {'chat': {'id': 555000111, 'type': 'private'}}},
         ],
       };
-      expect(ConnectorCatalog.chatIdFromUpdates(j), '8367489844');
+      expect(ConnectorCatalog.chatIdFromUpdates(j), '555000111');
       expect(ConnectorCatalog.chatIdFromUpdates({'ok': true, 'result': []}), '');
     });
 
@@ -389,7 +389,7 @@ void main() {
               return http.Response(jsonEncode({
                 'ok': true,
                 'result': [
-                  {'update_id': 9, 'message': {'chat': {'id': 8367489844, 'type': 'private'}, 'text': '/start'}}
+                  {'update_id': 9, 'message': {'chat': {'id': 555000111, 'type': 'private'}, 'text': '/start'}}
                 ]
               }), 200);
             }
@@ -406,7 +406,7 @@ void main() {
       expect(r, 'Sent to the owner on Telegram.');
       expect(calls.map((c) => c.url.path.split('/').last), ['getUpdates', 'sendMessage']);
       expect(calls.first.url.path, '/bot123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi/getUpdates');
-      expect(jsonDecode(calls.last.body), {'chat_id': '8367489844', 'text': 'News brief'});
+      expect(jsonDecode(calls.last.body), {'chat_id': '555000111', 'text': 'News brief'});
       // The chat is kept: the next send goes straight out.
       calls.clear();
       SaveGuard.I.clear();
