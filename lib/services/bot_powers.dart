@@ -50,7 +50,7 @@ class BotPowers {
     // The Chief's hiring tools are its core duty: they are never taken away by a switched-off power
     // (bot_make used to fall through groupOf to 'apps' and vanish when apps was off).
     'bot_make', 'team_make',
-    'office_board', 'office_post', 'office_brief', 'office_ask_owner', 'office_kpi', 'docs_share', 'docs_list', 'docs_read',
+    'office_board', 'office_post', 'office_watch', 'office_brief', 'office_ask_owner', 'office_kpi', 'docs_share', 'docs_list', 'docs_read',
   };
 
   /// The power a tool needs, or '' when it is always allowed.

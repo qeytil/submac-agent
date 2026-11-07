@@ -637,6 +637,8 @@ extension AppStateAgentRunner on AppState {
       _notePaused(b);
       throw OpenCodeError('${AppState.bgPausedText}.');
     }
+    final dbg = AppState.debugTeamTurn;
+    if (dbg != null) return dbg(b, key, system, task, model: laneModel, background: background, officeJob: officeJob);
     await oc.ensure(turn: true);
     var over = false;
     bool live() => over || (stopped?.call() ?? false);

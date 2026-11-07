@@ -273,7 +273,7 @@ void main() {
       expect(Bots.I.opencodeBriefOf(nova), isNot(contains('Team part for')));
     });
 
-    test('a teammate\'s @mentions are no longer capped per hour; a mention still cannot wake others', () async {
+    test('a teammate\'s @mentions are no longer capped per hour; a chain of bot turns stops at its depth', () async {
       SharedPreferences.setMockInitialValues({});
       final o = Office(id: 'otis3', name: 'Coffee', members: ['tisl', 'tisn'], chiefId: 'tisl');
       Offices.I.offices.add(o);
@@ -281,9 +281,13 @@ void main() {
       for (var i = 0; i < 9; i++) {
         final r = await Offices.I.execute('office_post', {'text': '@Nova check $i'}, o, lead, job: 'task');
         expect(r, contains('1 teammate'), reason: 'mention $i');
-        expect(Offices.I.queue.where((j) => j.kind == 'mention' && j.botId == 'tisn'), hasLength(1));
+        // The lead handing work over starts the assignee's turn (owner 2026-11-06: "assigned bots stayed silent").
+        expect(Offices.I.queue.where((j) => j.kind == 'assign' && j.botId == 'tisn'), hasLength(1));
         Offices.I.queue.clear();
       }
+      // Two bots can no longer wake each other without end: a turn deep in a chain wakes nobody (TeamReact.maxDepth).
+      Offices.I.jobOf = (id, officeId) => (kind: 'mention', depth: 4, cause: 'tisn');
+      addTearDown(() => Offices.I.jobOf = null);
       final r = await Offices.I.execute('office_post', {'text': '@Nova again'}, o, lead, job: 'mention');
       expect(r, 'Posted.');
       expect(Offices.I.queue, isEmpty);

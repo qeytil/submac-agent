@@ -1,5 +1,7 @@
 import 'bots.dart';
 import 'offices.dart';
+import 'no_reply.dart';
+import 'quick_lane.dart';
 
 /// Team awareness (owner feedback 2026-11-05): "bots send duplicate messages; they confuse who they are and their
 /// roles; weak situational awareness; the lead always repeats the owner's words to the others." What a bot needs to
@@ -82,10 +84,10 @@ class TeamLeadMode {
 
   /// The lead's standing instruction for the mode it is in (team prompts read it).
   static String leadInstruction(Office o, {DateTime? now}) => leads(o, now: now)
-      ? 'Lead mode: LEADING (${o.delegated ? 'the owner handed over' : 'the owner is away'}). Split the work into concrete subtasks per role, '
-          'assign each by name with what to hand back, follow up, report once. Never forward the owner\'s words: make specific asks.'
-      : 'Lead mode: PEER (the owner is here and leads): act as a member in your role; do not assign, restate or relay the '
-          'owner\'s messages. You lead only when they are away or ask.';
+      ? 'Lead mode: LEADING (${o.delegated ? 'the owner handed over' : 'the owner is away'}). Split the work per role; assign each part '
+          'on its own line ("Nova: <part>") or @Nova, which starts their turn. Follow up on reports, report once; never forward the owner\'s words.'
+      : 'Lead mode: PEER (the owner is here and leads): act as a member, never relay the owner\'s messages, and assign '
+          '("Nova: <part>" starts their turn) only when the owner asks.';
 }
 
 /// "[needs you]": a bot needs the owner to decide, answer or act. Stripped from the text; the post is shown as
@@ -450,3 +452,339 @@ class TeamTurns {
   /// A job of a thread waits while another job of the same thread runs.
   static bool waitsForThread(OfficeJob j, Iterable<String> runningThreads) => j.thread.isNotEmpty && runningThreads.contains(j.thread);
 }
+
+/// A standing "when X posts, do Y" in a team (owner 2026-11-06: "bot B, analyze bot A's research once it posts" left
+/// B silent, because a bot only ever took a turn when the owner wrote). Saved with the team; fired by [TeamReact] the
+/// moment the watched teammate posts, without anyone writing again.
+class TeamWatch {
+  TeamWatch({
+    required this.id,
+    required this.watcher,
+    required this.from,
+    required this.instruction,
+    this.by = 'you',
+    DateTime? at,
+    DateTime? until,
+    this.once = true,
+    this.task = '',
+  })  : at = at ?? DateTime.now(),
+        until = until ?? (at ?? DateTime.now()).add(life);
+
+  /// How long a watch waits before it lapses.
+  static const life = Duration(hours: 24);
+
+  final String id;
+
+  /// The bot that takes the turn.
+  final String watcher;
+
+  /// The bot whose post fires it, or [anyone].
+  final String from;
+
+  /// What to do then (the owner's words, or the lead's hand-off).
+  final String instruction;
+
+  /// Who set it: 'you' (the owner) or a bot id (a lead waiting for a report, or a bot's own office_watch).
+  final String by;
+  final DateTime at;
+  final DateTime until;
+  final bool once;
+
+  /// The assignment it follows up (a lead waiting for a report), shown in the "still waiting on" line.
+  final String task;
+
+  static const anyone = '*';
+
+  bool expired([DateTime? now]) => !(now ?? DateTime.now()).isBefore(until);
+
+  static int _seq = 0;
+  static String newId() => 'w${DateTime.now().microsecondsSinceEpoch}${(_seq++ % 1000).toString().padLeft(3, '0')}';
+
+  Map<String, dynamic> toJson() => {
+        'id': id, 'w': watcher, 'f': from, 'i': instruction, 'by': by, 'at': at.toIso8601String(), 'u': until.toIso8601String(),
+        if (!once) 'r': true, if (task.isNotEmpty) 'tk': task,
+      };
+
+  static TeamWatch fromJson(Map<String, dynamic> j) => TeamWatch(
+        id: '${j['id'] ?? newId()}',
+        watcher: '${j['w'] ?? ''}',
+        from: '${j['f'] ?? anyone}',
+        instruction: '${j['i'] ?? ''}',
+        by: '${j['by'] ?? 'you'}',
+        at: DateTime.tryParse('${j['at']}'),
+        until: DateTime.tryParse('${j['u']}'),
+        once: j['r'] != true,
+        task: '${j['tk'] ?? ''}',
+      );
+}
+
+/// One turn a team post starts for a bot.
+class TeamTrigger {
+  const TeamTrigger(this.botId, this.kind, this.instruction, {this.watchIds = const []});
+  final String botId;
+
+  /// react (a watch fired) | assign (a lead or teammate handed it work) | mention (a teammate wrote to it)
+  final String kind;
+  final String instruction;
+  final List<String> watchIds;
+}
+
+/// What one team post sets off: the turns it starts, the watches it used up and the ones it adds.
+class TeamReaction {
+  TeamReaction(this.triggers, this.fired, this.added, {this.skipped = const []});
+  final List<TeamTrigger> triggers;
+
+  /// Watches that fired once and are done.
+  final List<String> fired;
+
+  /// New watches (a lead waiting for the report of the work it just assigned).
+  final List<TeamWatch> added;
+
+  /// Why a trigger did not happen (loop guards), for diagnostics and tests.
+  final List<String> skipped;
+
+  static final none = TeamReaction(const [], const [], const []);
+}
+
+/// Event-driven team turns (owner 2026-11-06, "bots and teams, highest priority"):
+///  1. Any team post can start a teammate's turn, not only the owner's messages: a watch on its author fires
+///     ([TeamWatch]), a lead's assignment ("Nova: find three prices", "@Nova …") starts the assignee at once and the
+///     lead hears back when it reports, a teammate's question wakes the one asked.
+///  2. Loop guards: each turn carries the depth of the chain that started it (the owner's message is 0); bot-to-bot
+///     turns stop at [maxDepth] (watches the owner set at [watchDepth]); a post starts at most one turn per bot; a
+///     plain reply (mention) never wakes the teammate that woke it (no ping-pong); a team has at most [burst]
+///     bot-started turns in [burstWindow]; small talk ("thanks Nova") starts nothing; a bot may always answer
+///     [no reply].
+class TeamReact {
+  TeamReact._();
+
+  /// Deepest chain of bot-to-bot turns (owner's message → bot → bot → bot → bot).
+  static const maxDepth = 4;
+
+  /// Watches the owner set reach a little further (they were asked for by name).
+  static const watchDepth = 8;
+
+  /// At most this many bot-started turns per team in [burstWindow] (a runaway chain stops here).
+  static const burst = 20;
+  static const burstWindow = Duration(minutes: 10);
+
+  static final _when = RegExp(
+      r"\b(once|when|whenever|after|as soon as|wait(ing)? (for|until|till)|until|till|then)\b|\b(marka|kadib|ka dib|markay|markuu)\b|(عندما|بعد ما|بعدما|حين)",
+      caseSensitive: false);
+  static final _event = RegExp(
+      r"\b(posts?|posted|finish(es|ed)?|done|shares?|shared|reports?|reported|sends?|sent|publish(es|ed)?|comes? (in|back)|ready|deliver(s|ed)?|"
+      r"repl(y|ies|ied)|answers?|answered|completes?|completed|results?|research|findings|report|draft|soo diro|dhammeeyo|keeno)\b|(ينشر|ينتهي|يرسل)",
+      caseSensitive: false);
+
+  static String _nameRe(String name) => '(?<![\\w\\u0600-\\u06FF])${RegExp.escape(name)}(?:[\'’]s)?(?![\\w\\u0600-\\u06FF])';
+
+  static List<Bot> _members(Office o) => [for (final id in o.members) Bots.I.byId(id)].whereType<Bot>().toList();
+
+  /// Watches in an owner message: "Amal, analyze Nova's research once it posts", "when Nova is done, Amal checks it",
+  /// "@Amal wait for Nova's report, then write the summary". [addressed]: who the owner wrote to (the watchers when
+  /// the sentence itself names only the source). Sentence by sentence; a sentence needs a "when" word, an event word
+  /// and a teammate whose post it waits for.
+  static List<TeamWatch> fromOwner(Office o, String text, {List<Bot> addressed = const [], DateTime? now}) {
+    final at = now ?? DateTime.now();
+    final members = _members(o);
+    final out = <TeamWatch>[];
+    for (final s in text.split(RegExp(r'(?<=[.!?؟])\s+|\n+|;\s*'))) {
+      final w = _when.firstMatch(s);
+      if (w == null || !_event.hasMatch(s)) continue;
+      final named = <({Bot bot, int at, bool possessive})>[];
+      for (final b in members) {
+        final m = RegExp(_nameRe(b.name), caseSensitive: false).firstMatch(s);
+        if (m != null) named.add((bot: b, at: m.start, possessive: RegExp('[\'’]s\$').hasMatch(m.group(0)!)));
+      }
+      if (named.isEmpty) continue;
+      named.sort((a, b) => a.at.compareTo(b.at));
+      // The source: the teammate whose post is waited for. "Nova's result", "when Nova posts", "after Nova".
+      Bot? source;
+      for (final n in named) {
+        final after = s.substring(n.at + n.bot.name.length).toLowerCase();
+        final before = s.substring(0, n.at).toLowerCase();
+        final followsWhen = RegExp(r'(once|when|whenever|after|as soon as|for|until|till|marka|kadib)\s+(@)?$').hasMatch(before.trimRight().isEmpty ? before : '${before.trimRight()} ');
+        final eventSoon = RegExp(r"^(?:['’]s)?\s*(?:\w+\s+){0,3}?(posts?|posted|finish|finishes|finished|is done|is ready|shares?|reports?|sends?|publishes|delivers?|replies|answers?|completes?)\b").hasMatch(after);
+        if (n.possessive || followsWhen || eventSoon) {
+          source = n.bot;
+          break;
+        }
+      }
+      if (source == null) continue;
+      var watchers = [for (final n in named) if (n.bot.id != source.id) n.bot];
+      if (watchers.isEmpty) watchers = [for (final b in addressed) if (b.id != source.id) b];
+      for (final b in watchers) {
+        if (out.any((x) => x.watcher == b.id && x.from == source!.id)) continue;
+        out.add(TeamWatch(id: TeamWatch.newId(), watcher: b.id, from: source.id, instruction: text.trim(), at: at));
+      }
+    }
+    return out;
+  }
+
+  /// The work [text] by [authorId] hands to teammates: lines that open on a teammate's name ("Nova: …", "- Nova, …",
+  /// "1. @Nova …"), and @mentions (the sentence around each, or the whole post when short; "@team" = everyone).
+  static List<({Bot bot, String ask})> assignmentsIn(Office o, String text, String authorId) {
+    final out = <({Bot bot, String ask})>[];
+    final members = _members(o);
+    Bot? byName(String n) {
+      final l = n.toLowerCase();
+      return members.where((b) => b.name.toLowerCase() == l || b.role.toLowerCase().replaceAll(' ', '') == l).firstOrNull;
+    }
+
+    final line = RegExp(r'^\s*(?:[-*•▪◦]\s*|\d{1,2}[.)]\s*)?(?:\*\*)?@?([\w\u0600-\u06FF-]+)(?:\*\*)?\s*(?:[:,،–—]|\s-)\s*(.+)$');
+    for (final l in text.split('\n')) {
+      final m = line.firstMatch(l);
+      if (m == null) continue;
+      final b = byName(m.group(1)!);
+      final ask = m.group(2)!.trim();
+      if (b == null || b.id == authorId || ask.isEmpty || out.any((x) => x.bot.id == b.id)) continue;
+      out.add((bot: b, ask: ask));
+    }
+    final mentioned = Offices.I.mentioned(o, text);
+    if (mentioned.isNotEmpty) {
+      final sentences = text.split(RegExp(r'(?<=[.!?؟])\s+|\n+'));
+      for (final b in mentioned) {
+        if (b.id == authorId || out.any((x) => x.bot.id == b.id)) continue;
+        final s = sentences.where((x) => RegExp('@${RegExp.escape(b.name)}\\b', caseSensitive: false).hasMatch(x)).firstOrNull;
+        out.add((bot: b, ask: (text.length <= 400 || s == null ? text : s).trim()));
+      }
+    }
+    return out;
+  }
+
+  /// A post that may fire a watch: real content (chat, report, answer, a question to the owner) or a "Done:" update.
+  static bool firesWatch(OfficePost p) =>
+      p.kind == 'chat' || p.kind == 'report' || p.kind == 'answer' || p.kind == 'ask' || (p.kind == 'update' && p.text.startsWith('Done'));
+
+  static String _short(String s, int n) {
+    final t = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return t.length > n ? '${t.substring(0, n)}…' : t;
+  }
+
+  static final _report = RegExp(
+      r"^(?:[\s,.:;-]*)(done|found|finished|sent|made|wrote|built|delivered|shared|reported|posted|completed|has|have|had|is|was|were|did|got|"
+      r"already|thanks|thank you|great|good|nice|well done|good job|agreed|confirmed|ready|here (is|are)|her(e|e's)|dhammeeyay|waa la dhammeeyay)\b",
+      caseSensitive: false);
+
+  /// A line about work done (a report or a credit), not work asked for: "found three prices", "built the table".
+  static bool reportLike(String ask) {
+    final t = ask.trim();
+    if (_report.hasMatch(t)) return true;
+    final first = RegExp(r'^[A-Za-z]+').firstMatch(t)?.group(0)?.toLowerCase() ?? '';
+    return first.length > 4 && first.endsWith('ed') && !const {'need', 'feed', 'speed', 'proceed', 'embed'}.contains(first);
+  }
+
+  /// "Thanks @Amal!", "Nova: great": small talk once the names are taken out.
+  static bool _smallTalk(Office o, String text) {
+    var t = text.replaceAll(RegExp(r'@[\w\u0600-\u06FF-]+'), ' ');
+    for (final b in _members(o)) {
+      t = t.replaceAll(RegExp(_nameRe(b.name), caseSensitive: false), ' ');
+    }
+    t = t.replaceAll(RegExp(r'^[\s,.:;!-]+'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return t.isEmpty || QuickLane.isSmallTalk(t);
+  }
+
+  /// What post [p] sets off. [depth]: the chain depth of the turn that wrote it (0 = no bot turn, or the owner's
+  /// message); [cause]: who started that turn (a bot id, 'you' or ''); [causeKind]: that turn's kind; [assigns]:
+  /// false for a structured team job's own posts (its plan and hand-offs already run their members).
+  static TeamReaction of(Office o, OfficePost p, {int depth = 0, String cause = '', String causeKind = '', bool assigns = true, DateTime? now}) {
+    if (p.from == 'you' || p.from == 'system' || p.kind == 'system') return TeamReaction.none;
+    final author = Bots.I.byId(p.from);
+    if (author == null || !o.members.contains(author.id)) return TeamReaction.none;
+    final at = now ?? DateTime.now();
+    final triggers = <TeamTrigger>[];
+    final fired = <String>[];
+    final added = <TeamWatch>[];
+    final skipped = <String>[];
+    final next = depth + 1;
+    final isLead = author.id == o.chiefId;
+
+    // 1. Watches on this author.
+    if (firesWatch(p)) {
+      final byBot = <String, List<TeamWatch>>{};
+      for (final w in o.watches) {
+        if (w.expired(at) || w.watcher == author.id || !o.members.contains(w.watcher)) continue;
+        if (w.from != author.id && w.from != TeamWatch.anyone) continue;
+        (byBot[w.watcher] ??= []).add(w);
+      }
+      for (final e in byBot.entries) {
+        final owners = e.value.where((w) => w.by == 'you').isNotEmpty;
+        if (next > (owners ? watchDepth : maxDepth)) {
+          skipped.add('depth:${e.key}');
+          continue;
+        }
+        final asks = [for (final w in e.value) w.by == 'you' ? 'The owner asked: "${_short(w.instruction, 600)}"' : _short(w.instruction, 600)];
+        // A lead waiting on several reports: say who is still to come, so it sums up once, at the end.
+        final still = [
+          for (final w in o.watches)
+            if (!e.value.contains(w) && w.watcher == e.key && w.by == e.key && !w.expired(at) && w.from != author.id) Bots.I.byId(w.from)?.name ?? '?'
+        ];
+        triggers.add(TeamTrigger(
+            e.key,
+            'react',
+            '${author.name} just posted in the team chat:\n"${_short(p.text, 1500)}"\n\n'
+                'You were waiting for this. ${asks.join('\n')}${still.isEmpty ? '' : '\nStill waiting on: ${still.join(', ')}.'}',
+            watchIds: [for (final w in e.value) w.id]));
+        fired.addAll([for (final w in e.value) if (w.once) w.id]);
+      }
+    }
+
+    // 2. Work handed to teammates, and teammates asked something.
+    if (assigns && (p.kind == 'chat' || p.kind == 'answer' || p.kind == 'report' || p.kind == 'ask')) {
+      for (final a in assignmentsIn(o, p.text, author.id)) {
+        if (triggers.any((t) => t.botId == a.bot.id)) continue;
+        if (_smallTalk(o, a.ask) || _smallTalk(o, p.text)) {
+          skipped.add('smalltalk:${a.bot.id}');
+          continue;
+        }
+        final question0 = TeamTranscript.isQuestion(a.ask);
+        // A line that reports or credits ("Nova: found three prices", "Amal: done, table attached") hands nothing out.
+        if (!question0 && reportLike(a.ask)) {
+          skipped.add('report:${a.bot.id}');
+          continue;
+        }
+        // The same work already on the board for them, just added by this author: the task job runs it (no twice).
+        if (o.tasks.any((t) => t.owner == a.bot.id && t.createdBy == author.id && (t.status == 'todo' || t.status == 'doing' || t.status == 'proposed') &&
+            at.difference(t.createdAt) < const Duration(minutes: 10))) {
+          skipped.add('board:${a.bot.id}');
+          continue;
+        }
+        if (next > maxDepth) {
+          skipped.add('depth:${a.bot.id}');
+          continue;
+        }
+        final question = TeamTranscript.isQuestion(a.ask) && !QuickLane.hasAction(a.ask);
+        final kind = question ? 'mention' : ((isLead || QuickLane.hasAction(a.ask) || QuickLane.isRequest(a.ask)) ? 'assign' : 'mention');
+        // A plain answer never wakes the teammate whose message started this turn (two bots thanking each other forever).
+        if (kind == 'mention' && a.bot.id == cause && (causeKind == 'mention' || causeKind == 'react' || causeKind == 'assign')) {
+          skipped.add('pingpong:${a.bot.id}');
+          continue;
+        }
+        if (kind == 'assign') {
+          triggers.add(TeamTrigger(
+              a.bot.id,
+              'assign',
+              '${author.name}${isLead ? ' (the team lead)' : ''} handed you this in the team chat: "${_short(a.ask, 1200)}"'
+                  '${a.ask.trim() == p.text.trim() ? '' : '\n(Their whole message: "${_short(p.text, 800)}")'}'));
+          // The one who handed it out hears back when it is done, without anyone asking (owner 2026-11-06).
+          if (!o.watches.any((w) => w.watcher == author.id && w.from == a.bot.id && !w.expired(at)) && !added.any((w) => w.from == a.bot.id)) {
+            added.add(TeamWatch(
+                id: TeamWatch.newId(),
+                watcher: author.id,
+                from: a.bot.id,
+                by: author.id,
+                task: _short(a.ask, 200),
+                at: at,
+                instruction: 'You handed ${a.bot.name} this: "${_short(a.ask, 300)}". Check their report: hand out the next step if one '
+                    'follows, or, when every part you are waiting on is in, post one short summary for the owner. Nothing to do yet: '
+                    '${NoReply.token}.'));
+          }
+        } else {
+          triggers.add(TeamTrigger(a.bot.id, 'mention', '${author.name} wrote to you in the team chat: "${_short(p.text, 1200)}"'));
+        }
+      }
+    }
+    return TeamReaction(triggers, fired, added, skipped: skipped);
+  }
+}
+

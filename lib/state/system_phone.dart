@@ -38,6 +38,12 @@ extension AppStateSystem on AppState {
     };
     // The kind of the office job a bot does now, for callers that do not pass it (office_post passes its own).
     Offices.I.currentJob = (id) => _officeJobs.values.where((j) => j.botId == id).firstOrNull?.kind;
+    // The chain of the job a bot posts from mid-turn (office_post), so its post starts teammates one level deeper.
+    Offices.I.jobOf = (id, officeId) {
+      final j = _officeJobs.values.where((j) => j.botId == id && j.officeId == officeId).fold<OfficeLiveJob?>(
+          null, (a, x) => a == null || x.depth > a.depth ? x : a);
+      return j == null ? null : (kind: j.kind, depth: j.depth, cause: j.cause);
+    };
     Offices.I.isWorking = (id) {
       if (_officeBusy.contains(id)) return true;
       final bot = Bots.I.byId(id);

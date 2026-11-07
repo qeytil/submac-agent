@@ -46,6 +46,8 @@ void main() {
     // the cap still catches a schema that balloons.
     // 11400 -> 11500 (bots background, 2026-11-05): bot_telegram (~60 tokens) lets a bot's scheduled task message the
     // owner in Telegram with SubMac closed. Bot tools reach opencode through find_tools, not with every step.
-    expect(total ~/ 4, lessThan(11500));
+    // 11500 -> 11560 (team turns, 2026-11-06): office_watch (~40 tokens) lets a bot wait for a teammate's post instead
+    // of polling ("analyze Nova's research once it posts"). Office tools are offered only under a team key.
+    expect(total ~/ 4, lessThan(11560));
   });
 }

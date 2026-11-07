@@ -123,7 +123,7 @@ class TeamRun extends ChangeNotifier {
     final members = [for (final id in o.members) if (id != o.chiefId) Bots.I.byId(id)].whereType<Bot>().take(maxParts).toList();
     if (members.isEmpty) return 'Error: the team has no members besides the lead.';
     if (lead.overBudget) return 'Not started: ${lead.name}\'s token budget for today is used up. It runs again tomorrow.';
-    Offices.I.post(o, lead.id, task);
+    Offices.I.post(o, lead.id, task, assigns: false);
     work = _propose(o, lead, members, task, lang: BotManner.langOf(task));
     return 'Started: the team "${o.name}" is on it and will post the result in its team chat.';
   }
@@ -204,6 +204,11 @@ class TeamRun extends ChangeNotifier {
   /// CB-34: a team is busy while its own run works OR any member reply it started (an office job queued or running
   /// through [Offices.askBot]) is still going, so "stop" always reaches it instead of waking someone new.
   bool busy(Office o) => running.contains(o.id) || Offices.I.jobsFor(o.id);
+
+  /// The bots a running team job still counts on (the lead, and members whose part is not back yet), by office id. A
+  /// message the owner addresses to anyone else while the job runs is answered by them directly (it used to go into
+  /// the job's inbox, which nobody read once their part was done).
+  final Map<String, Set<String>> _jobBots = {};
 
   /// Plans waiting on the owner's answer to the lead's questions (or "Go"), by office id.
   final Map<String, TeamPlan> pending = {};
@@ -423,9 +428,15 @@ class TeamRun extends ChangeNotifier {
     // Working: the message reaches the work (the lead and the members still to report), and the owner sees that it
     // did (CB-37: it used to vanish into the inbox without a word).
     if (running.contains(o.id)) {
-      say();
-      (_inbox[o.id] ??= []).add(t);
-      Offices.I.post(o, 'system', BotManner.noted(lang: lang), kind: 'system');
+      final p = say();
+      final inJob = _jobBots[o.id] ?? {for (final id in o.members) id};
+      final direct = [for (final b in to) if (!inJob.contains(b.id)) b];
+      Offices.I.addOwnerWatches(o, t, addressed: to);
+      if (direct.isNotEmpty) _ask(o, direct, t, replyTo: replyTo, thread: direct.length > 1 ? p.id : '');
+      if (direct.length < to.length || to.isEmpty) {
+        (_inbox[o.id] ??= []).add(t);
+        Offices.I.post(o, 'system', BotManner.noted(lang: lang), kind: 'system');
+      }
       notifyListeners();
       return true;
     }
@@ -440,13 +451,20 @@ class TeamRun extends ChangeNotifier {
         pending.remove(o.id);
         _inbox.remove(o.id);
         Offices.I.stopJobs(o.id);
-        Offices.I.post(o, lead.id, BotManner.planCancelled(lang: plan.lang));
+        Offices.I.post(o, lead.id, BotManner.planCancelled(lang: plan.lang), assigns: false);
         notifyListeners();
       } else {
         // An answer to the lead's question, or a change: the lead updates the plan.
         work = _propose(o, lead, members, '${plan.job}\n\nThe owner added: $t', lang: plan.lang == 'en' ? lang : plan.lang);
       }
       return true;
+    }
+    // "Amal, analyze Nova's research once it posts": saved as a watch, so Amal takes its turn the moment Nova posts,
+    // without the owner writing again (owner 2026-11-06). A message that is only that needs no answer now.
+    final watches = Offices.I.addOwnerWatches(o, t, addressed: to);
+    if (watches.isNotEmpty) {
+      say();
+      if (to.isEmpty) return true;
     }
     // The owner writing is the owner being here: the lead leads an owner's message only when handed the team
     // ("lead, take over", "I'm away") or when the owner gives the job to the lead by name (decided below).
@@ -726,12 +744,12 @@ class TeamRun extends ChangeNotifier {
       if (questions.isEmpty) {
         // Grok-style: nothing to ask, so the team gets going right away.
         final text = planText(plan, reply: reply, starting: true);
-        Offices.I.post(o, lead.id, text);
+        Offices.I.post(o, lead.id, text, assigns: false);
         _tell(o, lead, text);
         startNow = plan;
       } else {
         pending[o.id] = plan;
-        Offices.I.post(o, lead.id, planText(plan, reply: reply, questions: questions));
+        Offices.I.post(o, lead.id, planText(plan, reply: reply, questions: questions), assigns: false);
         _tell(o, lead, questions.first);
       }
     } catch (_) {
@@ -790,6 +808,7 @@ class TeamRun extends ChangeNotifier {
   /// Parts the lead did not hand off still run, in order, so a job always finishes; then the lead writes one answer.
   Future<void> _run(Office o, Bot lead, TeamPlan plan) async {
     running.add(o.id);
+    _jobBots[o.id] = {lead.id, for (final p in plan.parts) p.bot.id};
     notifyListeners();
     _note(o, plan);
     await _hold(o);
@@ -803,18 +822,19 @@ class TeamRun extends ChangeNotifier {
       // ask was posted twice, in the plan and again as a hand-off).
       final planned = plan.parts.where((p) => p.bot == b).firstOrNull?.ask ?? '';
       if (!TeamDedupe.near(planned, ask, at: 0.7) && planned.trim() != ask.trim()) {
-        Offices.I.post(o, lead.id, BotManner.handOff(b.name, ask, lang: plan.lang));
+        Offices.I.post(o, lead.id, BotManner.handOff(b.name, ask, lang: plan.lang), assigns: false);
       }
       // No cap on how many members work at once (owner 2026-11-04): every hand-off starts now, each member in its own
       // opencode session, side by side with the owner's chat and other bots.
       final r = await _part(o, lead, b, ask, plan, [...done]);
+      _jobBots[o.id]?.remove(b.id);
       // CB-19: a part cut short by the owner's stop posts nothing (it used to say "I could not finish my part").
       if (_stopped.contains(o.id)) return 'Stopped by the owner.';
       done.add((bot: b, text: r.result));
       // A part that failed posts no "could not finish" bubble: the team chat shows one small line instead
       // ("Nova · rate limit", owner 2026-11-04), and the lead still hears about it.
       if (r.note == BotManner.partFailed(lang: plan.lang) && r.result == r.note) return r.result;
-      final post = Offices.I.post(o, b.id, r.note, dedupe: false);
+      final post = Offices.I.post(o, b.id, r.note, dedupe: false, assigns: false);
       post.parts.add((from: b.id, text: r.result));
       Offices.I.saveSoon();
       return r.result;
@@ -877,7 +897,7 @@ class TeamRun extends ChangeNotifier {
       if (_stopped.contains(o.id) || done.isEmpty) return;
       final answer = (!leftover && leadAnswer.isNotEmpty) ? leadAnswer : await _combine(lead, plan, done, o);
       if (_stopped.contains(o.id)) return;
-      final post = Offices.I.post(o, lead.id, answer, kind: 'answer');
+      final post = Offices.I.post(o, lead.id, answer, kind: 'answer', assigns: false);
       _tell(o, lead, answer);
       for (final d in done) {
         post.parts.add((from: d.bot.id, text: d.text));
@@ -890,6 +910,7 @@ class TeamRun extends ChangeNotifier {
       }
     } finally {
       running.remove(o.id);
+      _jobBots.remove(o.id);
       _stopped.remove(o.id);
       _inbox.remove(o.id);
       _unnote(o.id);
@@ -990,10 +1011,15 @@ class TeamRun extends ChangeNotifier {
     return t.length > n ? '${t.substring(0, n)}…' : t;
   }
 
+  /// Tests: the bots a running job still counts on.
+  @visibleForTesting
+  void jobBotsForTest(String officeId, Set<String> bots) => _jobBots[officeId] = bots;
+
   /// Tests: forget every team's state.
   @visibleForTesting
   void reset() {
     running.clear();
+    _jobBots.clear();
     pending.clear();
     _inbox.clear();
     _stopped.clear();

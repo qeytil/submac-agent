@@ -151,3 +151,64 @@ Design (lib/services/team_floor.dart):
 
 Tests: test/team_awareness_test.dart (transcript, turn selection, threads, dedupe, needs you, lead mode);
 team_intelligence_test.dart updated (a team job is planned by the lead when handed over; labelled floor prompt).
+
+## Team turns, assignments and bot models (owner 2026-11-06, 1.13.139+209)
+
+_Version note (2026-11-07): merged into main together with fix/oc-tools (1.13.138+208: SaveGuard, bot_routine repeat,
+connected apps); both kept, shipped as 1.13.139+209._
+
+Owner's report, highest priority: (1) "bot B, analyze bot A's research once it posts" left B silent when A posted;
+(2) bots the lead assigned stayed silent until the owner told each one "start working"; (3) other rules blocking
+teamwork; (4) bots ignored the model chosen in their profile.
+
+### Root causes
+1. **Only the owner's messages started turns.** `TeamRun.send` routed owner messages into `reply` jobs; a bot's own
+   final reply was posted with `Offices.post`, which started nothing. Nothing remembered "when X posts, do Y".
+2. **Assignments in chat started nobody.** The only bot-to-bot wake was an `@mention` inside the `office_post` tool,
+   and it was a `mention` job (8 steps, "do not start new work"). A lead's final reply ("Nova: find prices",
+   "@Nova …") woke no one, and a bot answering a mention could wake no one at all. Only `office_board add` with an
+   owner started a task job.
+3. Collaboration blockers found: `enqueue` kept one waiting job per bot+kind+task, so a second hand-off or mention to
+   the same bot was dropped as a duplicate; while a team job ran, every owner message went to the job's inbox, so a
+   member whose part was done never answered when addressed; the lead's PEER instruction said "do not assign" even
+   when the owner asked it to; the hand-over flag was saved under `dg`, the daily report time's key, so handing over
+   overwrote the report time; retries lost the job's thread.
+4. **Plain model calls were pinned to SubMac.** opencode turns (private chat, wakes, scheduled tasks, team parts)
+   already sent the bot's model (`OcLane.pick`), but every one-answer call went to `submacRef`: the team's "who
+   speaks" decision, the lead's plan and combined answer (`_teamAsk`), instant team replies (`_officeQuick`),
+   `bot_ask` (`_botConsult`) and the check-in gate (`_worthWaking`). The office pump also held a BYOK bot's team work
+   when SubMac's bots' share was used up, and the gate stopped its check-ins for the same reason.
+
+### What changed
+- `lib/services/team_floor.dart`: `TeamWatch` (saved per team in `Office.watches`, 24 h, once) and `TeamReact`:
+  watches from owner messages (`fromOwner`: a "when/once/after" word, an event word, the teammate waited for),
+  assignments in any bot post (`assignmentsIn`: lines opening on a name, @mentions, @team), and `TeamReact.of`
+  deciding the turns a post starts: `react` (watch fired), `assign` (work handed over; the one who handed it watches
+  for the report and is told who is still to come), `mention` (a question). Lead instructions say naming a teammate
+  starts their turn; PEER allows assigning when the owner asks.
+- Loop guards: chain depth on every job (`OfficeJob.depth/cause/post`; owner message = 0), bot-to-bot turns up to
+  `maxDepth` 4, owner watches up to 8; one turn per post per bot; a `mention` never wakes the teammate whose message
+  started the turn (ping-pong); 20 bot-started turns per team per 10 min, then one system line; small talk starts
+  nothing; `[no reply]` allowed for react/mention.
+- `lib/services/offices.dart`: `post()` runs `TeamReact` for every bot post (depth from the caller or `jobOf`);
+  `addOwnerWatches` + system line; new tool `office_watch`; `office_post` uses the same mechanism; job texts for
+  `assign` ("it starts now, report back") and `react`; reply text tells a watcher the rest comes later; enqueue keeps
+  one job per message for reply/mention/assign/react; `Office` JSON: `dl` for the hand-over flag, `wa` for watches.
+- `lib/services/team_run.dart`: watch-only owner messages need no floor call; while a job runs, an addressed bot
+  whose part is done answers itself; structured job posts (plan, hand-offs, parts, combined answer) pass
+  `assigns: false` so members are not started twice (watches still fire on them).
+- `lib/state/bots_controller.dart`, `system_phone.dart`, `app_state.dart`: office runs carry the chain into their
+  posts, assignments always report back, step caps for assign/react; plain bot calls go through
+  `lib/services/bot_llm.dart` (`BotModelRoute`, `BotLlm`; BYOK calls go straight to the provider via the new
+  `ByokFetch.complete`, OpenAI/Anthropic/Gemini); a BYOK bot's office work is not held by SubMac's allowance.
+- Tests: `test/team_turns_test.dart`, `test/bot_model_routes_test.dart` (incl. an office run whose post starts the
+  watching teammate's run on its own model).
+
+### Still open
+- The browser subagent (`browser_task`, old core) still runs on SubMac's model for every caller; it cannot use a
+  BYOK model until it moves onto opencode.
+- Watches are matched by rules (English, some Somali/Arabic words); a bot can always set one with `office_watch`.
+- Device check: a team with A and B; "B, analyze A's research once it posts", then "A, research X": B must post its
+  analysis right after A, with no further message. Lead in charge ("lead, take over"), lead assigns "A: …" lines:
+  both start and report back, lead sums up once. A bot on an own model: its team answers and instant replies come from
+  that model.

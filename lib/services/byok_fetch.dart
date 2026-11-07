@@ -65,6 +65,69 @@ class ByokFetch {
     return r;
   }
 
+  /// One plain chat request (no tools, no stream) to [p] for [model]: a bot's one-answer calls on its own model
+  /// (owner 2026-11-06: a bot's model setting must hold on every path, also the plain ones outside opencode). OpenAI
+  /// style messages in; each protocol's own shape out.
+  static http.Request chatRequest(ByokProvider p, String? key, String model, List<Map<String, dynamic>> messages, {int? maxTokens}) {
+    final base = p.apiBase;
+    String text(Object? c) => c is String
+        ? c
+        : c is List
+            ? c.map((e) => e is Map && e['text'] != null ? '${e['text']}' : '').where((t) => t.isNotEmpty).join('\n')
+            : '${c ?? ''}';
+    final system = [for (final m in messages) if (m['role'] == 'system') text(m['content'])].where((t) => t.trim().isNotEmpty).join('\n\n');
+    final turns = [for (final m in messages) if (m['role'] != 'system') (role: m['role'] == 'assistant' ? 'assistant' : 'user', text: text(m['content']))];
+    final http.Request r;
+    if (p.kind.isAnthropic) {
+      r = http.Request('POST', Uri.parse('$base/messages'));
+      r.body = jsonEncode({
+        'model': model,
+        'max_tokens': maxTokens ?? 1024,
+        if (system.isNotEmpty) 'system': system,
+        'messages': [for (final t in turns) {'role': t.role, 'content': t.text}],
+      });
+    } else if (p.kind == ByokKind.gemini) {
+      r = http.Request('POST', Uri.parse('$base/models/$model:generateContent'));
+      r.body = jsonEncode({
+        if (system.isNotEmpty) 'systemInstruction': {'parts': [{'text': system}]},
+        'contents': [for (final t in turns) {'role': t.role == 'assistant' ? 'model' : 'user', 'parts': [{'text': t.text}]}],
+        if (maxTokens != null) 'generationConfig': {'maxOutputTokens': maxTokens},
+      });
+    } else {
+      r = http.Request('POST', Uri.parse('$base/chat/completions'));
+      r.body = jsonEncode({
+        'model': model,
+        'messages': [if (system.isNotEmpty) {'role': 'system', 'content': system}, for (final t in turns) {'role': t.role, 'content': t.text}],
+        'stream': false,
+        if (maxTokens != null) 'max_tokens': maxTokens,
+      });
+    }
+    r.headers.addAll({'content-type': 'application/json', 'accept': 'application/json', ...p.headers, ...authHeaders(p.kind, key)});
+    return r;
+  }
+
+  /// The text of a plain chat answer, per protocol ('' when there is none).
+  static String chatText(ByokKind kind, Object? json) {
+    if (json is! Map) return '';
+    if (kind.isAnthropic) {
+      final c = json['content'];
+      return c is List ? c.map((e) => e is Map && e['type'] == 'text' ? '${e['text'] ?? ''}' : '').join() : '';
+    }
+    if (kind == ByokKind.gemini) {
+      final cands = json['candidates'];
+      if (cands is! List || cands.isEmpty) return '';
+      final parts = (cands.first is Map && (cands.first as Map)['content'] is Map) ? ((cands.first as Map)['content'] as Map)['parts'] : null;
+      return parts is List ? parts.map((e) => e is Map && e['thought'] != true ? '${e['text'] ?? ''}' : '').join() : '';
+    }
+    final ch = json['choices'];
+    if (ch is! List || ch.isEmpty || ch.first is! Map) return '';
+    final m = (ch.first as Map)['message'];
+    final c = m is Map ? m['content'] : null;
+    if (c is String) return c;
+    if (c is List) return c.map((e) => e is Map ? '${e['text'] ?? ''}' : '').join();
+    return '';
+  }
+
   // ------------------------------------------------------------------ parsing
 
   static int? _int(Object? v) {
@@ -265,6 +328,24 @@ class ByokFetch {
       rethrow;
     } catch (e) {
       throw ByokError(networkLine(e, r.url.toString()));
+    }
+  }
+
+  /// One plain answer from [p]'s [model] (see [chatRequest]). Throws [ByokError] with a plain message (never the key).
+  Future<String> complete(ByokProvider p, String? key, String model, List<Map<String, dynamic>> messages, {int? maxTokens}) async {
+    final r = chatRequest(p, key, model, messages, maxTokens: maxTokens);
+    int code;
+    String body;
+    try {
+      (code, body) = await _send(r, timeout: const Duration(seconds: 90));
+    } catch (e) {
+      throw ByokError(networkLine(e, r.url.toString()));
+    }
+    if (code < 200 || code >= 300) throw ByokError(errorLine(code, body, key: key), status: code);
+    try {
+      return chatText(p.kind, jsonDecode(body)).trim();
+    } catch (_) {
+      throw ByokError('The provider answered, but not with a chat reply.');
     }
   }
 
