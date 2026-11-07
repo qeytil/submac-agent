@@ -2051,9 +2051,37 @@ class Bots extends ChangeNotifier {
     final scope = convId ?? b.id;
     final early = SaveGuard.I.before(scope, name, a);
     if (early != null) return early;
-    final out = await _execute(b, name, a, convId);
+    String out;
+    try {
+      out = await _execute(b, name, a, convId);
+    } catch (_) {
+      // A model sometimes sends a list as text or a number with a unit. The call used to throw, which broke the
+      // whole turn ("Bad tool arguments", bug audit 2026-11-07): answer with a plain line instead, so the bot can
+      // correct it on the next call. The tools themselves also accept the common shapes (see [_listArg], [_minutesArg]).
+      out = 'Error: those arguments did not work. Send them again plainly (names as text, lists as a list) and it will run.';
+    }
     SaveGuard.I.after(scope, name, a, out);
     return out;
+  }
+
+  /// A list argument the way models send it: a real list, or one text line ("Amal, Hodin" / "amal; hodin" / one
+  /// name per line). Never throws on the wrong type (bug audit 2026-11-07: bot_make and team_make broke on text).
+  static List<String> _listArg(dynamic v) {
+    if (v is List) return [for (final x in v) '$x'.trim()].where((x) => x.isNotEmpty).toList();
+    if (v is String) return v.split(RegExp(r'[,\n;]')).map((x) => x.trim()).where((x) => x.isNotEmpty).toList();
+    return const [];
+  }
+
+  /// A wait given in minutes ("30", "30 minutes", "2 hours", "90m", "1.5h"). Null when it is not a time at all.
+  static int? _minutesArg(String v) {
+    final t = v.trim().toLowerCase();
+    if (t.isEmpty) return null;
+    final m = RegExp(r'^(\d+(?:\.\d+)?)\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours)?$').firstMatch(t);
+    if (m == null) return null;
+    final n = double.tryParse(m.group(1)!) ?? 0;
+    final unit = m.group(2) ?? '';
+    final mins = unit.startsWith('h') ? (n * 60).round() : n.round();
+    return mins > 0 ? mins : null;
   }
 
   /// Run a repeating job for [b] ("every hour", "every 3 hours") as one scheduled task of the bot (set by the app:
@@ -2223,7 +2251,7 @@ class Bots extends ChangeNotifier {
       case 'bot_followup':
         // A relative time is counted here, from the real clock: the model's own "now" can be off (it set 11:30 for
         // "in 30 minutes" at 11:11, and the work came 19 minutes early).
-        final mins = double.tryParse(s('in_minutes'))?.round();
+        final mins = _minutesArg(s('in_minutes'));
         final at = mins != null && mins > 0 ? clock().add(Duration(minutes: mins)) : DateTime.tryParse(s('when').replaceAll(' ', 'T'));
         if (at == null) return 'Error: give in_minutes, or "when" like 2026-10-18T09:00.';
         // A time already gone used to fire within 20 seconds, so "in 30 minutes" ran at once. Refuse it and say the real time.
@@ -2392,7 +2420,7 @@ class Bots extends ChangeNotifier {
     if (!isChief(b)) return 'Error: only the Chief makes bots. Ask the owner to talk to their Chief.';
     String s(String k) => '${a[k] ?? ''}'.trim();
     if (s('action') == 'draft') {
-      final skills = [for (final x in (a['skills'] as List? ?? const [])) '$x'.trim()].where((x) => x.isNotEmpty).take(5).toList();
+      final skills = _listArg(a['skills']).take(5).toList();
       final spec = <String, dynamic>{
         'name': s('name').isEmpty ? 'Assistant' : s('name'),
         'role': s('role'),
@@ -2438,7 +2466,7 @@ class Bots extends ChangeNotifier {
   Future<String> _teamMake(Bot b, Map<String, dynamic> a, String convId) async {
     if (!isChief(b)) return 'Error: only the Chief makes teams. Ask the owner to talk to their Chief.';
     String s(String k) => '${a[k] ?? ''}'.trim();
-    final members = [for (final m in (a['members'] as List? ?? const [])) '$m'.trim()].where((m) => m.isNotEmpty).take(8).toList();
+    final members = _listArg(a['members']).take(8).toList();
     if (s('action') == 'draft') {
       if (s('name').isEmpty || members.length < 2) {
         return 'Error: give a team name and at least two members (an existing bot\'s name, or a plain description of a new one, '
