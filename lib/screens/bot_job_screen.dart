@@ -598,7 +598,7 @@ class _SettingsTab extends StatelessWidget {
       _Pick(
         label: 'Checks in',
         value: '${b.heartbeatHours}',
-        options: const {'0': 'Only for its responsibilities', '3': 'Every 3 hours', '6': 'Every 6 hours', '8': 'Every 8 hours', '12': 'Twice a day', '24': 'Once a day'},
+        options: const {'0': 'Only for its responsibilities', '1': 'Every hour', '2': 'Every 2 hours', '3': 'Every 3 hours', '6': 'Every 6 hours', '8': 'Every 8 hours', '12': 'Twice a day', '24': 'Once a day'},
         onChanged: (v) async {
           b.heartbeatHours = int.tryParse(v) ?? 0;
           await Bots.I.save();
