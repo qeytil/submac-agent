@@ -21,6 +21,7 @@ import 'services/cloud.dart';
 import 'services/pending_turns.dart';
 import 'services/hire_links.dart';
 import 'services/inbox.dart';
+import 'services/events.dart';
 import 'services/rewards.dart';
 import 'services/push.dart';
 import 'services/updater.dart';
@@ -50,9 +51,11 @@ Future<void> main() async {
   FlutterError.onError = (d) {
     FlutterError.presentError(d);
     debugPrint('SubMac UI error: ${LogScrub.clean(d.exceptionAsString())}');
+    Events.I.log('error', props: {'from': 'main', 'kind': 'ui'});
   };
   PlatformDispatcher.instance.onError = (e, st) {
     debugPrint('SubMac error: ${LogScrub.clean(e)}');
+    Events.I.log('error', props: {'from': 'main', 'kind': 'crash'});
     return true;
   };
   ErrorWidget.builder = (d) => const SizedBox.shrink();

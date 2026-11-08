@@ -501,6 +501,8 @@ extension AppStateAgentRunner on AppState {
     } catch (e) {
       if (!run.cancelled) {
         run.show(RunPhase.failed, RunStatus.failed);
+        // A turn that fails is never invisible (owner 2026-11-08): where it happened and its class, never its text.
+        Events.I.log('error', botId: Bots.I.byConv(convId)?.id, props: {'from': 'turn', 'kind': AppState.failureOf('$e')});
         final err = ChatMessage(id: _uuid.v4(), role: 'assistant', error: '$e')..animateIn = true;
         list.add(err);
         run.wrote.add(err.id);

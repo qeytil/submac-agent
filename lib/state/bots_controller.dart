@@ -964,6 +964,8 @@ extension AppStateBots on AppState {
       b.log('work', '${o.name}: ${j.kind}${t == null ? '' : ' "${t.title}"'}', team: true);
       unawaited(Bots.I.save());
     } catch (e) {
+      // A team job that fails is visible (owner 2026-11-08): where and its class, never the text.
+      Events.I.log('error', botId: b.id, props: {'from': 'office', 'kind': AppState.failureOf('$e')});
       // Nothing started: undo what this job claimed, so the task isn't left mislabelled.
       if (!begun) {
         final tt = t;
