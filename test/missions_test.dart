@@ -50,7 +50,15 @@ void main() {
     Missions.clock = DateTime.now;
     Missions.dirOverride = null;
     Missions.I.resetForTest();
-    if (await tmp.exists()) await tmp.delete(recursive: true);
+    // An async mission save may still be writing when the test ends: a racing delete can leave the folder half-full.
+    try {
+      if (await tmp.exists()) await tmp.delete(recursive: true);
+    } on FileSystemException {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      try {
+        if (await tmp.exists()) await tmp.delete(recursive: true);
+      } catch (_) {}
+    }
   });
 
   List<Map<String, dynamic>?> alarms(String method) => [for (final c in calls) if (c.$1 == method) c.$2];
