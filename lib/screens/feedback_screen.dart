@@ -325,7 +325,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           child: FilledButton(
             key: const ValueKey('feedback-send'),
             onPressed: busy ? null : _send,
-            child: Text(busy ? ft('Sending…') : (_canRetry ? ft('Try again') : ft('Send'))),
+            child: Text(busy ? ft('Sending...') : (_canRetry ? ft('Try again') : ft('Send'))),
           ),
         ),
       ]),

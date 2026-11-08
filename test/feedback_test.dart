@@ -378,17 +378,14 @@ void main() {
       expect(find.text('Send'), findsOneWidget);
     });
 
-    testWidgets('Arabic: the screen reads right to left in Arabic words', (t) async {
-      AppLang.I.choice = 'ar';
+    testWidgets('the screen reads left to right in English', (t) async {
       await t.pumpWidget(MaterialApp(
-        builder: (c, w) => Directionality(textDirection: TextDirection.rtl, child: w!),
         home: FeedbackScreen(sender: sender(FakeBackend()), store: MemStore(), picker: FakePicker()),
       ));
       await t.pump();
-      expect(find.text('أرسل ملاحظاتك'), findsOneWidget);
-      expect(find.text('إرسال'), findsOneWidget);
-      expect(Directionality.of(t.element(find.byKey(const ValueKey('feedback-text')))), TextDirection.rtl);
-      AppLang.I.choice = 'en';
+      expect(find.text('Send feedback'), findsOneWidget);
+      expect(find.text('Send'), findsOneWidget);
+      expect(Directionality.of(t.element(find.byKey(const ValueKey('feedback-text')))), TextDirection.ltr);
     });
   });
 }

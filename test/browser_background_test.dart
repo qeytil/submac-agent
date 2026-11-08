@@ -182,11 +182,10 @@ void main() {
       expect(t.sees, isFalse);
     });
 
-    test('Anthropic key, or a model without tools: SubMac\'s model, with the reason', () {
+    test('Anthropic key runs on its own model; a model without tools falls back with the reason', () {
       final a = BotBrowserModel.of(bot('byok-bbbb2222|c1'), submac, store: store);
-      expect(a.onOwnModel, isFalse);
-      expect(a.submac!.model, 'submac');
-      expect(a.note, contains('Anthropic'));
+      expect(a.onOwnModel, isTrue, reason: 'Anthropic keys take tools now (owner 2026-11-08)');
+      expect(a.byok!.model.id, 'c1');
       final n = BotBrowserModel.of(bot('byok-aaaa1111|m-notools'), submac, store: store);
       expect(n.onOwnModel, isFalse);
       expect(n.note, contains('no tool calling'));
