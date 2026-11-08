@@ -63,3 +63,14 @@ functions only after `20261023_billing_v2.sql` is applied (they no longer call t
   and a `length` / `max_tokens` stop is continued up to 2 times. Rollback: snapshot `b6f04c9` (v15, ezbr `428b758d...`).
 - Smoke: ai-chat with the anon key -> 401 `{"error":{"code":"auth"}}`; bot-run with a wrong `x-bot-run-secret` -> 401
   `{"error":"unauthorized"}`. Both boot (no module error after deploy).
+
+## 2026-11-08 cloud bot runner retired (bots are phone-local)
+- A bot is a digital person that runs on the phone (`Bot.cloudOn` is always false; per-bot allowance, own model). The
+  cloud runner is retired so nothing can run a bot server-side:
+  - pg_cron job `bot-run` (jobid 1, `*/5 * * * *`) unscheduled. Verified: `cron.job` no longer lists `bot-run`; the
+    unrelated jobs (site-preview-sweep, billing-*) are untouched.
+  - `public.cloud_bots` cleared: 17 rows had `cloud_enabled=true`; every row is now `cloud_enabled=false`,
+    `next_run_at=null`, `run_lock_until=null` (verified 0 enabled / 0 scheduled / 0 locked of 21).
+- The `bot-run` edge function stays deployed but is inert (no schedule, no enabled bot). Rollback: re-apply
+  `supabase/migrations/20261019_bot_run.sql`, then enable a bot from the app.
+- Source of truth: `supabase/migrations/20261108_retire_cloud_bots.sql`.
