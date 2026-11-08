@@ -297,7 +297,7 @@ void main() {
       await t.pump();
       await t.pump();
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
-      expect(find.text('Sending…'), findsOneWidget);
+      expect(find.text('Sending...'), findsOneWidget);
       expect(find.text('Saving your feedback'), findsOneWidget);
       b.holdInsert!.complete();
       await t.pumpAndSettle();
