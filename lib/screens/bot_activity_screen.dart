@@ -10,7 +10,6 @@ import '../services/bot_package.dart';
 import '../services/bot_powers.dart';
 import '../services/bots.dart';
 import '../services/offices.dart';
-import '../services/whatsapp.dart';
 import '../widgets/motion.dart';
 import '../theme.dart';
 import '../ui/tokens.dart';
@@ -253,8 +252,6 @@ class BotPowersSection extends StatelessWidget {
                   await Bots.I.save();
                 },
         ),
-        if (g == 'whatsapp' && !b.powersOff.contains(g) && !b.powersOff.contains('phone'))
-          _WaTrust(bot: b),
       ],
       // The bot's model and its allowance sit at the top of its profile settings (BotModelRow / BotAllowanceRow,
       // owner 2026-11-07).
@@ -315,36 +312,4 @@ class BotAllowanceRow extends StatelessWidget {
 }
 
 
-/// "Send on WhatsApp without asking": the user's trust for one bot (kept on this phone only).
-class _WaTrust extends StatefulWidget {
-  const _WaTrust({required this.bot});
-  final Bot bot;
 
-  @override
-  State<_WaTrust> createState() => _WaTrustState();
-}
-
-class _WaTrustState extends State<_WaTrust> {
-  @override
-  void initState() {
-    super.initState();
-    WhatsAppTools.init().then((_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = Palette.of(context);
-    return SwitchListTile(
-      contentPadding: const EdgeInsetsDirectional.only(start: 16),
-      title: const Text('Send on WhatsApp without asking'),
-      subtitle: Text('Off: you approve every message, file and call first (recommended)', style: TextStyle(color: p.muted, fontSize: AppText.micro)),
-      value: WhatsAppTools.trusted(widget.bot.id),
-      onChanged: (v) async {
-        await WhatsAppTools.setTrusted(widget.bot.id, v);
-        if (mounted) setState(() {});
-      },
-    );
-  }
-}

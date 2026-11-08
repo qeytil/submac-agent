@@ -114,7 +114,7 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
                       const PopupMenuItem(value: 'share', child: Text('Share')),
                       if (LaunchFlags.storePublishing)
                         PopupMenuItem(value: 'publish', child: Text(b.storeId.isEmpty ? 'Publish to Bot Store' : 'Update in Bot Store')),
-                      if (b.storeId.isNotEmpty) const PopupMenuItem(value: 'unpublish', child: Text('Remove from Bot Store')),
+                      if (b.storeId.isNotEmpty) const PopupMenuItem(value: 'unpublish', child: Text('Remove from People store')),
                       if (b.convId.isNotEmpty) ...[
                         PopupMenuItem(value: 'pause', child: Text(b.active ? 'Pause' : 'Resume')),
                         PopupMenuItem(value: 'fire', child: Text('Remove ${b.name}')),
@@ -206,7 +206,7 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
                     dividerColor: Colors.transparent,
                     splashBorderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
                     tabs: [
-                      Tab(text: waiting > 0 ? 'Job · $waiting' : 'Job'),
+                      Tab(text: waiting > 0 ? 'Work · $waiting' : 'Work'),
                       const Tab(text: 'Training'),
                       const Tab(text: 'Settings'),
                     ],
@@ -489,12 +489,12 @@ class _SettingsTab extends StatelessWidget {
     final p = Palette.of(context);
     final b = bot;
     final calls = !b.allowCalls ? 'off' : (Bots.I.fullScreenCalls ? 'full' : 'top');
-    // Bot settings (PLAN.md 3.3): Trust, Voice and Off hours up front; everything else under More settings.
+    // Bot settings (PLAN.md 3.3): Independence, Voice and Quiet hours up front; everything else under More settings.
     if (!more) {
       return ListView(padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 20, 48), children: [
-      _Head('Trust'),
+      _Head('Independence'),
       _Pick(
-        label: 'Freedom',
+        label: 'Independence',
         value: b.level,
         options: {for (final e in BotTrust.labels.entries) e.key: '${e.value}: ${BotTrust.blurbs[e.key]}'},
         onChanged: (v) => Bots.I.setTrust(b, v),
@@ -519,7 +519,7 @@ class _SettingsTab extends StatelessWidget {
       BotModelRow(bot: b),
       BotAllowanceRow(bot: b),
       _Pick(
-        label: 'Off hours',
+        label: 'Quiet hours',
         value: '${b.quietFrom}-${b.quietTo}',
         options: const {'22-7': '10 pm to 7 am', '23-6': '11 pm to 6 am', '21-8': '9 pm to 8 am', '0-0': 'None'},
         onChanged: (v) async {
@@ -625,7 +625,7 @@ class _SettingsTab extends StatelessWidget {
               style: TextStyle(color: p.muted)),
         ),
       ),
-      _Head('Tools'),
+      _Head('Connections'),
       BotSetupSection(bot: b),
       _Head('What ${b.name} may use'),
       BotPowersSection(bot: b),
