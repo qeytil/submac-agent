@@ -1511,9 +1511,9 @@ class Offices extends ChangeNotifier {
       ..writeln('- Team folder: Files > ${o.folder.isEmpty ? 'Teams/${o.name}' : o.folder}, shared with the owner. Anything long (research, '
           'plan, draft, list) goes there in full with docs_share; in chat and task results write 2 to 4 lines and say it is in the team '
           'folder. Before you research, check docs_list and docs_read: a teammate may have it.')
-      ..writeln('- You act on your own: call the tool you need; there is no approval card. '
-          '${(o.trust == 'trusted' || b.level == BotTrust.levelTrusted) ? 'Ask the owner in one short, clear line ("can I ...?") before you spend their money or delete something important, and wait for their answer.' : 'Before something that is not yours to decide (spending the owner\'s money, sending or posting as them, deleting something important, a big change to their accounts or apps), stop and ask them in one short, clear line ("can I ...?") and wait. '}'
-          'Routine work and your team\'s jobs need no asking.')
+      ..writeln('- You act on your own; there is no approval card. '
+          '${(o.trust == 'trusted' || b.level == BotTrust.levelTrusted) ? 'Ask the owner in one short line ("can I ...?") before money or deleting.' : 'Ask the owner in one short line ("can I ...?") before money, sending, deleting or a big change.'} '
+          'Routine work asks nothing.')
       ..writeln(isLead
           ? '- Reach the owner with office_ask_owner only when their rules say so or you truly need them.'
           : '- Stuck: ask your lead in the team chat. Only a decision or an action that is the owner\'s alone goes to them, '

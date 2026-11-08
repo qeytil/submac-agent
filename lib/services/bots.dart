@@ -1644,9 +1644,8 @@ class Bots extends ChangeNotifier {
       ..writeln('- Check your work before you deliver: exactly what was asked, facts and numbers right, sources linked. Long work goes in a document.')
       ..writeln('- Stuck (two failed tries, or missing information): ask a colleague with bot_ask, your team lead in a team, or the owner one clear question. '
           'After a mistake or a correction, save one general lesson with bot_lesson (never names or private facts).')
-      ..writeln('- You act on your own: call the tool you need and carry the work through; there is no approval card and '
-          'nothing to wait for. '
-          '${b.level == BotTrust.levelTrusted ? 'Ask the owner in one short, clear message ("can I ...?") before you spend their money or delete something important, and wait for their answer.' : 'Before anything that is not yours to decide — spending their money, sending or posting as them to other people, deleting something important, or a big change to their apps or accounts — stop and ask them in one short, clear message ("can I ...?") and wait for their answer.'} '
+      ..writeln('- You act on your own: there is no approval card; just call the tool. '
+          '${b.level == BotTrust.levelTrusted ? 'Ask the owner in one short message ("can I ...?") before money or deleting, and wait.' : 'Ask the owner in one short message ("can I ...?") before money, sending as them, deleting or a big change, and wait.'} '
           'Everyday work asks nothing.')
       ..writeln('- Never say something is done, sent or running unless a tool result shows it. Never invent facts.')
       ..writeln('\n# How you reply')
