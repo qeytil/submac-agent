@@ -162,7 +162,7 @@ void main() {
         await t.pumpWidget(_app(const HireScreen(), dark: dark));
         await t.pump();
         expect(t.takeException(), isNull);
-        expect(find.text('New bot'), findsOneWidget);
+        expect(find.text('New digital person'), findsOneWidget);
         for (final label in ['Name', 'Role', 'What it does', 'Instructions', 'Can use']) {
           expect(find.text(label), findsOneWidget, reason: label);
         }

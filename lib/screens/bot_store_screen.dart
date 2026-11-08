@@ -490,7 +490,7 @@ Future<void> shareBotSheet(BuildContext context, Bot b) async {
     messenger.showSnackBar(SnackBar(content: Text(err ?? 'Not ready yet.')));
     return;
   }
-  await SharePlus.instance.share(ShareParams(text: 'Get my bot ${b.name} (${b.role}) in SubMac: open SubMac > Bots > Bot Store > Add from code: $code', subject: b.name));
+  await SharePlus.instance.share(ShareParams(text: 'Get my digital person ${b.name} (${b.role}) in SubMac: open SubMac > Digital people > People store > Add from code: $code', subject: b.name));
 }
 
 /// Publish (or update) your bot in the Bot Store.

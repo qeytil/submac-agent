@@ -209,28 +209,22 @@ void main() {
       expect(find.byKey(const ValueKey('allow-always')), findsNothing);
     });
 
-    testWidgets('Somali: labels and buttons are translated', (t) async {
-      AppLang.I.choice = 'so';
-      addTearDown(() => AppLang.I.choice = 'en');
+    testWidgets('labels and buttons are English', (t) async {
       await open(t, ActionRequest(title: 'X?', body: 'y', detail: 'z', confirmLabel: 'Send'));
-      expect(find.text('Dir'), findsOneWidget);
-      expect(find.text('Muuji faahfaahinta'), findsOneWidget);
-      expect(find.text('Wax ka beddel'), findsOneWidget);
-      expect(find.text('Had iyo jeer oggolow (Awood buuxda)'), findsOneWidget);
+      expect(find.text('Send'), findsOneWidget);
+      expect(find.text('Show details'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Allow always (Full access)'), findsOneWidget);
     });
 
-    for (final lang in ['so', 'ar']) {
-      testWidgets('fits a small phone in $lang without overflow', (t) async {
-        AppLang.I.choice = lang;
-        addTearDown(() => AppLang.I.choice = 'en');
-        final req = ActionRequest(
-            title: 'Send this long message to the whole customer group right now?', body: 'A long body ' * 12, detail: 'd ' * 80, confirmLabel: 'Take offline');
-        await open(t, req, size: const Size(320, 568), dir: lang == 'ar' ? TextDirection.rtl : TextDirection.ltr);
-        expect(t.takeException(), isNull);
-        expect(find.byKey(const ValueKey('allow-always')), findsOneWidget);
-        expect(find.byKey(const ValueKey('confirm-not-now')), findsOneWidget);
-      });
-    }
+    testWidgets('fits a small phone', (t) async {
+      final req = ActionRequest(
+          title: 'Send this long message to the whole customer group right now?', body: 'A long body ' * 12, detail: 'd ' * 80, confirmLabel: 'Take offline');
+      await open(t, req, size: const Size(320, 568));
+      expect(t.takeException(), isNull);
+      expect(find.byKey(const ValueKey('allow-always')), findsOneWidget);
+      expect(find.byKey(const ValueKey('confirm-not-now')), findsOneWidget);
+    });
 
     testWidgets('Edit on an ask with editable text opens the field in place; Cancel folds it back', (t) async {
       final req = ActionRequest(title: 'Send this to Amal?', body: '', detail: '', confirmLabel: 'Send').withEdit('Hi Amal');
@@ -277,9 +271,7 @@ void main() {
       await t.pump();
     });
 
-    testWidgets('the group card speaks the app language and fits a small phone', (t) async {
-      AppLang.I.choice = 'so';
-      addTearDown(() => AppLang.I.choice = 'en');
+    testWidgets('the group card fits a small phone', (t) async {
       for (var i = 0; i < 5; i++) {
         unawaited(Offices.I.ask(_ask('Email number $i with a long subject line that runs on', group: 'email', kind: 'send', bot: 'b$i')));
       }
@@ -288,18 +280,16 @@ void main() {
       await t.pumpWidget(_app(const Scaffold(body: SingleChildScrollView(child: ApprovalList()))));
       await t.pump();
       expect(t.takeException(), isNull);
-      expect(find.text('5 iimayl oo la dirayo'), findsOneWidget);
-      expect(find.text('iyo 2 kale'), findsOneWidget);
+      expect(find.text('5 emails to send'), findsOneWidget);
+      expect(find.text('and 2 more'), findsOneWidget);
       Offices.I.clearApprovals();
       await t.pump();
     });
 
-    test('group words are translated, notifications keep English', () {
+    test('group words are English', () {
       final g = ApprovalGroup('email', [_ask('a', group: 'email'), _ask('b', group: 'email')]);
-      AppLang.I.choice = 'ar';
-      expect(g.labelTr, '2 رسائل بريد للإرسال');
+      expect(g.labelTr, '2 emails to send');
       expect(g.label, '2 emails to send');
-      AppLang.I.choice = 'en';
     });
   });
 

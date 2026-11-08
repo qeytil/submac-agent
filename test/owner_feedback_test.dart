@@ -44,7 +44,7 @@ void main() {
       await t.pumpAndSettle();
       final entry = find.byKey(const ValueKey('drawer-bots'));
       expect(entry, findsOneWidget);
-      expect(find.descendant(of: entry, matching: find.text('Bots')), findsOneWidget);
+      expect(find.descendant(of: entry, matching: find.text('Digital people')), findsOneWidget);
       expect(find.descendant(of: entry, matching: find.byType(ChiefFace)), findsOneWidget);
       // The list itself is in the workspace, not in the menu.
       expect(find.text('Amal'), findsNothing);

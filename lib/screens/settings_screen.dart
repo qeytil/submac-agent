@@ -303,23 +303,7 @@ class _LanguagePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = _watchSettings(context);
     return _Page('Language', [
-      // The app's own words (PLAN.md 3.4). Follows the phone unless picked here.
-      _Group(title: 'App language', [
-        Padding(
-          padding: const EdgeInsets.all(Space.x3),
-          child: ListenableBuilder(
-            listenable: AppLang.I,
-            builder: (context, _) => Wrap(spacing: Space.x2, runSpacing: Space.x2, children: [
-              for (final c in const ['phone', 'so', 'ar', 'en'])
-                ChoiceChip(
-                  label: Text(c == 'phone' ? tr(AppLang.names[c]!) : AppLang.names[c]!),
-                  selected: AppLang.I.choice == c,
-                  onSelected: (_) => AppLang.I.set(c),
-                ),
-            ]),
-          ),
-        ),
-      ]),
+      // The app is English only (owner 2026-11-08).
       _Group(title: 'Reply language', [
         Padding(
           padding: const EdgeInsets.all(Space.x3),

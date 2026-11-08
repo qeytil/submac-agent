@@ -262,8 +262,8 @@ void main() {
       final team = t.getBottomLeft(find.byKey(const ValueKey('rail-t:o1'))).dy;
       expect(t.getTopLeft(find.byKey(const ValueKey('rail-new-bot'))).dy, greaterThan(team));
       expect(t.getTopLeft(find.byKey(const ValueKey('rail-store'))).dy, greaterThan(t.getTopLeft(find.byKey(const ValueKey('rail-new-bot'))).dy));
-      expect(find.text('New bot'), findsOneWidget);
-      expect(find.text('Bot store'), findsOneWidget);
+      expect(find.text('New digital person'), findsOneWidget);
+      expect(find.text('People store'), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('rail-new-bot')));
       await t.pumpAndSettle();
       expect(find.byType(HireScreen), findsOneWidget);

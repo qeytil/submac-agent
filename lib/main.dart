@@ -63,7 +63,7 @@ Future<void> main() async {
   }
   // "Hire in SubMac" links from submac.site/b/<code> (kept until the signed-in home screen takes them).
   HireLinks.I.listen();
-  // App language: follows the phone unless chosen in Settings > Language (PLAN.md 3.4).
+  // The app is English only (owner 2026-11-08): clear any language an older version saved.
   await AppLang.I.load();
   await FullAccess.I.load();
   // The user's own AI providers and model choice (BYOK, owner 2026-11-03): read once from encrypted storage, so the
@@ -188,11 +188,10 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
     return ListenableBuilder(
       listenable: AppLang.I,
       builder: (context, _) => MaterialApp(
-      locale: AppLang.I.locale,
-      supportedLocales: const [Locale('so'), Locale('ar'), Locale('en')],
+      // The app is English only (owner 2026-11-08).
+      locale: const Locale('en'),
+      supportedLocales: const [Locale('en')],
       localizationsDelegates: const [
-        SomaliMaterialFallback(),
-        SomaliCupertinoFallback(),
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,

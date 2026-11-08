@@ -5,7 +5,6 @@ import 'package:agent/services/billing/billing_copy.dart';
 import 'package:agent/services/billing/billing_models.dart';
 import 'package:agent/services/billing/billing_service.dart';
 import 'package:agent/services/billing/pay_update.dart';
-import 'package:agent/ui/i18n.dart' show AppLang;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -96,14 +95,10 @@ void main() {
     });
   });
 
-  test('billing words follow the app language only, never the reply language', () async {
+  test('billing words are English only', () async {
     SharedPreferences.setMockInitialValues({'replyLanguage': 'Somali', 'speaks_somali': true});
-    AppLang.I.choice = 'en';
     await Billing(api: FakeBillingApi()).init();
     expect(BillingCopy.somali, isFalse);
     expect(BillingCopy.tr('Plan & usage'), 'Plan & usage');
-    AppLang.I.choice = 'so';
-    expect(BillingCopy.somali, isTrue);
-    AppLang.I.choice = 'phone';
   });
 }

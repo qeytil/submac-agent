@@ -221,17 +221,6 @@ void main() {
   });
 
   group('FeedbackWords', () {
-    test('Somali and Arabic cover every key, with the same holes', () {
-      final hole = RegExp(r'\{[a-z]+\}');
-      for (final lang in ['so', 'ar']) {
-        final t = FeedbackWords.table[lang]!;
-        expect(t.keys.toSet(), FeedbackWords.keys.toSet(), reason: lang);
-        t.forEach((en, w) {
-          expect(hole.allMatches(w).map((m) => m[0]).toSet(), hole.allMatches(en).map((m) => m[0]).toSet(), reason: '$lang: $en');
-        });
-      }
-    });
-
     test('every ft() string in the code is a key', () {
       final used = <String>{};
       final call = RegExp(r"""ft\('((?:[^'\\]|\\.)*)'""");
@@ -244,12 +233,10 @@ void main() {
       expect(used.difference(FeedbackWords.keys.toSet()), isEmpty);
     });
 
-    test('ft follows the app language and fills holes', () {
-      AppLang.I.choice = 'so';
-      expect(ft('Send'), 'Dir');
-      expect(ft('{n} of {max}', {'n': '2', 'max': '5'}), '2 ka mid ah 5');
-      AppLang.I.choice = 'ar';
-      expect(ft('Thank you'), 'شكراً لك');
+    test('ft fills holes and shows the English text (the app is English only)', () {
+      AppLang.I.choice = 'so'; // ignored now
+      expect(ft('Send'), 'Send');
+      expect(ft('{n} of {max}', {'n': '2', 'max': '5'}), '2 of 5');
       AppLang.I.choice = 'en';
       expect(ft('Thank you'), 'Thank you');
     });

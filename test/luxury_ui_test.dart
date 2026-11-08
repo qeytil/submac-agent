@@ -237,8 +237,8 @@ void main() {
       expect(find.text('Hodan'), findsWidgets);
       expect(find.text('Amal'), findsOneWidget);
       expect(find.text('Launch team'), findsOneWidget);
-      expect(find.text('New bot'), findsOneWidget);
-      expect(find.text('Bot store'), findsOneWidget);
+      expect(find.text('New digital person'), findsOneWidget);
+      expect(find.text('People store'), findsOneWidget);
     });
   });
 

@@ -198,18 +198,12 @@ void main() {
       expect(filled(tester, 'Continue').onPressed, isNull);
     });
 
-    test('the sentence keeps both links in every language', () {
-      for (final lang in ['en', 'so', 'ar']) {
-        final s = lang == 'en' ? ConsentTick.sentence : Strings.table[lang]![ConsentTick.sentence]!;
-        final parts = ConsentTick.splitHoles(s);
-        expect(parts.where((p) => p == '{terms}').length, 1, reason: lang);
-        expect(parts.where((p) => p == '{privacy}').length, 1, reason: lang);
-        expect(parts.join(), s);
-        if (lang != 'en') {
-          expect(Strings.table[lang]!['Terms of Use'], isNotNull);
-          expect(Strings.table[lang]!['Privacy Policy'], isNotNull);
-        }
-      }
+    test('the sentence keeps both links', () {
+      final s = ConsentTick.sentence;
+      final parts = ConsentTick.splitHoles(s);
+      expect(parts.where((p) => p == '{terms}').length, 1);
+      expect(parts.where((p) => p == '{privacy}').length, 1);
+      expect(parts.join(), s);
     });
   });
 

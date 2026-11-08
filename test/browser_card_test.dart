@@ -62,15 +62,10 @@ void main() {
       expect(thumbX, greaterThan(textX));
     });
 
-    testWidgets('Arabic and Somali words', (t) async {
-      AppLang.I.choice = 'ar';
+    testWidgets('the browser words are English', (t) async {
       await t.pumpWidget(host(BrowserCardView(host: '', status: tr('Opening {site}', {'site': 'amazon.com'}))));
-      expect(find.text('المتصفح'), findsOneWidget);
-      expect(find.text('جارٍ فتح amazon.com'), findsOneWidget);
-      AppLang.I.choice = 'so';
-      await t.pumpWidget(host(BrowserCardView(host: '', status: tr('Opening {site}', {'site': 'amazon.com'}))));
-      expect(find.text('Biraawsar'), findsOneWidget);
-      expect(find.text('Furaya amazon.com'), findsOneWidget);
+      expect(find.text('Browser'), findsOneWidget);
+      expect(find.text('Opening amazon.com'), findsOneWidget);
     });
 
     testWidgets('an approval appears on the card as a small form, and its answer goes back', (t) async {

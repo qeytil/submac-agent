@@ -2,7 +2,7 @@
 //
 // The runner group drives the real task loop (send -> _runAgent -> Genkit core -> LlmClient) against a fake ai-chat
 // that can hold its first byte, stream a tool call in two parts, or answer 503 once, and reads AgentRun.status at the
-// moment it matters. The line group checks the words the screen shows (en/so/ar) and how the line reads a long wait.
+// moment it matters. The line group checks the words the screen shows (English) and how the line reads a long wait.
 //
 // Run: flutter test test/run_status_test.dart
 // ignore_for_file: invalid_use_of_visible_for_testing_member, depend_on_referenced_packages
@@ -36,24 +36,16 @@ void main() {
 
 
   group('line: words on screen', () {
-    test('every phase and step label has Somali and Arabic words', () {
-      final missing = <String>[];
-      for (final lang in ['so', 'ar']) {
-        AppLang.I.choice = lang;
-        for (final k in [...RunStatus.phaseKeys, ...RunStatus.toolKeys]) {
-          if (tr(k) == k) missing.add('$lang: $k');
-        }
+    test('every phase and step label is a plain English line', () {
+      for (final k in [...RunStatus.phaseKeys, ...RunStatus.toolKeys]) {
+        expect(tr(k).trim(), isNotEmpty, reason: k);
       }
-      AppLang.I.choice = 'phone';
-      expect(missing, isEmpty);
     });
 
-    test('the line is in the app language, holes filled', () {
+    test('the line is in English, holes filled', () {
       final run = AgentRun(convId: 'c', side: false, title: 't');
       run.show(RunPhase.retrying, RunStatus.retryIn, {'n': '3', 'i': '1', 'm': '1'});
-      AppLang.I.choice = 'ar';
-      expect(WorkingLine.lineFor(run), 'مشكلة في الاتصال. إعادة المحاولة خلال 3 ث (1 من 1)');
-      AppLang.I.choice = 'en';
+      expect(WorkingLine.lineFor(run), 'Connection problem. Retrying in 3s (1 of 1)');
       expect(WorkingLine.lineFor(run, more: 2), 'Connection problem. Retrying in 3s (1 of 1)  ·  2 more');
     });
 
