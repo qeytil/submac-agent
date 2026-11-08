@@ -792,6 +792,11 @@ extension AppStateBots on AppState {
         return;
       }
       if (!b.active) await Bots.I.hire(b, b.convId);
+      // Owner 2026-11-08 (self-direction): the owner just agreed in the team chat to a mission the lead proposed.
+      if (j.kind == 'reply' && b.id == o.chiefId) {
+        final agreed = Bots.I.approvedProposal(b, j.instruction, team: o.id);
+        if (agreed != null) await Missions.I.start('team', o.id, agreed.goal, by: b.name, steps: agreed.steps);
+      }
       if (b.overBudget && j.kind != 'reply' && BotModelRoute.of(b).byok == null) {
         final now = DateTime.now();
         final tomorrow = DateTime(now.year, now.month, now.day + 1, 0, 5);

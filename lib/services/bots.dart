@@ -233,6 +233,8 @@ class Bot {
   String proposeGoal = '';
   List<String> proposeSteps = [];
   DateTime? proposeAt;
+  /// The team the proposal is for ('' = the bot's own mission). A team proposal is approved in the team chat only.
+  String proposeFor = '';
 
   /// Hired: it lives, wakes and reaches out. Built-in bots start unhired.
   bool active = false;
@@ -437,7 +439,7 @@ class Bot {
         if (look != null) 'lk': look,
         if (trust.isNotEmpty) 'tr': trust, 'ok': cleanOk, 'ta': trustOfferAt, 'rp': report, if (roleId.isNotEmpty) 'rl': roleId,
         if (proposeGoal.isNotEmpty) 'pg': proposeGoal, if (proposeSteps.isNotEmpty) 'ps': proposeSteps,
-        if (proposeAt != null) 'pa': proposeAt!.toIso8601String(),
+        if (proposeAt != null) 'pa': proposeAt!.toIso8601String(), if (proposeFor.isNotEmpty) 'pf': proposeFor,
       };
 
   static Bot fromJson(Map<String, dynamic> j) {
@@ -485,7 +487,8 @@ class Bot {
       ..look = j['lk'] is String ? '${j['lk']}' : null
       ..proposeGoal = '${j['pg'] ?? ''}'
       ..proposeSteps = [for (final x in (j['ps'] as List? ?? const [])) '$x']
-      ..proposeAt = DateTime.tryParse('${j['pa']}');
+      ..proposeAt = DateTime.tryParse('${j['pa']}')
+      ..proposeFor = '${j['pf'] ?? ''}';
     b.apps.addAll(l('apps').map(BotApp.fromJson).whereType<BotApp>());
     b.lessons.addAll(l('les').map(BotLesson.fromJson).where((e) => e.text.trim().isNotEmpty));
     b.powersOff.addAll([for (final e in (j['po'] as List? ?? const [])) '$e']);
@@ -1541,29 +1544,33 @@ class Bots extends ChangeNotifier {
   }
 
   /// A mission [b] asked the owner to let it take on (owner 2026-11-08, self-direction). Saved, so the owner's yes
-  /// in its chat starts it even after a restart (see [approvedProposal]).
-  void propose(Bot b, String goal, List<String> steps) {
+  /// in its chat starts it even after a restart (see [approvedProposal]). [team] = the team id for a team mission
+  /// (approved in the team chat); '' for the bot's own.
+  void propose(Bot b, String goal, List<String> steps, {String team = ''}) {
     b
       ..proposeGoal = goal.trim()
       ..proposeSteps = [for (final s in steps.take(30)) if (s.trim().isNotEmpty) s.trim()]
-      ..proposeAt = DateTime.now();
+      ..proposeAt = DateTime.now()
+      ..proposeFor = team;
     unawaited(save());
   }
 
   void clearProposal(Bot b) {
-    if (b.proposeGoal.isEmpty && b.proposeSteps.isEmpty && b.proposeAt == null) return;
+    if (b.proposeGoal.isEmpty && b.proposeSteps.isEmpty && b.proposeAt == null && b.proposeFor.isEmpty) return;
     b
       ..proposeGoal = ''
       ..proposeSteps = []
-      ..proposeAt = null;
+      ..proposeAt = null
+      ..proposeFor = '';
     unawaited(save());
   }
 
   /// The goal and steps of the mission [b] proposed, when [text] is the owner clearly agreeing (and the proposal is
-  /// still fresh, two days). Clears the proposal so it starts once. null otherwise.
-  ({String goal, List<String> steps})? approvedProposal(Bot b, String text) {
+  /// still fresh, two days). [team] must match the proposal's context ('' = its own chat, else that team). Clears the
+  /// proposal so it starts once. null otherwise.
+  ({String goal, List<String> steps})? approvedProposal(Bot b, String text, {String team = ''}) {
     final g = b.proposeGoal.trim();
-    if (g.isEmpty) return null;
+    if (g.isEmpty || b.proposeFor != team) return null;
     final at = b.proposeAt;
     if (at == null || DateTime.now().difference(at) > const Duration(days: 2)) {
       clearProposal(b);

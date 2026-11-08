@@ -119,6 +119,18 @@ extension AppStateMissions on AppState {
         return 'Error: ${Bots.I.byId(o.chiefId)?.name ?? 'the lead'} runs the team\'s mission; log your progress with mission_update.';
       }
       final ownerHere = AppStateAgentRunner.ocOfficeJob[convId] == 'reply';
+      final goalArg = '${args['goal'] ?? ''}'.trim();
+      // Owner 2026-11-08 (self-direction): the lead may propose a team mission while nobody is watching. It is saved
+      // on the lead; the owner's yes in the team chat starts it (see _officeRun).
+      if (!ownerHere && name == 'mission_plan' && goalArg.isNotEmpty && (m == null || m.finished || goalArg != m.goal)) {
+        if (b.id != o.chiefId) {
+          return 'Only ${Bots.I.byId(o.chiefId)?.name ?? 'the lead'} proposes a team mission. Tell them what you would take on.';
+        }
+        Bots.I.propose(b, goalArg, [for (final x in (args['steps'] is List ? args['steps'] as List : const [])) '$x'], team: o.id);
+        return 'Saved your proposal for the team mission "$goalArg". You cannot start it while the owner is away. Ask the '
+            'owner in one short message to take it on (office_ask_owner reaches their phone); when they say yes in the '
+            'team chat the mission starts by itself.';
+      }
       return Missions.I.execute(name, args,
           m: m,
           who: b.name,

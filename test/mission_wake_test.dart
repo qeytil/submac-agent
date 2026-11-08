@@ -1,6 +1,7 @@
 // Mission mode in the app (owner 2026-11-07, docs/bot-autonomy.md): a mission alarm with SubMac closed wakes the bot
 // in the background lane with the mission's instruction; a team mission wakes its lead with a 'mission' office job;
-// the tools start a mission only when the owner is present; the stop switch reaches a running wake. Engine mocked.
+// the tools start a mission when the owner is present, and a bot or a team lead may propose one while nobody is
+// watching (the owner's yes in that chat starts it); the stop switch reaches a running wake. Engine mocked.
 //
 // Run: flutter test test/mission_wake_test.dart
 // ignore_for_file: invalid_use_of_visible_for_testing_member, depend_on_referenced_packages
@@ -140,6 +141,31 @@ void main() {
     expect(r2, contains('Saved your proposal'), reason: 'a background bot proposes; it does not start');
     expect(b.proposeGoal, 'Something new');
     s.botWakeConvsForTest.remove(b.convId);
+  });
+
+  test('a team lead proposes a team mission when nobody is watching; the owner\'s yes in the team chat starts it', () async {
+    final lead = Bot(id: 'mwpl', name: 'Hodan', role: 'Manager', persona: '')..active = true;
+    Bots.I.bots.add(lead);
+    addTearDown(() => Bots.I.bots.removeWhere((x) => x.id == 'mwpl'));
+    final o = Office(id: 'omwp', name: 'Lab', members: ['mwpl'], chiefId: 'mwpl');
+    Offices.I.offices.add(o);
+    addTearDown(() => Offices.I.offices.remove(o));
+    final key = TeamKey.of(o.id, lead.id);
+    s.officeCtxForTest[key] = o.id;
+    addTearDown(() => s.officeCtxForTest.remove(key));
+    AppStateAgentRunner.ocOfficeJob[key] = 'task'; // a background office job: nobody is watching
+    addTearDown(() => AppStateAgentRunner.ocOfficeJob.remove(key));
+    final r = await s.missionToolForTest('mission_plan', {'goal': 'Launch the shop', 'steps': ['photos']}, key);
+    expect(r, contains('Saved your proposal'));
+    expect(lead.proposeGoal, 'Launch the shop');
+    expect(lead.proposeFor, o.id, reason: 'a team proposal is approved in the team chat');
+    // A yes in the lead's private chat is not a yes for the team's mission.
+    expect(Bots.I.approvedProposal(lead, 'yes'), isNull);
+    expect(lead.proposeGoal, 'Launch the shop');
+    // The owner agrees in the team chat (the lead's reply turn starts it through _officeRun).
+    final yes = Bots.I.approvedProposal(lead, 'yes, go ahead', team: o.id);
+    expect(yes?.goal, 'Launch the shop');
+    expect(lead.proposeGoal, isEmpty, reason: 'it starts once');
   });
 
   test('a team mission wakes its lead with a mission job; the lead\'s turn knows the mission; its end updates the mission', () async {
