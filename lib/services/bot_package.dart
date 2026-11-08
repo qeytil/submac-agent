@@ -227,7 +227,7 @@ class BotPackage {
     if (name.isEmpty) return null;
     final icon = '${raw['icon'] ?? 'person'}';
     final voice = '${raw['voice'] ?? ''}';
-    final pro = '${raw['proactivity'] ?? 'balanced'}';
+    final pro = '${raw['proactivity'] ?? 'free'}';
 
     // Knowledge: kept whole (it is meant to be shared), but scrubbed of secrets and cut to the limits.
     final knowledge = <Map<String, dynamic>>[];
@@ -299,8 +299,8 @@ class BotPackage {
       // A bot's model is its owner's own choice (owner 2026-11-05): never carried in a package, a copy starts on its
       // default (same as SubMac).
       'model': 'auto',
-      'proactivity': const {'quiet', 'balanced', 'active'}.contains(pro) ? pro : 'balanced',
-      'heartbeat_hours': _int(raw['heartbeat_hours'], 0, 48, 0),
+      'proactivity': const {'free', 'quiet', 'balanced', 'active'}.contains(pro) ? pro : 'free',
+      'heartbeat_hours': _int(raw['heartbeat_hours'], 0, 48, 6),
       'quiet_from': _int(raw['quiet_from'], 0, 23, 0),
       'quiet_to': _int(raw['quiet_to'], 0, 23, 0),
       'calls': raw['calls'] != false,

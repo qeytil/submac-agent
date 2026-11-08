@@ -39,4 +39,14 @@ void main() {
       expect(b.quietNow(DateTime(2026, 11, 8, h, 30)), isFalse, reason: 'hour $h');
     }
   });
+
+  test('a new bot is born free: a light self-wake and no daily limit', () {
+    final b = Bot(id: 'fr2', name: 'Free', role: 'x', persona: '');
+    expect(b.proactivity, 'free');
+    expect(b.heartbeatHours, 6, reason: 'it wakes on its own, lightly');
+    expect(b.messageCap, greaterThanOrEqualTo(99), reason: 'no practical daily cap');
+    expect(b.callCap, greaterThanOrEqualTo(99));
+    b.messagesToday = 90;
+    expect(b.messagesLeft, greaterThan(0), reason: '90 messages in a day is still free');
+  });
 }

@@ -589,7 +589,7 @@ class _SettingsTab extends StatelessWidget {
       _Pick(
         label: 'How often ${b.name} reaches out',
         value: b.proactivity,
-        options: const {'quiet': 'Rarely', 'balanced': 'When it matters', 'active': 'Often'},
+        options: const {'free': 'No daily limit', 'quiet': 'Rarely', 'balanced': 'When it matters', 'active': 'Often'},
         onChanged: (v) async {
           b.proactivity = v;
           await Bots.I.save();

@@ -1272,9 +1272,10 @@ extension AppStateBots on AppState {
               '"persona": 3-5 sentences: expertise, character, how they work and talk (a calm, professional, adult colleague: polite, '
               'plain and warm, no hype, no emoji, no exclamation marks, no cute or childish wording), "mission": one sentence, "icon": one of '
               'person, school, gavel, trending_up, travel_explore, fitness_center, payments, edit, code, work, favorite, campaign, '
-              '"proactivity": quiet|balanced|active, "heartbeat_hours": 0 unless the user asked for regular checks (then 4-24), '
+              '"proactivity": free|quiet|balanced|active (free = no daily limit, the default), "heartbeat_hours": 6 by '
+              'default (a light self-wake; 3-24, or 0 if the user wants it to act only when they ask), '
               '"routines": [] unless the user asked for scheduled work, else [{"time":"HH:MM","days":"daily|weekdays|mon,wed","kind":"work|message|call","do":"what to do"}]. '
-              'A bot works only when the user asks unless they asked for a schedule, so its tokens are never spent on work nobody wanted. '
+              'A bot decides and acts on its own; the user can set a limit or take it offline. '
               '"first_meeting": what to ask the user in the first chat (say what you can take on and suggest one or two first tasks)}. Write in the user\'s language.'
         },
         {'role': 'user', 'content': desc},

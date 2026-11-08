@@ -185,8 +185,8 @@ class _HireScreenState extends State<HireScreen> {
                 'keep the owner informed in a few clear lines.',
         'mission': _about.text.trim(),
         'icon': r?.icon ?? 'person',
-        'proactivity': r?.proactivity ?? 'balanced',
-        'heartbeat_hours': 0,
+        'proactivity': r?.proactivity ?? 'free',
+        'heartbeat_hours': r?.heartbeatHours ?? 6,
         'routines': const [],
       });
       if (r != null && r.voice.isNotEmpty) b.voice = r.voice;

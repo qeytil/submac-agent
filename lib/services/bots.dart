@@ -191,10 +191,10 @@ class Bot {
     this.builtIn = false,
     this.model = 'auto',
     this.voice = '',
-    this.proactivity = 'balanced',
-    this.heartbeatHours = 0,
-    // Owner 2026-11-08: a new bot is born free — no off hours by default. quietFrom == quietTo means "none"
-    // (quietNow is never true); the user can set a window (or leave it off) in the bot's settings.
+    // Owner 2026-11-08: a new bot is born free — no daily cap, a light self-wake, and no off hours. The owner can set
+    // a cap (proactivity), a heartbeat or a quiet window later, or take the bot offline.
+    this.proactivity = 'free',
+    this.heartbeatHours = 6,
     this.quietFrom = 0,
     this.quietTo = 0,
     this.allowCalls = true,
@@ -218,7 +218,7 @@ class Bot {
   String model;
   /// Live voice name for calls ('' = the Live default).
   String voice;
-  /// quiet | balanced | active
+  /// 'free' | 'quiet' | 'balanced' | 'active'
   String proactivity;
   /// Wakes on its own every N hours outside quiet hours (0 = only routines and triggers).
   int heartbeatHours;
@@ -444,8 +444,8 @@ class Bot {
       builtIn: j['builtIn'] == true,
       model: '${j['model'] ?? 'auto'}',
       voice: '${j['voice'] ?? ''}',
-      proactivity: '${j['pro'] ?? 'balanced'}',
-      heartbeatHours: (j['hb'] as num?)?.toInt() ?? 0,
+      proactivity: '${j['pro'] ?? 'free'}',
+      heartbeatHours: (j['hb'] as num?)?.toInt() ?? 6,
       quietFrom: (j['qf'] as num?)?.toInt() ?? 0,
       quietTo: (j['qt'] as num?)?.toInt() ?? 0,
       allowCalls: j['calls'] != false,
@@ -503,14 +503,18 @@ class Bot {
     }
   }
 
+  /// A cap so high it never bites in a day (used by the free default).
+  static const _noCap = 1000;
+
+  /// How many messages the bot may send itself in a day. 'free' (the default) has no cap; the owner can set one.
   int get messageCap {
-    final base = switch (proactivity) { 'quiet' => 1, 'active' => 6, _ => 3 };
+    final base = switch (proactivity) { 'free' => _noCap, 'quiet' => 1, 'active' => 6, _ => 3 };
     return ignoredStreak >= 3 ? (base / 2).ceil() : base;
   }
 
   int get callCap {
     if (!allowCalls) return 0;
-    final base = switch (proactivity) { 'quiet' => 0, 'active' => 2, _ => 1 };
+    final base = switch (proactivity) { 'free' => _noCap, 'quiet' => 0, 'active' => 2, _ => 1 };
     return ignoredStreak >= 3 ? 0 : base;
   }
 
@@ -1426,8 +1430,8 @@ class Bots extends ChangeNotifier {
       mission: '${spec['mission'] ?? ''}'.trim(),
       icon: '${spec['icon'] ?? 'person'}',
       look: '${spec['look'] ?? 'calm'}',
-      proactivity: '${spec['proactivity'] ?? 'balanced'}',
-      heartbeatHours: (spec['heartbeat_hours'] is num) ? (spec['heartbeat_hours'] as num).toInt().clamp(0, 48).toInt() : 0,
+      proactivity: '${spec['proactivity'] ?? 'free'}',
+      heartbeatHours: (spec['heartbeat_hours'] is num) ? (spec['heartbeat_hours'] as num).toInt().clamp(0, 48).toInt() : 6,
       firstMeeting: '${spec['first_meeting'] ?? ''}',
     )..trust = BotTrust.levelNew;
     for (final r in (spec['routines'] as List? ?? const [])) {

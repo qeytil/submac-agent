@@ -29,8 +29,8 @@ class BotRole {
     this.routineDays = 'daily',
     this.scheduleKey = '',
     this.defaultTime = '08:00',
-    this.proactivity = 'balanced',
-    this.heartbeatHours = 0,
+    this.proactivity = 'free',
+    this.heartbeatHours = 6,
     this.mission = '',
   });
 
@@ -84,7 +84,6 @@ class BotRoles {
           'each point with a link). If nothing matters, stay silent.',
       scheduleKey: 'when',
       defaultTime: '08:00',
-      heartbeatHours: 0,
     ),
     BotRole(
       id: 'writer',
@@ -168,7 +167,6 @@ class BotRoles {
       ],
       firstTask: 'Give a short, plain overview of the 5 most important things to know about {area} in {country}, each in one '
           'line, with what to watch out for. Then start on this if it is filled in: {now}',
-      proactivity: 'quiet',
     ),
     BotRole(
       id: 'sales',
