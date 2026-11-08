@@ -857,7 +857,7 @@ class WorkingLine extends StatefulWidget {
   final bool writing;
 
   /// The line for [t] (null: the message is still being saved or uploaded), in the app language.
-  static String lineFor(AgentRun? t, {bool writing = false, int more = 0, DateTime? now}) {
+  static String lineFor(AgentRun? t, {bool writing = false, int more = 0, DateTime? now, String? person}) {
     String key;
     Map<String, String> args;
     if (t == null) {
@@ -873,8 +873,23 @@ class WorkingLine extends StatefulWidget {
         args = const {};
       }
     }
-    final line = RunStatus.text(key, args);
+    var line = RunStatus.text(key, args);
+    // A bot's chat speaks in the person's own voice ("Nova is thinking"), never a generic "Thinking" (owner 2026-11-08).
+    if (person != null && person.isNotEmpty && t != null) line = _personLine(person, key, line);
     return more > 0 ? '$line  ·  ${RunStatus.text(RunStatus.more, {'n': '$more'})}' : line;
+  }
+
+  /// The same live line said as the person: "Nova is thinking", "Nova is reading a file". Plain words only (never a
+  /// glyph before the line), and the long-silence phrases are said in her voice too.
+  static String _personLine(String person, String key, String line) {
+    if (key == RunStatus.failed) return '$person stopped with an error';
+    if (key == RunStatus.retryIn || key == RunStatus.reconnecting) return '$person is reconnecting';
+    if (key == RunStatus.waitingLong || key == RunStatus.waitingSlow) return '$person is still waiting';
+    if (key == RunStatus.thinkingLong) return '$person is still thinking';
+    if (key == RunStatus.reading) return '$person is reading your message';
+    if (line.isEmpty) return person;
+    final lower = '${line[0].toLowerCase()}${line.substring(1)}';
+    return '$person is $lower';
   }
 
   /// How the line breathes: waiting/thinking, working (a tool, an approval), or roaming (driving the browser or phone).
@@ -960,7 +975,8 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
         }
         // R2 item 1: the line is the run's real phase (RunStatus), in the app language. Only a long silence in the same
         // phase changes it by itself ("Still waiting for a response"), never a rotating phrase.
-        final status = WorkingLine.lineFor(t, writing: widget.writing, more: widget.more);
+        final status = WorkingLine.lineFor(t, writing: widget.writing, more: widget.more,
+            person: t == null ? null : Bots.I.byConv(t.convId)?.name);
         final el = _elapsed();
         final trail = t?.trail ?? const <RunStep>[];
         final act = widget.activity;

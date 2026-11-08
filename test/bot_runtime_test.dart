@@ -59,6 +59,12 @@ void main() {
       b.active = false;
       expect(Bots.I.presenceOf(b), 'off');
     });
+
+    test('a desk item left for the owner reads as waiting', () {
+      final b = bot('nova-7');
+      b.desk.add(DeskTask('d7', 'ask the owner which supplier', status: 'waiting'));
+      expect(Bots.I.presenceOf(b), 'waiting');
+    });
   });
 
   group('check-in gate', () {

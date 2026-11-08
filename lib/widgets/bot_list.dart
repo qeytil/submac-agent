@@ -157,7 +157,9 @@ class BotRow extends StatelessWidget {
                   Text(_sub(bot), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.microStyle.copyWith(color: p.faint)),
               ]),
             ),
-            if (word.isNotEmpty) Text(word, style: AppText.captionStyle.copyWith(color: presence == 'working' ? p.text : p.faint)),
+            if (word.isNotEmpty)
+              Text(word, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: AppText.captionStyle.copyWith(color: presence == 'working' ? p.text : p.faint)),
           ]),
         ),
       ),

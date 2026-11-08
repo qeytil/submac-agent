@@ -62,6 +62,20 @@ void main() {
       expect(WorkingLine.lineFor(null), 'Sending your message');
     });
 
+    test('a bot\'s chat says the person, not a generic state', () {
+      final run = AgentRun(convId: 'c', side: false, title: 't');
+      AppLang.I.choice = 'en';
+      run.show(RunPhase.thinking, RunStatus.thinking);
+      expect(WorkingLine.lineFor(run, person: 'Nova'), 'Nova is thinking');
+      run.show(RunPhase.waiting, RunStatus.waiting);
+      final t0 = run.statusAt;
+      expect(WorkingLine.lineFor(run, person: 'Nova', now: t0.add(const Duration(seconds: 9))), 'Nova is still waiting');
+      run.show(RunPhase.tool, 'Reading a file');
+      expect(WorkingLine.lineFor(run, person: 'Nova'), 'Nova is reading a file');
+      run.show(RunPhase.retrying, RunStatus.retryIn, {'n': '3', 'i': '1', 'm': '1'});
+      expect(WorkingLine.lineFor(run, person: 'Nova'), 'Nova is reconnecting');
+    });
+
     test('writing on screen overrides a waiting line, never a tool or Stop', () {
       final run = AgentRun(convId: 'c', side: false, title: 't');
       AppLang.I.choice = 'en';

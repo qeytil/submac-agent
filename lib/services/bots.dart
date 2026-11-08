@@ -790,8 +790,9 @@ class Bots extends ChangeNotifier {
     if (!b.active) return 'off';
     final rt = RuntimeHost.I.of(b.id);
     if (rt.phase == BotPhase.thinking) return 'thinking';
-    if (rt.phase == BotPhase.waiting) return 'waiting';
     if (rt.phase == BotPhase.working || (working?.call(b) ?? false)) return 'working';
+    // It put something on its desk for the owner: say so, not "Free".
+    if (rt.phase == BotPhase.waiting || b.desk.any((t) => t.status == 'waiting')) return 'waiting';
     return b.quietNow() ? 'off' : 'free';
   }
 
