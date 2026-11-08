@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:agent/services/bots.dart';
+import 'package:agent/services/bot_runtime.dart';
 import 'package:agent/services/offices.dart';
 import 'package:agent/services/roles.dart';
 import 'package:agent/services/trust.dart';
@@ -203,10 +204,16 @@ void main() {
     });
     test('presence', () {
       final b = Bot(id: 'u', name: 'N', role: '', persona: '', quietFrom: 0, quietTo: 0);
-      expect(b.presence(false), 'off');
+      expect(Bots.I.presenceOf(b), 'off');
       b.active = true;
-      expect(b.presence(false), 'free');
-      expect(b.presence(true), 'working');
+      expect(Bots.I.presenceOf(b), 'free');
+      RuntimeHost.I.of(b.id).phase = BotPhase.working;
+      expect(Bots.I.presenceOf(b), 'working');
+      RuntimeHost.I.of(b.id).phase = BotPhase.thinking;
+      expect(Bots.I.presenceOf(b), 'thinking');
+      RuntimeHost.I.of(b.id).phase = BotPhase.idle;
+      expect(Bots.I.presenceOf(b), 'free');
+      RuntimeHost.I.clear();
     });
   });
 }
