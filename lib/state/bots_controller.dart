@@ -283,7 +283,7 @@ extension AppStateBots on AppState {
           ? 'This is your regular check-in. Look at your mission, memory, desk and promised follow-ups. Is there something '
               'genuinely useful to do for the user right now (progress on work you own, a deadline coming, news on what you track, '
               'something you promised)? If yes, do the real work with your tools. If not, reply with only [no reply]. Never invent busywork.'
-          : 'Do this now: $instruction';
+          : (kind == 'event' ? instruction : 'Do this now: $instruction');
       final style = switch (kind) {
         'message' => 'This routine always ends with @message (one short, specific message).',
         'call' => 'This is a planned call. Prepare what you will say as 2 to 4 short bullet notes, then end with @call: <a short reason '
@@ -372,12 +372,39 @@ extension AppStateBots on AppState {
       running: b.convId.isNotEmpty && runs.any((r) => r.convId == b.convId && !r.side));
 
   /// Busy (a run or another wake in its own chat): come back in 15 minutes, once (not one more follow-up per busy wake).
+  /// An event waits only 2 minutes: it is about the world now, not a routine (owner 2026-11-08).
   Future<void> _wakeLater(Bot b, String instruction, String kind) async {
     if (kind == 'chat' || kind == 'mission' || Bots.hasPendingFollowup(b, instruction, kind)) return;
-    b.followups.add(BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', DateTime.now().add(const Duration(minutes: 15)),
+    final wait = kind == 'event' ? const Duration(minutes: 2) : const Duration(minutes: 15);
+    b.followups.add(BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}', DateTime.now().add(wait),
         instruction.isEmpty ? Bots.heartbeat : instruction, kind, local: true));
     await Bots.I.save();
     await Bots.I.arm(b);
+  }
+
+  // ---------------------------------------------------------------- one person's event inbox
+
+  /// A real thing that happened (a watched notification; later an email, a price, a page) for ONE person. It waits a
+  /// moment in that person's own inbox, then one wake carries the digest — a burst is one turn, not five (owner
+  /// 2026-11-08). The app wires this as `Bots.I.onEvent`.
+  Future<void> pushBotEvent(Bot b, BotEvent e) async {
+    if (!b.active) return;
+    if (!RuntimeHost.I.of(b.id).inbox.add(e)) return;
+    _botEventTimers[b.id]?.cancel();
+    _botEventTimers[b.id] = Timer(const Duration(seconds: 12), () {
+      unawaited(_flushBotInbox(b.id));
+    });
+  }
+
+  /// The quiet moment passed: hand the person everything that arrived as one digest.
+  Future<void> _flushBotInbox(String botId) async {
+    _botEventTimers.remove(botId);
+    final b = Bots.I.byId(botId);
+    if (b == null || !b.active) return;
+    final events = RuntimeHost.I.of(botId).inbox.take();
+    if (events.isEmpty) return;
+    final what = events.length == 1 ? events.single.title : '${events.length} things just happened';
+    await _botWake(b, what, BotInbox.digest(events), 'event');
   }
 
   /// Is there something worth a full wake right now? Same check the cloud runner does. On any doubt (no answer,

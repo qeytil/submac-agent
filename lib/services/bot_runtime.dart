@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'bot_inbox.dart';
+
 /// Each digital person's own runtime state (owner 2026-11-08).
 ///
 /// The owner asked for people who run on their own runtime, so many of them never conflict: their own rhythm, their own
@@ -28,6 +30,9 @@ class BotRuntime {
 
   /// A wake that arrived while this person was busy, waiting its turn on this person's own line ('' = none).
   DateTime? queuedAt;
+
+  /// Events about the world aimed at THIS person only. A burst becomes one wake with one digest (owner 2026-11-08).
+  late final BotInbox inbox = BotInbox(botId);
 
   @override
   String toString() => 'BotRuntime($botId, ${phase.name}, inFlight=$inFlight)';

@@ -15,6 +15,7 @@ import 'events.dart';
 import 'telegram_bridge.dart';
 import 'bot_manner.dart';
 import 'bot_runtime.dart';
+import 'bot_inbox.dart';
 import 'no_reply.dart';
 import 'house_rules.dart';
 import 'skill_library.dart';
@@ -776,6 +777,10 @@ class Bots extends ChangeNotifier {
   /// Wakes a bot (set by AppState): [reason] says why, [instruction] what to do, [kind] work | message | call.
   Future<void> Function(Bot bot, String reason, String instruction, String kind)? onWake;
 
+  /// A real event for one person (a watch matched; later an email, a price, a page). The app queues it in that person's
+  /// inbox and wakes them once with a digest (owner 2026-11-08).
+  Future<void> Function(Bot bot, BotEvent event)? onEvent;
+
   /// How many of this bot's asks wait for the owner (set by AppState, from the approvals).
   int Function(Bot b)? waitingFor;
 
@@ -1394,23 +1399,39 @@ class Bots extends ChangeNotifier {
     return false;
   }
 
-  /// A phone notification matched one of a bot's watches.
+  /// A phone notification matched one of a bot's watches. It goes into that person's own inbox, which coalesces a burst
+  /// into one wake with one digest (owner 2026-11-08); with no inbox wired, the person is woken as before.
   Future<void> notificationEvent(Map<String, dynamic> e) async {
     final b = byId('${e['bot']}');
     if (b == null || !b.active) return;
     final w = b.watches.where((x) => x.id == '${e['id']}').firstOrNull;
     if (w == null) return;
-    if ('${e['chat'] ?? ''}'.isNotEmpty) {
-      // A WhatsApp message (plan: WhatsApp on the phone). The reply goes through the owner's approval card.
-      await onWake?.call(b, 'a new ${e['app'] ?? 'WhatsApp'} message from ${e['chat']}',
-          '${w.instruction}\nNew ${e['app'] ?? 'WhatsApp'} message in "${e['chat']}": "${e['text'] ?? ''}"\n'
+    final app = '${e['app'] ?? 'an app'}';
+    final chat = '${e['chat'] ?? ''}';
+    final title = '${e['title'] ?? ''}';
+    final text = '${e['text'] ?? ''}';
+    final event = BotEvent(
+      key: '${e['bot']}|${e['id']}|${e['pkg'] ?? app}|$chat|$title|$text',
+      source: 'notification',
+      title: chat.isNotEmpty ? 'a new $app message from $chat' : 'a notification from $app',
+      detail: chat.isNotEmpty ? '"$text"' : '"$title: $text"',
+      instruction: w.instruction,
+    );
+    final sink = onEvent;
+    if (sink != null) {
+      await sink(b, event);
+      return;
+    }
+    // No inbox wired (a test or an older path): wake as before.
+    if (chat.isNotEmpty) {
+      await onWake?.call(b, event.title,
+          '${w.instruction}\nNew $app message in "$chat": "$text"\n'
               'If it needs an answer, draft a short reply in the chat\'s language and send it with whatsapp action "reply" '
-              '(to: "${e['chat']}"); the owner approves it first. Use whatsapp action "inbox" with to "${e['chat']}" for the latest messages.',
+              '(to: "$chat"); the owner approves it first. Use whatsapp action "inbox" with to "$chat" for the latest messages.',
           'work');
       return;
     }
-    await onWake?.call(b, 'a notification from ${e['app'] ?? 'an app'}',
-        '${w.instruction}\nThe notification: "${e['title'] ?? ''}: ${e['text'] ?? ''}"', 'work');
+    await onWake?.call(b, event.title, '${w.instruction}\nThe notification: "$title: $text"', 'work');
   }
 
   // ---------------------------------------------------------------- hiring and budget

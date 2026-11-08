@@ -26,6 +26,7 @@ extension AppStateSystem on AppState {
     // The engine makes the model calls and consumes its replies; the native proxy passes their bots'-share header on.
     b.onBackgroundShare = Cloud.noteBackgroundShare;
     Bots.I.onWake = _botWake;
+    Bots.I.onEvent = (bot, e) => pushBotEvent(bot, e);
     Bots.I.onReport = _botReport;
     Bots.I.working = (bot) => _officeBusy.contains(bot.id) || (bot.convId.isNotEmpty && runs.any((r) => r.convId == bot.convId && !r.side));
     Bots.I.waitingFor = (bot) => Offices.I.pending.where((a) => a.botId == bot.id).length;

@@ -50,7 +50,7 @@ The cost of a turn is the **model's network round-trip**, not CPU. An isolate pe
 would **not** make a turn faster, and the plugins/browser/audio would not move with it. Isolation here is **logical**
 (its own state, schedule, queue, identity), which is what removes the conflicts — and it costs almost nothing.
 
-## 5. What ships now (stage 1)
+## 5. What ships now
 
 - **`BotRuntime` + `RuntimeHost`** — one runtime per person.
 - **Heartbeat jitter** — a stable per-person offset inside its wake window, so a crowd never wakes in the same minute
@@ -58,15 +58,20 @@ would **not** make a turn faster, and the plugins/browser/audio would not move w
 - **A free check-in gate** — a person with no open desk work, no promised follow-up and no live mission costs **zero**
   model calls at its heartbeat (`Bots.checkInEmpty`). Only when there is something does it ask the fast yes/no question.
 - **A live "Thinking" phase** — the person shows it is thinking while it prepares, before its run turns it "Working".
+- **Presence in its own voice** — a bot's chat says "Nova is thinking", "Nova is reading a file", "Nova is reconnecting";
+  a desk item left for the owner reads **"Waiting for you"**.
+- **The event inbox** (`BotInbox`, one per person, in `BotRuntime.inbox`) — real events about the world wait in that
+  person's own queue: **deduped**, **bounded**, and a burst becomes **one wake with one digest** (12 s quiet moment) instead
+  of one turn per event. Today the phone-notification watches feed it (`Bots.notificationEvent` → `Bots.onEvent` →
+  `AppState.pushBotEvent`); an event that finds the person busy waits only **2 minutes**, not the 15 of a routine.
+  Email, a price or a page changing is the same call, so a new source needs no new plumbing.
 
 ## 6. Next
 
-1. **Identity** — each person's own notification and ring, so five people read as five people, not one "SubMac is active".
-2. **Presence in the UI** — "Thinking / Working / Waiting for you" on the person's row and chat, like the team chat has.
-3. **The governor** — a cap on total in-flight calls, so many people work at once without stampeding.
-4. **A per-person inbox** — events (email, message, a price or a page changing) aimed at one person, so it acts on the
-   world, not only a clock.
-5. **Voice** — one call at a time done well, then the **group call** (one session, many voices).
+1. **The governor** — a cap on total in-flight calls, so many people work at once without stampeding.
+2. **More event sources** — email and calendar through the connectors, and a page/price watcher, all pushing into the
+   same per-person inbox.
+3. **Voice** — one call at a time done well, then the **group call** (one session, many voices).
 
 ## 7. Teams are groups
 

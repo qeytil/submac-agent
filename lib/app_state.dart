@@ -122,6 +122,7 @@ import 'services/house_rules.dart';
 import 'services/outbound_guard.dart';
 import 'services/always_on.dart';
 import 'services/bot_runtime.dart';
+import 'services/bot_inbox.dart';
 
 part 'state/agent_runner.dart';
 part 'state/agent_stream.dart';
@@ -381,6 +382,9 @@ class AppState extends ChangeNotifier {
   /// "Always on" (owner 2026-11-08): the few-minute local pulse that re-asserts the steady foreground service and
   /// catches a heartbeat the OS killed and never redelivered. Null while "Always on" is off.
   Timer? _alwaysOnPulse;
+
+  /// Per-person event debounce (owner 2026-11-08): a burst of events for one person becomes one wake with one digest.
+  final Map<String, Timer> _botEventTimers = {};
 
   /// Time until the daily cloud allowance refreshes (midnight UTC), plus a few minutes.
   static Duration _untilAllowanceResets() {
