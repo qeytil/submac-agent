@@ -362,7 +362,8 @@ extension AppStateSettings on AppState {
       final last = b.lastWake ?? now;
       // Only when the exact heartbeat alarm is clearly overdue (the OS killed it); otherwise it already ran.
       if (now.difference(last) < Duration(hours: hb, minutes: 5)) continue;
-      unawaited(Bots.I.fire(Bots.alarmId(b, 'hb')));
+      // Awaited: the wake's own bookkeeping (its alarm, its line) finishes before the next bot, and before the pulse ends.
+      await Bots.I.fire(Bots.alarmId(b, 'hb'));
     }
   }
 
