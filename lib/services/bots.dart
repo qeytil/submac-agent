@@ -193,8 +193,10 @@ class Bot {
     this.voice = '',
     this.proactivity = 'balanced',
     this.heartbeatHours = 0,
-    this.quietFrom = 22,
-    this.quietTo = 7,
+    // Owner 2026-11-08: a new bot is born free — no off hours by default. quietFrom == quietTo means "none"
+    // (quietNow is never true); the user can set a window (or leave it off) in the bot's settings.
+    this.quietFrom = 0,
+    this.quietTo = 0,
     this.allowCalls = true,
     this.firstMeeting = '',
   });
@@ -444,8 +446,8 @@ class Bot {
       voice: '${j['voice'] ?? ''}',
       proactivity: '${j['pro'] ?? 'balanced'}',
       heartbeatHours: (j['hb'] as num?)?.toInt() ?? 0,
-      quietFrom: (j['qf'] as num?)?.toInt() ?? 22,
-      quietTo: (j['qt'] as num?)?.toInt() ?? 7,
+      quietFrom: (j['qf'] as num?)?.toInt() ?? 0,
+      quietTo: (j['qt'] as num?)?.toInt() ?? 0,
       allowCalls: j['calls'] != false,
       firstMeeting: '${j['first'] ?? ''}',
     )
@@ -1477,8 +1479,8 @@ class Bots extends ChangeNotifier {
     final b = await create({...j, 'name': name});
     b
       ..voice = '${j['voice']}'
-      ..quietFrom = j['quiet_from'] as int
-      ..quietTo = j['quiet_to'] as int
+      ..quietFrom = (j['quiet_from'] as num?)?.toInt() ?? 0
+      ..quietTo = (j['quiet_to'] as num?)?.toInt() ?? 0
       ..allowCalls = j['calls'] == true
       ..tokenBudgetK = j['token_budget_k'] as int
       ..instructions = '${j['instructions']}'

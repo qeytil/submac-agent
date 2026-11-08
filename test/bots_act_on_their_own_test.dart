@@ -31,4 +31,12 @@ void main() {
     expect(g.ask, isNull);
     expect(g.blocked, isNull);
   });
+
+  test('a new bot is born free: no off hours by default', () {
+    final b = Bot(id: 'fr1', name: 'Free', role: 'x', persona: '');
+    expect(b.quietFrom, b.quietTo, reason: 'quietFrom == quietTo means "none"');
+    for (var h = 0; h < 24; h++) {
+      expect(b.quietNow(DateTime(2026, 11, 8, h, 30)), isFalse, reason: 'hour $h');
+    }
+  });
 }

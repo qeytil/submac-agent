@@ -159,8 +159,8 @@ void main() {
       b = Bot(id: 'nb1', name: 'Nova', role: 'News', persona: '')
         ..active = true
         ..convId = 'conv-nb1'
-        // Deterministic: the bot's default quiet hours (22:00-07:00) would suppress a "message" when this suite runs
-        // at night (it did on a 06:49 UTC run). These tests are about delivery, not quiet hours.
+        // Explicit off hours so delivery is deterministic whatever the bot's default is (this suite once ran at
+        // 06:49 UTC, inside the old 22:00-07:00 default). A new bot's default is now off too.
         ..quietFrom = 0
         ..quietTo = 0;
       Bots.I.bots.add(b);
