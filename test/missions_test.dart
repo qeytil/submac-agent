@@ -207,7 +207,7 @@ void main() {
 
   test('starting needs the owner: a background run cannot give itself a mission', () async {
     final r = await Missions.I.execute('mission_plan', {'goal': 'Take over the world'}, m: null);
-    expect(r, contains('only the owner starts a mission'));
+    expect(r, contains('while nobody is watching'));
     expect(Missions.I.missions, isEmpty);
     final ok = await Missions.I.execute('mission_plan', {'goal': 'Weekly competitor report', 'steps': ['List competitors', 'Check prices']},
         m: null, start: (g) => Missions.I.start('bot', 'b1', g, by: 'Nova'));

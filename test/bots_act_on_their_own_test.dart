@@ -4,6 +4,7 @@ import 'package:agent/app_state.dart';
 import 'package:agent/services/bots.dart';
 import 'package:agent/services/team_key.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -48,5 +49,23 @@ void main() {
     expect(b.callCap, greaterThanOrEqualTo(99));
     b.messagesToday = 90;
     expect(b.messagesLeft, greaterThan(0), reason: '90 messages in a day is still free');
+  });
+
+  test('a bot proposes a mission; the owner\'s yes starts it once', () async {
+    SharedPreferences.setMockInitialValues({});
+    await Bots.I.init();
+    final b = Bot(id: 'mp1', name: 'Nova', role: 'Analyst', persona: '');
+    Bots.I.bots.add(b);
+    addTearDown(() => Bots.I.bots.removeWhere((x) => x.id == 'mp1'));
+    Bots.I.propose(b, 'Grow the shop', ['find suppliers', 'compare prices']);
+    expect(b.proposeGoal, 'Grow the shop');
+    expect(Bots.I.approvedProposal(b, 'not now'), isNull, reason: 'a no leaves it waiting');
+    expect(b.proposeGoal, 'Grow the shop');
+    // Off a fresh proposal the answer must clearly agree.
+    final yes = Bots.I.approvedProposal(b, 'yes, go ahead');
+    expect(yes?.goal, 'Grow the shop');
+    expect(yes?.steps, ['find suppliers', 'compare prices']);
+    expect(b.proposeGoal, isEmpty, reason: 'it starts once');
+    expect(Bots.I.approvedProposal(b, 'yes'), isNull, reason: 'nothing waits now');
   });
 }

@@ -128,7 +128,16 @@ extension AppStateMissions on AppState {
     // The bot's own chat: the owner is present unless this is a wake (nobody watching).
     final k = convId == null ? null : _botWakeConvs[convId];
     final ownerHere = k == null || k == 'chat';
+    final goalArg = '${args['goal'] ?? ''}'.trim();
     final m = Missions.I.liveOf('bot', b.id);
+    // Owner 2026-11-08 (self-direction): nobody is watching, but the bot may still propose a mission. It is saved and
+    // shown; the owner's yes in this chat starts it (Bots.approvedProposal, applied at the top of the bot's next turn).
+    if (!ownerHere && name == 'mission_plan' && goalArg.isNotEmpty && (m == null || m.finished || goalArg != m.goal)) {
+      Bots.I.propose(b, goalArg, [for (final x in (args['steps'] is List ? args['steps'] as List : const [])) '$x']);
+      return 'Saved your proposal to take on "$goalArg". You cannot start it while the owner is away. Write the owner ONE '
+          'short message asking to take it on (the goal and the first step), end it with @message, and stop here. When '
+          'they say yes in this chat the mission starts by itself and you begin.';
+    }
     return Missions.I.execute(name, args,
         m: m,
         who: b.name,

@@ -137,7 +137,8 @@ void main() {
     await Missions.I.stop(m);
     s.botWakeConvsForTest[b.convId] = 'work';
     final r2 = await s.missionToolForTest('mission_plan', {'goal': 'Something new'}, b.convId);
-    expect(r2, contains('only the owner starts a mission'));
+    expect(r2, contains('Saved your proposal'), reason: 'a background bot proposes; it does not start');
+    expect(b.proposeGoal, 'Something new');
     s.botWakeConvsForTest.remove(b.convId);
   });
 

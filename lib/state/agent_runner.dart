@@ -528,6 +528,19 @@ extension AppStateAgentRunner on AppState {
   /// Its own BYOK model answers when that provider can take tools; otherwise SubMac's lane does. Every tool is called
   /// directly through the app's tool router — no MCP gateway, no opencode session.
   Future<void> _runBotTurn(String convId, AgentRun run, List<ChatMessage> list, Bot b) async {
+    // Owner 2026-11-08 (self-direction): the owner just agreed to a mission this bot proposed — start it before the
+    // turn runs, so its brief already shows the mission and the bot begins working it.
+    ChatMessage? ownerSaid;
+    for (final m in list.reversed) {
+      if (m.role == 'user') {
+        ownerSaid = m;
+        break;
+      }
+    }
+    if (ownerSaid != null) {
+      final agreed = Bots.I.approvedProposal(b, ownerSaid.content);
+      if (agreed != null) await Missions.I.start('bot', b.id, agreed.goal, by: b.name, steps: agreed.steps);
+    }
     final cfg = BotAgents.I.forBot(b);
     final model = BotBrowserModel.of(b, submacRef);
     final own = model.byok;

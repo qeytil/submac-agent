@@ -228,6 +228,12 @@ class Bot {
   /// What it asks in its first chat with the user.
   String firstMeeting;
 
+  /// A mission this bot proposed to the owner and is waiting on (owner 2026-11-08, self-direction). '' = none.
+  /// The owner's yes in its chat starts it ([approvedProposal]); the steps it proposed become the plan.
+  String proposeGoal = '';
+  List<String> proposeSteps = [];
+  DateTime? proposeAt;
+
   /// Hired: it lives, wakes and reaches out. Built-in bots start unhired.
   bool active = false;
   String convId = '';
@@ -430,6 +436,8 @@ class Bot {
         'les': lessons.map((e) => e.toJson()).toList(), 'origin': origin, 'store': storeId, 'cl': cloudChoice,
         if (look != null) 'lk': look,
         if (trust.isNotEmpty) 'tr': trust, 'ok': cleanOk, 'ta': trustOfferAt, 'rp': report, if (roleId.isNotEmpty) 'rl': roleId,
+        if (proposeGoal.isNotEmpty) 'pg': proposeGoal, if (proposeSteps.isNotEmpty) 'ps': proposeSteps,
+        if (proposeAt != null) 'pa': proposeAt!.toIso8601String(),
       };
 
   static Bot fromJson(Map<String, dynamic> j) {
@@ -474,7 +482,10 @@ class Bot {
       ..trustOfferAt = (j['ta'] as num?)?.toInt() ?? BotTrust.promoteAfter
       ..report = const {'daily', 'weekly', 'off'}.contains(j['rp']) ? '${j['rp']}' : 'daily'
       ..roleId = '${j['rl'] ?? ''}'
-      ..look = j['lk'] is String ? '${j['lk']}' : null;
+      ..look = j['lk'] is String ? '${j['lk']}' : null
+      ..proposeGoal = '${j['pg'] ?? ''}'
+      ..proposeSteps = [for (final x in (j['ps'] as List? ?? const [])) '$x']
+      ..proposeAt = DateTime.tryParse('${j['pa']}');
     b.apps.addAll(l('apps').map(BotApp.fromJson).whereType<BotApp>());
     b.lessons.addAll(l('les').map(BotLesson.fromJson).where((e) => e.text.trim().isNotEmpty));
     b.powersOff.addAll([for (final e in (j['po'] as List? ?? const [])) '$e']);
@@ -1529,6 +1540,48 @@ class Bots extends ChangeNotifier {
     unawaited(save());
   }
 
+  /// A mission [b] asked the owner to let it take on (owner 2026-11-08, self-direction). Saved, so the owner's yes
+  /// in its chat starts it even after a restart (see [approvedProposal]).
+  void propose(Bot b, String goal, List<String> steps) {
+    b
+      ..proposeGoal = goal.trim()
+      ..proposeSteps = [for (final s in steps.take(30)) if (s.trim().isNotEmpty) s.trim()]
+      ..proposeAt = DateTime.now();
+    unawaited(save());
+  }
+
+  void clearProposal(Bot b) {
+    if (b.proposeGoal.isEmpty && b.proposeSteps.isEmpty && b.proposeAt == null) return;
+    b
+      ..proposeGoal = ''
+      ..proposeSteps = []
+      ..proposeAt = null;
+    unawaited(save());
+  }
+
+  /// The goal and steps of the mission [b] proposed, when [text] is the owner clearly agreeing (and the proposal is
+  /// still fresh, two days). Clears the proposal so it starts once. null otherwise.
+  ({String goal, List<String> steps})? approvedProposal(Bot b, String text) {
+    final g = b.proposeGoal.trim();
+    if (g.isEmpty) return null;
+    final at = b.proposeAt;
+    if (at == null || DateTime.now().difference(at) > const Duration(days: 2)) {
+      clearProposal(b);
+      return null;
+    }
+    if (!_agrees(text)) return null;
+    final steps = List<String>.from(b.proposeSteps);
+    clearProposal(b);
+    return (goal: g, steps: steps);
+  }
+
+  /// The owner agreeing in words ("yes", "go ahead", "start", "ok", Somali "haa"/"haye"/"samee", Arabic "نعم"/"تمام").
+  static final _agree = RegExp(
+      r'^\s*(yes|yeah|yep|yup|ok(ay)?|sure|go( ahead)?|start( it)?|do it|please do|sounds good|'
+      r'haa|haye|yees|sax|samee|bilow|نعم|تمام|حسنا)\b',
+      caseSensitive: false);
+  static bool _agrees(String text) => _agree.hasMatch(text.trim());
+
   /// Can this bot reach out this way right now? Returns the kind it may actually use (a call can drop to a message,
   /// a message to a quiet note).
   String allow(Bot b, String kind) {
@@ -1741,8 +1794,10 @@ class Bots extends ChangeNotifier {
   String _missionBrief(Bot b) {
     final t = (missionOf?.call(b) ?? '').trim();
     return t.isEmpty
-        ? '\n# Missions\nWhen the owner asks you to take on a goal on your own (work toward it over days without them), start it with '
-            'mission_plan giving "goal" and the first steps; it then wakes you by itself. Only the owner starts missions.\n'
+        ? '\n# Missions\nYou may take on a goal on your own (work toward it over days without the owner watching) — but '
+            'the owner decides. Propose it in ONE short message ("I\'d like to take on X — ok?"); when they say yes in this '
+            'chat, start it with mission_plan giving "goal" and the first steps, and it wakes you by itself. If they ask '
+            'you for a goal directly, start it the same way.\n'
         : '\n$t\n';
   }
 

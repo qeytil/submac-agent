@@ -361,7 +361,8 @@ class Missions extends ChangeNotifier {
   /// Starts (or replaces) the mission of a bot or team. The owner's act: from the UI, or the owner's own words in
   /// chat. The first wake comes in [firstIn] (default 1 minute) so the plan starts without waiting.
   Future<Mission> start(String kind, String ownerId, String goal,
-      {int? runsPerDay, int? tokensPerDay, String by = 'owner', Duration firstIn = const Duration(minutes: 1)}) async {
+      {int? runsPerDay, int? tokensPerDay, String by = 'owner', Duration firstIn = const Duration(minutes: 1),
+      List<String> steps = const []}) async {
     await init();
     final old = liveOf(kind, ownerId);
     if (old != null) {
@@ -381,6 +382,11 @@ class Missions extends ChangeNotifier {
       created: now,
     );
     m.add('start', 'Mission started: ${m.goal}', who: by);
+    final seed = [for (final t in steps.take(30)) t.trim()].where((t) => t.isNotEmpty).toList();
+    if (seed.isNotEmpty) {
+      var i = 0;
+      m.plan.addAll([for (final t in seed) MissionStep('s${++i}', t)]);
+    }
     missions.add(m);
     await setNext(m, now.add(firstIn), 'first plan', by: 'app');
     await save(m);
@@ -657,7 +663,7 @@ class Missions extends ChangeNotifier {
       };
 
   static final List<Map<String, dynamic>> definitions = [
-    _fn('mission_plan', 'Your mission plan: set all steps, or update one. "goal" starts a mission, only when the owner asked in this chat.', {
+    _fn('mission_plan', 'Your mission plan: set all steps, or update one. "goal" starts a mission; while nobody is watching it is saved as a proposal the owner approves in words.', {
       'goal': {'type': 'string'},
       'steps': {'type': 'array', 'items': {'type': 'string'}},
       'step': {'type': 'string', 'description': 'Id or number.'},
@@ -692,12 +698,13 @@ class Missions extends ChangeNotifier {
     String s(String k) => '${a[k] ?? ''}'.trim();
     if (name == 'mission_plan' && s('goal').isNotEmpty && (m == null || m.finished || s('goal') != m.goal)) {
       if (start == null) {
-        return 'Error: only the owner starts a mission (they switch on autonomy for you, or ask you in chat). '
+        return 'You cannot start a mission while nobody is watching. Ask the owner to take it on: write them one short '
+            'message; when they agree in this chat it can start. '
             '${m == null ? 'You have no mission.' : 'Keep working on: ${m.goal}'}';
       }
       m = await start(s('goal'));
     }
-    if (m == null) return 'You have no mission. The owner starts one (Autonomy on your job page, or by asking you in chat).';
+    if (m == null) return 'You have no mission. Propose one to the owner in a short message (or wait for them to ask); its job page has an Autonomy switch.';
     if (m.finished) return 'Your mission is ${m.status}. Nothing to do; the owner can start a new one.';
     final now = clock();
     switch (name) {
