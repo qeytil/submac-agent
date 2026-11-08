@@ -15,8 +15,8 @@ class BotTrust {
 
   static const labels = {levelNew: 'Asks first', levelTrusted: 'On its own'};
   static const blurbs = {
-    levelNew: 'Asks before every action that changes something.',
-    levelTrusted: 'Does everyday work on its own. Still asks before money, sending or deleting.',
+    levelNew: 'Checks with you in words before money, sending as you, deleting or a big change.',
+    levelTrusted: 'Does everyday work without checking. Asks in words only before money or deleting.',
   };
 
   static final _money = RegExp(

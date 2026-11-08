@@ -13,13 +13,13 @@ void main() {
     ..folder = 'Teams/Hodan Coffee';
 
   group('team prompts', () {
-    test('stable part names the team, lead, folder, approval card and trust', () {
+    test('stable part names the team, lead, folder and how it acts on its own', () {
       final s = Offices.I.teamStablePromptOf(team(), mate);
       expect(s, contains('# Your team: Hodan Coffee'));
       expect(s, contains('Your lead is Hodan'));
       expect(s, contains('Files > Teams/Hodan Coffee'));
-      expect(s, contains('Approve · Edit · Not now'));
-      expect(s, contains('New or Trusted'));
+      expect(s, contains('there is no approval card'));
+      expect(s, contains('can I ...?'));
       expect(s, contains('Ask me before paying'));
       final l = Offices.I.teamStablePromptOf(team(), lead);
       expect(l, contains('You are the lead'));

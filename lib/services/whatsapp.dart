@@ -98,8 +98,9 @@ class WhatsAppTools {
       '- Never spam: no bulk messages unless the user asked, max 20 people, same message only when it fits everyone, '
       'and never to people who did not contact the user or agree to hear from them.\n'
       '- Calls: you cannot talk in a WhatsApp call; say the call is ringing and the user speaks.\n'
-      '- Sending: the user sees an approval card first (they can edit). If it says "opened for the user", the message is '
-      'typed in WhatsApp and they tap Send.';
+      '- Sending goes out only when the owner agrees: if this message is not already their clear instruction, ask them first '
+      '(they may want different words). Never message someone they did not ask you to contact. If a result says "opened for '
+      'the user", the message is typed in WhatsApp and they tap Send.';
 
   static final Map<String, dynamic> withGuide = _fn(_desc + guide, _props);
 

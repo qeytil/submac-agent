@@ -192,16 +192,22 @@ extension AppStateTools on AppState {
     if (WhatsAppTools.names.contains(name)) {
       final req = WhatsAppTools.approvalFor(args);
       if (req == null) return ToolGate.none(whatsapp: true);
+      // Owner 2026-11-08: a bot and a team member are people, not an app workflow. No approval card: they send, and
+      // their brief tells them to ask the owner in words first when the message is not already their clear
+      // instruction. The owner's own chat keeps the card (every WhatsApp message to someone is shown before it goes).
+      if (worker != null) return ToolGate.none(whatsapp: true);
       req.kind = 'send';
-      final trusted = worker != null && (WhatsAppTools.trusted(worker.id) || office?.trust == 'trusted');
-      // Full access (Settings): WhatsApp messages go without a card too; a payment never goes through WhatsApp.
-      if (trusted || FullAccess.I.on) return ToolGate.none(whatsapp: true);
+      if (FullAccess.I.on) return ToolGate.none(whatsapp: true);
       return ToolGate(ask: req, kind: 'send', whatsapp: true, worker: worker, office: office,
           refusal: AppState._notApproved(req, 'Not sent: the user did not approve this WhatsApp ${args['action']} (or did not answer in time). '
               'Do not retry it or try another way; ask what they would like instead, or note it as waiting on them.'));
     }
-    // Plan 5.2 trust levels: a bot asks by its own level (New: every change; Trusted: only money, sending and deleting).
-    // SubMac itself follows Settings > Trust level ("full" = Trusted). A trusted team (office) keeps its explicit rule.
+    // Owner 2026-11-08: bots and team members are people, not an approval workflow. No gate, no card, no "say start":
+    // they decide and act, and their brief says to ask the owner in words first for money, sending as them, deleting or
+    // a big account change. SubMac's own chat keeps its card for the actions it takes for the owner.
+    if (worker != null) return ToolGate.none();
+    // SubMac's own chat (the owner's, or a scheduled run of theirs): it follows Settings > Trust level ("full" =
+    // Trusted): a card first for the action the owner asked it to take.
     final risk = await _riskFor(name, args);
     if (risk == null) return ToolGate.none();
     var kind = BotTrust.kindOf(name, '${risk.title} ${risk.detail}', destructive: risk.destructive);
@@ -209,7 +215,7 @@ extension AppStateTools on AppState {
     if (BrowserAgent.names.contains(name) && BrowserAgent.I.snapFor(BrowserAgent.jobNow).moneyPage) kind = 'money';
     // SubMac's own settings that change how it works always ask (Full access, a trusted team or bot included).
     if (name == 'app_settings') kind = FullAccess.alwaysAskKind;
-    final level = worker != null ? worker.level : (fullAccess ? BotTrust.levelTrusted : BotTrust.levelNew);
+    final level = fullAccess ? BotTrust.levelTrusted : BotTrust.levelNew;
     // Full access (Settings) acts without asking; money always asks. Small changes in SubMac's own space never ask.
     final ask = FullAccess.shouldAsk(level: level, kind: kind, tool: name, fullAccess: FullAccess.I.on) &&
         (office?.trust != 'trusted' || kind == 'money' || kind == FullAccess.alwaysAskKind);
@@ -223,14 +229,8 @@ extension AppStateTools on AppState {
           'Do not try another way. Finish with success:false and say in one line exactly what needs their approval.');
     }
     if (!ask) return ToolGate.none(field: field, req: req);
-    final background = worker != null && !(appVisible && currentId == convId);
     return ToolGate(ask: req, kind: kind, field: field, worker: worker, office: office,
-        refusal: AppState._notApproved(
-            req,
-            background
-                ? 'The owner did not approve this (or did not answer in time). Do not retry it. Record what is waiting on them '
-                    '(task blocked, or a note) and carry on with other work.'
-                : 'The user said no to this action. Do not retry it; ask what they would like instead.'));
+        refusal: AppState._notApproved(req, 'The user said no to this action. Do not retry it; ask what they would like instead.'));
   }
 
   /// Shows the approval for [g] where the user can answer it: a bot working in the background asks from a notification;

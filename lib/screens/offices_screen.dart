@@ -1304,8 +1304,8 @@ class _PeopleTab extends StatelessWidget {
         label: 'Freedom',
         value: o.trust,
         options: const {
-          'ask': 'Each bot asks first (recommended)',
-          'trusted': 'Whole team: no asking, not even before sending or paying'
+          'ask': 'Checks with me in words before money, sending or deleting',
+          'trusted': 'Acts; checks only before money or deleting'
         },
         onChanged: (v) {
           o.trust = v;

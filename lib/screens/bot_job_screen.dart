@@ -499,15 +499,11 @@ class _SettingsTab extends StatelessWidget {
         options: {for (final e in BotTrust.labels.entries) e.key: '${e.value}: ${BotTrust.blurbs[e.key]}'},
         onChanged: (v) => Bots.I.setTrust(b, v),
       ),
-      if (b.level == BotTrust.levelNew)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text(
-              b.cleanOk > 0
-                  ? '${b.cleanOk} approval${b.cleanOk == 1 ? '' : 's'} in a row without changes. On its own is offered after ${b.trustOfferAt}.'
-                  : 'On its own is offered after ${BotTrust.promoteAfter} approvals in a row without changes.',
-              style: TextStyle(color: p.muted, fontSize: AppText.micro)),
-        ),
+      Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text('${b.name} acts on its own; there are no approval cards. It asks you in words before anything big.',
+            style: TextStyle(color: p.muted, fontSize: AppText.micro)),
+      ),
       _Pick(
         label: 'Voice',
         value: b.voice,

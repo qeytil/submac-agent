@@ -21,7 +21,6 @@ import 'skill_library.dart';
 import 'missions.dart';
 import 'system_bridge.dart';
 import 'team_key.dart';
-import 'full_access.dart';
 import 'trust.dart';
 
 /// Bots: colleagues who live in SubMac. Each has an identity, a role, its own memory, a desk of tasks, routines and
@@ -276,8 +275,9 @@ class Bot {
   /// "Works in the cloud" (plan 2.1): null = the default ([cloudFit]), true/false = the owner's choice.
   bool? cloudChoice;
 
-  /// Plan 5.2 trust level: 'new' (asks before every change) or 'trusted' (routine work on its own; still asks before
-  /// money, sending and deleting). '' = not set yet (bots made before 1.13.27; AppState sets it once).
+  /// How much it checks with the owner in words (owner 2026-11-08; no approval cards any more): 'new' asks before
+  /// money, sending as the owner, deleting or a big change; 'trusted' asks only before money or deleting. '' = not set
+  /// yet (bots made before 1.13.27; AppState sets it once).
   String trust = '';
   /// Approvals in a row the owner did not edit, and the count at which Trusted is offered next.
   int cleanOk = 0;
@@ -778,7 +778,8 @@ class Bots extends ChangeNotifier {
       b.cleanOk = 0;
       b.trustOfferAt = BotTrust.promoteAfter;
     }
-    b.log('note', b.trust == BotTrust.levelTrusted ? 'You made me Trusted.' : 'Back to New: I ask before every change.');
+    b.log('note', b.trust == BotTrust.levelTrusted ? 'You made me Trusted: I act on everyday work and only check before money or deleting.'
+        : 'Back to New: I check with you before anything big.');
     await save();
   }
 
@@ -1643,10 +1644,10 @@ class Bots extends ChangeNotifier {
       ..writeln('- Check your work before you deliver: exactly what was asked, facts and numbers right, sources linked. Long work goes in a document.')
       ..writeln('- Stuck (two failed tries, or missing information): ask a colleague with bot_ask, your team lead in a team, or the owner one clear question. '
           'After a mistake or a correction, save one general lesson with bot_lesson (never names or private facts).')
-      ..writeln(FullAccess.I.on
-          ? '- The owner turned on Full access: your actions run without an approval card, except payments and purchases. Just call the tool.'
-          : '- Your trust level is ${b.level == BotTrust.levelTrusted ? 'Trusted: routine changes run; money, sending, posting and deleting still get the owner\'s approval card' : 'New: every action that changes something gets the owner\'s approval card first'}. '
-          'Just call the tool; the card (Approve · Edit · Not now) appears by itself, so never ask twice in text.')
+      ..writeln('- You act on your own: call the tool you need and carry the work through; there is no approval card and '
+          'nothing to wait for. '
+          '${b.level == BotTrust.levelTrusted ? 'Ask the owner in one short, clear message ("can I ...?") before you spend their money or delete something important, and wait for their answer.' : 'Before anything that is not yours to decide — spending their money, sending or posting as them to other people, deleting something important, or a big change to their apps or accounts — stop and ask them in one short, clear message ("can I ...?") and wait for their answer.'} '
+          'Everyday work asks nothing.')
       ..writeln('- Never say something is done, sent or running unless a tool result shows it. Never invent facts.')
       ..writeln('\n# How you reply')
       ..writeln('- A simple question: a sentence or two. A task: start with one short line on what you will do (it shows while you work), '

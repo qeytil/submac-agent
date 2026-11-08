@@ -28,6 +28,9 @@ void main() {
     expect(t, contains('bots/boc1/'));
     expect(t, contains('Your name is Hodan'));
     expect(t, isNot(contains('Your name is SubMac')));
+    // Owner 2026-11-08: no approval card; it asks the owner in words before anything big.
+    expect(t, contains('there is no approval card'));
+    expect(t, contains('can I ...?'));
     // In the team chat the owner is not watching: no question-tool line.
     expect(Bots.I.agentBriefOf(b, team: true), isNot(contains('call your question tool')));
   });
