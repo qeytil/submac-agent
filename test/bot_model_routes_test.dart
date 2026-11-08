@@ -158,6 +158,50 @@ void main() {
       expect(j['generationConfig'], {'maxOutputTokens': 20});
       expect(ByokFetch.chatText(ByokKind.gemini, {'candidates': [{'content': {'parts': [{'text': 'hm', 'thought': true}, {'text': 'Nova.'}]}}]}), 'Nova.');
     });
+
+    test('Anthropic tool step: Messages shape with tools and tool_use/tool_result blocks', () {
+      final p = _prov(kind: ByokKind.anthropic, base: 'https://api.anthropic.com/v1');
+      final r = ByokFetch.toolChatRequest(p, 'sk-ant', 'claude-x', [
+        {'role': 'system', 'content': 'You are Nova.'},
+        {'role': 'user', 'content': 'open it'},
+        {'role': 'assistant', 'tool_calls': [
+          {'id': 'c1', 'type': 'function', 'function': {'name': 'browser_open', 'arguments': '{"url":"https://a"}'}}
+        ]},
+        {'role': 'tool', 'tool_call_id': 'c1', 'name': 'browser_open', 'content': 'opened'},
+      ], [
+        {'type': 'function', 'function': {'name': 'browser_open', 'description': 'Open', 'parameters': {'type': 'object', 'properties': {}}}},
+      ], maxTokens: 100);
+      expect(r.url.toString(), 'https://api.anthropic.com/v1/messages');
+      expect(r.headers['x-api-key'], 'sk-ant');
+      final j = jsonDecode(r.body) as Map;
+      expect(j['system'], 'You are Nova.');
+      expect(j['max_tokens'], 100);
+      expect(j['tools'], [{'name': 'browser_open', 'description': 'Open', 'input_schema': {'type': 'object', 'properties': {}}}]);
+      final m = j['messages'] as List;
+      expect(m[0], {'role': 'user', 'content': [{'type': 'text', 'text': 'open it'}]});
+      expect((m[1] as Map)['content'][0], {'type': 'tool_use', 'id': 'c1', 'name': 'browser_open', 'input': {'url': 'https://a'}});
+      expect((m[2] as Map)['content'][0], {'type': 'tool_result', 'tool_use_id': 'c1', 'content': 'opened'});
+      final a = ByokFetch.toolChatAnswer(ByokKind.anthropic, {
+        'content': [{'type': 'text', 'text': 'Calling'}, {'type': 'tool_use', 'id': 'c2', 'name': 'browser_open', 'input': {'url': 'https://b'}}],
+        'stop_reason': 'tool_use', 'usage': {'input_tokens': 30, 'output_tokens': 10},
+      });
+      expect(a.text, 'Calling');
+      expect(a.calls.single, {'id': 'c2', 'name': 'browser_open', 'arguments': '{"url":"https://b"}'});
+      expect(a.finish, 'tool_calls');
+      expect(a.tokens, 40);
+    });
+
+    test('Gemini tool step goes through its OpenAI-compatible endpoint', () {
+      final p = _prov(kind: ByokKind.gemini, base: 'https://generativelanguage.googleapis.com/v1beta');
+      final r = ByokFetch.toolChatRequest(p, 'g-1', 'gemini-x', [
+        {'role': 'user', 'content': 'hi'}
+      ], [
+        {'type': 'function', 'function': {'name': 'browser_open', 'parameters': {}}}
+      ]);
+      expect(r.url.toString(), 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+      expect(r.headers['Authorization'], 'Bearer g-1');
+      expect((jsonDecode(r.body) as Map)['tools'], isNotNull);
+    });
   });
 
   group('every app path', () {

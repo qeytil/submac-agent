@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'byok.dart';
 import 'byok_fetch.dart';
 import 'bots.dart';
@@ -156,7 +158,7 @@ class BotBrowserModel {
     try {
       final a = await ByokFetch.I.toolChat(pick.provider, st.activeSecret(pick.provider), pick.model.id, messages, tools,
           maxTokens: BotLlm.capFor(pick, 4096));
-      return LlmResult(a.text, [for (final c in a.calls) ToolCall(id: c['id']!, name: c['name']!, arguments: c['arguments']!)], a.finish,
+      return LlmResult(a.text, [for (final c in a.calls) ToolCall(id: c['id']!, name: c['name']!, arguments: c['arguments']!, extra: c['extra'] == null ? null : jsonDecode(c['extra']!) as Map<String, dynamic>)], a.finish,
           a.tokens, a.tokensIn, a.tokensOut);
     } on ByokError catch (e) {
       await st.rotateAfter(pick.provider.id, e.message).catchError((Object _) => null);

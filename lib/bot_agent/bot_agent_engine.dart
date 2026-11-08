@@ -113,6 +113,21 @@ class BotAgentEngine {
           'content': r.content,
           'tool_calls': [for (final c in r.toolCalls) c.toJson()],
         });
+        // Parts that do not depend on each other run at the same time (a team's hand-offs; owner 2026-11-08). The
+        // results go back in the calls' own order, so the model reads them as its call list.
+        if (config.parallelTools && r.toolCalls.length > 1) {
+          final outs = await Future.wait([for (final c in r.toolCalls) runTool(c)]);
+          for (var k = 0; k < r.toolCalls.length; k++) {
+            final c = r.toolCalls[k];
+            messages.add({'role': 'tool', 'tool_call_id': c.id, 'name': c.name, 'content': outs[k]});
+          }
+          calls += r.toolCalls.length;
+          if (cancelled()) {
+            stopped = 'cancelled';
+            break;
+          }
+          continue;
+        }
         var cutByUser = false;
         for (final c in r.toolCalls) {
           if (cancelled()) {

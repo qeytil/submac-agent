@@ -226,7 +226,7 @@ void main() {
       expect(r.headers['Authorization'], 'Bearer k-1');
       expect(r.body, contains('"tools"'));
       expect(r.body, contains('"stream":false'));
-      final a = ByokFetch.toolChatAnswer({
+      final a = ByokFetch.toolChatAnswer(ByokKind.openaiCompatible, {
         'choices': [
           {
             'message': {
@@ -243,8 +243,8 @@ void main() {
       expect(a.text, 'Opening');
       expect(a.calls.single, {'id': 'c1', 'name': 'browser_open', 'arguments': '{"url":"https://a.example"}'});
       expect(a.tokens, 120);
-      expect(ByokFetch.toolChatOk(store.providers.last), isFalse);
-      expect(() => ByokFetch.toolChatAnswer({'nope': 1}), throwsA(isA<ByokError>()));
+      expect(ByokFetch.toolChatOk(store.providers.last), isTrue, reason: 'Anthropic keys take tools now (owner 2026-11-08)');
+      expect(() => ByokFetch.toolChatAnswer(ByokKind.openaiCompatible, {'nope': 1}), throwsA(isA<ByokError>()));
     });
 
     test('byokStep turns the answer into the agent core\'s LlmResult (override seam)', () async {

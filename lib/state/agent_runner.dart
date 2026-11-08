@@ -547,6 +547,10 @@ extension AppStateAgentRunner on AppState {
     final own = model.byok;
     final submac = model.submac ?? submacRef;
     final bg = _backgroundLane(convId);
+    // Never silently moved onto SubMac's model: say so once (owner 2026-11-08).
+    if (own == null && (OcLane.botModelUnavailable(b.model) || model.note.isNotEmpty)) {
+      Bots.I.noteModelUnavailable(b, 'I could not use your chosen model (${b.model}); this turn ran on SubMac\'s model. ${model.note}');
+    }
     // SubMac's tools may have changed since the last turn (an app connected, its tools loaded).
     await ensureMcpTools().catchError((Object _) {});
     final tools = AppState._capTools(_mcpTools(convId)) ?? const <Map<String, dynamic>>[];
@@ -879,6 +883,10 @@ extension AppStateAgentRunner on AppState {
     final model = BotBrowserModel.of(b, submacRef);
     final own = model.byok;
     final submac = model.submac ?? submacRef;
+    // Never silently moved onto SubMac's model: say so once (owner 2026-11-08).
+    if (own == null && (OcLane.botModelUnavailable(b.model) || model.note.isNotEmpty)) {
+      Bots.I.noteModelUnavailable(b, 'I could not use your chosen model (${b.model}); this team turn ran on SubMac\'s model. ${model.note}');
+    }
     // Answering the owner in the team chat is the owner's own conversation; the rest is office work on the bots'
     // share (the same lane opencode's office provider billed to).
     final source = background ? UsageSource.office : UsageSource.agent;
@@ -910,6 +918,8 @@ extension AppStateAgentRunner on AppState {
         name: b.name,
         folder: Bots.botFolder(b),
         maxSteps: maxSteps.clamp(6, 80).toInt(),
+        // A team's hand-offs do not depend on each other: run them at the same time (owner 2026-11-08).
+        parallelTools: true,
       );
       final tools = AppState._capTools(_mcpTools(key)) ?? const <Map<String, dynamic>>[];
       final engine = BotAgentEngine(

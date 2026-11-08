@@ -1565,6 +1565,15 @@ class Bots extends ChangeNotifier {
     unawaited(save());
   }
 
+  /// One plain note (once a day) when the model the owner picked for [b] cannot run here, so a bot is never silently
+  /// moved onto SubMac's model (owner 2026-11-08: the BYOK truth).
+  void noteModelUnavailable(Bot b, String why) {
+    final now = DateTime.now();
+    if (b.journal.any((e) => e.kind == 'model' && now.difference(e.at).inHours < 20)) return;
+    b.log('model', why.trim());
+    unawaited(save());
+  }
+
   /// The goal and steps of the mission [b] proposed, when [text] is the owner clearly agreeing (and the proposal is
   /// still fresh, two days). [team] must match the proposal's context ('' = its own chat, else that team). Clears the
   /// proposal so it starts once. null otherwise.

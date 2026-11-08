@@ -16,6 +16,7 @@ class BotAgentConfig {
     this.maxSteps = 24,
     this.maxContinues = 4,
     this.maxToolChars = 16000,
+    this.parallelTools = false,
   });
 
   /// The bot this engine runs for.
@@ -35,6 +36,10 @@ class BotAgentConfig {
 
   /// The most characters of a tool's output kept in the model's context and the chat row.
   final int maxToolChars;
+
+  /// Run a step's tool calls at the same time when there is more than one (a team's independent hand-offs). Off for a
+  /// bot's own chat, where steps usually run one tool and rows must stay in order.
+  final bool parallelTools;
 
   /// A stable key for the bot's own session and log lines (never shared with the owner's chat).
   String get sessionKey => 'bot:$botId';

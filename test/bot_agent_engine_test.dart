@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 BotAgentConfig _cfg({int maxSteps = 24, int maxContinues = 4}) =>
     BotAgentConfig(botId: 'b1', name: 'Weriye', folder: 'bots/b1', maxSteps: maxSteps, maxContinues: maxContinues);
 
+BotAgentConfig _cfgPar() => BotAgentConfig(botId: 'b1', name: 'Weriye', folder: 'bots/b1', parallelTools: true);
 LlmResult _text(String s, [int tokens = 3]) => LlmResult(s, const <ToolCall>[], 'stop', tokens);
 
 LlmResult _call(String name, [String args = '{}', int tokens = 0]) =>
@@ -126,5 +127,38 @@ void main() {
     final r = await engine.run(system: '', history: const [], tools: const []);
     expect(r.stopped, 'cancelled');
     expect(r.steps, 1);
+  });
+
+  test('parallel tools (a team) run at once and their results keep the call order', () async {
+    var live = 0, peak = 0;
+    final started = <String>[];
+    final engine = BotAgentEngine(
+      config: _cfgPar(),
+      cancelled: () => false,
+      step: (m, t) async {
+        if (started.isEmpty) {
+          return LlmResult('', [
+            ToolCall(id: 'c1', name: 'handoff_a', arguments: '{}'),
+            ToolCall(id: 'c2', name: 'handoff_b', arguments: '{}'),
+          ], 'tool_calls');
+        }
+        expect(m[m.length - 2]['tool_call_id'], 'c1');
+        expect(m[m.length - 1]['tool_call_id'], 'c2');
+        expect(m[m.length - 1]['content'], 'result handoff_b');
+        return _text('done');
+      },
+      runTool: (c) async {
+        started.add(c.name);
+        live++;
+        peak = live > peak ? live : peak;
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+        live--;
+        return 'result ${c.name}';
+      },
+    );
+    final r = await engine.run(system: '', history: const [], tools: const []);
+    expect(r.reply, 'done');
+    expect(peak, 2, reason: 'both hand-offs ran at the same time');
+    expect(r.toolCalls, 2);
   });
 }

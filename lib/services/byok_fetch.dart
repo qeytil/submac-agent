@@ -349,14 +349,24 @@ class ByokFetch {
     }
   }
 
-  /// Can [p] take a tool-calling chat in the OpenAI shape (messages with tool_calls/tool rows, image parts, tools)?
-  /// The browser agent's steps need that (owner 2026-11-07: a bot's browser task on the bot's own model).
-  static bool toolChatOk(ByokProvider p) => !p.kind.isAnthropic && p.kind != ByokKind.gemini;
+  /// Can [p] take a tool-calling chat now? OpenAI-shaped providers directly; Gemini through its OpenAI-compatible
+  /// endpoint; Anthropic (and Anthropic-compatible) through the Messages API translation below. Owner 2026-11-08:
+  /// every kind we support is, so a bot is never silently moved off its own key.
+  static bool toolChatOk(ByokProvider p) => true;
+
+  /// Bearer auth (Gemini's OpenAI-compatible endpoint, and every OpenAI-shaped provider).
+  static Map<String, String> _bearer(String? key) {
+    final k = (key ?? '').trim();
+    return {if (k.isNotEmpty) 'Authorization': 'Bearer $k'};
+  }
 
   /// One tool-calling step to an OpenAI-compatible [p] (no stream): [messages] and [tools] go as they are.
   static http.Request toolChatRequest(ByokProvider p, String? key, String model, List<Map<String, dynamic>> messages,
       List<Map<String, dynamic>> tools, {int? maxTokens}) {
-    final r = http.Request('POST', Uri.parse('${p.apiBase}/chat/completions'));
+    if (p.kind.isAnthropic) return anthropicToolRequest(p, key, model, messages, tools, maxTokens: maxTokens);
+    // Gemini takes the OpenAI shape through its OpenAI-compatible endpoint (Bearer key). Every other kind already is.
+    final gemini = p.kind == ByokKind.gemini;
+    final r = http.Request('POST', Uri.parse('${p.apiBase}${gemini ? '/openai' : ''}/chat/completions'));
     r.body = jsonEncode({
       'model': model,
       'messages': messages,
@@ -365,12 +375,99 @@ class ByokFetch {
       'stream': false,
       if (maxTokens != null) 'max_tokens': maxTokens,
     });
+    r.headers.addAll({'content-type': 'application/json', 'accept': 'application/json', ...p.headers,
+      ...(gemini ? _bearer(key) : authHeaders(p.kind, key))});
+    return r;
+  }
+
+  /// The same tool-calling step in Anthropic's Messages API shape (system apart; tools as name/description/input_schema;
+  /// assistant tool_use and user tool_result blocks). Owner 2026-11-08: an Anthropic bot runs on its own key too.
+  static http.Request anthropicToolRequest(ByokProvider p, String? key, String model, List<Map<String, dynamic>> messages,
+      List<Map<String, dynamic>> tools, {int? maxTokens}) {
+    String textOf(Object? c) => c is String
+        ? c
+        : c is List
+            ? c.map((e) => e is Map && e['type'] == 'text' ? '${e['text'] ?? ''}' : '').where((t) => t.isNotEmpty).join('\n')
+            : '${c ?? ''}';
+    final system = [for (final m in messages) if (m['role'] == 'system') textOf(m['content'])].where((t) => t.trim().isNotEmpty).join('\n\n');
+    final out = <Map<String, dynamic>>[];
+    for (final m in messages) {
+      final role = '${m['role']}';
+      if (role == 'system') continue;
+      if (role == 'tool') {
+        out.add({'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': '${m['tool_call_id'] ?? ''}', 'content': textOf(m['content'])}]});
+      } else if (role == 'assistant') {
+        final blocks = <Map<String, dynamic>>[];
+        if (textOf(m['content']).trim().isNotEmpty) blocks.add({'type': 'text', 'text': textOf(m['content'])});
+        for (final c in (m['tool_calls'] is List ? m['tool_calls'] as List : const [])) {
+          if (c is! Map) continue;
+          final f = c['function'] is Map ? c['function'] as Map : const {};
+          Object? input;
+          try {
+            input = jsonDecode('${f['arguments'] ?? '{}'}');
+          } catch (_) {
+            input = <String, dynamic>{};
+          }
+          blocks.add({'type': 'tool_use', 'id': '${c['id'] ?? ''}', 'name': '${f['name'] ?? ''}', 'input': input ?? <String, dynamic>{}});
+        }
+        if (blocks.isNotEmpty) out.add({'role': 'assistant', 'content': blocks});
+      } else {
+        out.add({'role': 'user', 'content': [{'type': 'text', 'text': textOf(m['content'])}]});
+      }
+    }
+    if (out.isEmpty) out.add({'role': 'user', 'content': [{'type': 'text', 'text': '(continue)'}]});
+    final t = <Map<String, dynamic>>[];
+    for (final d in tools) {
+      final f = d['function'] is Map ? d['function'] as Map : d;
+      if ('${f['name'] ?? ''}'.isEmpty) continue;
+      t.add({'name': '${f['name']}', if (f['description'] != null) 'description': '${f['description']}',
+        'input_schema': f['parameters'] is Map ? f['parameters'] : {'type': 'object', 'properties': <String, dynamic>{}}});
+    }
+    final r = http.Request('POST', Uri.parse('${p.apiBase}/messages'));
+    r.body = jsonEncode({
+      'model': model,
+      'max_tokens': maxTokens ?? 4096,
+      if (system.isNotEmpty) 'system': system,
+      'messages': out,
+      if (t.isNotEmpty) 'tools': t,
+    });
     r.headers.addAll({'content-type': 'application/json', 'accept': 'application/json', ...p.headers, ...authHeaders(p.kind, key)});
     return r;
   }
 
+  /// The answer of an Anthropic tool-calling step: text blocks joined, tool_use blocks as calls (input as JSON args).
+  static ({String text, List<Map<String, String>> calls, String? finish, int tokens, int tokensIn, int tokensOut}) anthropicToolAnswer(Object? json) {
+    if (json is! Map) throw ByokError('The provider answered, but not with a chat reply.');
+    final content = json['content'];
+    var text = '';
+    final calls = <Map<String, String>>[];
+    var i = 0;
+    if (content is List) {
+      for (final b in content) {
+        if (b is! Map) continue;
+        if (b['type'] == 'text') {
+          text += '${b['text'] ?? ''}';
+        } else if (b['type'] == 'tool_use') {
+          calls.add({'id': '${b['id'] ?? 'call_${i++}'}', 'name': '${b['name'] ?? ''}', 'arguments': jsonEncode(b['input'] ?? <String, dynamic>{})});
+        }
+      }
+    }
+    final stop = '${json['stop_reason'] ?? ''}';
+    final u = json['usage'] is Map ? json['usage'] as Map : const {};
+    int n(Object? v) => v is num ? v.toInt() : 0;
+    return (
+      text: text,
+      calls: calls,
+      finish: stop == 'max_tokens' ? 'length' : (stop == 'tool_use' ? 'tool_calls' : 'stop'),
+      tokens: n(u['input_tokens']) + n(u['output_tokens']),
+      tokensIn: n(u['input_tokens']),
+      tokensOut: n(u['output_tokens'])
+    );
+  }
+
   /// The answer of a tool-calling step: its words, tool calls, finish reason and tokens.
-  static ({String text, List<Map<String, String>> calls, String? finish, int tokens, int tokensIn, int tokensOut}) toolChatAnswer(Object? json) {
+  static ({String text, List<Map<String, String>> calls, String? finish, int tokens, int tokensIn, int tokensOut}) toolChatAnswer(ByokKind kind, Object? json) {
+    if (kind.isAnthropic) return anthropicToolAnswer(json);
     if (json is! Map) throw ByokError('The provider answered, but not with a chat reply.');
     final ch = json['choices'];
     if (ch is! List || ch.isEmpty || ch.first is! Map) throw ByokError('The provider answered, but not with a chat reply.');
@@ -384,7 +481,7 @@ class ByokFetch {
       if (t is! Map) continue;
       final f = t['function'] is Map ? t['function'] as Map : const {};
       final args = f['arguments'];
-      calls.add({'id': '${t['id'] ?? 'call_${i++}'}', 'name': '${f['name'] ?? ''}', 'arguments': args is String ? args : jsonEncode(args ?? {})});
+      calls.add({'id': '${t['id'] ?? 'call_${i++}'}', 'name': '${f['name'] ?? ''}', 'arguments': args is String ? args : jsonEncode(args ?? {}), if (t['extra_content'] != null) 'extra': jsonEncode(t['extra_content'])});
     }
     final u = json['usage'] is Map ? json['usage'] as Map : const {};
     int n(Object? v) => v is num ? v.toInt() : 0;
@@ -416,7 +513,7 @@ class ByokFetch {
     } catch (_) {
       throw ByokError('The provider answered, but not with a chat reply.');
     }
-    return toolChatAnswer(j);
+    return toolChatAnswer(p.kind, j);
   }
 
   /// Tests [p] with [key]: lists models; when the provider has no list (404/405) and [model] is given, sends one tiny
