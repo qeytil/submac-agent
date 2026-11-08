@@ -120,6 +120,7 @@ import 'services/tool_scope.dart';
 import 'services/constraints.dart';
 import 'services/house_rules.dart';
 import 'services/outbound_guard.dart';
+import 'services/always_on.dart';
 
 part 'state/agent_runner.dart';
 part 'state/agent_stream.dart';
@@ -375,6 +376,10 @@ class AppState extends ChangeNotifier {
   final ValueNotifier<String?> openRequest = ValueNotifier<String?>(null);
 
   Timer? _retryTimer;
+
+  /// "Always on" (owner 2026-11-08): the few-minute local pulse that re-asserts the steady foreground service and
+  /// catches a heartbeat the OS killed and never redelivered. Null while "Always on" is off.
+  Timer? _alwaysOnPulse;
 
   /// Time until the daily cloud allowance refreshes (midnight UTC), plus a few minutes.
   static Duration _untilAllowanceResets() {

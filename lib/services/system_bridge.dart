@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 
+import 'always_on.dart';
+
 /// Talks to SubMac's Android side: wake word, floating Live, phone control, SMS,
 /// notifications, scheduled alarms and permission status.
 class SystemBridge {
@@ -267,7 +269,12 @@ class SystemBridge {
       await _call('clearTasks');
     } catch (_) {}
   }
-  Future<void> keepAlive(bool on, {String text = 'SubMac is active'}) => _call('keepAlive', {'on': on, 'text': text});
+  /// Turns the "SubMac is active" foreground service on or off. With "Always on" (owner 2026-11-08) a finished run does
+  /// not drop it: the turn-off is turned back into the steady line, so the people stay present between runs.
+  Future<void> keepAlive(bool on, {String text = 'SubMac is active'}) {
+    if (!on && AlwaysOn.I.on) return _call('keepAlive', {'on': true, 'text': AlwaysOn.body});
+    return _call('keepAlive', {'on': on, 'text': text});
+  }
   /// [label]: the line the foreground service shows when the alarm starts SubMac ("<Bot name> · <task title>").
   Future<void> scheduleAlarm(String id, DateTime at, {String label = ''}) =>
       _call('scheduleAlarm', {'id': id, 'at': at.millisecondsSinceEpoch, if (label.isNotEmpty) 'label': label});

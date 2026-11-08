@@ -188,6 +188,8 @@ extension AppStateSettings on AppState {
 
   Future<void> onSignedIn() async {
     unawaited(Cloud.refreshStatus(force: true));
+    // "Always on" (owner 2026-11-08): now there is an account and its bots, hold the steady service.
+    unawaited(initAlwaysOn());
     // Plan 2.6: settle replied/ignored and kept_7d, then send queued events (bots load first).
     unawaited(Future<void>.delayed(const Duration(seconds: 30), () => Events.I.sweep([for (final x in Bots.I.bots) (x.id, x.active)])));
     Cloud.usage.removeListener(_usageNotice);
@@ -308,4 +310,62 @@ extension AppStateSettings on AppState {
     local.approvalMode = v;
     _notify();
   }
+
+  // ---------- always on ----------
+  /// "Always on" (owner 2026-11-08) is on by default: a steady foreground service plus a local pulse, so the digital
+  /// people feel present instead of waking only on an alarm. Turning it off keeps the old behaviour: the service runs
+  /// only while a task actually does.
+  bool get alwaysOn => AlwaysOn.I.on;
+
+  /// Called once at startup, after the local store is ready. It only keeps the phone awake once there is an account to
+  /// work for, so a signed-out start never claims "your digital people are active".
+  Future<void> initAlwaysOn() async {
+    AlwaysOn.I.load(local.prefs);
+    if (!AlwaysOn.I.on || repo.userId == null) return;
+    await SystemBridge.I.keepAlive(true, text: AlwaysOn.body);
+    startAlwaysOnPulse();
+  }
+
+  Future<void> setAlwaysOn(bool v) async {
+    await AlwaysOn.I.set(local.prefs, v);
+    _alwaysOnPulse?.cancel();
+    _alwaysOnPulse = null;
+    if (v) {
+      await SystemBridge.I.keepAlive(true, text: AlwaysOn.body);
+      startAlwaysOnPulse();
+    } else if (!runs.any((r) => !r.side) && _officeBusy.isEmpty) {
+      // Nothing is running now, so the steady service can go; a running task keeps its own hold.
+      await SystemBridge.I.keepAlive(false);
+    }
+    _notify();
+  }
+
+  /// The few-minute pulse while "Always on" is on. Idempotent: calling it again restarts the same single timer.
+  void startAlwaysOnPulse() {
+    if (!AlwaysOn.I.on) return;
+    _alwaysOnPulse?.cancel();
+    _alwaysOnPulse = Timer.periodic(const Duration(minutes: 5), (_) {
+      unawaited(_alwaysOnTick());
+    });
+  }
+
+  /// One pulse: keep the service steady, and wake a heartbeat the OS killed and never redelivered. Local only: no model
+  /// call happens unless a bot is genuinely due.
+  Future<void> _alwaysOnTick() async {
+    if (!AlwaysOn.I.on) return;
+    unawaited(SystemBridge.I.keepAlive(true, text: AlwaysOn.body));
+    final now = DateTime.now();
+    for (final b in Bots.I.bots) {
+      if (!b.active) continue;
+      final hb = b.effectiveHeartbeat;
+      if (hb <= 0 || b.quietNow(now)) continue;
+      final last = b.lastWake ?? now;
+      // Only when the exact heartbeat alarm is clearly overdue (the OS killed it); otherwise it already ran.
+      if (now.difference(last) < Duration(hours: hb, minutes: 5)) continue;
+      unawaited(Bots.I.fire(Bots.alarmId(b, 'hb')));
+    }
+  }
+
+  @visibleForTesting
+  Future<void> alwaysOnTickForTest() => _alwaysOnTick();
 }

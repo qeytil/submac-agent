@@ -575,6 +575,14 @@ class _AdvancedPage extends StatelessWidget {
         ),
       ]),
       _Group([
+        SwitchListTile(
+          title: const Text('Always on'),
+          subtitle: const Text('Your digital people stay active between tasks. Uses more battery.'),
+          value: state.alwaysOn,
+          onChanged: (v) => state.setAlwaysOn(v),
+        ),
+      ]),
+      _Group([
         ListTile(
           title: const Text('API & tool servers'),
           trailing: Icon(Icons.chevron_right_rounded, color: muted),

@@ -122,6 +122,26 @@ with the SubMac agent (owner 2026-11-07). opencode is reserved for the owner's c
 lane. The team's `_teamPermission` helper remains in `agent_runner.dart` for the owner-chat opencode path only; no
 opencode session ever runs under a `TeamKey`.
 
+## 5. Always on (owner 2026-11-08)
+
+A digital person should feel present, not only wake on an alarm. "Always on" is the phone-side version of that: on by
+default, it keeps SubMac's foreground service up all day and pulses it, so a bot is never waiting for the app to be
+opened.
+
+- **`lib/services/always_on.dart`** — `AlwaysOn.I`: the saved choice (`always_on`, default **on**) and the steady
+  service line (`Your digital people are active`).
+- **The steady service** (`SystemBridge.keepAlive`): while "Always on" is on, the many `keepAlive(false)` calls that
+  normally end a run are turned back into the steady line, so the service does not blink off between tasks. A run's own
+  hold, and the owner's message, still show their own line.
+- **The pulse** (`AppState.startAlwaysOnPulse`, every 5 minutes): re-asserts the service, and wakes a heartbeat whose
+  exact alarm the OS killed and never redelivered (overdue by more than 5 minutes, never in quiet hours, never for a bot
+  with no heartbeat). It is **local**: no model call happens unless a bot is genuinely due.
+- **The trade-off**, spelled out in Settings > Advanced: it uses more battery (the service holds a wake lock while it
+  runs). Turning it off is the old behaviour — the service runs only while a task actually does.
+- **No Kotlin change.** A continuous "thinking" loop would be frozen or killed by Android's Doze and OEM battery
+  killers, and would drain the battery in hours. The heartbeat stays the pulse, and events (routines, follow-ups,
+  missions, watches, messages) stay the reason to wake; the pulse only keeps the phone ready.
+
 ## Tests
 - `test/bot_agent_engine_test.dart`: the loop on its own — a plain answer, a tool round-trip, a reply cut for length
   continued and joined, the allowance stopping between steps, the step cap, per-step tokens, and cancellation.
@@ -137,6 +157,8 @@ opencode session ever runs under a `TeamKey`.
   BotBrowserModel routes and the OpenAI tool-call request/answer; source checks for the off-screen tab, the layer and
   BootReceiver; an off-screen start failure marks the session.
 - `test/tool_budget_test.dart`: cap 11560 → 11970 for the four mission tools (~400 tokens).
+- `test/always_on_test.dart`: while "Always on", a finished run keeps the steady service and a finished run while it is
+  off really drops it; a pulse re-asserts the line and wakes only a genuinely overdue heartbeat, never one that ran.
 
 ## Device checks (after the next APK)
 1. Bot Job page → Mission → goal "Every 2 hours check the price of <product> on two shops and keep a log", 6 runs a

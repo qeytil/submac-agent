@@ -92,6 +92,9 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('initLocal failed: $e');
   }
+  // "Always on" (owner 2026-11-08): keep the steady foreground service and start the local pulse. It is a no-op until
+  // there is an account, and a no-op for a whole run when the owner turned it off.
+  unawaited(state.initAlwaysOn().catchError((Object e) => debugPrint('always on: $e')));
   // Push (plan 2.1). Optional: if Firebase fails the app runs as before, just without push.
   unawaited(Push.I.init().catchError((_) {}));
   // Plan 2.4 rewards (invite link, claim a referral once after sign-up) and the "From SubMac" inbox.
