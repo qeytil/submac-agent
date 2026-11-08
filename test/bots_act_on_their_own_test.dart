@@ -1,5 +1,7 @@
 // Owner 2026-11-08: a bot and a team member are people, not an approval workflow. No gate, no approval card: a risky
 // call runs (their brief tells them to ask the owner in words first). SubMac's own chat keeps its card.
+import 'dart:io';
+
 import 'package:agent/app_state.dart';
 import 'package:agent/services/bots.dart';
 import 'package:agent/services/team_key.dart';
@@ -67,5 +69,17 @@ void main() {
     expect(yes?.steps, ['find suppliers', 'compare prices']);
     expect(b.proposeGoal, isEmpty, reason: 'it starts once');
     expect(Bots.I.approvedProposal(b, 'yes'), isNull, reason: 'nothing waits now');
+  });
+
+  test('the SubMac allowance never stops or bills a bot on its own key', () {
+    final ctl = File('lib/state/bots_controller.dart').readAsStringSync();
+    expect(ctl, contains("b.overBudget && kind != 'chat' && BotModelRoute.of(b).byok == null"));
+    expect(ctl, contains("b.overBudget && j.kind != 'reply' && BotModelRoute.of(b).byok == null"));
+    expect(ctl, contains('if (!route.isByok) {'), reason: 'the one-answer calls count SubMac-lane work only');
+    final runner = File('lib/state/agent_runner.dart').readAsStringSync();
+    expect(runner, contains('if (!OcLane.isByok(laneModel)) bot.addTokens(turn.tokens);'));
+    expect(runner, contains('if (own == null) b.addTokens(r.tokens);'));
+    final router = File('lib/state/tool_router.dart').readAsStringSync();
+    expect(router, isNot(contains('bot.addTokens(r.tokens)')), reason: 'a BYOK browser step is not SubMac-billed');
   });
 }

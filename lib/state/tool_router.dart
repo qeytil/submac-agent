@@ -15,10 +15,8 @@ extension AppStateTools on AppState {
       final own = pick.byok;
       if (own != null) {
         final msgs = pick.sees ? payload : BotBrowserModel.withoutImages(payload);
-        final r = await BotBrowserModel.byokStep(own, msgs, tools);
-        final bot = Bots.I.byId(job.botId);
-        if (bot != null && r.tokens > 0) bot.addTokens(r.tokens);
-        return r;
+        // On the owner's own key: not billed by SubMac, so it does not count toward the bot's SubMac allowance.
+        return await BotBrowserModel.byokStep(own, msgs, tools);
       }
       final route = pick.submac ?? submacRef;
       final run = _jobRuns[job.id] ??= AgentRun(convId: job.convId, side: true, title: 'Browser');

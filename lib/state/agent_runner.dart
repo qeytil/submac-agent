@@ -454,9 +454,10 @@ extension AppStateAgentRunner on AppState {
         // A bot's opencode work counts toward its own daily budget.
         final bot = Bots.I.byConv(convId);
         if (bot != null && turn.tokens > 0) {
-          bot.addTokens(turn.tokens);
+          // The bot's SubMac allowance counts the SubMac lane only; on its own key it is not billed by SubMac.
+          if (!OcLane.isByok(laneModel)) bot.addTokens(turn.tokens);
           unawaited(Bots.I.save());
-          // ...and toward its mission while a mission run goes on.
+          // ...and toward its mission while a mission run goes on (the mission's own cap counts all its work).
           if (bg) Missions.I.addTokens('bot', bot.id, turn.tokens);
         }
       }
@@ -562,7 +563,8 @@ extension AppStateAgentRunner on AppState {
       stop: () => bg && own == null && (b.overBudget || (Missions.I.leftFor('bot', b.id) ?? 1) == 0),
       onStep: (r) {
         if (r.tokens <= 0) return;
-        b.addTokens(r.tokens);
+        // Its SubMac allowance counts the SubMac lane only; on its own key it is not billed by SubMac.
+        if (own == null) b.addTokens(r.tokens);
         if (bg) Missions.I.addTokens('bot', b.id, r.tokens);
         unawaited(Bots.I.save());
       },
@@ -920,7 +922,8 @@ extension AppStateAgentRunner on AppState {
             (b.overBudget || (office != null && (Missions.I.leftFor('team', office) ?? 1) == 0)),
         onStep: (r) {
           if (r.tokens <= 0) return;
-          b.addTokens(r.tokens);
+          // Its SubMac allowance counts the SubMac lane only; on its own key it is not billed by SubMac.
+          if (own == null) b.addTokens(r.tokens);
           if (office != null) Missions.I.addTokens('team', office, r.tokens);
           unawaited(Bots.I.save());
         },

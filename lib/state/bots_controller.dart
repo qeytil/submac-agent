@@ -238,7 +238,9 @@ extension AppStateBots on AppState {
       return;
     }
     // Its own daily token budget is used up: background work waits for tomorrow (chats with the owner still answer).
-    if (b.overBudget && kind != 'chat') {
+    // The budget is its share of SubMac's allowance, so it only stops SubMac-billed work: a bot on its own (BYOK) key
+    // is not billed by SubMac, and its allowance never fights that (owner 2026-11-08).
+    if (b.overBudget && kind != 'chat' && BotModelRoute.of(b).byok == null) {
       if (!b.journal.any((e) => e.kind == 'budget' && DateTime.now().difference(e.at).inHours < 20)) {
         b.log('budget', 'Skipped work: today\'s token budget is used up');
         await Bots.I.save();
@@ -647,8 +649,11 @@ extension AppStateBots on AppState {
       {'role': 'system', 'content': system},
       {'role': 'user', 'content': user},
     ], maxTokens: maxTokens, continues: ReplyContinuation.maxContinues, source: 'office', background: true, route: route, provider: submacRef.provider);
-    b.addTokens((system.length + user.length + t.length) ~/ 4);
-    unawaited(Bots.I.save());
+    // Its SubMac allowance counts the SubMac lane only; on its own key this is the owner's spend, not SubMac's.
+    if (!route.isByok) {
+      b.addTokens((system.length + user.length + t.length) ~/ 4);
+      unawaited(Bots.I.save());
+    }
     return t;
   }
 
@@ -787,7 +792,7 @@ extension AppStateBots on AppState {
         return;
       }
       if (!b.active) await Bots.I.hire(b, b.convId);
-      if (b.overBudget && j.kind != 'reply') {
+      if (b.overBudget && j.kind != 'reply' && BotModelRoute.of(b).byok == null) {
         final now = DateTime.now();
         final tomorrow = DateTime(now.year, now.month, now.day + 1, 0, 5);
         if (!b.journal.any((e) => e.kind == 'budget' && now.difference(e.at).inHours < 20)) {
