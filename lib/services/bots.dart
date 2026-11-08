@@ -14,6 +14,7 @@ import 'bot_powers.dart';
 import 'events.dart';
 import 'telegram_bridge.dart';
 import 'bot_manner.dart';
+import 'bot_runtime.dart';
 import 'no_reply.dart';
 import 'house_rules.dart';
 import 'skill_library.dart';
@@ -555,14 +556,17 @@ class Bot {
   /// Hours between heartbeats, slower when the user keeps ignoring it.
   int get effectiveHeartbeat => heartbeatHours <= 0 ? 0 : (ignoredStreak >= 3 ? heartbeatHours * 2 : heartbeatHours);
 
-  /// Presence (plan 5.2): working (a run is going now) | free | off (not hired, paused or quiet hours).
-  String presence(bool workingNow) {
-    if (!active) return 'off';
-    if (workingNow) return 'working';
-    return quietNow() ? 'off' : 'free';
-  }
+  /// A plain check-in has nothing to do when there is no open desk work and no promised follow-up (owner 2026-11-08):
+  /// its heartbeat then costs nothing at all, no model call.
+  bool get checkInEmpty => desk.every((t) => t.status == 'done') && followups.isEmpty;
 
-  static const presenceLabels = {'working': 'Working', 'free': 'Free', 'off': 'Off'};
+  static const presenceLabels = {
+    'thinking': 'Thinking',
+    'working': 'Working',
+    'waiting': 'Waiting for you',
+    'free': 'Free',
+    'off': 'Off',
+  };
 
   String get status {
     if (!active) return 'Not added yet';
@@ -782,7 +786,17 @@ class Bots extends ChangeNotifier {
   bool Function(Bot b)? working;
 
   /// Presence for the avatar and the job page: working | free | off.
-  String presenceOf(Bot b) => b.presence(working?.call(b) ?? false);
+  String presenceOf(Bot b) {
+    if (!b.active) return 'off';
+    final rt = RuntimeHost.I.of(b.id);
+    if (rt.phase == BotPhase.thinking) return 'thinking';
+    if (rt.phase == BotPhase.waiting) return 'waiting';
+    if (rt.phase == BotPhase.working || (working?.call(b) ?? false)) return 'working';
+    return b.quietNow() ? 'off' : 'free';
+  }
+
+  /// True when a plain check-in has provably nothing to do, its mission included: no model call is worth spending.
+  bool checkInEmpty(Bot b) => b.checkInEmpty && Missions.I.liveOf('bot', b.id) == null;
 
   /// The owner answered one of this bot's asks: counts toward the Trusted offer (plan 5.2).
   Future<void> recordAnswer(Bot b, {required bool approved, required bool edited}) async {
@@ -1193,7 +1207,9 @@ class Bots extends ChangeNotifier {
   DateTime? _heartbeatAt(Bot b, DateTime now) {
     final hb = b.effectiveHeartbeat;
     if (hb <= 0) return null;
-    var at = (b.lastWake ?? now).add(Duration(hours: hb));
+    final window = Duration(hours: hb);
+    // Its own offset inside the window (owner 2026-11-08): a crowd of people never wakes in the same minute.
+    var at = (b.lastWake ?? now).add(window).add(RuntimeHost.jitter(b.id, window));
     if (at.isBefore(now)) at = now.add(const Duration(minutes: 3));
     // Never in quiet hours: move to when they end.
     if (b.quietNow(at)) {
@@ -1201,6 +1217,7 @@ class Bots extends ChangeNotifier {
       if (!d.isAfter(at)) d = d.add(const Duration(days: 1));
       at = d;
     }
+    RuntimeHost.I.of(b.id).nextWakeAt = at;
     return at;
   }
 

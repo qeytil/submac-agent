@@ -91,7 +91,10 @@ class BotStatus extends ChangeNotifier {
     if (_viewing == key) _viewing = null;
   }
 
-  bool _botWorking(Bot b) => Bots.I.presenceOf(b) == 'working';
+  bool _botWorking(Bot b) {
+    final p = Bots.I.presenceOf(b);
+    return p == 'working' || p == 'thinking';
+  }
 
   /// Works out every ring again and tells listeners only when one changed.
   void recompute() {

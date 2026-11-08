@@ -247,9 +247,14 @@ extension AppStateBots on AppState {
       }
       return;
     }
-    // A plain check-in first asks the fast model one yes/no question on a few lines (~500 tokens) instead of
-    // waking the bot with its whole prompt (~20k) only to end with [no reply], which is how most check-ins end.
-    if (kind == 'work' && instruction.trim().isEmpty && !await _worthWaking(b)) {
+    // A plain check-in first checks, for free, whether there is anything at all: no open desk work, no promised
+    // follow-up and no live mission means nobody is woken and no model call is spent (owner 2026-11-08). Only when
+    // there is something does it ask the fast model one yes/no question on a few lines (~500 tokens) instead of waking
+    // the bot with its whole prompt (~20k) only to end with [no reply], which is how most check-ins end.
+    final rt = RuntimeHost.I.of(b.id);
+    rt.phase = BotPhase.thinking;
+    if (kind == 'work' && instruction.trim().isEmpty && (Bots.I.checkInEmpty(b) || !await _worthWaking(b))) {
+      rt.phase = BotPhase.idle;
       b.lastWake = DateTime.now();
       b.log('work', 'Checked in: nothing worth your time.');
       await Bots.I.save();
@@ -257,7 +262,10 @@ extension AppStateBots on AppState {
     }
     // Owner 2026-11-07: a bot is governed by the allowance in its own profile ([b.overBudget], checked above), never
     // by a hardcoded account-wide guard. SubMac's server still refuses a SubMac call when the whole account is out.
-    if (!await _ensureBotConv(b)) return;
+    if (!await _ensureBotConv(b)) {
+      rt.phase = BotPhase.idle;
+      return;
+    }
     b.lastWake = DateTime.now();
     final now = DateTime.now();
     final budget = b.quietNow()
@@ -297,6 +305,7 @@ extension AppStateBots on AppState {
     }
     // The checks above awaited (a model call, the chat loading): an office job may have taken the chat meanwhile.
     if (!_wakeMayClaim(b)) {
+      rt.phase = BotPhase.idle;
       await _wakeLater(b, instruction, kind);
       return;
     }
@@ -317,6 +326,8 @@ extension AppStateBots on AppState {
       if (_botWakeConvs[b.convId] == kind) _botWakeConvs.remove(b.convId); // only our own mark
       if (!runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
     }
+    // The turn (if one started) drives "Working" from here via Bots.working; this person is no longer just thinking.
+    rt.phase = BotPhase.idle;
   }
 
   /// CB-46: a bot wake can run: a model provider and a signed-in account.

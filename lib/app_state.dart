@@ -121,6 +121,7 @@ import 'services/constraints.dart';
 import 'services/house_rules.dart';
 import 'services/outbound_guard.dart';
 import 'services/always_on.dart';
+import 'services/bot_runtime.dart';
 
 part 'state/agent_runner.dart';
 part 'state/agent_stream.dart';
