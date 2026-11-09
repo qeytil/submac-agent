@@ -28,7 +28,7 @@ extension AppStateSettings on AppState {
   /// The chat stays quiet: one working line while SubMac works, and the turn's work (thinking, tools, notes) folded
   /// into categorized sections the user opens (owner, 2026-11-03, replacing "show every step" from earlier that day).
   /// Saying "show steps" in a message still shows that turn's steps in full.
-  bool get showSteps => true;
+  bool get showSteps => false;
 
   /// Making a picture is a separate capability switched on from the server, not a model the user picks.
   bool get hasImageModel => Cloud.features.value.image;
@@ -142,12 +142,12 @@ extension AppStateSettings on AppState {
         ));
     BrowserAgent.I.confirmLogin = (site, user) async {
       final r = await askUser(UserAsk(
-        kind: 'login_confirm',
-        convId: browserChat(),
-        title: 'Sign in to $site?',
-        prompt: user.isEmpty ? 'SubMac will use the login you saved on this phone.' : 'SubMac will use your saved login: $user',
-        site: site,
-        options: const ['Continue', 'Use another account'],
+          kind: 'login_confirm',
+          convId: browserChat(),
+          title: 'Sign in to $site?',
+          prompt: user.isEmpty ? 'SubMac will use the login you saved on this phone.' : 'SubMac will use your saved login: $user',
+          site: site,
+          options: const ['Continue', 'Use another account'],
       ));
       if (r == null) return null;
       return r['choice'] == 'Use another account' ? 'other' : 'use';
@@ -360,7 +360,7 @@ extension AppStateSettings on AppState {
       final hb = b.effectiveHeartbeat;
       if (hb <= 0 || b.quietNow(now)) continue;
       final last = b.lastWake ?? now;
-      // Only when the exact heartbeat alarm is clearly overdue (the OS killed it); otherwise it already ran.
+      // Only when the exact heartbeat alarm is clearly overdue (the OS killed it); otherwise it already pan.
       if (now.difference(last) < Duration(hours: hb, minutes: 5)) continue;
       // Awaited: the wake's own bookkeeping (its alarm, its line) finishes before the next bot, and before the pulse ends.
       await Bots.I.fire(Bots.alarmId(b, 'hb'));
