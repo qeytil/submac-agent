@@ -13,62 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply the render patches
-        run: |
-          python3 - <<'PY'
-          import sys, pathlib
-
-          def patch(path, old, new):
-              p = pathlib.Path(path)
-              s = p.read_text()
-              n = s.count(old)
-              if n != 1:
-                  print("::error file=%s::pattern found %d times" % (path, n))
-                  sys.exit(1)
-              p.write_text(s.replace(old, new))
-              print("patched", path)
-
-          patch("lib/state/settings_store.dart",
-                "  bool get showSteps => false;",
-                "  bool get showSteps => true;")
-
-          patch("lib/widgets/composer.dart",
-                "    final gone = WorkingLine.yields(answerShowing: widget.answerShowing, hasSteps: WorkingLine.stepsOf(t), textSince: _textSince);",
-                "    final gone = WorkingLine.yields(answerShowing: false, hasSteps: WorkingLine.stepsOf(t), textSince: _textSince);")
-
-          patch("lib/services/opencode.dart",
-                """        if (type == 'text') {
-          if (p['synthetic'] == true) return false;
-          (parts[id] ??= _newText(id)).text = '${p['text'] ?? ''}';
-          for (final r in parts.values) {
-            if (r.kind == 'reasoning') r.status = 'completed';
-          }
-          reasoning = false;
-          return true;
-        }""",
-                """        if (type == 'text') {
-          if (p['synthetic'] == true) return false;
-          final part = parts[id] ??= _newText(id);
-          part.text = '${p['text'] ?? ''}';
-          final t = p['time'];
-          if (t is Map && t['end'] != null) part.status = 'completed';
-          for (final r in parts.values) {
-            if (r.kind == 'reasoning') r.status = 'completed';
-          }
-          reasoning = false;
-          return true;
-        }""")
-
-          patch("lib/state/agent_runner.dart",
-                "            if (p.kind == 'reasoning' && p.finished) m.streaming = false;",
-                "            if (p.finished) m.streaming = false;")
-
-          patch("test/activity_view_test.dart",
-                "contains('bool get showSteps => false;')",
-                "contains('bool get showSteps => true;')")
-          PY
-      - name: Commit
-        run: |
+      - run: python3 tools/oc_inline_patch.py
+      - run: |
           git config user.name "submac-agent"
           git config user.email "agent@submac.site"
           git add -A
