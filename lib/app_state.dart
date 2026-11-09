@@ -1046,11 +1046,21 @@ class AppState extends ChangeNotifier {
     if (tools == null) return null;
     final seen = <String>{};
     final out = <Map<String, dynamic>>[];
+    // Keep the app-reach tools (apps_list_tools, apps_run_tool, connectors, api_call) first. A bot's own engine is
+    // handed this list and calls tools directly (there is no find/run gateway), so trimming the tail used to drop
+    // exactly those and leave every connected app out of reach (owner 2026-11-09). Raw mcp_* tools are trimmed.
     for (final t in tools) {
       final n = '${(t['function'] as Map?)?['name']}';
+      if (n.startsWith('mcp_')) continue;
       if (seen.add(n)) out.add(t);
-      if (out.length >= 120) break;
     }
+    for (final t in tools) {
+      if (out.length >= 120) break;
+      final n = '${(t['function'] as Map?)?['name']}';
+      if (!n.startsWith('mcp_')) continue;
+      if (seen.add(n)) out.add(t);
+    }
+    if (out.length > 120) out.removeRange(120, out.length);
     return out;
   }
 
