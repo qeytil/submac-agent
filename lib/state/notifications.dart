@@ -68,7 +68,10 @@ extension AppStateNotifications on AppState {
   /// A run ended that someone away from the screen is waiting on: SubMac's own scheduled task, or an answer to a
   /// reply typed in a notification (to SubMac or to a bot). Bot wakes report through their own outcome.
   void _notifyRunEnd(String convId, List<ChatMessage> list, AgentRun run, {required bool scheduled, required bool fromNote}) {
-    if (run.cancelled || (!scheduled && !fromNote)) return;
+    if (run.cancelled) return;
+    // A task the user started also says it is done, when "Notify when done" is on (owner 2026-11-09: long tasks
+    // used to finish in silence). Scheduled tasks and notification replies always report.
+    if (!scheduled && !fromNote && !notifyWhenDone) return;
     if (appVisible && currentId == convId) return;
     final reply = OcRunEnd.replyOf(list, run.wrote);
     final failed = reply.isEmpty && list.any((m) => run.wrote.contains(m.id) && (m.error?.isNotEmpty ?? false));
