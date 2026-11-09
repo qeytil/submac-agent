@@ -1,0 +1,57 @@
+exit=1
+=== FAILURES ===
+329:Expected: contains 'bool get showSteps => true;'
+330:  Actual: '// Settings, sign-in/session, banners and app-wide preferences.\n'
+703:   Which: does not contain 'bool get showSteps => true;'
+2082:✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "TimeoutException after 0:00:30" → timed out
+=== TAIL ===
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-46 a wake that comes before SubMac is ready is kept and run once a wake that finds SubMac ready runs straight away and holds nothing
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-29 text and picked files stay with the chat they were meant for text and a picked file in chat A do not appear in chat B, and come back in A
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-29 text and picked files stay with the chat they were meant for the main chat keeps drafts per chat too
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "Paused until tomorrow to save your daily allowance." → allowance used
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "background_paused" → allowance used
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "Nova used today's token budget. You can raise it in their settings." → out of budget
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "LlmException(429): Too Many Requests" → rate limit
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "Rate limit reached for gpt-4o" → rate limit
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "insufficient_quota: You exceeded your current quota" → out of credit
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "HTTP 402 Payment Required" → out of credit
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "401 Unauthorized: invalid api key" → key error
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "Incorrect API key provided" → key error
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "Nova ran out of time (30 min)." → timed out
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "TimeoutException after 0:00:30" → timed out
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "SocketException: Failed host lookup: api.example.com" → no connection
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "You're offline" → no connection
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "Tool browser_task failed: crashed" → tool failed
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "503 Service Unavailable" → provider error
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "The model is overloaded" → provider error
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "Something odd" → error
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper "" → error
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: error types: one helper an exception maps by its text, and every type is a known short label
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: live lines working while it thinks or runs steps, typing while its reply streams
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: live lines one line per bot that updates in place and goes when the turn ends
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: live lines several bots at once: one line each; one bot with two turns is still one line
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: live lines a private chat (no team key) never gets a line
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: live lines office jobs not yet in their turn show as working; waiting replies keep their words
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: issue lines a failed turn leaves "<Bot> · <type>", with the detail kept for a tap
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: issue lines the issue stays until the bot starts work again; a live line wins over it
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: issue lines a bot that left the team shows nothing
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: team runs a member whose part fails gets a small line, not a "could not finish" bubble
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: the team chat shows them small muted lines: working, typing, and a tappable issue
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: the team chat shows them nothing to show: nothing shown
+✅ /home/runner/work/submac-agent/submac-agent/test/team_status_test.dart: source team turns drive the lines; no raw "hit a problem" posts; only the team chat reads them
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: SubMac MCP server listens on 127.0.0.1 only, behind its token
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: SubMac MCP server initialize answers the client's protocol version and offers tools
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: SubMac MCP server a notification gets 202 and no body
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: SubMac MCP server tools/list: OpenAI and plain forms, an object schema each, no duplicates
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: SubMac MCP server tools/call runs the SubMac tool and returns its text
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: SubMac MCP server an error from the tool is marked as one; an unknown tool never runs
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: SubMac MCP server an unknown method is a JSON-RPC error
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: opencode asks on SubMac's card Autopilot allows a permission once without a card
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: opencode asks on SubMac's card a command asks in its chat; Allow, Always allow and Deny map to once, always and reject
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: opencode asks on SubMac's card the same request is asked once
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: opencode asks on SubMac's card a question shows its choices and sends the label back; skipped rejects it
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: opencode asks on SubMac's card other events are left alone
+✅ /home/runner/work/submac-agent/submac-agent/test/submac_mcp_test.dart: opencode asks on SubMac's card permission texts
+::endgroup::
+
+::error::1669 tests passed, 1 failed.
