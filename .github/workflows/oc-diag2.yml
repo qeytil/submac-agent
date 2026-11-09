@@ -6,7 +6,7 @@ on:
       - 'tools/oc_diag2_run.txt'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   diag:
@@ -32,8 +32,15 @@ jobs:
         run: |
           set +e
           flutter test > /tmp/t.log 2>&1
-          echo "exit=$?"
-          echo "=== FAILURES ==="
-          grep -nE "\[E\]|Expected:|Actual:|Which:|EXCEPTION|Some tests failed|Test failed|TimeoutException" /tmp/t.log | head -60
-          echo "=== TAIL ==="
-          tail -40 /tmp/t.log
+          echo "exit=$?" > diag_result.txt
+          echo "=== FAILURES ===" >> diag_result.txt
+          grep -nE "\[E\]|Expected:|Actual:|Which:|EXCEPTION|Some tests failed|Test failed|TimeoutException" /tmp/t.log | head -80 >> diag_result.txt
+          echo "=== TAIL ===" >> diag_result.txt
+          tail -50 /tmp/t.log >> diag_result.txt
+      - name: Commit result
+        run: |
+          git config user.name "submac-agent"
+          git config user.email "agent@submac.site"
+          git add diag_result.txt
+          git commit -m "chore(ci): diag result" || true
+          git push
