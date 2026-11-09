@@ -56,7 +56,7 @@ object OpenCode {
         // PATH, else downloads one into its data dir, which Android will not execute), and bash with "curl: inaccessible
         // or not found". The APK ships static builds as lib*.so; Android only executes files in nativeLibraryDir, so
         // filesDir/oc/bin holds symlinks into it (exec through a symlink runs the target there) and goes first on PATH.
-        // `opencode` points at libocexec.so, which re-runs libocld.so with libopencode.so (see ocexec.c): a wrapper
+        // `opencode` points at libocexec.so, which re-runs libocld.so with libopencode.so (see Ocexec.c): a wrapper
         // script would not run, since Android executes nothing written to app data.
         val binDir = File(root, "bin").apply { mkdirs() }
         for ((name, so) in listOf("rg" to "libocrg.so", "curl" to "liboccurl.so", "opencode" to "libocexec.so")) {
@@ -186,6 +186,11 @@ object OpenCode {
             val ms = org.json.JSONObject()
             for (m in names) {
                 val model = org.json.JSONObject().put("name", if (m == "submac") "SubMac" else m).put("tool_call", true)
+                // A vision model can read pictures and PDFs. Without this opencode thinks every SubMac model is
+                // text-only, drops the attachment and hands the model an "cannot read image" note, so even a
+                // vision model answered "I can't see it" (owner 2026-11-09). `submac` is the model the picker
+                // uses; SubMac Cloud decides on its side what it can read.
+                if (!m.contains("image")) model.put("attachment", true)
                 // The output limit (owner 2026-11-06): without one opencode asked for its 32,000 default. The server
                 // clamps it to what the route it picks can do. context 0 keeps opencode's behaviour as before (no
                 // automatic compaction by window size; the app and the server handle long chats).
