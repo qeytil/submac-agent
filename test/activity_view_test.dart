@@ -46,7 +46,7 @@ void main() {
   });
 
   test('quiet by default: no every-step chat, the working line opens to the activity', () {
-    expect(File('lib/state/settings_store.dart').readAsStringSync(), contains('bool get showSteps => true;'));
+    expect(File('lib/state/settings_store.dart').readAsStringSync(), contains('bool get showSteps => false;'));
     final home = File('lib/screens/home_screen.dart').readAsStringSync();
     expect(home, contains('activity: showStepsNow ? null : turnGroups'));
     expect(home, contains('ActivityFold('));
