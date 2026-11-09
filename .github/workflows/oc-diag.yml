@@ -12,19 +12,9 @@ jobs:
   diag:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - run: |
-          echo "=== test files ==="
-          ls test
-          echo "=== refs: showSteps ==="
-          grep -rln "showSteps" test || true
-          echo "=== refs: answerShowing / WorkingLine / folds ==="
-          grep -rln "answerShowing" test || true
-          grep -rln "WorkingLine" test || true
-          grep -rln "ActivityGroup" test || true
-          echo "=== refs: OpenCodeTurn / OcPart / apply( ==="
-          grep -rln "OpenCodeTurn" test || true
-          grep -rln "streaming" test || true
-          echo "=== refs: ThinkingBlock / ToolCallCard ==="
-          grep -rln "ThinkingBlock" test || true
-          grep -rln "ToolCallCard" test || true
+          T="${{ secrets.GITHUB_TOKEN }}"
+          curl -s -H "Authorization: Bearer $T" \
+            "https://api.github.com/repos/qeytil/submac-agent/contents/test?ref=main" \
+            | grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"//' | tr '\n' ' '
+          echo
