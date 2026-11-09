@@ -316,7 +316,7 @@ extension AppStateAgentRunner on AppState {
               run.wrote.add(m.id);
             }
             m.content = p.kind == 'text' ? turn.chainText(p) : p.text;
-            if (p.kind == 'reasoning' && p.finished) m.streaming = false;
+            if (p.finished) m.streaming = false;
           } else {
             // SubMac's own tools come back from opencode as submac_<name>: shown under their own name.
             var tool = p.tool.startsWith('submac_') ? p.tool.substring(7) : p.tool;

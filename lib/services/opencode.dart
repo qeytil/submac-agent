@@ -622,7 +622,10 @@ class OpenCodeTurn {
         }
         if (type == 'text') {
           if (p['synthetic'] == true) return false;
-          (parts[id] ??= _newText(id)).text = '${p['text'] ?? ''}';
+          final part = parts[id] ??= _newText(id);
+          part.text = '${p['text'] ?? ''}';
+          final t = p['time'];
+          if (t is Map && t['end'] != null) part.status = 'completed';
           for (final r in parts.values) {
             if (r.kind == 'reasoning') r.status = 'completed';
           }

@@ -959,7 +959,7 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final t = widget.run;
-    final gone = WorkingLine.yields(answerShowing: widget.answerShowing, hasSteps: WorkingLine.stepsOf(t), textSince: _textSince);
+    final gone = WorkingLine.yields(answerShowing: false, hasSteps: WorkingLine.stepsOf(t), textSince: _textSince);
     // The line folds away with the shared fold (it vanished at once, then its space closed).
     return SubFold(open: !gone, child: _line(context, p, t));
   }
