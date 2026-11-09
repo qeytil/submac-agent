@@ -1,7 +1,9 @@
 name: oc-inline
 
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/oc_inline_run.txt'
 
 permissions:
   contents: write
