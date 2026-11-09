@@ -85,7 +85,10 @@ class ByokOpencode {
               // Tool calling is what the agent is: assume it unless the provider said no.
               'tool_call': m.tools ?? true,
               if (m.reasoning != null) 'reasoning': m.reasoning,
-              if (m.vision != null) 'attachment': m.vision,
+              // A model the user brought can take attachments unless the provider said it cannot. Most
+              // providers' model lists do not say, and opencode replaces an image with "cannot read image"
+              // for any model it believes is text-only (owner 2026-11-09).
+              'attachment': m.vision ?? true,
               'limit': {'context': m.context ?? defaultContext, 'output': outputOf(m)},
             },
         },
