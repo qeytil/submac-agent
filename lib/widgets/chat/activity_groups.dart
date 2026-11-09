@@ -40,8 +40,9 @@ class ActivityGroups {
     return false;
   }
 
-  /// Whether [m] is folded into the activity view (thinking, or words between steps).
-  static bool folds(List<ChatMessage> turn, int i) => turn[i].name == 'reasoning' || isNote(turn, i);
+  /// Whether [m] is folded into the activity view. Only thinking folds now: opencode's briefs (the words it writes
+  /// between steps) show in the chat as they stream, the way opencode desktop shows them (owner 2026-11-09).
+  static bool folds(List<ChatMessage> turn, int i) => turn[i].name == 'reasoning';
 
   /// The groups of one turn's replies (the messages after the user's message, up to the next one).
   static ActivityGroups of(List<ChatMessage> turn) {
@@ -56,8 +57,6 @@ class ActivityGroups {
         for (final c in m.toolCalls!) {
           tools.add((m, c));
         }
-      } else if (isNote(turn, i)) {
-        notes.add(m);
       }
     }
     return ActivityGroups._(thinking, tools, notes);
