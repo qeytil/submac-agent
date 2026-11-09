@@ -13,13 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          T="${{ secrets.GITHUB_TOKEN }}"
-          echo "len=${#T}"
-          code=$(curl -s -o /tmp/j.json -w "%{http_code}" -H "Authorization: Bearer $T" "https://api.github.com/repos/qeytil/submac-agent/contents/test?ref=main")
-          echo "http=$code"
-          echo "--- head ---"
-          head -c 300 /tmp/j.json
-          echo
-          echo "--- names ---"
-          grep -oE '"name": *"[^"]*"' /tmp/j.json | sed -E 's/.*"([^"]*)"$/\1/' | tr '\n' ' '
-          echo
+          git clone --depth 1 --quiet "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/qeytil/submac-agent.git" r
+          cd r
+          echo "=== showSteps ==="
+          grep -rn "showSteps" test lib/state/settings_store.dart || true
+          echo "=== answerShowing / WorkingLine / ActivityFold ==="
+          grep -rn "answerShowing\|WorkingLine\|ActivityFold" test || true
+          echo "=== ThinkingBlock / ToolCallCard ==="
+          grep -rn "ThinkingBlock\|ToolCallCard" test || true
+          echo "=== quiet / folded / narration ==="
+          grep -rn "quiet\|folded\|plainNarration" test || true
