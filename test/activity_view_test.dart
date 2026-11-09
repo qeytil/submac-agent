@@ -1,5 +1,6 @@
 // Owner 2026-11-03: the chat stays quiet while opencode works (one working line); the turn's work opens on tap,
-// sorted into Thinking, Tools run and Notes. Same in bots' chats (one chat view for both).
+// sorted into Thinking and Tools run. Owner 2026-11-09: opencode's briefs between steps are not folded into that
+// line any more: they show in the chat as they stream, the way opencode desktop shows them. Same in bots' chats.
 import 'dart:io';
 
 import 'package:agent/models.dart';
@@ -21,15 +22,15 @@ void main() {
     a('ans', text: 'Done: fixed the bug.'),
   ];
 
-  test('a turn sorts into thinking, tools and notes; the answer is none of them', () {
+  test('a turn sorts into thinking and tools; briefs and the answer stay in the chat', () {
     final g = ActivityGroups.of(turn);
     expect(g.thinking.map((m) => m.id), ['t1', 't2']);
     expect(g.tools.map((t) => t.$2.id), ['k1', 'k2', 'k3']);
-    expect(g.notes.map((m) => m.id), ['n1']);
-    expect(g.summary(), '2 thoughts · 3 tools · 1 note');
+    expect(g.notes, isEmpty, reason: 'a brief is a chat message, not activity');
+    expect(g.summary(), '2 thoughts · 3 tools');
     expect(ActivityGroups.folds(turn, 6), isFalse, reason: 'the answer stays in the chat');
-    expect(ActivityGroups.folds(turn, 1), isTrue);
-    expect(ActivityGroups.folds(turn, 0), isTrue);
+    expect(ActivityGroups.folds(turn, 1), isFalse, reason: 'a brief stays in the chat, like opencode desktop');
+    expect(ActivityGroups.folds(turn, 0), isTrue, reason: 'thinking stays in the working line');
   });
 
   test('failed tools are counted; the folded line reads plainly', () {
