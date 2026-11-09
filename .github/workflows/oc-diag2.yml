@@ -1,0 +1,39 @@
+name: oc-diag2
+
+on:
+  push:
+    paths:
+      - 'tools/oc_diag2_run.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.submac --project-name agent --platforms android,ios .
+          rm -f test/widget_test.dart
+      - run: python3 tools/patch_android.py
+      - run: flutter pub get
+      - name: Tests
+        run: |
+          set +e
+          flutter test > /tmp/t.log 2>&1
+          echo "exit=$?"
+          echo "=== FAILURES ==="
+          grep -nE "\[E\]|Expected:|Actual:|Which:|EXCEPTION|Some tests failed|Test failed|TimeoutException" /tmp/t.log | head -60
+          echo "=== TAIL ==="
+          tail -40 /tmp/t.log
