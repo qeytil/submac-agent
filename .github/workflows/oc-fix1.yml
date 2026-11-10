@@ -5,6 +5,7 @@ on:
       - 'tools/oc_fix1_run.txt'
 permissions:
   contents: write
+  workflows: write
 jobs:
   fix:
     runs-on: ubuntu-latest
@@ -33,5 +34,5 @@ jobs:
           o=$(git push 2>&1); c=$?; LOG="$LOG[push rc=$c] $o ; "
           esc=$(printf '%s' "$LOG" | tr '\n' '~')
           echo "::error::GIT: $esc"
-          echo "$LOG" | head -c0300
+          echo "$LOG" | head -c 3000
           exit 0
