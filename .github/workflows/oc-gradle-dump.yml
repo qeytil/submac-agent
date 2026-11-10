@@ -1,0 +1,55 @@
+name: oc-gradle-dump
+on:
+  push:
+    paths:
+      - 'tools/oc_gradle_run.txt'
+permissions:
+  contents: write
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.submac --project-name agent --platforms android,ios .
+          rm -f test/widget_test.dart
+          cp android/app/build.gradle.kts /tmp/pre_build.gradle.kts 2>/dev/null || true
+          cp android/app/src/main/AndroidManifest.xml /tmp/pre_manifest.xml 2>/dev/null || true
+          cp android/settings.gradle.kts /tmp/pre_settings.gradle.kts 2>/dev/null || true
+      - name: Patch
+        run: python3 tools/patch_android.py
+      - name: Write report
+        run: |
+          {
+            echo "### PRE flutter create: build.gradle.kts"
+            grep -n -E "applicationId|namespace|com\.(submac|telesia)" /tmp/pre_build.gradle.kts 2>/dev/null || echo "(no match)"
+            echo "### PRE full gradle (first 80 lines)"
+            grep -n "" /tmp/pre_build.gradle.kts 2>/dev/null | sed -n '1,80p'
+            echo "### POST patch: build.gradle.kts identity"
+            grep -n -E "applicationId|namespace|com\.(submac|telesia)" android/app/build.gradle.kts 2>/dev/null || echo "(no match)"
+            echo "### POST patch manifest identity"
+            grep -n -E "com\.(submac|telesia)|android:label|package=" android/app/src/main/AndroidManifest.xml 2>/dev/null || echo "(no match)"
+            echo "### kotlin files written"
+            find android/app/src/main/kotlin -name '*.kt' | head -40
+            echo "### settings.gradle.kts"
+            grep -n -E "com\.(submac|telesia)|name" /tmp/pre_settings.gradle.kts 2>/dev/null | head -20
+            echo "### gradle dir tree"
+            find android/app/src/main -maxdepth 3 -type d | head -30
+          } > tools/oc_gradle.txt
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add tools/oc_gradle.txt
+          git commit -m "chore(ci): gradle identity dump" || true
+          git push
