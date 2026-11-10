@@ -494,12 +494,7 @@ class _ComposerState extends State<Composer> {
     // the mic while the box is empty (tap to speak; calls live in the top bar), Send once there is something to send, and Stop
     // while SubMac works with nothing typed. Typing turns Stop back into Send, so a message can steer a task.
     final Widget trailing = needsModel
-        ? IconButton(
-            key: const ValueKey('connect-model'),
-            icon: const Icon(Icons.vpn_key_rounded),
-            tooltip: tr('Connect a model'),
-            onPressed: _openModels,
-          )
+        ? _BareIcon(key: const ValueKey('connect-model'), icon: 'plus', tip: tr('Connect a model'), onTap: _openModels)
         : canSend
         ? _SendButton(key: const ValueKey('send'), icon: 'send', onTap: _send)
         : _listening
@@ -579,11 +574,10 @@ class _ComposerState extends State<Composer> {
                   padding: const EdgeInsetsDirectional.fromSTEB(Space.x2, 0, Space.x2, Space.x2),
                   child: Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: TextButton.icon(
+                    child: TextButton(
                       key: const ValueKey('connect-model-banner'),
                       onPressed: _openModels,
-                      icon: const Icon(Icons.vpn_key_rounded, size: 16),
-                      label: Text(tr('Connect a model to start chatting')),
+                      child: Text(tr('Connect a model to start chatting')),
                     ),
                   ),
                 ),
