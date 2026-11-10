@@ -1,0 +1,36 @@
+38:Expected: 'SubMac'
+39:  Actual: 'Default'
+41:          Expected: SubMac
+42:            Actual: Default
+58:Expected: exactly one matching candidate
+59:  Actual: _KeyWidgetFinder:<Found 0 widgets with key [<'model-submac'>]: []>
+1777:::error::1668 tests passed, 2 failed.
+=== context ===
+35-✅ /home/runner/work/submac-agent/submac-agent/test/bot_model_test.dart: fallback a usable own model is used whatever the lane
+36-::endgroup::
+37-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bot_model_test.dart: fallback profile words (failed)
+38:Expected: 'SubMac'
+39-  Actual: 'Default'
+40-   Which: is different.
+41:          Expected: SubMac
+42-            Actual: Default
+43-                    ^
+44-           Differ at offset 0
+45-
+46-package:matcher                                     expect
+47-package:flutter_test/src/widget_tester.dart 473:18  expect
+48-test/bot_model_test.dart 132:7                      main.<fn>.<fn>
+49-::endgroup::
+--
+55-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bot_model_test.dart: picker the profile row is always there, shows the choice and saves a new one (failed)
+56-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+57-The following TestFailure was thrown running a test:
+58:Expected: exactly one matching candidate
+59-  Actual: _KeyWidgetFinder:<Found 0 widgets with key [<'model-submac'>]: []>
+60-   Which: means none were found but one was expected
+61-
+62-When the exception was thrown, this was the stack:
+63-#4      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/submac-agent/submac-agent/test/bot_model_test.dart:197:7)
+64-<asynchronous suspension>
+65-#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+66-<asynchronous suspension>
