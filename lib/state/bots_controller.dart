@@ -217,6 +217,12 @@ extension AppStateBots on AppState {
 
   /// Wakes a bot to work on its own. It decides at the end whether to stay silent, keep a note, message or call.
   Future<void> _botWake(Bot b, String reason, String instruction, String kind) async {
+    // BYOK only: with no model of the owner's own there is nothing to run on (SubMac's own model is going away).
+    if (ByokStore.I.loaded && !ByokStore.I.hasChoices) {
+      b.log('note', 'I need a model before I can work. Connect one in Settings > Models.');
+      await Bots.I.save();
+      return;
+    }
     // CB-46: an alarm can start SubMac before it is ready (no account restored yet). The wake waits a little, and is
     // otherwise kept and run once SubMac is ready, never dropped without a word.
     final key = Bots.I.wakeKey(b) ?? '${b.id}|$reason|$instruction';

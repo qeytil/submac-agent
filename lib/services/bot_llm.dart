@@ -93,6 +93,10 @@ class BotLlm {
       {int? maxTokens, int continues = 0, String source = 'bot', bool background = false, BotModelRoute? route, ProviderConfig? provider}) {
     final r = route ?? BotModelRoute.of(b);
     final pick = r.byok;
+    // BYOK only: a bot's work never goes to SubMac's own model.
+    if (pick == null && ByokStore.I.loaded && !ByokStore.I.hasChoices) {
+      throw LlmException('Connect a model before a bot can work.', status: 400, code: 'no_model');
+    }
     if (pick != null) return byokCall(pick, messages, maxTokens: maxTokens);
     return cloudCall(r.submacModel, messages, maxTokens: maxTokens, continues: continues, source: source, background: background, provider: provider);
   }
