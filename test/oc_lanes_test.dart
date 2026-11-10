@@ -32,14 +32,14 @@ void main() {
       expect(OcLane.modelFor(null), 'submac');
       expect(OcLane.modelFor('auto'), 'submac');
       expect(OcLane.modelFor(''), 'submac');
-      expect(OcLane.modelFor('submac|submac-think'), 'submac-think');
-      expect(OcLane.modelFor('submac-fast'), 'submac-fast');
+      expect(OcLane.modelFor('submac|submac-think'), 'submac');
+      expect(OcLane.modelFor('submac-fast'), 'submac');
       expect(OcLane.modelFor('submac|submac-image'), 'submac', reason: 'not a chat model');
       expect(OcLane.modelFor('openai|gpt-4o'), 'submac', reason: 'SubMac Cloud is the only provider');
       expect(OcLane.modelFor('submac|nonsense'), 'submac');
-      expect(OcLane.pick(background: true, botModel: 'submac|submac-smart')['modelID'], 'submac-smart');
+      expect(OcLane.pick(background: true, botModel: 'submac|submac-smart')['modelID'], 'submac');
       expect(OcLane.pick(background: false, botModel: 'submac|submac-smart'),
-          {'providerID': 'submac', 'modelID': 'submac-smart'}, reason: 'the owner in a bot\'s chat: the bot\'s model, owner\'s lane');
+          {'providerID': 'submac', 'modelID': 'submac'}, reason: 'the owner in a bot\'s chat: owner\'s lane');
     });
 
     test('every prompt names its model, so a bot\'s chat never stays on the lane of an earlier wake', () {
