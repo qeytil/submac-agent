@@ -23,16 +23,9 @@ void main() {
       expect(OcLane.bgSources.values.toSet(), {'bot', 'office'}, reason: 'both bill to the bots\' share (ai-chat BOT_SOURCES)');
     });
 
-    test('each provider has its own proxy path: only background providers use the lane path', () {
-      final ps = {for (final p in OcLane.providers()) p['id']: p};
-      expect(ps.keys.toSet(), {'submac', 'submac-bg', 'submac-office'});
-      expect(ps['submac']!['path'], '');
-      expect(ps['submac-bg']!['path'], '/lane/bot');
-      expect(ps['submac-office']!['path'], '/lane/office');
-      for (final p in ps.values) {
-        expect(RegExp(r'^[a-z0-9-]{1,32}$').hasMatch(p['id']!), isTrue, reason: 'OpenCode.kt keeps ids of this shape');
-        if (p['path']!.isNotEmpty) expect(RegExp(r'^/lane/[a-z-]{1,20}$').hasMatch(p['path']!), isTrue);
-      }
+    test('BYOK only: opencode is given the owner\'s providers, never SubMac', () {
+      expect(OcLane.providers(), isEmpty, reason: 'SubMac Cloud is removed');
+      expect(OcLane.models, isEmpty, reason: 'no SubMac chat-model aliases');
     });
 
     test('a bot runs on its own model setting; unset, unknown or another provider falls back to submac', () {

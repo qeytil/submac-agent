@@ -36,14 +36,13 @@ class OcLane {
 
   /// SubMac's chat model names opencode may be asked for. ai-chat treats every `submac*` chat name as the one model
   /// (older apps sent these aliases), so each is safe to send. The image model is not a chat model.
-  static const models = ['submac', 'submac-smart', 'submac-fast', 'submac-think', 'submac-lite', 'submac-vision', 'submac-somali'];
+  // BYOK only: no SubMac chat-model aliases are offered any more.
+  static const models = <String>[];
 
   /// The providers written into opencode's config (OpenCode.kt builds the JSON): id, shown name, proxy path and the
   /// `x-submac-source` header. Every provider offers the same [models].
-  static List<Map<String, String>> providers() => [
-        {'id': fg, 'name': 'SubMac', 'path': '', 'source': 'opencode'},
-        for (final e in bgSources.entries) {'id': e.key, 'name': 'SubMac (${e.value})', 'path': '$lanePath${e.value}', 'source': e.value},
-      ];
+  /// BYOK only: no SubMac providers are injected; opencode runs the owner's own providers.
+  static List<Map<String, String>> providers() => const [];
 
   /// The SubMac model a bot's turn runs on: its own setting (`auto` or `providerId|model`) when that names one of
   /// SubMac's chat models, else `submac`. A BYOK setting (`byok-…|model`) is resolved first by [pick]; here any other
