@@ -1,37 +1,7 @@
-patch fetched: 33805 bytes
-patched lib/services/context_window.dart
-patched lib/services/opencode.dart
-patched lib/services/opencode.dart
-patched lib/services/opencode.dart
-patched lib/services/opencode.dart
-patched lib/services/opencode.dart
-patched lib/services/opencode.dart
-patched lib/app_state.dart
-patched lib/app_state.dart
-wrote lib/services/chat_compact.dart (2851 bytes)
-DONE: 9 edits, 1 new files
-patched lib/state/agent_runner.dart
-patched lib/state/agent_runner.dart
-patched lib/state/agent_runner.dart
-patched lib/state/agent_runner.dart
-patched lib/widgets/chat/activity_groups.dart
-patched lib/widgets/chat/activity_groups.dart
-patched lib/widgets/chat/activity_groups.dart
-patched lib/widgets/chat/activity_groups.dart
-patched lib/widgets/chat/activity_groups.dart
-patched lib/widgets/chat/activity_panel.dart
-patched lib/widgets/chat/activity_panel.dart
-DONE: 11 edits
-patched lib/screens/home_screen.dart
-patched lib/screens/home_screen.dart
-patched lib/screens/home_screen.dart
+patch fetched: 1871 bytes
 patched lib/widgets/composer.dart
 patched lib/widgets/composer.dart
 patched lib/widgets/composer.dart
-patched lib/widgets/model_picker.dart
-patched lib/widgets/model_picker.dart
-patched lib/widgets/model_picker.dart
-patched lib/widgets/model_picker.dart
-wrote test/chat_compact_test.dart (3077 bytes)
-DONE: 10 edits, 1 new files
+patched lib/widgets/composer.dart
+DONE: 4 edits
 python exit=0

@@ -1018,7 +1018,9 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
         final trail = t?.trail ?? const <RunStep>[];
         final act = widget.activity;
         final hasActivity = act != null && !act.isEmpty;
-        final canOpen = hasActivity || compacting || (widget.showSteps && trail.isNotEmpty);
+        final canOpen = hasActivity || (widget.showSteps && trail.isNotEmpty);
+        // While the engine folds the older part of this chat the line opens to its summary as well.
+        final openable = canOpen || compacting;
         final kind = WorkingLine.kindOf(t);
         final row = SizedBox(
           height: turnHeadHeight,
@@ -1028,7 +1030,7 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: !canOpen
+                onTap: !openable
                     ? null
                     : () {
                         setState(() => _open = !_open);
@@ -1044,7 +1046,7 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
                 padding: const EdgeInsetsDirectional.only(start: 8, end: 4),
                 child: Text(el, style: TextStyle(color: p.muted, fontSize: AppText.micro, fontFeatures: const [FontFeature.tabularFigures()])),
               ),
-            if (canOpen)
+            if (openable)
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => setState(() => _open = !_open),
@@ -1064,7 +1066,7 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
               ),
             // The browser agent's live checklist: what is done, what is next.
             SubFold(
-              open: _open && canOpen,
+              open: _open && openable,
               child: SubSize(
                 duration: SubMotion.quick,
                 alignment: AlignmentDirectional.topStart,
