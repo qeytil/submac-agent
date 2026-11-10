@@ -15,16 +15,17 @@ jobs:
       - name: Build fixed apk.yml into tools/
         run: |
           set -e
-          # the last good apk.yml (written before the truncated contents-API upload)
+          # pristine apk.yml from before the truncated contents-API upload
           git show 66273c64bf07a9798c5b8a9bb40bc3d65a12472e:.github/workflows/apk.yml > .apk.tmp
           echo "source bytes: $(wc -c < .apk.tmp)"
+          D='$'
           sed \
             -e 's/com\.submac/com.telesia/g' \
             -e 's/Make it SubMac/Make it Telesia/g' \
             -e 's/submac_chime/telesia_chime/g' \
             -e 's/"submac-/"telesia-/g' \
-            -e 's/SubMac Agent [$][{][{]/Telesia [$][{][{]/g' \
-            -e 's/### SubMac /### Telesia /' \
+            -e "s/SubMac Agent \$\{\{/Telesia $D{{/g" \
+            -e "s/### SubMac \$\{\{/### Telesia $D{{/g" \
             -e 's/pinned SubMac key/pinned Telesia key/g' \
             -e 's/The SubMac launcher icon/The Telesia launcher icon/g' \
             -e 's/the SubMac logo/the Telesia logo/g' \
@@ -33,10 +34,12 @@ jobs:
           echo "fixed bytes: $(wc -c < tools/apk.yml.new)"
           echo "submac lines: $(grep -c -i submac tools/apk.yml.new || true)"
           echo "telesia lines: $(grep -c -i telesia tools/apk.yml.new)"
+          echo "release-title matches: $(grep -c 'Telesia .{{' tools/apk.yml.new || true)"
+          echo "broken brackets: $(grep -c '[$][{][{]' tools/apk.yml.new || true)"
       - name: Commit
         run: |
           git config user.name telesia-agent
           git config user.email agent@telesia.site
           git add tools/apk.yml.new
-          git commit -m "chore(ci): fixed apk.yml (telesia org, chime, naming)" || true
+          git commit -m "chore(ci): fixed apk.yml v2 (telesia org, chime, naming)" || true
           git push || echo "push failed"
