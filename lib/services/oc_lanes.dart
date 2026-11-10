@@ -47,15 +47,8 @@ class OcLane {
   /// The SubMac model a bot's turn runs on: its own setting (`auto` or `providerId|model`) when that names one of
   /// SubMac's chat models, else `submac`. A BYOK setting (`byok-…|model`) is resolved first by [pick]; here any other
   /// provider id falls back to `submac`.
-  static String modelFor(String? setting) {
-    final s = (setting ?? '').trim();
-    if (s.isEmpty || s == 'auto') return Cloud.submac;
-    final i = s.indexOf('|');
-    final provider = i >= 0 ? s.substring(0, i).trim() : '';
-    final model = (i >= 0 ? s.substring(i + 1) : s).trim().toLowerCase();
-    if (provider.isNotEmpty && provider != Cloud.providerId) return Cloud.submac;
-    return models.contains(model) ? model : Cloud.submac;
-  }
+  /// BYOK only: nothing resolves to a SubMac model any more.
+  static String modelFor(String? setting) => '';
 
   /// The prompt's `model` for one turn. [background]: nobody is watching (a bot's wake, office or team work).
   /// [officeWork]: that background work is office/team work. [botModel]: the bot's model setting, null for the owner.
@@ -68,10 +61,10 @@ class OcLane {
     final setting = botModel == null ? (userModel ?? ByokStore.I.chatModel) : botSetting(botModel, userModel: userModel);
     final own = byokFor(setting);
     if (own != null) return own;
-    return {
-      'providerID': background ? (officeWork ? office : bot) : fg,
-      'modelID': botModel == null ? Cloud.submac : modelFor(setting),
-    };
+    // BYOK only: no SubMac fallback. Use the owner's first usable model when the setting is not a BYOK ref.
+    final choices = ByokStore.I.choices;
+    if (choices.isNotEmpty) return {'providerID': choices.first.provider.id, 'modelID': choices.first.model.id};
+    return const <String, String>{};
   }
 
   /// A bot's model setting left at its default: `auto` or empty ("Default (same as SubMac)" in its profile).

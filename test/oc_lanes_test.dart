@@ -11,16 +11,12 @@ Map<String, dynamic> ev(String type, Map<String, dynamic> props) => {'type': typ
 
 void main() {
   group('lanes', () {
-    test('the owner\'s chat is foreground; a bot\'s wake and team work are background, each with its own source', () {
-      expect(OcLane.pick(background: false), {'providerID': 'submac', 'modelID': 'submac'});
-      expect(OcLane.pick(background: true, botModel: 'auto'), {'providerID': 'submac-bg', 'modelID': 'submac'});
-      expect(OcLane.pick(background: true, officeWork: true, botModel: 'auto'), {'providerID': 'submac-office', 'modelID': 'submac'});
-      // The owner typing in a bot's chat (or an office reply the owner watches) stays on the owner's lane.
-      expect(OcLane.pick(background: false, officeWork: true, botModel: 'auto')['providerID'], 'submac');
-      expect(OcLane.isBackground(OcLane.pick(background: true)), isTrue);
-      expect(OcLane.isBackground(OcLane.pick(background: true, officeWork: true)), isTrue);
-      expect(OcLane.isBackground(OcLane.pick(background: false)), isFalse);
-      expect(OcLane.bgSources.values.toSet(), {'bot', 'office'}, reason: 'both bill to the bots\' share (ai-chat BOT_SOURCES)');
+    test('BYOK only: with no model set there is no model to name', () {
+      expect(OcLane.pick(background: false), isEmpty);
+      expect(OcLane.pick(background: true, botModel: 'auto'), isEmpty);
+      expect(OcLane.pick(background: true, officeWork: true, botModel: 'auto'), isEmpty);
+      expect(OcLane.isBackground(const {}), isFalse);
+      expect(OcLane.bgSources.values.toSet(), {'bot', 'office'}, reason: 'legacy source labels kept for the proxy');
     });
 
     test('BYOK only: opencode is given the owner\'s providers, never SubMac', () {
@@ -28,27 +24,26 @@ void main() {
       expect(OcLane.models, isEmpty, reason: 'no SubMac chat-model aliases');
     });
 
-    test('a bot runs on its own model setting; unset, unknown or another provider falls back to submac', () {
-      expect(OcLane.modelFor(null), 'submac');
-      expect(OcLane.modelFor('auto'), 'submac');
-      expect(OcLane.modelFor(''), 'submac');
-      expect(OcLane.modelFor('submac|submac-think'), 'submac');
-      expect(OcLane.modelFor('submac-fast'), 'submac');
-      expect(OcLane.modelFor('submac|submac-image'), 'submac', reason: 'not a chat model');
-      expect(OcLane.modelFor('openai|gpt-4o'), 'submac', reason: 'SubMac Cloud is the only provider');
-      expect(OcLane.modelFor('submac|nonsense'), 'submac');
-      expect(OcLane.pick(background: true, botModel: 'submac|submac-smart')['modelID'], 'submac');
-      expect(OcLane.pick(background: false, botModel: 'submac|submac-smart'),
-          {'providerID': 'submac', 'modelID': 'submac'}, reason: 'the owner in a bot\'s chat: owner\'s lane');
+    test('BYOK only: no SubMac model alias is ever resolved', () {
+      expect(OcLane.modelFor(null), '');
+      expect(OcLane.modelFor('auto'), '');
+      expect(OcLane.modelFor(''), '');
+      expect(OcLane.modelFor('submac|submac-think'), '');
+      expect(OcLane.modelFor('submac-fast'), '');
+      expect(OcLane.modelFor('submac|submac-image'), '');
+      expect(OcLane.modelFor('openai|gpt-4o'), '');
+      expect(OcLane.modelFor('submac|nonsense'), '');
+      expect(OcLane.pick(background: true, botModel: 'submac|submac-smart'), isEmpty);
+      expect(OcLane.pick(background: false, botModel: 'submac|submac-smart'), isEmpty);
     });
 
-    test('every prompt names its model, so a bot\'s chat never stays on the lane of an earlier wake', () {
+    test('every prompt names its model; with no BYOK model it names none', () {
       final parts = [
         {'type': 'text', 'text': 'hi'}
       ];
-      expect(OpenCodeEngine.promptBody(parts)['model'], {'providerID': 'submac', 'modelID': 'submac'});
+      expect(OpenCodeEngine.promptBody(parts)['model'], isEmpty);
       final bg = OpenCodeEngine.promptBody(parts, system: 'You are Hodan', model: OcLane.pick(background: true));
-      expect(bg['model'], {'providerID': 'submac-bg', 'modelID': 'submac'});
+      expect(bg['model'], isEmpty);
       expect(bg['system'], 'You are Hodan');
       expect(OpenCodeEngine.promptBody(parts, system: '').containsKey('system'), isFalse);
     });
