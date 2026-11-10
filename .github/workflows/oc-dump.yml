@@ -15,13 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           {
-            echo "### files: lib/services"; ls -1 lib/services
-            echo "### files: lib/services/billing"; ls -1 lib/services/billing
-            echo "### files: lib/screens/billing"; ls -1 lib/screens/billing
-            echo "### grep -ril update lib"; grep -ril -e update -e updater lib || true
-            echo "### grep -ri sifalo lib"; grep -ril -i sifalo lib || true
-            echo "### grep -ril subscribe lib"; grep -ril -i -e subscribe -e plan -e billing lib || true
-            for f in lib/services/billing/*.dart lib/screens/billing/*.dart lib/services/apk_build.dart android_native/AppUpdater.kt; do
+            for f in lib/services/updater.dart lib/services/update_logic.dart lib/services/usage_accounting.dart lib/services/oc_lanes.dart lib/services/submac_gateway.dart lib/screens/settings_screen.dart lib/widgets/update_window.dart; do
               echo; echo "===== FILE: $f ====="; cat "$f";
             done
           } > tools/oc_dump_result.txt
@@ -29,5 +23,5 @@ jobs:
           git config user.name submac-agent
           git config user.email agent@submac.site
           git add -A
-          git commit -m "chore(ci): dump billing and updater sources"
+          git commit -m "chore(ci): dump updater and cloud plumbing"
           git push
