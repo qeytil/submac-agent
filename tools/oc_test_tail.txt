@@ -1,0 +1,200 @@
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: mission_done closes it, cancels its alarm and tells the owner
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: starting needs the owner: a background run cannot give itself a mission
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: a new mission replaces the live one (one mission per bot), keeping the old log on disk
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: team missions: the lead is woken, and a plan step with assign hands it to a teammate in the team chat
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: armAll after a restart: missions that are on get their alarm again; a missed time wakes in a minute
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: a run cut short by no connection does not count, and retries soon
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: a wake that could not start is not counted and retries in 20 minutes
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: progress notifications are summaries, at most one per 30 minutes
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: the tools are a bot's own: in every bot's list, never switched off with a power, mission brief in the prompt
+✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: mission.json is valid JSON with the owner, goal and budget
+✅ /home/runner/work/submac-agent/submac-agent/test/opencode_turn_test.dart: a turn folds text, tool steps and the end of the reply; the user's own message is skipped
+✅ /home/runner/work/submac-agent/submac-agent/test/opencode_turn_test.dart: thinking streams as its own part and closes when the answer starts
+✅ /home/runner/work/submac-agent/submac-agent/test/opencode_turn_test.dart: an error ends the turn with its message; a stop is not an error
+✅ /home/runner/work/submac-agent/submac-agent/test/opencode_turn_test.dart: a retry shows its message
+✅ /home/runner/work/submac-agent/submac-agent/test/output_visual_test.dart: ```visual takes SVG and nothing else
+✅ /home/runner/work/submac-agent/submac-agent/test/output_visual_test.dart: a ```visual card renders the drawing
+✅ /home/runner/work/submac-agent/submac-agent/test/output_visual_test.dart: ```data renders extracted rows as a table card
+✅ /home/runner/work/submac-agent/submac-agent/test/output_visual_test.dart: a ```data card shows the rows
+✅ /home/runner/work/submac-agent/submac-agent/test/output_visual_test.dart: a long summary is folded by default; Show more opens it right there, not the reader
+✅ /home/runner/work/submac-agent/submac-agent/test/output_visual_test.dart: the folded summary still opens the reader on a tap of the preview
+✅ /home/runner/work/submac-agent/submac-agent/test/team_opencode_test.dart: the lead hands off with team_assign; members run in their own turns, all at once; the lead answers
+✅ /home/runner/work/submac-agent/submac-agent/test/team_opencode_test.dart: stop: no member starts after the owner stops the team
+::endgroup::
+::group::✅ /home/runner/work/submac-agent/submac-agent/test/team_opencode_test.dart: team_task from a lead's routine starts a job; a busy team says so
+team post dropped as a duplicate of p1794302231333688010
+team post dropped as a duplicate of p1794302231336266011
+::endgroup::
+::group::✅ Passing tests
+✅ /home/runner/work/submac-agent/submac-agent/test/team_opencode_test.dart: a lead over its daily budget does not start routine team work
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: a job the cloud hands over is run by the phone, once new handoffs are taken once; old ones are dropped
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: a job the cloud hands over is run by the phone, once no handoff, nothing to do
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: a bot's scheduled task belongs to the bot the bot id survives saving
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: follow-ups at an exact time bot_followup takes in_minutes and no longer requires "when"
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: the cloud runner does the work itself it has the web
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: the cloud runner does the work itself it never sends "starting / will report later" messages
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: the cloud runner does the work itself a handed-over job is recorded for the phone and stays silent
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: the phone wake asks for the result, never for "start"
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: local or cloud: a job runs where its tools are (owner 2026-11-02) building a page and emailing the link runs on the phone
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: local or cloud: a job runs where its tools are (owner 2026-11-02) research and writing may run in the cloud
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: local or cloud: a job runs where its tools are (owner 2026-11-02) the bot's own on_phone choice wins
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: local or cloud: a job runs where its tools are (owner 2026-11-02) the choice is kept
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: local or cloud: a job runs where its tools are (owner 2026-11-02) routine and follow-up tools offer on_phone
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: local or cloud: a job runs where its tools are (owner 2026-11-02) a phone-run job is never sent to the cloud
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: time: later means later (owner 2026-11-02) the prompt clock is exact to the minute, with weekday and zone
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: time: later means later (owner 2026-11-02) a time already gone is refused with the real time
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: time: later means later (owner 2026-11-02) every bot reads WHEN as well as what
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_background_test.dart: time: later means later (owner 2026-11-02) schedule_task takes in_minutes and no longer requires when
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: BrandLogo: real logos for the Apps screen every logo the widget knows has its file
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: BrandLogo: real logos for the Apps screen every sign-in app has a logo
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: BrandLogo: real logos for the Apps screen every key app has a logo, except plain email
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: BrandLogo: real logos for the Apps screen a server link finds its app by whole name only
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: BrandLogo: real logos for the Apps screen a sign-in app a bot uses maps from its link
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: BrandLogo: real logos for the Apps screen pale brand colours are drawn in ink
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: BrandLogo: real logos for the Apps screen an unknown app falls back to its letter tile
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: Plan 5.5 friendly failures Calm.short never shows the raw error
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: Sign-in stress cancel with nothing waiting is safe
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: Plan 5.5 motion a leaving card folds away
+✅ /home/runner/work/submac-agent/submac-agent/test/brand_logo_test.dart: Plan 5.5 motion skeleton, tick and empty hint build
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-16 the Bots workspace follows a chat opened from outside (notification tap) a bot notification for Nova tapped while the Chief is on screen: what you type goes where you look
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-16 the Bots workspace follows a chat opened from outside (notification tap) a chat that is not a bot's, opened from outside, closes the workspace instead of hiding under it
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-16 the Bots workspace follows a chat opened from outside (notification tap) the workspace counts itself open, so a bot notification opens that bot in place
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-35 / CB-21 routines run once per slot, and a missed one catches up CB-35: the same routine alarm delivered twice wakes the bot once
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-35 / CB-21 routines run once per slot, and a missed one catches up CB-35: a redelivery after a restart (slot kept on the phone) does not run the routine again
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-35 / CB-21 routines run once per slot, and a missed one catches up CB-35: the next day's slot, and another routine at the same minute, still run
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-35 / CB-21 routines run once per slot, and a missed one catches up CB-35: an alarm a moment early still counts as its own slot
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-35 / CB-21 routines run once per slot, and a missed one catches up CB-21: an 08:30 routine missed while SubMac was stopped is caught up at 08:40, then armed for tomorrow
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-35 / CB-21 routines run once per slot, and a missed one catches up CB-21: no catch-up when the slot is more than 3 hours gone
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-35 / CB-21 routines run once per slot, and a missed one catches up CB-21: a routine made (or moved) after its time today does not run at once
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-35 / CB-21 routines run once per slot, and a missed one catches up CB-21: when it last ran is kept across a restart
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-35 / CB-21 routines run once per slot, and a missed one catches up BotRoutine.catchUp and prev
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-46 a wake that comes before SubMac is ready is kept and run once fire before provider restore runs the wake once provider arrives
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-46 a wake that comes before SubMac is ready is kept and run once a wake that finds SubMac ready runs straight away and holds nothing
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-29 text and picked files stay with the chat they were meant for text and a picked file in chat A do not appear in chat B, and come back in A
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_regress_bots_test.dart: CB-29 text and picked files stay with the chat they were meant for the main chat keeps drafts per chat too
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a SubMac call to the turn that made it a run_tool call in the turn's own session routes to it; another session's does not
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a SubMac call to the turn that made it a subagent (child session) call routes to the chat whose turn started it
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a SubMac call to the turn that made it find_tools is routed too, so a lookup lists the caller's own tools
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a SubMac call to the turn that made it a "submac_" prefix on the inner name routes the same as without it (the call is run without it)
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a SubMac call to the turn that made it arguments sent as "parameters" are read (seen in a bot's office wake)
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a SubMac call to the turn that made it a pending part (no input yet) is not noted
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a SubMac call to the turn that made it no route: the only turn running, never a guess between several
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a SubMac call to the turn that made it a subagent session asks in its root chat; a session of no chat asks nowhere
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: each turn sees only its own tools the owner's chat gets no bot or team tools
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: each turn sees only its own tools the main agent cannot run a bot tool through run_tool
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: each turn sees only its own tools a bot gets its own tools, office tools during office work, and the app's cut by its powers
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: a finished run hands back its own last reply, never a thinking row or an older reply
+✅ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: source: no SubMac call or ask falls back to the chat on screen
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: watches: "when X posts, do Y" the owner's example: B takes its turn when A posts, without another owner message
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: watches: "when X posts, do Y" phrasings: "when Nova is done, Amal checks it", "@Amal wait for Nova's report, then summarise"
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: watches: "when X posts, do Y" a watch-only message needs no answer now: no "who speaks" call, nobody asked
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: watches: "when X posts, do Y" a bot can set its own watch with office_watch
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: watches: "when X posts, do Y" watches survive saving and lapse after a day
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: the lead assigns: assignees start by themselves "Name: task" lines start each assignee, and the lead hears back with who is still to come
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: the lead assigns: assignees start by themselves @mentions from the lead are assignments; a teammate's question is a mention
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: the lead assigns: assignees start by themselves an assignment must report back (it is never dropped as a silent answer)
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: the lead assigns: assignees start by themselves a summary that credits teammates hands nothing out; work already on the board is not started twice
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: the lead assigns: assignees start by themselves the lead's own plan in a team job never starts members twice (the job runs them)
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: the lead assigns: assignees start by themselves two hand-offs to one bot are two turns
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: the lead assigns: assignees start by themselves the lead's instructions say naming a teammate starts their turn
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: loop guards chain depth: bot-to-bot turns stop at maxDepth; owner watches reach watchDepth
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: loop guards no ping-pong: a plain answer never wakes the teammate that woke it
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: loop guards office_post from a turn deep in a chain wakes nobody
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: loop guards one post starts at most one turn per bot
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: loop guards small talk starts nothing
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: loop guards burst: at most TeamReact.burst bot-started turns per team in the window, then one system line
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: loop guards the owner and system posts never start bot turns this way
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: collaboration fixes a bot addressed while a team job runs, whose part is done, answers itself
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: collaboration fixes handing the team over no longer overwrites the daily report time
+✅ /home/runner/work/submac-agent/submac-agent/test/team_turns_test.dart: collaboration fixes a job keeps its chain through saving and retries
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: ScreenControl: the badge comes down when the task ends a run ending drops its owner at once
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: ScreenControl: the badge comes down when the task ends a quiet owner with no run is dropped after the idle time
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: ScreenControl: the badge comes down when the task ends a pinned run gets the longer watchdog
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: ScreenControl: the badge comes down when the task ends a step that never reports back is dropped after stepMax
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: ScreenControl: the badge comes down when the task ends an owner waiting on the user is kept
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: ScreenControl: the badge comes down when the task ends clear ends every owner (Stop)
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: the bubble focus is the most recent owner with a chat, never Live
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: the bubble shows only outside the app, with a task, and not over Live
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: the bubble lines keep user and assistant text, newest four, trimmed
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: the bubble step line is short and never empty
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: the bubble Edit opens the text when there is text to change, otherwise asks for a change
+✅ /home/runner/work/submac-agent/submac-agent/test/screen_control_test.dart: the bubble sign-ins never go in the bubble
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: transcript: every message labelled speaker, role, kind, "you", addressee, reply link and time
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: transcript: every message labelled the bot's own identity, the roster with roles and the lead
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: transcript: every message labelled situation: who already answered, what waits on the owner, whether the owner is here
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: transcript: every message labelled the office prompt carries the labelled chat and the situation
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection rules: addressed, a role named, the lead named, a bot's open question, else the model
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection an unaddressed question: one bot answers, not all
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection a role named needs no model call
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection a job for several roles while the owner is here: the members it needs, in one thread, no lead plan
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection "@team": everyone, one after another (one thread)
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection a thread job waits while another job of the thread runs
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection a thread job sees who answered before it and may pass
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection the same words sent twice wait once
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection the lead given a job alongside named teammates: their own replies go, the lead plans
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: turn selection the "who speaks" prompt reads labelled messages and the lead mode
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: dedupe near duplicates, short lines, different texts
+::endgroup::
+::group::✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: dedupe a bot repeating itself or a teammate is dropped; the owner and system lines are not
+team post dropped as a duplicate of p1794302239240808022
+team post dropped as a duplicate of p1794302239240808022
+::endgroup::
+::group::✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: dedupe a bot echoing the owner's message is dropped
+team post dropped as a duplicate of p1794302239243951027
+::endgroup::
+::group::✅ Passing tests
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: needs you the marker makes a "Needs you" post, stripped, and tells the owner
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: lead mode commands
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: lead mode hand-over words in Somali and Arabic too (bug audit 2026-11-07)
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: lead mode peer while the owner is here, leading when away or handed over
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: lead mode "lead, take over" hands over, "I'm back" takes it back, each with one line
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: lead mode handing over with a job: the lead plans concrete parts and never copies the owner
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: lead mode a plan that copies the owner's words gets a part for each role instead
+✅ /home/runner/work/submac-agent/submac-agent/test/team_awareness_test.dart: lead mode while the owner is here, a listed job is not planned by the lead
+✅ /home/runner/work/submac-agent/submac-agent/test/oc_lanes_test.dart: lanes the owner's chat is foreground; a bot's wake and team work are background, each with its own source
+✅ /home/runner/work/submac-agent/submac-agent/test/oc_lanes_test.dart: lanes each provider has its own proxy path: only background providers use the lane path
+✅ /home/runner/work/submac-agent/submac-agent/test/oc_lanes_test.dart: lanes a bot runs on its own model setting; unset, unknown or another provider falls back to submac
+✅ /home/runner/work/submac-agent/submac-agent/test/oc_lanes_test.dart: lanes every prompt names its model, so a bot's chat never stays on the lane of an earlier wake
+✅ /home/runner/work/submac-agent/submac-agent/test/oc_lanes_test.dart: background guard ai-chat's background_paused (retried by opencode, or an error) stops a background turn only
+✅ /home/runner/work/submac-agent/submac-agent/test/oc_lanes_test.dart: background guard the owner's chat stops when the whole allowance is used up, and a provider that keeps refusing is let go
+✅ /home/runner/work/submac-agent/submac-agent/test/oc_lanes_test.dart: background guard a bot's own daily budget stops its background turn once the turn has used what was left
+✅ /home/runner/work/submac-agent/submac-agent/test/oc_lanes_test.dart: wiring chat turns pick their lane from the bot-wake rules; team turns are background office work (an owner's reply in the team chat is foreground)
+✅ /home/runner/work/submac-agent/submac-agent/test/oc_lanes_test.dart: wiring the engine writes one provider per lane; the proxy turns the lane path into the background header
+✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: a Composio consumer key goes to Connect in x-consumer-api-key, whatever address the model guessed
+✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: a project key keeps its generated server and uses x-api-key
+✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: Composio with no key goes to Connect (its own sign-in); other servers are untouched
+✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: add_mcp_server: a failed try is not left in Apps and never reads as connected
+✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: opencode can find and run every app tool (no 8-tool cap)
+✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: run_tool forgives the submac_ prefix models add
+✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: Composio is an app in Apps: paste the key, nothing else
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_live_test.dart: Arabic text reads right to left; Somali and English left to right
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_live_test.dart: progress lines show only when they read like a person
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_live_test.dart: failed steps are recognised
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_live_test.dart: several lookups at once get one plain line
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_live_test.dart: the status line remembers when it changed
+✅ /home/runner/work/submac-agent/submac-agent/test/chat_live_test.dart: the folded step list covers only the last task, in order, without say
+✅ /home/runner/work/submac-agent/submac-agent/test/turn_line_test.dart: a plain reply takes over from the line only after it has streamed a moment with no step
+✅ /home/runner/work/submac-agent/submac-agent/test/turn_line_test.dart: steps are counted from the run
+✅ /home/runner/work/submac-agent/submac-agent/test/turn_line_test.dart: the finished line has the live line's height and left edge
+✅ /home/runner/work/submac-agent/submac-agent/test/turn_line_test.dart: right to left: the line starts on the right
+✅ /home/runner/work/submac-agent/submac-agent/test/tool_scope_test.dart: ToolScope: only the tools a message needs a plain question opens no gated group
+✅ /home/runner/work/submac-agent/submac-agent/test/tool_scope_test.dart: ToolScope: only the tools a message needs messages point at the right groups
+✅ /home/runner/work/submac-agent/submac-agent/test/tool_scope_test.dart: ToolScope: only the tools a message needs attachments open files; a connected app name opens apps
+✅ /home/runner/work/submac-agent/submac-agent/test/tool_scope_test.dart: ToolScope: only the tools a message needs unknown and core tools are always sent; gated ones only when open
+✅ /home/runner/work/submac-agent/submac-agent/test/tool_scope_test.dart: ToolScope: only the tools a message needs order is kept so the prompt prefix stays stable
+✅ /home/runner/work/submac-agent/submac-agent/test/tool_scope_test.dart: ToolScope: only the tools a message needs closed groups are named in plain words
+✅ /home/runner/work/submac-agent/submac-agent/test/skill_save_test.dart: skill_save stores, refuses collisions, and reads back as a skill
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: google button shows only when Google sign-in is on
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: email and code email shape
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: email and code six-digit code, spaces and dashes ignored
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: verification gate unverified email accounts are held back
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: verification gate verified and Google accounts go straight in
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: verification gate unconfirmed sign-in error is recognised
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: verification gate a code reset is taken once
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: messages wrong or expired code
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: messages unconfirmed email offers a new code
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: consent needs 18+ and the current version
+✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: consent saved data passes the check
+::endgroup::
+
+::error::1669 tests passed, 1 failed.
