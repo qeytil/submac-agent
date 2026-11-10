@@ -75,7 +75,6 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
         children: [
           _Group([
             row('Account', const _AccountPage()),
-            row('Plan & usage', const _PlanPage()),
             // Bring your own key (owner 2026-11-03): SubMac or the user's own providers.
             row('Models', const ModelsScreen()),
             // The user's own media providers (owner 2026-11-04): pictures, video, speech, music.
