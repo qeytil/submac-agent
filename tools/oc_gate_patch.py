@@ -86,8 +86,8 @@ patch(
 
 patch(
     C,
-    "                        hintText: _listening ? 'Speak now...' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask SubMac anything')),",
-    "                        hintText: needsModel ? tr('Connect a model to start') : _listening ? 'Speak now...' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask SubMac anything')),",
+    "                        hintText: _listening ? 'Speak now…' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask SubMac anything')),",
+    "                        hintText: needsModel ? tr('Connect a model to start') : _listening ? 'Speak now…' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask SubMac anything')),",
 )
 
 patch(
