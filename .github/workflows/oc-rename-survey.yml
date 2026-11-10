@@ -1,0 +1,30 @@
+name: oc-rename-survey
+on:
+  push:
+    paths:
+      - 'tools/oc_rename_survey_run.txt'
+permissions:
+  contents: write
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          {
+            echo "### total occurrences (case-insensitive)"; grep -rio -i "submac" --exclude-dir=.git . | wc -l
+            echo "### files and counts"; grep -ric -i "submac" --exclude-dir=.git . | grep -v ':0$' | sort -t: -k2 -nr
+            echo "### assets"; find assets -maxdepth 3 -type f | sort
+            echo "### android_native refs"; grep -rin "submac" android_native | head -120
+            echo "### tools refs"; grep -rin "submac" tools | head -80
+            echo "### pubspec/app id (patch_android head)"; grep -n -i -e "applicationId" -e "namespace" -e "com.submac" -e "label" -e "app_name" tools/patch_android.py | head -40
+            for f in pubspec.yaml lib/screens/intro_screen.dart lib/services/intro_sound.dart lib/widgets/logo.dart; do
+              echo; echo "===== FILE: $f ====="; cat "$f";
+            done
+          } > tools/oc_rename_survey.txt
+      - run: |
+          git config user.name submac-agent
+          git config user.email agent@submac.site
+          git add -A
+          git commit -m "chore(ci): rename survey"
+          git push
