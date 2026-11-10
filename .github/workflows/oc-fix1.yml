@@ -5,7 +5,6 @@ on:
       - 'tools/oc_fix1_run.txt'
 permissions:
   contents: write
-  workflows: write
 jobs:
   fix:
     runs-on: ubuntu-latest
