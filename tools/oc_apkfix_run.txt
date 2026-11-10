@@ -1,1 +1,1 @@
-apkfix 2
+apkfix 3
