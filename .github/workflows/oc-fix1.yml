@@ -1,0 +1,21 @@
+name: oc-fix1
+on:
+  push:
+    paths:
+      - 'tools/oc_fix1_run.txt'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patches
+        run: python3 tools/oc_fix1.py
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "fix(brand): prefix length, applicationId com.telesia.app, CI org is telesia"
+          git push
