@@ -1,0 +1,161 @@
+358:Expected: ''
+359:  Actual: <null>
+367:Expected: 'mainConv'
+368:  Actual: <null>
+376:Expected: 'botConv'
+377:  Actual: <null>
+385:Expected: 'mainConv'
+386:  Actual: <null>
+613:Expected: a value less than or equal to <6>
+614:  Actual: <7>
+675:Expected: a string starting with 'IMAGE_SAVED'
+676:  Actual: 'Error: unknown tool telesia_generate_image.'
+683:Expected: 'chat-1'
+684:  Actual: <null>
+1412:Expected: 'ok'
+1413:  Actual: 'Error: no Telesia tool named "_apps_list_tools". [{"name":"apps_list_tools","description":null,"parameters":{"type":"object"}}]'
+1415:          Expected: ok
+1416:            Actual: Error: no  ...
+1591:Expected: <1>
+1592:  Actual: <0>
+1599:Expected: 'mainConv'
+1600:  Actual: <null>
+1608:Expected: 'botConv'
+1609:  Actual: <null>
+1617:Expected: 'bot_followup'
+1618:  Actual: '_bot_followup'
+1620:          Expected: bot_follow ...
+1621:            Actual: _bot_follo ...
+1865:::error::1658 tests passed, 12 failed.
+=== context ===
+355-✅ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: engine events reach only their own turn parts, deltas and idle of one session never land in another turn
+356-::endgroup::
+357-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them a call from a session no running turn owns is refused, not run as the only live turn (failed)
+358:Expected: ''
+359-  Actual: <null>
+360-   Which: not an <Instance of 'String'>
+361-
+362-package:matcher                                     expect
+363-package:flutter_test/src/widget_tester.dart 473:18  expect
+364-test/bots_team_isolation_test.dart 155:7            main.<fn>.<fn>
+365-::endgroup::
+366-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them a running turn's own calls, and its subagents', are not orphans (failed)
+367:Expected: 'mainConv'
+368-  Actual: <null>
+369-   Which: not an <Instance of 'String'>
+370-
+371-package:matcher                                     expect
+372-package:flutter_test/src/widget_tester.dart 473:18  expect
+373-test/bots_team_isolation_test.dart 174:7            main.<fn>.<fn>
+374-::endgroup::
+375-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them with several turns running, a call with other arguments never takes another turn's entry (failed)
+376:Expected: 'botConv'
+377-  Actual: <null>
+378-   Which: not an <Instance of 'String'>
+379-
+380-package:matcher                                     expect
+381-package:flutter_test/src/widget_tester.dart 473:18  expect
+382-test/bots_team_isolation_test.dart 181:7            main.<fn>.<fn>
+383-::endgroup::
+384-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them alone, a call whose arguments changed on the way still finds its only entry (failed)
+385:Expected: 'mainConv'
+386-  Actual: <null>
+387-   Which: not an <Instance of 'String'>
+388-
+389-package:matcher                                     expect
+390-package:flutter_test/src/widget_tester.dart 473:18  expect
+391-test/bots_team_isolation_test.dart 187:7            main.<fn>.<fn>
+392-::endgroup::
+393-::group::✅ Passing tests
+--
+610-::group::❌ /home/runner/work/submac-agent/submac-agent/test/intro_auth_flow_test.dart: first-launch intro plays the draw, ticks per letter, lands the dot, then hands over to sign-in (failed)
+611-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+612-The following TestFailure was thrown running a test:
+613:Expected: a value less than or equal to <6>
+614-  Actual: <7>
+615-   Which: is not a value less than or equal to <6>
+616-
+617-When the exception was thrown, this was the stack:
+618-#4      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/submac-agent/submac-agent/test/intro_auth_flow_test.dart:90:7)
+619-<asynchronous suspension>
+620-#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+621-<asynchronous suspension>
+--
+672-✅ /home/runner/work/submac-agent/submac-agent/test/visual_output_test.dart: generate_image reaches opencode listed by name only while the server can make pictures
+673-::endgroup::
+674-::group::❌ /home/runner/work/submac-agent/submac-agent/test/visual_output_test.dart: generate_image reaches opencode a direct call runs through the chat's own tool list, prefix or not (failed)
+675:Expected: a string starting with 'IMAGE_SAVED'
+676-  Actual: 'Error: unknown tool telesia_generate_image.'
+677-
+678-package:matcher                                     expect
+679-package:flutter_test/src/widget_tester.dart 473:18  expect
+680-test/visual_output_test.dart 180:7                  main.<fn>.<fn>
+681-::endgroup::
+682-::group::❌ /home/runner/work/submac-agent/submac-agent/test/visual_output_test.dart: generate_image reaches opencode a direct call is routed to the chat whose turn made it (failed)
+683:Expected: 'chat-1'
+684-  Actual: <null>
+685-   Which: not an <Instance of 'String'>
+686-
+687-package:matcher                                     expect
+688-package:flutter_test/src/widget_tester.dart 473:18  expect
+689-test/visual_output_test.dart 200:7                  main.<fn>.<fn>
+690-::endgroup::
+691-::group::✅ Passing tests
+--
+1409-✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: opencode can find and run every app tool (no 8-tool cap)
+1410-::endgroup::
+1411-::group::❌ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: run_tool forgives the telesia_ prefix models add (failed)
+1412:Expected: 'ok'
+1413-  Actual: 'Error: no Telesia tool named "_apps_list_tools". [{"name":"apps_list_tools","description":null,"parameters":{"type":"object"}}]'
+1414-   Which: is different.
+1415:          Expected: ok
+1416-            Actual: Error: no  ...
+1417-                    ^
+1418-           Differ at offset 0
+1419-
+1420-package:matcher                                     expect
+1421-package:flutter_test/src/widget_tester.dart 473:18  expect
+1422-test/mcp_known_test.dart 67:5                       main.<fn>
+1423-::endgroup::
+--
+1588-✅ /home/runner/work/submac-agent/submac-agent/test/skill_save_test.dart: skill_save stores, refuses collisions, and reads back as a skill
+1589-::endgroup::
+1590-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it a run_tool call in the turn's own session routes to it; another session's does not (failed)
+1591:Expected: <1>
+1592-  Actual: <0>
+1593-
+1594-package:matcher                                     expect
+1595-package:flutter_test/src/widget_tester.dart 473:18  expect
+1596-test/bots_leak_test.dart 39:7                       main.<fn>.<fn>
+1597-::endgroup::
+1598-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it a subagent (child session) call routes to the chat whose turn started it (failed)
+1599:Expected: 'mainConv'
+1600-  Actual: <null>
+1601-   Which: not an <Instance of 'String'>
+1602-
+1603-package:matcher                                     expect
+1604-package:flutter_test/src/widget_tester.dart 473:18  expect
+1605-test/bots_leak_test.dart 55:7                       main.<fn>.<fn>
+1606-::endgroup::
+1607-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it find_tools is routed too, so a lookup lists the caller's own tools (failed)
+1608:Expected: 'botConv'
+1609-  Actual: <null>
+1610-   Which: not an <Instance of 'String'>
+1611-
+1612-package:matcher                                     expect
+1613-package:flutter_test/src/widget_tester.dart 473:18  expect
+1614-test/bots_leak_test.dart 61:7                       main.<fn>.<fn>
+1615-::endgroup::
+1616-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it a "telesia_" prefix on the inner name routes the same as without it (the call is run without it) (failed)
+1617:Expected: 'bot_followup'
+1618-  Actual: '_bot_followup'
+1619-   Which: is different.
+1620:          Expected: bot_follow ...
+1621-            Actual: _bot_follo ...
+1622-                    ^
+1623-           Differ at offset 0
+1624-
+1625-package:matcher                                     expect
+1626-package:flutter_test/src/widget_tester.dart 473:18  expect
+1627-test/bots_leak_test.dart 68:7                       main.<fn>.<fn>
+1628-::endgroup::
