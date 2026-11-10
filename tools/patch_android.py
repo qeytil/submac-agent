@@ -165,7 +165,7 @@ open(M, "w").write(s)
 # ---------------- native code + resources ----------------
 for f in glob.glob("android/app/src/main/**/MainActivity.*", recursive=True):
     os.remove(f)
-kdir = "android/app/src/main/kotlin/com/telesia/agent"
+kdir = "android/app/src/main/kotlin/com/telesia/app"
 os.makedirs(kdir, exist_ok=True)
 for f in glob.glob("android_native/*.kt"):
     shutil.copy(f, os.path.join(kdir, os.path.basename(f)))
@@ -182,7 +182,12 @@ for f in glob.glob("android_native/res/**/*", recursive=True):
 # Older templates (build.gradle, Groovy) are still handled so a pinned older SDK keeps working.
 KTS = os.path.exists(G + ".kts")
 G = G + ".kts" if KTS else G
+APP_ID = "com.telesia.app"
 g = open(G).read()
+for wrong in ("com.submac.agent", "com.telesia.agent"):
+    g = g.replace('"%s"' % wrong, '"%s"' % APP_ID)
+assert '"com.telesia.app"' in g, "gradle identity not found (namespace/applicationId)"
+
 for a, b in [
     ("compileSdk = flutter.compileSdkVersion", "compileSdk = flutter.compileSdkVersion"),
     ("targetSdk = flutter.targetSdkVersion", "targetSdk = 34"),

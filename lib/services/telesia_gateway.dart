@@ -98,7 +98,7 @@ class TelesiaGateway {
   /// A tool name without the MCP wrapper's prefix models often add ("telesia_run_tool", "telesia_apps_list_tools").
   /// Used both where a call is noted for routing and where it runs, so the two always agree (a prefix stripped on one
   /// side only made the route miss and the call fall back to whatever chat was open: bots leak, 2026-11-03).
-  static String bare(String name) => name.startsWith('telesia_') ? name.substring(7) : name;
+  static String bare(String name) => name.startsWith('telesia_') ? name.substring('telesia_'.length) : name;
 
   Future<String> call(String name, Map<String, dynamic> args) async {
     if (name == findName) return find('${args['query'] ?? ''}');

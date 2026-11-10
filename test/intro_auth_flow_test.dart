@@ -84,10 +84,10 @@ void main() {
       expect(count('selectionClick'), inInclusiveRange(1, 5));
       expect(count('mediumImpact'), 0);
 
-      // The draw is done: one tick per letter of "Telesia", at most six.
+      // The draw is done: one tick per letter of "Telesia", at most seven.
       await tester.pump(const Duration(milliseconds: 800)); // 1550 ms
       expect(count('selectionClick'), IntroMotion.word.length);
-      expect(IntroMotion.word.length, lessThanOrEqualTo(6));
+      expect(IntroMotion.word.length, lessThanOrEqualTo(7));
       expect(count('mediumImpact'), 0, reason: 'the impact waits for the dot');
 
       // The dot lands (2250 ms): one soft impact.
@@ -100,7 +100,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.text('SIGN-IN'), findsOneWidget);
       expect(find.byType(IntroScreen), findsNothing);
-      expect(count('selectionClick'), 6);
+      expect(count('selectionClick'), 7);
       expect(count('mediumImpact'), 1);
       expect(sound.calls, ['play'], reason: 'a finished intro lets the tail ring out');
       final prefs = await SharedPreferences.getInstance();
