@@ -1,0 +1,19 @@
+name: oc-p1b
+on:
+  push:
+    paths:
+      - 'tools/oc_p1b_run.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/oc_p1b_patch.py
+      - run: |
+          git config user.name "submac-agent"
+          git config user.email "agent@submac.site"
+          git add -A
+          git commit -m "test(byok): lane test expects the submac legacy name only"
+          git push
