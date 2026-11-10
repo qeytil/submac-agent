@@ -35,10 +35,10 @@ jobs:
       # android_native/ and is stamped in by tools/patch_android.py (same as dev-check).
       - name: Generate platform folders
         run: |
-          flutter create --org com.submac --project-name agent --platforms android,ios .
+          flutter create --org com.telesia --project-name agent --platforms android,ios .
           rm -f test/widget_test.dart
 
-      - name: Make it SubMac (manifest, native code, resources, gradle)
+      - name: Make it Telesia (manifest, native code, resources, gradle)
         run: python3 tools/patch_android.py
 
       - run: flutter pub get
