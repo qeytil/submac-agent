@@ -29,12 +29,12 @@ jobs:
           flutter pub get
       - run: |
           (flutter test 2>&1 || true) > /tmp/t.txt
-          grep -n -E "\[E\]|FAILED|══╡|Test failed|Expected:|Actual:|Which:|The following|Some tests failed|tests passed|package:agent/" /tmp/t.txt | tail -n 140 > tools/oc_test_tail.txt
-          echo "----- last 12 lines -----" >> tools/oc_test_tail.txt
-          tail -n 12 /tmp/t.txt >> tools/oc_test_tail.txt
+          grep -n -B 30 -A 15 "Expected:" /tmp/t.txt | tail -n 140 > tools/oc_test_tail.txt
+          echo "----- summary -----" >> tools/oc_test_tail.txt
+          tail -n 3 /tmp/t.txt >> tools/oc_test_tail.txt
       - run: |
           git config user.name submac-agent
           git config user.email agent@submac.site
           git add -A
-          git commit -m "chore(ci): test failure details"
+          git commit -m "chore(ci): test failure context"
           git push
