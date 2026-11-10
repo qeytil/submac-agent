@@ -13,18 +13,25 @@ jobs:
       - name: Apply patches
         run: |
           set +e
-          python3 tools/oc_fix1.py > /tmp/p.log 2>&1
+          python3 tools/oc_fix1.py > tools/oc_fix1_log.txt 2>&1
           code=$?
-          cat /tmp/p.log
-          {
-            echo "exit=$code"
-            cat /tmp/p.log
-          } > tools/oc_fix1_log.txt
+          { echo "python exit=$code"; } >> tools/oc_fix1_log.txt
+          head -40 tools/oc_fix1_log.txt
           exit 0
       - name: Commit
         run: |
+          set +e
+          LOG=""
+          o=$(git add -A 2>&1); c=$?; LOG="$LOG[add -A rc=$c] $o ; "
+          if [ "$c" -ne 0 ]; then
+            o=$(git add -u 2>&1); c2=$?; LOG="$LOG[add -u rc=$c2] $o ; "
+            o=$(git add tools lib test .github 2>&1); c3=$?; LOG="$LOG[add paths rc=$c3] $o ; "
+          fi
           git config user.name telesia-agent
           git config user.email agent@telesia.site
-          git add -A
-          git commit -m "chore(ci): brand fix attempt" || true
-          git push
+          o=$(git commit -m "chore(ci): brand fix attempt" 2>&1); c=$?; LOG="$LOG[commit rc=$c] $o ; "
+          o=$(git push 2>&1); c=$?; LOG="$LOG[push rc=$c] $o ; "
+          esc=$(printf '%s' "$LOG" | tr '\n' '~')
+          echo "::error::GIT: $esc"
+          echo "$LOG" | head -c0300
+          exit 0
