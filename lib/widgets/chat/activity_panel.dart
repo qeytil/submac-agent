@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models.dart';
+import '../../services/chat_compact.dart';
 import '../../theme.dart';
 import '../../ui/tokens.dart';
 import '../message_view.dart';
@@ -9,14 +10,42 @@ import 'activity_groups.dart';
 /// The turn's work, expanded: one section per kind (Thinking, Tools run, Notes), each folded to its count until
 /// tapped, so even the open view stays quiet (owner, 2026-11-03).
 class ActivityPanel extends StatelessWidget {
-  const ActivityPanel({super.key, required this.groups, required this.results});
+  const ActivityPanel({super.key, required this.groups, required this.results, this.compacting});
   final ActivityGroups groups;
   final Map<String, ChatMessage> results;
+
+  /// The summary being written right now (owner 2026-11-10), while the engine folds the older part of this chat:
+  /// empty words mean "still writing". Null when nothing is being compacted.
+  final String? compacting;
 
   @override
   Widget build(BuildContext context) {
     final failed = groups.failed(results);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+      if (compacting != null)
+        _Section(
+          title: 'Summary',
+          count: 'now',
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Space.x1),
+              child: Text(compacting!.trim().isEmpty ? ChatCompact.line : compacting!.trim(),
+                  style: AppText.metaStyle.copyWith(color: Palette.of(context).muted)),
+            ),
+          ],
+        ),
+      if (groups.compacts.isNotEmpty)
+        _Section(
+          title: 'Summary',
+          count: '${groups.compacts.length}',
+          children: [
+            for (final m in groups.compacts)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: Space.x1),
+                child: SelectableText(m.content.trim(), style: AppText.metaStyle.copyWith(color: Palette.of(context).muted)),
+              ),
+          ],
+        ),
       if (groups.thinking.isNotEmpty)
         _Section(
           title: 'Thinking',

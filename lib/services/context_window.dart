@@ -62,8 +62,11 @@ class ContextWindow {
   }
 
   /// The share of the window a request may fill before the chat is compacted (leaves room for the reply).
-  static int compactAt() {
-    final w = _tokens;
+  static int compactAt() => compactAtFor(_tokens);
+
+  /// The same rule for any window (pure: unit tested, and used by a caller that knows its own window).
+  static int compactAtFor(int window) {
+    final w = window <= 0 ? fallback : window;
     final reply = w ~/ 10 > 8000 ? 8000 : w ~/ 10;
     final at = (w * 0.75).floor();
     return at > w - reply ? w - reply : at;

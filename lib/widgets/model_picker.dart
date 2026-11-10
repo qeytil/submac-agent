@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../services/byok.dart';
+import '../services/byok_opencode.dart';
+import '../services/context_window.dart';
 import '../theme.dart';
 import '../ui/i18n.dart';
 import '../ui/tokens.dart';
@@ -36,6 +38,36 @@ String botModelLabel(String setting, {ByokStore? store}) {
     return '${pick.model.label} · ${pick.provider.label}';
   }
   return BotModelWords.defaultLabel;
+}
+
+/// The details of one model in the app's words (owner 2026-11-10): what opencode's own model list shows, so a
+/// choice is never blind — how much the model can read at once, and the longest reply it can write.
+class ModelInfo {
+  ModelInfo._();
+
+  /// "128k", "1M", "200k": never a raw number.
+  static String size(int n) {
+    if (n >= 1000000) {
+      final m = n / 1000000;
+      return '${m.toStringAsFixed(m == m.roundToDouble() ? 0 : 1)}M';
+    }
+    if (n >= 1000) return '${(n / 1000).round()}k';
+    return '$n';
+  }
+
+  /// The quiet line under a model's name: its id when it differs, its window and its longest reply.
+  static String rowOf(ByokModel m) {
+    final window = m.context ?? ByokOpencode.defaultContext;
+    final id = m.label == m.id ? '' : '${m.id} · ';
+    return '${id}${size(window)} window · ${size(ByokOpencode.outputOf(m))} reply';
+  }
+
+  /// What this chat uses right now, as one line under the sheet's title.
+  static String current(String setting, {ByokStore? store}) {
+    final pick = (store ?? ByokStore.I).resolve(setting);
+    if (pick == null) return 'Telesia · reads up to ${size(ContextWindow.tokens)} at once';
+    return '${pick.provider.label} · ${pick.model.label} · reads up to ${size(pick.model.context ?? ByokOpencode.defaultContext)} at once';
+  }
 }
 
 class BotModelWords {
@@ -74,6 +106,10 @@ class _ModelSheet extends StatelessWidget {
               padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x2),
               child: Text(tr(title), style: AppText.titleStyle.copyWith(color: p.text)),
             ),
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x2),
+              child: Text(ModelInfo.current(current), style: AppText.microStyle.copyWith(color: p.muted)),
+            ),
             if (forBot)
               ListTile(
                 key: const ValueKey('model-default'),
@@ -97,7 +133,7 @@ class _ModelSheet extends StatelessWidget {
                 ListTile(
                   key: ValueKey('model-${e.key.id}|${m.id}'),
                   title: Text(m.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: m.label == m.id ? null : Text(m.id, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.microStyle.copyWith(color: p.muted)),
+                  subtitle: Text(ModelInfo.rowOf(m), maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.microStyle.copyWith(color: p.muted)),
                   trailing: check(picked == '${e.key.id}|${m.id}'),
                   onTap: () => Navigator.pop(context, '${e.key.id}|${m.id}'),
                 ),

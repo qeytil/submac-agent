@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config.dart';
 import 'byok.dart';
 import 'byok_opencode.dart';
+import 'chat_compact.dart';
 import 'cloud.dart';
 import 'oc_lanes.dart';
 import 'output_limits.dart';
@@ -391,6 +392,35 @@ class OpenCodeEngine {
     } catch (_) {}
   }
 
+  /// Asks the engine to fold the older part of [session] into a summary: opencode's own summarize. [model] is
+  /// the turn's provider and model (OcLane.pick). True when the engine accepted it.
+  Future<bool> compact(String session, Map<String, String> model) async {
+    if (_port == 0) return false;
+    try {
+      final r = await _client
+          .post(_u('/session/$session/summarize'),
+              headers: {..._auth, 'content-type': 'application/json'},
+              body: jsonEncode({'providerID': model['providerID'], 'modelID': model['modelID'], 'auto': false}))
+          .timeout(const Duration(seconds: 20));
+      return r.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// The engine's own summary of [session] (the newest message it marked `summary: true`), or null when it has
+  /// none yet.
+  Future<String?> summaryOf(String session) async {
+    if (_port == 0) return null;
+    try {
+      final r = await _client.get(_u('/session/$session/message'), headers: _auth).timeout(const Duration(seconds: 10));
+      if (r.statusCode != 200) return null;
+      return ChatCompact.summaryIn(jsonDecode(r.body));
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Forgets a chat's session (the chat was deleted).
   Future<void> forget(String convId) async {
     final m = await _map();
@@ -440,6 +470,15 @@ class OpenCodeTurn {
   String? error;
   String? retry;
   bool reasoning = false;
+
+  /// Input tokens of the newest assistant message: how full the window is, as the engine counts it.
+  int contextUsed = 0;
+
+  /// The engine folded this session's older part (its own auto-compaction, or Telesia's before a turn): its
+  /// marker part arrived, and the summary message it wrote ([summaryMsg], [summary]).
+  bool compacted = false;
+  String? summaryMsg;
+  String? summary;
 
   /// Tokens the turn used (input + output + reasoning, per assistant message, latest count), so a bot's daily budget
   /// counts opencode work too.
@@ -593,11 +632,20 @@ class OpenCodeTurn {
         final info = props['info'];
         if (info is Map && info['sessionID'] == session) {
           if (info['role'] == 'user') _userMsgs.add('${info['id']}');
-          if (info['role'] == 'assistant') _noteFinish(info);
+          if (info['role'] == 'assistant') {
+            _noteFinish(info);
+            // The engine's own summary of the folded part: the message it marks `summary: true`. Its words become
+            // the compact note, never a reply of the model.
+            if (info['summary'] == true) {
+              compacted = true;
+              summaryMsg = '${info['id']}';
+            }
+          }
           final tk = info['tokens'];
           if (info['role'] == 'assistant' && tk is Map) {
             int n(Object? v) => v is num ? v.toInt() : 0;
             _tokens['${info['id']}'] = n(tk['input']) + n(tk['output']) + n(tk['reasoning']);
+            if (n(tk['input']) > 0) contextUsed = n(tk['input']);
           }
           final err = info['error'];
           if (info['role'] == 'assistant' && err is Map && err['name'] != 'MessageAbortedError') {
@@ -608,9 +656,16 @@ class OpenCodeTurn {
         return false;
       case 'message.part.updated':
         final p = props['part'];
-        if (p is! Map || p['sessionID'] != session || _userMsgs.contains('${p['messageID']}')) return false;
+        if (p is! Map || p['sessionID'] != session) return false;
         final id = '${p['id']}';
         final type = '${p['type']}';
+        // The engine folded the older part of this chat: the marker part says so, even though it rides inside a
+        // user message (owner 2026-11-10).
+        if (type == 'compaction') {
+          compacted = true;
+          return true;
+        }
+        if (_userMsgs.contains('${p['messageID']}')) return false;
         if (type == 'reasoning') {
           // opencode's thinking: shown as it streams, like opencode's own desktop chat (owner, 2026-11-03).
           final part = parts[id] ??= OcPart(id, 'reasoning');
@@ -622,6 +677,11 @@ class OpenCodeTurn {
         }
         if (type == 'text') {
           if (p['synthetic'] == true) return false;
+          // The words of the engine's own summary: kept as the compact note, never shown as a reply.
+          if (summaryMsg != null && '${p['messageID']}' == summaryMsg) {
+            summary = '${p['text'] ?? ''}';
+            return true;
+          }
           final part = parts[id] ??= _newText(id);
           part.text = '${p['text'] ?? ''}';
           final t = p['time'];

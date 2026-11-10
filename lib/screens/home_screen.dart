@@ -747,9 +747,11 @@ class _ChatListState extends State<ChatList> {
       for (final m in all)
         if (m.role == 'tool' && m.toolCallId != null) m.toolCallId!: m,
     };
-    // Messages Telesia wrote to wake a bot never show.
+    // Messages Telesia wrote to wake a bot never show; a compact note is a quiet landmark, not a bubble, so it
+    // stays in the turn here and shows inside the turn's activity (owner 2026-11-10).
     final visible = all
-        .where((m) => (m.role == 'user' && !m.content.startsWith(botWakeMark)) || m.role == 'assistant')
+        .where((m) =>
+            (m.role == 'user' && !m.content.startsWith(botWakeMark)) || m.role == 'assistant' || AppState.isCompactMark(m))
         .toList();
     // Neighbours for the action row (system notes never show).
     ChatMessage? near(int i, int dir) {
@@ -967,7 +969,11 @@ class _ChatListState extends State<ChatList> {
               MessageAnchor(
                 key: ValueKey('a-${visible[k].id}'),
                 id: visible[k].id,
-                child: visible[k].role == 'user' ? UserMessageView(key: ValueKey(visible[k].id), message: visible[k]) : assistant(k, inTurn: true),
+                child: AppState.isCompactMark(visible[k])
+                    ? const SizedBox.shrink()
+                    : visible[k].role == 'user'
+                        ? UserMessageView(key: ValueKey(visible[k].id), message: visible[k])
+                        : assistant(k, inTurn: true),
               ),
           ],
         ),
@@ -1006,6 +1012,8 @@ class _ChatListState extends State<ChatList> {
             }
             final idx = history - 1 - i;
             final m = visible[idx];
+            // A compact note shows inside the turn's activity, never as a bubble of its own (owner 2026-11-10).
+            if (AppState.isCompactMark(m)) return SizedBox.shrink(key: ValueKey(m.id));
             // Each message can be found by a reply's quote (tap the quote to jump here).
             return MessageAnchor(
               key: ValueKey(m.id),

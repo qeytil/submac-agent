@@ -123,6 +123,8 @@ import 'services/outbound_guard.dart';
 import 'services/always_on.dart';
 import 'services/bot_runtime.dart';
 import 'services/bot_inbox.dart';
+import 'services/chat_compact.dart';
+import 'services/context_window.dart';
 
 part 'state/agent_runner.dart';
 part 'state/agent_stream.dart';
@@ -906,6 +908,32 @@ class AppState extends ChangeNotifier {
   /// A compaction marker: a quiet 'system' row holding the summary. Its name carries the id of the last
   /// message it covers ("compact:<id>"), so the summary is never recomputed and survives a restart.
   static bool isCompactMark(ChatMessage m) => m.role == 'system' && (m.name ?? '').startsWith('compact:');
+
+  /// The chat an engine compaction is running in right now, or null (owner 2026-11-10): the quiet line says so
+  /// while it lasts and its open view shows the summary as the engine writes it.
+  static final compacting = ValueNotifier<CompactLive?>(null);
+
+  /// How full the window was when each chat last asked the engine for something: the input tokens of its newest
+  /// answer. The next turn folds the older part first once they reach [ContextWindow.compactAt].
+  static final Map<String, int> _ocUsed = {};
+  static int contextUsedIn(String convId) => _ocUsed[convId] ?? 0;
+  static void noteContextUsed(String convId, int tokens) {
+    if (tokens <= 0) {
+      _ocUsed.remove(convId);
+    } else {
+      _ocUsed[convId] = tokens;
+    }
+  }
+
+  /// When each chat was last compacted, so a window that stayed full is not folded again and again.
+  static final Map<String, DateTime> _ocCompactedAt = {};
+  static bool compactedRecently(String convId, {DateTime? now}) {
+    final at = _ocCompactedAt[convId];
+    if (at == null) return false;
+    return (now ?? DateTime.now()).difference(at) < const Duration(minutes: 5);
+  }
+
+  static void noteCompacted(String convId, {DateTime? now}) => _ocCompactedAt[convId] = now ?? DateTime.now();
 
 
 

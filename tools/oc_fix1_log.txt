@@ -1,22 +1,37 @@
-ok  lib/services/telesia_gateway.dart        "static String bare(String name) => name.startsWith('telesia_"
-ok  test/intro_auth_flow_test.dart           '// The draw is done: one tick per letter of "Telesia", at mo'
-ok  test/intro_auth_flow_test.dart           'expect(IntroMotion.word.length, lessThanOrEqualTo(6));'
-ok  test/intro_auth_flow_test.dart           'expect(find.byType(IntroScreen), findsNothing);\n      expect'
-ok  .github/workflows/analyze-test.yml       'flutter create --org com.submac'
-ok  .github/workflows/analyze-test.yml       'Make it SubMac'
-ok  .github/workflows/oc-testrep.yml         'flutter create --org com.submac'
-ok  .github/workflows/apk.yml                'flutter create --org com.submac'
-ok  .github/workflows/apk.yml                'Make it SubMac'
-ok  .github/workflows/apk.yml                'submac_chime'
-ok  .github/workflows/apk.yml                'OUT="submac-${VER}'
-ok  .github/workflows/apk.yml                'SubMac Agent ${{'
-ok  .github/workflows/apk.yml                '### SubMac ${{ inputs.variant }} APK'
-ok  .github/workflows/apk.yml                'pinned SubMac key'
-ok  .github/workflows/apk.yml                '# The SubMac launcher icon'
-ok  .github/workflows/apk.yml                'App icon (the SubMac logo'
-ok  .github/workflows/apk.yml                '**If SubMac Agent 1.3.0 or 1.4.0 is on your phone'
-ok  tools/patch_android.py                   'kdir = "android/app/src/main/kotlin/com/telesia/agent"'
-ok  tools/patch_android.py               identity rewrite added
-
-all patches applied
+patch fetched: 33805 bytes
+patched lib/services/context_window.dart
+patched lib/services/opencode.dart
+patched lib/services/opencode.dart
+patched lib/services/opencode.dart
+patched lib/services/opencode.dart
+patched lib/services/opencode.dart
+patched lib/services/opencode.dart
+patched lib/app_state.dart
+patched lib/app_state.dart
+wrote lib/services/chat_compact.dart (2851 bytes)
+DONE: 9 edits, 1 new files
+patched lib/state/agent_runner.dart
+patched lib/state/agent_runner.dart
+patched lib/state/agent_runner.dart
+patched lib/state/agent_runner.dart
+patched lib/widgets/chat/activity_groups.dart
+patched lib/widgets/chat/activity_groups.dart
+patched lib/widgets/chat/activity_groups.dart
+patched lib/widgets/chat/activity_groups.dart
+patched lib/widgets/chat/activity_groups.dart
+patched lib/widgets/chat/activity_panel.dart
+patched lib/widgets/chat/activity_panel.dart
+DONE: 11 edits
+patched lib/screens/home_screen.dart
+patched lib/screens/home_screen.dart
+patched lib/screens/home_screen.dart
+patched lib/widgets/composer.dart
+patched lib/widgets/composer.dart
+patched lib/widgets/composer.dart
+patched lib/widgets/model_picker.dart
+patched lib/widgets/model_picker.dart
+patched lib/widgets/model_picker.dart
+patched lib/widgets/model_picker.dart
+wrote test/chat_compact_test.dart (3077 bytes)
+DONE: 10 edits, 1 new files
 python exit=0

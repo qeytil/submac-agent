@@ -1006,13 +1006,19 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
         }
         // R2 item 1: the line is the run's real phase (RunStatus), in the app language. Only a long silence in the same
         // phase changes it by itself ("Still waiting for a response"), never a rotating phrase.
-        final status = WorkingLine.lineFor(t, writing: widget.writing, more: widget.more,
-            person: t == null ? null : Bots.I.byConv(t.convId)?.name);
+        // The engine is folding the older part of this chat right now (owner 2026-11-10): one honest line says so,
+        // and the open view shows the summary it keeps.
+        final live = AppState.compacting.value;
+        final compacting = t != null && live != null && live.convId == t.convId;
+        final status = compacting
+            ? RunStatus.compacting
+            : WorkingLine.lineFor(t, writing: widget.writing, more: widget.more,
+                person: t == null ? null : Bots.I.byConv(t.convId)?.name);
         final el = _elapsed();
         final trail = t?.trail ?? const <RunStep>[];
         final act = widget.activity;
         final hasActivity = act != null && !act.isEmpty;
-        final canOpen = hasActivity || (widget.showSteps && trail.isNotEmpty);
+        final canOpen = hasActivity || compacting || (widget.showSteps && trail.isNotEmpty);
         final kind = WorkingLine.kindOf(t);
         final row = SizedBox(
           height: turnHeadHeight,
@@ -1062,10 +1068,11 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
               child: SubSize(
                 duration: SubMotion.quick,
                 alignment: AlignmentDirectional.topStart,
-                child: hasActivity
+                child: hasActivity || compacting
                     ? Padding(
                         padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),
-                        child: ActivityPanel(groups: act, results: widget.results),
+                        child: ActivityPanel(groups: act ?? ActivityGroups.of(const []), results: widget.results,
+                            compacting: compacting ? (live?.summary ?? '') : null),
                       )
                     : Padding(
                       padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),

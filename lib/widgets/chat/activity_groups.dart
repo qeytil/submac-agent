@@ -4,7 +4,7 @@ import '../../models.dart';
 /// just the working progress line, and give an expand option; even expanded, categorized actions like thinking,
 /// executed tools, etc."). No Flutter, so it is tested on its own.
 class ActivityGroups {
-  ActivityGroups._(this.thinking, this.tools, this.notes);
+  ActivityGroups._(this.thinking, this.tools, this.notes, this.compacts);
 
   /// Thinking rows (opencode reasoning), oldest first.
   final List<ChatMessage> thinking;
@@ -15,7 +15,11 @@ class ActivityGroups {
   /// Words written between steps (not the answer), oldest first.
   final List<ChatMessage> notes;
 
-  bool get isEmpty => thinking.isEmpty && tools.isEmpty && notes.isEmpty;
+  /// The compact notes of this turn: the engine's own summary of the part of the chat it folded away, so opening
+  /// the working line (or a finished turn) shows what it kept (owner 2026-11-10).
+  final List<ChatMessage> compacts;
+
+  bool get isEmpty => thinking.isEmpty && tools.isEmpty && notes.isEmpty && compacts.isEmpty;
 
   int failed(Map<String, ChatMessage> results) =>
       tools.where((t) => (results[t.$2.id]?.content ?? '').trimLeft().startsWith('Error')).length;
@@ -25,6 +29,7 @@ class ActivityGroups {
         if (thinking.isNotEmpty) '${thinking.length} ${thinking.length == 1 ? 'thought' : 'thoughts'}',
         if (tools.isNotEmpty) '${tools.length} ${tools.length == 1 ? 'tool' : 'tools'}',
         if (notes.isNotEmpty) '${notes.length} ${notes.length == 1 ? 'note' : 'notes'}',
+        if (compacts.isNotEmpty) '${compacts.length} ${compacts.length == 1 ? 'compact' : 'compacts'}',
       ].join(' · ');
 
   static bool _activity(ChatMessage m) => m.role == 'assistant' && (m.name == 'reasoning' || (m.toolCalls?.isNotEmpty ?? false));
@@ -46,10 +51,16 @@ class ActivityGroups {
 
   /// The groups of one turn's replies (the messages after the user's message, up to the next one).
   static ActivityGroups of(List<ChatMessage> turn) {
-    final thinking = <ChatMessage>[], notes = <ChatMessage>[];
+    final thinking = <ChatMessage>[], notes = <ChatMessage>[], compacts = <ChatMessage>[];
     final tools = <(ChatMessage, ToolCall)>[];
     for (var i = 0; i < turn.length; i++) {
       final m = turn[i];
+      // A compact note is a quiet 'system' row (AppState.isCompactMark): it belongs in the open view of the turn,
+      // never as a bubble of its own (owner 2026-11-10).
+      if (m.role == 'system' && (m.name ?? '').startsWith('compact:')) {
+        if (m.content.trim().isNotEmpty) compacts.add(m);
+        continue;
+      }
       if (m.role != 'assistant') continue;
       if (m.name == 'reasoning') {
         if (m.content.trim().isNotEmpty) thinking.add(m);
@@ -59,6 +70,6 @@ class ActivityGroups {
         }
       }
     }
-    return ActivityGroups._(thinking, tools, notes);
+    return ActivityGroups._(thinking, tools, notes, compacts);
   }
 }

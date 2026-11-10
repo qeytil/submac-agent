@@ -402,6 +402,9 @@ extension AppStateAgentRunner on AppState {
           seen = DateTime.now();
           sync();
         }
+        // The engine folded the older part of this chat (its own auto-compaction, or Telesia's before the turn):
+        // the quiet line says so and the summary lands as one compact note (owner 2026-11-10).
+        if (turn.compacted) unawaited(_ocNoteCompaction(convId, list, turn));
         // Background work stops when the bots' share is refused or the bot's own budget runs out (owner 2026-11-03).
         final why = stopped == null ? guard.check(turn) : null;
         if (why != null) {
@@ -416,6 +419,9 @@ extension AppStateAgentRunner on AppState {
         run.show(RunPhase.waiting, RunStatus.waiting);
         _notify();
         final layer = TelesiaStyle.identity;
+        // The window is nearly full: fold the older part first, so the user never has to start a new chat
+        // (owner 2026-11-10). opencode compacts by itself too; this is the early, visible one.
+        await _ocCompactIfFull(convId: convId, run: run, session: session, list: list, model: laneModel);
         await oc.prompt(session, await _partsFor(lastUser), system: layer, model: laneModel);
         while (true) {
           final sent = DateTime.now();
@@ -445,6 +451,9 @@ extension AppStateAgentRunner on AppState {
           await oc.prompt(session, [{'type': 'text', 'text': ReplyContinuation.prompt}], system: layer, model: laneModel);
         }
       } finally {
+        // How full the window was on this turn's last request: the next turn folds the older part when it is
+        // nearly full, instead of running into the wall (owner 2026-11-10).
+        AppState.noteContextUsed(convId, turn.contextUsed);
         await sub.cancel();
         _ocLive.remove(convId);
         if (identical(_ocFamilies[convId], family)) _ocFamilies.remove(convId);
@@ -732,6 +741,69 @@ extension AppStateAgentRunner on AppState {
     // Still out of allowance: keep it. Otherwise it ran: the entry is settled.
     if (!OcLane.isAllowanceText(tail.error)) await PendingTurns.I.remove(msgId);
   }
+
+  /// Before a turn: when the chat's window is nearly full, ask the engine to fold the older part into a summary
+  /// first. It runs inside the turn, so the quiet line says "Summarizing earlier messages" and the chat never asks
+  /// the user to start a new one (owner 2026-11-10).
+  Future<void> _ocCompactIfFull(
+      {required String convId,
+      required AgentRun run,
+      required String session,
+      required List<ChatMessage> list,
+      required Map<String, String> model}) async {
+    if (!ChatCompact.due(used: AppState.contextUsedIn(convId), window: ContextWindow.tokens)) return;
+    if (AppState.compactedRecently(convId)) return;
+    run.show(RunPhase.checking, RunStatus.compacting);
+    AppState.compacting.value = CompactLive(convId);
+    _notify();
+    try {
+      if (!await OpenCodeEngine.I.compact(session, model)) return;
+      // The engine writes the summary while it works: wait a short, bounded time for its own message.
+      for (var i = 0; i < 20; i++) {
+        final summary = await OpenCodeEngine.I.summaryOf(session);
+        if (summary != null) {
+          await _ocWriteCompact(convId, list, summary);
+          return;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+      }
+    } finally {
+      AppState.noteCompacted(convId);
+      AppState.compacting.value = null;
+      run.show(RunPhase.waiting, RunStatus.waiting);
+      _notify();
+    }
+  }
+
+  /// The engine folded the older part of this chat by itself: the line says so, and the summary lands in the chat
+  /// as one quiet compact note — what the user reads when they open the turn's activity (owner 2026-11-10).
+  Future<void> _ocNoteCompaction(String convId, List<ChatMessage> list, OpenCodeTurn turn) async {
+    final live = AppState.compacting.value;
+    if (live?.convId != convId) {
+      AppState.compacting.value = CompactLive(convId, turn.summary);
+      _notify();
+    }
+    final summary = turn.summary;
+    if (summary == null || turn.summaryMsg == null) return;
+    if (!_compacted.add('${turn.session}:${turn.summaryMsg}')) return;
+    await _ocWriteCompact(convId, list, summary);
+  }
+
+  /// Writes one compact note (the summary of everything up to the newest message) and closes the live line.
+  Future<void> _ocWriteCompact(String convId, List<ChatMessage> list, String summary) async {
+    final covers = ChatCompact.coversIn(list);
+    if (covers != null) {
+      final mark = ChatCompact.mark(id: _uuid.v4(), covers: covers, summary: summary);
+      list.add(mark);
+      await _save(convId, mark);
+    }
+    AppState.compacting.value = null;
+    AppState.noteContextUsed(convId, 0);
+    _notify();
+  }
+
+  /// One compact note per engine summary, however many times its events arrive.
+  static final Set<String> _compacted = {};
 
   /// The pictures, drawings, pages and videos the turn made with opencode's own tools (a written .svg, a script's
   /// .png, an .html page) or named in its answer, shown as cards under the answer (owner 2026-11-04: "no visual
