@@ -1,0 +1,19 @@
+name: oc-gate2
+on:
+  push:
+    paths:
+      - 'tools/oc_gate2_run.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/oc_gate2_patch.py
+      - run: |
+          git config user.name "submac-agent"
+          git config user.email "agent@submac.site"
+          git add -A
+          git commit -m "fix(byok): use app icon tokens in the model gate"
+          git push
