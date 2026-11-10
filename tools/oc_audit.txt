@@ -1,13 +1,18 @@
 ### marker
-brand audit 1
+brand audit 2
 ### total occurrences (case-insensitive, submac)
-59
+102
 ### per-file counts
+tools/oc_fix1.py:20
 tools/oc_test_tail.txt:17
-.github/workflows/apk.yml:13
+tools/oc_fix1_log.txt:13
+.github/workflows/oc-apkfix.yml:10
 .github/workflows/oc-brand-audit.yml:8
-.github/workflows/analyze-test.yml:2
-.github/workflows/oc-testrep.yml:1
+tools/oc_gradle.txt:7
+.github/workflows/oc-gradle-dump.yml:5
+tools/patch_android.py:1
+tools/apk.yml.new:1
+.github/workflows/apk.yml:1
 ### file names containing submac
 (none)
 ### file names containing telesia
@@ -39,40 +44,58 @@ supabase/migrations/20261023_telesia_gemini_first.sql
 test/telesia_gateway_test.dart
 test/telesia_mcp_test.dart
 ### android identity
-.github/workflows/oc-testrep.yml:23:          flutter create --org com.submac --project-name agent --platforms android,ios .
+.github/workflows/oc-testcheck.yml:24:          flutter create --org com.telesia --project-name agent --platforms android,ios .
+.github/workflows/apk.yml:75:          flutter create --org com.telesia --project-name agent --platforms android,ios .
 .github/workflows/oc-brand-audit.yml:28:            grep -rn -i -E "applicationId|namespace|org com|com\.submac|com\.telesia|package com\." \
-.github/workflows/apk.yml:75:          flutter create --org com.submac --project-name agent --platforms android,ios .
-.github/workflows/analyze-test.yml:38:          flutter create --org com.submac --project-name agent --platforms android,ios .
+.github/workflows/oc-testrep.yml:23:          flutter create --org com.telesia --project-name agent --platforms android,ios .
+.github/workflows/oc-apkfix.yml:23:            -e 's/com\.submac/com.telesia/g' \
+.github/workflows/analyze-test.yml:38:          flutter create --org com.telesia --project-name agent --platforms android,ios .
+.github/workflows/oc-gradle-dump.yml:24:          flutter create --org com.submac --project-name agent --platforms android,ios .
+.github/workflows/oc-gradle-dump.yml:35:            grep -n -E "applicationId|namespace|com\.(submac|telesia)" /tmp/pre_build.gradle.kts 2>/dev/null || echo "(no match)"
+.github/workflows/oc-gradle-dump.yml:39:            grep -n -E "applicationId|namespace|com\.(submac|telesia)" android/app/build.gradle.kts 2>/dev/null || echo "(no match)"
+.github/workflows/oc-fix1.yml:32:          o=$(git commit -m "fix(brand): prefix length, applicationId com.telesia.app" 2>&1); c=$?
+tools/oc_fix1.py:9:3. CI still generates the Android project with --org com.submac, so gradle
+tools/oc_fix1.py:10:   stamps applicationId/namespace com.submac.agent instead of com.telesia.app,
+tools/oc_fix1.py:13:   files declare package com.telesia.app.
+tools/oc_fix1.py:62:# 3. CI: generate the Android project as com.telesia.*
+tools/oc_fix1.py:68:    edit(f, "flutter create --org com.submac", "flutter create --org com.telesia", 1)
+tools/oc_fix1.py:89:#    applicationId/namespace flutter create stamped in become com.telesia.app.
+tools/oc_fix1.py:97:header = '''APP_ID = "com.telesia.app"
+tools/oc_fix1.py:99:for wrong in ("com.submac.agent", "com.telesia.agent"):
+tools/oc_fix1.py:101:assert '"com.telesia.app"' in g, "gradle identity not found (namespace/applicationId)"
 tools/patch_android.py:82:                <data android:scheme="com.telesia.app" android:host="login-callback"/>
 tools/patch_android.py:147:        <provider android:name=".WaFiles" android:authorities="com.telesia.app.wafiles"
 tools/patch_android.py:151:        <provider android:name=".UpdateFiles" android:authorities="com.telesia.app.updates"
-android_native/TelesiaA11y.kt:1:package com.telesia.app
-android_native/TaskService.kt:1:package com.telesia.app
-android_native/NotifListener.kt:1:package com.telesia.app
-android_native/PhoneData.kt:1:package com.telesia.app
-android_native/TaskBubble.kt:1:package com.telesia.app
-android_native/WaFiles.kt:1:package com.telesia.app
-android_native/WebHands.kt:1:package com.telesia.app
-android_native/Bridge.kt:1:package com.telesia.app
-android_native/ScreenGuard.kt:1:package com.telesia.app
-android_native/WaHands.kt:1:package com.telesia.app
-android_native/Overlay.kt:1:package com.telesia.app
+tools/patch_android.py:185:APP_ID = "com.telesia.app"
+tools/patch_android.py:187:for wrong in ("com.submac.agent", "com.telesia.agent"):
+tools/patch_android.py:189:assert '"com.telesia.app"' in g, "gradle identity not found (namespace/applicationId)"
 android_native/MainActivity.kt:1:package com.telesia.app
-android_native/TelesiaApp.kt:1:package com.telesia.app
-android_native/Sms.kt:1:package com.telesia.app
-android_native/WhatsApp.kt:1:package com.telesia.app
 android_native/QuickWidget.kt:1:package com.telesia.app
-android_native/WakeService.kt:1:package com.telesia.app
-android_native/AppUpdater.kt:1:package com.telesia.app
-android_native/BootReceiver.kt:1:package com.telesia.app
-android_native/PushReceiver.kt:1:package com.telesia.app
-android_native/Notifier.kt:1:package com.telesia.app
-android_native/Chime.kt:1:package com.telesia.app
-android_native/Ghost.kt:1:package com.telesia.app
+android_native/WaFiles.kt:1:package com.telesia.app
 android_native/OpenCode.kt:1:package com.telesia.app
-android_native/OcChannel.kt:1:package com.telesia.app
+android_native/Notifier.kt:1:package com.telesia.app
+android_native/TaskBubble.kt:1:package com.telesia.app
+android_native/PushReceiver.kt:1:package com.telesia.app
+android_native/TaskService.kt:1:package com.telesia.app
+android_native/WakeService.kt:1:package com.telesia.app
 android_native/LocalProxy.kt:1:package com.telesia.app
+android_native/WhatsApp.kt:1:package com.telesia.app
+android_native/TelesiaA11y.kt:1:package com.telesia.app
+android_native/AppUpdater.kt:1:package com.telesia.app
 android_native/Device.kt:1:package com.telesia.app
+android_native/NotifListener.kt:1:package com.telesia.app
+android_native/Ghost.kt:1:package com.telesia.app
+android_native/Bridge.kt:1:package com.telesia.app
+android_native/BootReceiver.kt:1:package com.telesia.app
+android_native/PhoneData.kt:1:package com.telesia.app
+android_native/Sms.kt:1:package com.telesia.app
+android_native/TelesiaApp.kt:1:package com.telesia.app
+android_native/WebHands.kt:1:package com.telesia.app
+android_native/Chime.kt:1:package com.telesia.app
+android_native/Overlay.kt:1:package com.telesia.app
+android_native/OcChannel.kt:1:package com.telesia.app
+android_native/WaHands.kt:1:package com.telesia.app
+android_native/ScreenGuard.kt:1:package com.telesia.app
 ### failing tests: context lines
 --- test/bots_team_isolation_test.dart
 52-      expect(TeamKey.officeOf(j), 'o17');
@@ -295,139 +318,128 @@ android_native/Device.kt:1:package com.telesia.app
 84-      expect(count('selectionClick'), inInclusiveRange(1, 5));
 85-      expect(count('mediumImpact'), 0);
 86-
-87:      // The draw is done: one tick per letter of "Telesia", at most six.
+87:      // The draw is done: one tick per letter of "Telesia", at most seven.
 88-      await tester.pump(const Duration(milliseconds: 800)); // 1550 ms
 89-      expect(count('selectionClick'), IntroMotion.word.length);
-90:      expect(IntroMotion.word.length, lessThanOrEqualTo(6));
-91-      expect(count('mediumImpact'), 0, reason: 'the impact waits for the dot');
-92-
-93-      // The dot lands (2250 ms): one soft impact.
---
-100-      await tester.pump(const Duration(milliseconds: 50));
-101-      expect(find.text('SIGN-IN'), findsOneWidget);
-102-      expect(find.byType(IntroScreen), findsNothing);
-103:      expect(count('selectionClick'), 6);
-104-      expect(count('mediumImpact'), 1);
-105-      expect(sound.calls, ['play'], reason: 'a finished intro lets the tail ring out');
-106-      final prefs = await SharedPreferences.getInstance();
+90-      expect(IntroMotion.word.length, lessThanOrEqualTo(7));
 ### lib: tool naming and prefix forgiveness
-lib/agent/reply_schema.dart:139:          final head = lines.isNotEmpty && lines.first.trim().startsWith('#') ? lines.first.replaceFirst(RegExp(r'^#+\s*'), '').trim() : '';
-lib/agent/reply_schema.dart:243:          if (!p.startsWith('/')) out.add('The $name must hold the full path the tool returned (starting with /), not "$p".');
-lib/agent/tool_effects.dart:23:    'docs_read', 'office_brief', 'apps_list_tools', 'more_tools', 'read_notifications',
-lib/agent/tool_effects.dart:28:    'generate_image', 'generate_video', 'generate_media', 'media_generate', 'code_media', 'ai_call', 'browser_open', 'browser_back',
-lib/models.dart:53:  bool get isImage => mime.startsWith('image/');
-lib/models.dart:56:    if (mime.startsWith('text/')) return true;
-lib/screens/today_screen.dart:53:              if (e.at.isAfter(since) && const {'work', 'message', 'call', 'learned'}.contains(e.kind) && !e.text.startsWith('Checked in')) (b, e),
-lib/screens/files_screen.dart:67:      all.removeWhere((e) => e.path.split('/').last.startsWith('.'));
-lib/screens/files_screen.dart:164:                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r.startsWith('Error') ? r : 'Moved to Trash')));
-lib/screens/bot_job_screen.dart:387:      if (e.at.isBefore(since) || e.kind != 'work' || !e.text.startsWith('Done: ')) continue;
-lib/screens/intro_screen.dart:212:/// The new Telesia logo: the light-blue tile with its blue "S" (assets/intro/telesia_tile.svg), and the white dot drawn
-lib/screens/intro_screen.dart:225:        child: SvgPicture.asset('assets/intro/telesia_tile.svg', width: size, height: size),
-lib/screens/home_screen.dart:105:    } else if (r == 'inbox' || r.startsWith('inbox/')) {
-lib/screens/home_screen.dart:106:      Navigator.push(context, MaterialPageRoute(builder: (_) => InboxScreen(openId: r.startsWith('inbox/') ? r.substring(6) : null)));
-lib/screens/home_screen.dart:107:    } else if (r.startsWith('office/') && Offices.I.byId(r.substring(7)) != null) {
-lib/screens/home_screen.dart:109:    } else if (r.startsWith('botchat/')) {
-lib/screens/home_screen.dart:129:      if (to.startsWith('office:')) {
-lib/screens/home_screen.dart:133:      if (to.startsWith('bot:')) {
-lib/screens/home_screen.dart:901:      if (m.name == 'telesia_team') return TeamMessageCard(key: ValueKey(m.id), message: m);
-lib/screens/home_screen.dart:994:            if (v.startsWith('turn-')) return hasBlock ? 1 : null;
-lib/screens/offices_screen.dart:471:                      if (v is! String || !v.startsWith('post-')) return null;
-lib/screens/connectors_screen.dart:94:            done: (state.mcpStatus[s.id] ?? '').startsWith('Connected'),
-lib/screens/connectors_screen.dart:172:            done: (state.mcpStatus[s.id] ?? '').startsWith('Connected'),
-lib/screens/connectors_screen.dart:277:    if (r == 'save' && !base.text.trim().startsWith('http')) {
-lib/screens/connectors_screen.dart:330:      done: on != null && (status ?? 'Connected').startsWith('Connected'),
-lib/screens/connectors_screen.dart:333:          : (on != null ? (status != null && !status.startsWith('Connected') ? 'Reconnect' : 'Manage') : (failed != null ? 'Try again' : 'Connect')),
-lib/screens/connectors_screen.dart:336:          : on != null && (status == null || status.startsWith('Connected'))
-lib/screens/connectors_screen.dart:409:        if (!t.startsWith('http')) t = 'https://$t';
-lib/screens/auth_screen.dart:456:      if (msg.startsWith('Too many')) {
-lib/screens/opencode_lab_screen.dart:185:        if (!line.startsWith('data:')) return;
-lib/screens/bots_workspace.dart:159:    if (open.startsWith('bot:') && Bots.I.byId(open.substring(4)) != null) return BotStatus.botKey(open.substring(4));
-lib/screens/bots_workspace.dart:160:    if (open.startsWith('team:') && Offices.I.byId(open.substring(5)) != null) return BotStatus.teamKey(open.substring(5));
-lib/screens/bots_workspace.dart:182:    if (key.startsWith('t:')) {
-lib/screens/bots_workspace.dart:273:  Bot? get _activeBot => _active.startsWith('b:') ? Bots.I.byId(_active.substring(2)) : null;
-lib/screens/bots_workspace.dart:274:  Office? get _activeTeam => _active.startsWith('t:') ? Offices.I.byId(_active.substring(2)) : null;
-lib/widgets/page_cards.dart:67:  if (p.startsWith('file://')) p = p.substring(7);
-lib/widgets/page_cards.dart:119:      b.source = c.name == 'write_file' ? content : '${b.source}${b.source.endsWith('\n') || content.startsWith('\n') ? '' : '\n'}$content';
-lib/widgets/output_cards.dart:134:        return graphCardFrom(t.startsWith('{') || t.startsWith('[') ? looseJson(t) : t.split('\n').where((l) => l.trim().isNotEmpty).toList());
-lib/widgets/output_cards.dart:260:          list = [for (final l in body.split('\n')) if (l.trim().startsWith('http') || l.trim().startsWith('/')) l.trim()];
-lib/widgets/output_cards.dart:431:    if (links.length >= 2 && links.length <= 3 && links.every((l) => '${l['url'] ?? ''}'.startsWith('http'))) {
-lib/widgets/output_cards.dart:591:            if (richImage && url.startsWith('http')) ...[
-lib/widgets/output_cards.dart:643:    if (widget.given.startsWith('http')) {
-lib/widgets/output_cards.dart:666:        if (v.startsWith('//')) v = 'https:$v';
-lib/widgets/output_cards.dart:667:        if (v.startsWith('/')) v = Uri.parse(widget.url).resolve(v).toString();
-lib/widgets/output_cards.dart:668:        if (v.startsWith('http')) found = v;
-lib/widgets/output_cards.dart:901:bool _isRemote(String src) => src.startsWith('http://') || src.startsWith('https://');
-lib/widgets/output_cards.dart:929:        final ext = type.startsWith('image/') ? type.substring(6).replaceAll('jpeg', 'jpg').replaceAll('svg+xml', 'svg')
-lib/widgets/output_cards.dart:930:            : type.startsWith('video/') ? 'mp4'
-lib/widgets/output_cards.dart:931:            : type.startsWith('audio/') ? 'mp3'
-lib/widgets/output_cards.dart:933:        name = 'telesia_${DateTime.now().millisecondsSinceEpoch}.$ext';
-lib/widgets/output_cards.dart:947:    if (where.startsWith('error')) {
-lib/widgets/diagram_card.dart:242:            final done = status.startsWith('done') || status.startsWith('complete') || status == 'past';
-lib/widgets/diagram_card.dart:243:            final now = status.startsWith('now') || status.startsWith('current') || status.contains('progress') || status == 'active';
-lib/widgets/diagram_card.dart:292:    return s.startsWith('done') || s.startsWith('complete') || s == 'past';
-lib/widgets/diagram_card.dart:966:                final up = !delta.startsWith('-') && !delta.startsWith('−');
-lib/widgets/save_sheet.dart:25:  final media = mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/');
-lib/widgets/save_sheet.dart:45:                title: Text(mime.startsWith('image/') ? 'Pictures' : mime.startsWith('video/') ? 'Movies' : 'Music'),
-lib/widgets/save_sheet.dart:88:    if (where.startsWith('error')) {
-lib/widgets/visual_card.dart:23:    return t.startsWith('<') && t.contains('<svg') && t.contains('</svg>');
-lib/widgets/browser_card.dart:207:    if (favicon.isEmpty || !favicon.startsWith('http')) return letter;
-lib/widgets/browser_card.dart:392:    if (host.startsWith('www.')) host = host.substring(4);
-lib/widgets/browser_card.dart:403:    final canOpen = url.startsWith('http');
-lib/widgets/markdown_view.dart:107:  if (h.isEmpty || h.startsWith('#') || (scheme && !h.toLowerCase().startsWith('file:'))) return null;
-lib/widgets/markdown_view.dart:114:    return p.startsWith('/') && File(p).existsSync() ? p : null;
-lib/widgets/markdown_view.dart:136:    if (s.startsWith('data:')) {
-lib/widgets/markdown_view.dart:140:        pic = s.startsWith('data:image/svg')
-lib/widgets/markdown_view.dart:144:    } else if (s.startsWith('http://') || s.startsWith('https://')) {
-lib/widgets/media_lightbox.dart:45:bool _remote(String s) => s.startsWith('http://') || s.startsWith('https://');
-lib/widgets/logo.dart:16:  static const tileAsset = 'assets/brand/telesia_mark.svg';
-lib/widgets/logo.dart:17:  static const plainAsset = 'assets/brand/telesia_mark_plain.svg';
-lib/widgets/chat_logic.dart:20:  if (lang == 'page') return b.startsWith('/') ? b.split('\n').first.trim() : 'html:${b.hashCode}';
-lib/widgets/chat_logic.dart:55:  bool isIndented(String l) => l.startsWith(' ') || l.startsWith('\t');
-lib/widgets/message_view.dart:385:      } else if (res.startsWith('IMAGE_SAVED ')) {
-lib/widgets/message_view.dart:387:      } else if (res.startsWith('AUDIO_SAVED ')) {
-lib/widgets/message_view.dart:389:      } else if (res.startsWith('VIDEO_SAVED ')) {
-lib/widgets/message_view.dart:974:    return r.startsWith('Error') || r.startsWith('The user said no') || RegExp(r'^exit_code: [1-9-]').hasMatch(r);
-lib/widgets/message_view.dart:983:    final image = res.startsWith('IMAGE_SAVED ') ? res.substring(12).split('\n').first.trim() : null;
-lib/widgets/hark_cards.dart:35:  if (t.startsWith('http') || t.startsWith('/')) return t;
-lib/widgets/hark_cards.dart:46:  if (m != null && !m.group(1)!.startsWith('!')) return [m.group(1)!.isEmpty ? 'Open' : m.group(1)!, m.group(2)!];
-lib/widgets/hark_cards.dart:50:    return [label.startsWith('![') || label.isEmpty ? 'Open' : label, x.group(2)!];
-lib/widgets/hark_cards.dart:53:  if (t.startsWith('http://') || t.startsWith('https://')) return ['Open', t];
-lib/widgets/hark_cards.dart:66:      (path.startsWith('/search') || path == '/' || path.isEmpty || path.startsWith('/shopping'))) {
-lib/widgets/hark_cards.dart:69:  if (path.contains('/search') || path == '/s' || path.startsWith('/s/') || path.contains('/catalog')) {
-lib/widgets/hark_cards.dart:332:  bool get _isFile => !_html.startsWith('<') && _html.startsWith('/');
-lib/widgets/hark_cards.dart:470:  bool get _sound => mediaMime(path.split('/').last).startsWith('audio/');
-lib/widgets/hark_cards.dart:487:          child: path.startsWith('http')
-lib/widgets/video_inline.dart:38:    if (path.startsWith('http://') || path.startsWith('https://')) return VideoPlayerController.networkUrl(Uri.parse(path));
-lib/widgets/video_inline.dart:39:    return VideoPlayerController.file(File(path.startsWith('file://') ? Uri.decodeFull(path.substring(7)) : path));
-lib/widgets/chat/activity_groups.dart:21:      tools.where((t) => (results[t.$2.id]?.content ?? '').trimLeft().startsWith('Error')).length;
-lib/widgets/rich_cards.dart:115:    if (image.startsWith('http')) return net(image);
-lib/widgets/rich_cards.dart:154:                if (url.startsWith('http')) {
-lib/widgets/hark_style.dart:204:    if (lines.isNotEmpty && lines.first.startsWith('#')) {
-lib/widgets/ask_bar.dart:419:    if (!s.startsWith('mcp:')) return null;
-lib/widgets/ask_bar.dart:424:  ConnDef? get _def => widget.ask.site.startsWith('app:') ? ConnectorCatalog.byId(widget.ask.site.substring(4)) : null;
-lib/services/sites.dart:191:    return n.startsWith('page_') || n.isEmpty || n == 'index' ? 'My site' : n;
-lib/services/sites.dart:221:      if (rel.split('/').any((p) => p.startsWith('.'))) continue;
-lib/services/sites.dart:355:    if (res.startsWith('Error') && res.toLowerCase().contains('team') && tools.any((t) => t.name == 'list_teams')) {
-lib/services/sites.dart:362:    if (res.startsWith('Error')) throw PublishException(_vercelError(res));
-lib/services/sites.dart:382:        if (st.startsWith('Error')) {
+lib/services/update_logic.dart:82:    final fileUrl = rawUrl is String && rawUrl.startsWith('https://') ? rawUrl : null;
+lib/services/task_bubble.dart:37:      (name.startsWith('phone_') && name != 'phone_settings') ||
+lib/services/task_bubble.dart:44:      (name.startsWith('phone_') && name != 'phone_settings') || name == 'open_app' || WhatsAppTools.names.contains(name);
+lib/services/whatsapp.dart:184:    if (p.startsWith('/')) return p;
+lib/services/whatsapp.dart:310:          if (q.startsWith('sent:')) {
+lib/services/whatsapp.dart:335:          if (line.startsWith('Sent') || line.startsWith('Queued')) ok++;
+lib/services/doc_text.dart:150:        t = t.startsWith('/') ? t.substring(1) : 'xl/$t';
+lib/services/team_status.dart:187:          if (e.key.startsWith('$officeId|')) e.key.substring(officeId.length + 1): e.value,
+lib/services/health_tools.dart:850:          e['c'] = unit.startsWith('f') || n > 50 ? double.parse(((n - 32) * 5 / 9).toStringAsFixed(1)) : n;
+lib/services/health_tools.dart:854:          e['kg'] = unit.startsWith('lb') ? double.parse((n * 0.45359237).toStringAsFixed(1)) : n;
+lib/services/llm_client.dart:195:        if (line.startsWith(':')) {
+lib/services/llm_client.dart:199:        if (line.startsWith('event:')) {
+lib/services/llm_client.dart:203:        if (!line.startsWith('data:')) continue;
+lib/services/telesia_gateway.dart:69:  static const directNames = {'generate_image'};
+lib/services/telesia_gateway.dart:71:  /// The MCP tool list: find_tools, run_tool, and each direct tool [available] has right now (generate_image only
+lib/services/telesia_gateway.dart:98:  /// A tool name without the MCP wrapper's prefix models often add ("telesia_run_tool", "telesia_apps_list_tools").
+lib/services/telesia_gateway.dart:101:  static String bare(String name) => name.startsWith('telesia_') ? name.substring('telesia_'.length) : name;
+lib/services/telesia_gateway.dart:172:1. `telesia_find_tools` with a few words for what you need ("gmail send", "calendar", "pdf", "remember"). It returns the matching tools and their parameters. An empty query lists every tool.
+lib/services/telesia_gateway.dart:173:2. `telesia_run_tool` with `name` and `arguments`.
+lib/services/telesia_gateway.dart:178:- Connected apps and their actions: `apps_list_tools` lists an app's actions, `apps_run_tool` runs one. `connect_app` connects a new one.
+lib/services/telesia_gateway.dart:184:- Visuals: the chat shows pictures, drawings, charts, pages and videos. `generate_image` makes a photo-like picture (when it is listed). For charts, diagrams, icons, posters and anything with exact shapes or text, write the file yourself: an `.svg` (hand-written SVG), an `.html` page (inline SVG or a canvas/JS chart; it opens full screen), or a `.png` from a script when `python3` is on PATH. `code_media` draws a picture, poster or short animation from JavaScript. Then name the file's path in your answer, or put `![what it is](path)` on its own line: the chat draws it there and a tap opens it full screen. Never paste base64 into the answer.
+lib/services/telesia_gateway.dart:185:- Media with the user's own providers: `media_generate` (kind image, video, speech or audio) makes pictures, video, spoken audio (text to speech) and music or sound effects with the media providers the user set up in Settings > Media models (their own keys, called from the phone; look it up with find_tools "media"; it exists only while one is set up). Use it when the user asks for generated media or says to use their provider; never make media they did not ask for. `provider` picks one of theirs by name (empty = their default); `input_image` edits or animates a picture. Video takes minutes: say it is on its way; progress shows in the chat and stopping the chat cancels it. The result shows as a card by itself; do not repeat its path. `generate_image` also uses their image provider when Telesia has no picture model.
 lib/services/text_tool_calls.dart:78:    if ((v.startsWith('{') && v.endsWith('}')) || (v.startsWith('[') && v.endsWith(']'))) {
-lib/services/turn_visuals.dart:48:      if (p.isEmpty || p.startsWith('http://') || p.startsWith('https://') || p.startsWith('data:')) return;
-lib/services/turn_visuals.dart:83:      if (o.startsWith('MEDIA_CARD ')) {
-lib/services/turn_visuals.dart:96:    if (p.toLowerCase().startsWith('file://')) p = p.substring(7);
-lib/services/turn_visuals.dart:102:    if (p.startsWith('/')) return p;
-lib/services/turn_visuals.dart:175:          if (name.startsWith('.') || _skipDirs.contains(name) || (depth == 0 && skip.contains(name))) continue;
-lib/services/turn_visuals.dart:222:    if (s.startsWith('data:image/svg+xml')) {
-lib/services/turn_visuals.dart:226:    if (s.startsWith('data:')) return null; // a PNG data URI: the markdown view draws it
-lib/services/turn_visuals.dart:227:    if (s.startsWith('http://') || s.startsWith('https://')) {
-lib/services/turn_visuals.dart:251:    if (!uri.startsWith('data:') || comma < 0) return null;
-lib/services/turn_visuals.dart:279:  /// Size for generate_image from the shape asked for ("16:9", "portrait"...) or an explicit WxH.
+lib/services/bot_status.dart:78:    if (key.startsWith('t:')) {
+lib/services/design_skills.dart:193:      '- Pictures: generate_image or code_media when a picture helps, saved into the site folder and referenced by that relative path. '
+lib/services/design_skills.dart:267:      '- Something visual they asked for: a picture (code_media for exact text and graphics, generate_image for photo-like scenes).\n'
+lib/services/missions.dart:559:      final line = clean.split('\n').where((l) => l.trim().isNotEmpty && !l.trim().startsWith('@')).take(3).join(' ');
+lib/services/live_session.dart:388:      'model': model.startsWith('models/') ? model : 'models/$model',
+lib/services/live_retranscribe.dart:96:  if (t.length >= 2 && ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith('“') && t.endsWith('”')))) {
+lib/services/live_retranscribe.dart:100:  if (low.isEmpty || low == '[silence]' || low == '(silence)' || low.startsWith('no speech') || low.startsWith('[no speech')) return '';
+lib/services/office_reader.dart:54:      if (s.startsWith('<w:tab')) {
+lib/services/office_reader.dart:56:      } else if (s.startsWith('<w:br') || s.startsWith('<w:cr')) {
+lib/services/office_reader.dart:87:      if (s.startsWith('<w:tbl>')) {
+lib/services/office_reader.dart:142:        if (s.startsWith('<a:tbl>')) {
+lib/services/mcp_routes.dart:4:import 'telesia_gateway.dart';
+lib/services/choices.dart:39:      if (t.startsWith('[') || t.startsWith('{')) {
+lib/services/choices.dart:76:      if (s.length > 1 && ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'")))) {
+lib/services/choices.dart:90:    if (v is String && v.trim().startsWith('{')) {
+lib/services/choices.dart:132:        if (lang == 'choices' || lang.startsWith('choices')) {
+lib/services/choices.dart:165:      if (t.startsWith('{') || t.startsWith(RegExp(r'\[\s*(\{|$)'))) {
+lib/services/choices.dart:214:    final f = mark.startsWith('~') ? mark : '```';
+lib/services/search_budget.dart:23:    if (t.startsWith('Error')) return true;
+lib/services/local_store.dart:38:          k.startsWith('model_') || k.startsWith('role_') || k.startsWith('roleSrc_') || k.startsWith('usage_') || k.startsWith('rl_')) {
+lib/services/repo.dart:586:      if (r['role'] == 'system' && '${r['name'] ?? ''}'.startsWith('compact:')) {
+lib/services/cloud.dart:425:      if (url is String && url.startsWith('http')) return (await http.get(Uri.parse(url)).timeout(const Duration(minutes: 1))).bodyBytes;
+lib/services/mcp_client.dart:158:    if (ct.contains('text/event-stream') || text.trimLeft().startsWith('event:') || text.trimLeft().startsWith('data:')) {
+lib/services/mcp_client.dart:160:        if (!line.startsWith('data:')) continue;
+lib/services/media_store.dart:67:  static bool isRemote(String s) => s.startsWith('http://') || s.startsWith('https://');
+lib/services/media_store.dart:76:    if (p.toLowerCase().startsWith('file://')) {
+lib/services/media_store.dart:79:      if (p.startsWith('localhost/')) p = p.substring(9);
+lib/services/media_store.dart:94:    if (!p.startsWith('/')) {
+lib/services/media_store.dart:141:        if (first.isNotEmpty && !first.startsWith('<') && !isRemote(first)) out.add(normalize(first));
+lib/services/media_store.dart:145:          if (t.startsWith('/') || t.toLowerCase().startsWith('file://')) out.add(normalize(t));
+lib/services/media_store.dart:164:    if (p.startsWith('/')) {
+lib/services/media_store.dart:188:    if (p.startsWith('/')) {
+lib/services/browser/extract.dart:107:  if (s.startsWith('www.')) s = s.substring(4);
+lib/services/browser/page_model.dart:36:  bool get isField => kind.startsWith('field') || kind.startsWith('textbox') || kind.startsWith('combobox');
+lib/services/browser/page_model.dart:126:    return h.startsWith('www.') ? h.substring(4) : h;
+lib/services/browser/page_model.dart:359:    if (l.isEmpty) return !kind.startsWith('field') && !kind.startsWith('link');
+lib/services/browser/read_page.dart:33:      if (name.startsWith('#x') || name.startsWith('#X')) code = int.tryParse(name.substring(2), radix: 16);
+lib/services/browser/read_page.dart:34:      if (name.startsWith('#') && !name.startsWith('#x') && !name.startsWith('#X')) code = int.tryParse(name.substring(1));
+lib/services/browser/playbook.dart:81:  if (s.startsWith('field') || s.startsWith('textbox') || s.startsWith('combobox')) return 'field';
+lib/services/browser/playbook.dart:82:  if (s.startsWith('dropdown')) return 'dropdown';
+lib/services/browser/playbook.dart:83:  if (s.startsWith('button')) return 'button';
+lib/services/browser/playbook.dart:84:  if (s.startsWith('link')) return 'link';
+lib/services/browser/playbook.dart:85:  if (s.startsWith('tab')) return 'tab';
+lib/services/browser/playbook.dart:86:  if (s.startsWith('checkbox') || s.startsWith('radio') || s.startsWith('switch')) return 'check';
+lib/services/bot_package.dart:258:        if (!RegExp(r'^[a-z0-9_]{1,40}$').hasMatch(ref) || ref.startsWith('c_')) continue; // custom APIs are the owner's own
+lib/services/reply_text.dart:58:      if (b.startsWith('<')) {
+lib/services/calc.dart:103:    final neg = s.startsWith('-');
+lib/services/calc.dart:320:      final r = unit.startsWith('day')
+lib/services/calc.dart:322:          : unit.startsWith('week')
+lib/services/calc.dart:324:              : unit.startsWith('month')
+lib/services/doc_maker.dart:179:      if (l.startsWith('|')) {
+lib/services/doc_maker.dart:432:        } else if (b.kind.startsWith('h')) {
+lib/services/doc_maker.dart:454:      if (!p.startsWith('/')) p = '$ws/$p';
+lib/services/doc_maker.dart:574:      if (!head && s.startsWith('=')) return '<c r="$ref"><f>${_x(s.substring(1))}</f></c>';
+lib/services/browser_jobs.dart:106:    return h.startsWith('www.') ? h.substring(4) : h;
+lib/services/browser_jobs.dart:735:    final page = lines.where((l) => l.startsWith('Page:')).firstOrNull;
+lib/services/browser_jobs.dart:756:      out.startsWith('Error') || out.startsWith('That did not work') || out.startsWith('Stopped');
+lib/services/browser_jobs.dart:896:        if (ok && open.isNotEmpty && !j.steps.any((s) => s.result.startsWith('Unticked steps'))) {
+lib/services/browser_jobs.dart:928:      out.startsWith('Error:') && RegExp(r'not ready|TimeoutException|no screen|off-screen browser could not start', caseSensitive: false).hasMatch(out);
+lib/services/media_gen.dart:267:      if (!imageMime.startsWith('image/')) imageMime = 'image/png';
+lib/services/media_gen.dart:316:  /// generate_image with the user's image provider (the server has no picture model, owner 2026-11-04): the result in
+lib/services/media_gen.dart:317:  /// the IMAGE_SAVED shape generate_image always answered with.
+lib/services/media_gen.dart:412:    if (url.startsWith('data:')) {
+lib/services/media_gen.dart:504:    if (model.startsWith('dall-e-3')) return switch (shape) { 'landscape' => '1792x1024', 'portrait' => '1024x1792', _ => '1024x1024' };
+lib/services/media_gen.dart:505:    if (model.startsWith('dall-e-2')) return '1024x1024';
+lib/services/media_gen.dart:559:          if (model.startsWith('dall-e')) body['response_format'] = 'b64_json';
+lib/services/media_gen.dart:674:        final path = model.startsWith('/') ? model : '/$model';
+lib/services/media_gen.dart:708:        final veoLike = model.startsWith('veo');
+lib/services/media_gen.dart:791:    return ct.startsWith('image/') || ct.startsWith('audio/') || ct.startsWith('video/') || ct.contains('octet-stream');
+lib/services/media_gen.dart:820:      return base64Decode(v.contains(',') && v.startsWith('data:') ? v.substring(v.indexOf(',') + 1) : v);
+lib/services/media_gen.dart:878:        final isLink = v.startsWith('https://') || v.startsWith('http://') || v.startsWith('data:');
+lib/services/media_gen.dart:880:        if (k == 'url' || k.endsWith('_url') || k == 'output' || k == 'uri' || _mediaExt.hasMatch(v) || v.startsWith('data:')) {
+lib/services/media_gen.dart:994:              if (b != null) blobs.add(mime.startsWith('audio/') ? _audioOut(b, mime) : MediaOut(b, mime.isEmpty ? 'image/png' : mime));
+lib/services/bot_ask.dart:19:    return r.startsWith('first meeting') || r.contains('opened your chat') || r.startsWith('greeting');
+lib/services/bot_ask.dart:25:    if (!t.startsWith('[')) return '';
+lib/services/bot_ask.dart:28:    if (r.startsWith('Woken: ')) r = r.substring(7);
+lib/services/screen_lease.dart:15:  static bool drives(String tool) => tool.startsWith('phone_') || tool == 'whatsapp';
+lib/services/connector_tools.dart:70:      if (!path.startsWith('/')) path = '/$path';
+lib/services/media_coder.dart:97:        if (!path.startsWith('/')) path = '$ws/$path';
+lib/services/constraints.dart:130:    if (!out.any((o) => o.startsWith('limit:'))) {
+lib/services/constraints.dart:147:      add(w == 'only' || w == 'just the' || w.startsWith('kaliya') || w.startsWith('keliya') || w == 'oo kaliya' ? 'only' : 'avoid', p);
 lib/services/web_tools.dart:207:      if (href.startsWith('//')) href = 'https:$href';
 lib/services/web_tools.dart:262:      if (!url.startsWith('http') || url.contains('bing.com/')) continue;
 lib/services/web_tools.dart:332:        final body = page.startsWith('HTTP ') ? page.substring(page.indexOf('\n') + 1) : page;
 lib/services/web_tools.dart:403:      if (href.startsWith('//')) href = 'https:$href';
-lib/services/team_floor.dart:678:      p.kind == 'chat' || p.kind == 'report' || p.kind == 'answer' || p.kind == 'ask' || (p.kind == 'update' && p.text.startsWith('Done'));
-lib/services/biz_tools.dart:1204:    if (!path.startsWith('/')) path = '${dirOverride ?? await AgentTools.workspaceDir()}/$path';
-lib/services/constraints.dart:130:    if (!out.any((o) => o.startsWith('limit:'))) {
-lib/services/constraints.dart:147:      add(w == 'only' || w == 'just the' || w.startsWith('kaliya') || w.startsWith('keliya') || w == 'oo kaliya' ? 'only' : 'avoid', p);
-lib/services/code_tools.dart:33:    if (t.startsWith('/')) return t;
-lib/services/code_tools.dart:174:      return s.startsWith('Exception: Error') ? s.substring(11) : 'Error: $s';
+lib/services/agent_loop.dart:167:    'email_list', 'email_read', 'email_search', 'apps_list_tools', 'list_scheduled', 'list_mcp',
+lib/services/agent_loop.dart:255:      output.startsWith('Error') ||
+lib/services/agent_loop.dart:256:      output.startsWith('The user said no') ||
+lib/services/agent_loop.dart:294:      case 'apps_list_tools':
+lib/services/agent_loop.dart:295:        return 'check the tool and its ids with apps_list_tools, or ask the user to reconnect the app';
+lib/services/agent_loop.dart:310:      case 'generate_image':
+lib/services/agent_loop.dart:333:    if (name.startsWith('browser_')) return 'use fetch_url for reading, or browser_read, or a direct link';
+lib/services/agent_loop.dart:334:    if (name.startsWith('phone_')) return 'use open_link or open_app, or phone_screen then another element';
+lib/services/agent_loop.dart:335:    if (name.startsWith('biz_')) return 'check biz_setup and biz_records, or record it as a note and tell the user';
+lib/services/agent_loop.dart:336:    if (name.startsWith('health_')) return 'check health_check and health_people, or log it as a note';
+lib/services/agent_loop.dart:337:    if (name.startsWith('money_')) return 'check money_report, or add the entry with money_add';
+lib/services/agent_loop.dart:338:    if (name.startsWith('docs_')) return 'try docs_read or read_document, or fetch_url on the shared link';
