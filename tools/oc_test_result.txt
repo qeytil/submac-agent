@@ -1,4 +1,3 @@
 RESULT: PASS
-::error::1673 tests passed, 1 failed.
-FAIL ::group::❌ /home/runner/work/submac-agent/submac-agent/test/ui_polish_161_test.dart: steps and narration stay out of the chat unless asked the live line opens to the categorized activity; the old step list only when steps were asked for (failed)
+🎉 1674 tests passed.
 === analyze (info/warn/errors) ===
