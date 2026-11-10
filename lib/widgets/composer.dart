@@ -15,6 +15,7 @@ import '../app_state.dart';
 import '../services/browser_agent.dart';
 import '../services/browser_jobs.dart';
 import '../services/bots.dart';
+import '../services/byok.dart';
 import 'browser_card.dart';
 import '../models.dart';
 import '../screens/live_screen.dart';
@@ -31,6 +32,7 @@ import 'meeting_sheet.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 import '../screens/skills_screen.dart';
+import '../screens/models_screen.dart';
 import 'chat/activity.dart';
 import 'chat/activity_groups.dart';
 import 'chat/activity_panel.dart';
@@ -451,6 +453,11 @@ class _ComposerState extends State<Composer> {
 
   void _send() {
     final state = context.read<AppState>();
+    // BYOK only: with no model of the owner's own there is nothing to send to (SubMac's own model is going away).
+    if (ByokStore.I.loaded && !ByokStore.I.hasChoices) {
+      _openModels();
+      return;
+    }
     var text = _ctrl.text;
     if (text.trim().isEmpty && _attachments.isEmpty && state.pickedSkill != null) text = state.pickedSkill!.starter;
     if (text.trim().isEmpty && _attachments.isEmpty) return;
@@ -468,18 +475,32 @@ class _ComposerState extends State<Composer> {
     state.send(text, atts);
   }
 
+  /// BYOK only: the one place the owner adds a provider and picks a model.
+  void _openModels() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ModelsScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final state = context.watch<AppState>();
+    // BYOK only: no usable model of the owner's own yet, so the box leads to model setup (SubMac's model is going away).
+    final needsModel = ByokStore.I.loaded && !ByokStore.I.hasChoices;
     // A chat that changed while another screen covered this one (a sheet, the Bots workspace): swap once it is in front.
     if (widget.perChatDrafts && (state.currentId ?? '') != _draftFor && (ModalRoute.of(context)?.isCurrent ?? true)) _swapDraft();
     final skill = state.pickedSkill;
-    final canSend = _ctrl.text.trim().isNotEmpty || _attachments.isNotEmpty || skill != null;
+    final canSend = !needsModel && (_ctrl.text.trim().isNotEmpty || _attachments.isNotEmpty || skill != null);
     // One quiet field: "+" on the start side, the words, and one round button on the end side that is
     // the mic while the box is empty (tap to speak; calls live in the top bar), Send once there is something to send, and Stop
     // while SubMac works with nothing typed. Typing turns Stop back into Send, so a message can steer a task.
-    final Widget trailing = canSend
+    final Widget trailing = needsModel
+        ? IconButton(
+            key: const ValueKey('connect-model'),
+            icon: const Icon(Icons.vpn_key_rounded),
+            tooltip: tr('Connect a model'),
+            onPressed: _openModels,
+          )
+        : canSend
         ? _SendButton(key: const ValueKey('send'), icon: 'send', onTap: _send)
         : _listening
             ? _BareIcon(key: const ValueKey('listening'), icon: 'stop', tip: 'Stop listening', onTap: _toggleDictation)
@@ -553,6 +574,19 @@ class _ComposerState extends State<Composer> {
                   padding: const EdgeInsetsDirectional.fromSTEB(Space.x2, Space.x2, Space.x2, 0),
                   child: Wrap(spacing: Space.x2, runSpacing: Space.x2, children: chips),
                 ),
+              if (needsModel)
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(Space.x2, 0, Space.x2, Space.x2),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      key: const ValueKey('connect-model-banner'),
+                      onPressed: _openModels,
+                      icon: const Icon(Icons.vpn_key_rounded, size: 16),
+                      label: Text(tr('Connect a model to start chatting')),
+                    ),
+                  ),
+                ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -578,7 +612,7 @@ class _ComposerState extends State<Composer> {
                       style: TextStyle(fontSize: Lux.read, height: 1.4, color: p.text),
                       decoration: InputDecoration(
                         // While a task works, the box says plainly that a message can steer it.
-                        hintText: _listening ? 'Speak now…' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask SubMac anything')),
+                        hintText: needsModel ? tr('Connect a model to start') : _listening ? 'Speak now…' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask SubMac anything')),
                         hintMaxLines: 1,
                         hintStyle: TextStyle(color: p.faint),
                         filled: false,
@@ -614,7 +648,7 @@ class _ComposerState extends State<Composer> {
               // The chat's model (BYOK, owner 2026-11-03) sits beside it, only when the user has models of their own.
               // These two are the OWNER's chat controls and never follow into a digital person's own chat: a bot has
               // its own permission and model in its profile, not under this composer (owner 2026-11-10).
-              if (Bots.I.byConv(state.currentId) == null)
+              if (!needsModel && Bots.I.byConv(state.currentId) == null)
                 const Padding(
                   padding: EdgeInsetsDirectional.only(top: Space.x2),
                   child: Align(
