@@ -1,0 +1,504 @@
+### sizes
+  190 lib/services/telesia_gateway.dart
+  152 lib/services/mcp_routes.dart
+  772 lib/services/tools.dart
+  247 lib/screens/intro_screen.dart
+   22 lib/services/mcp_known.dart
+ 1383 total
+### telesia_gateway.dart (full)
+1:import 'dart:convert';
+2:
+3:/// Telesia's tools reach opencode through two small MCP tools instead of one per tool (owner, 2026-11-03: "give it as
+4:/// mcp and skill, so it will just use when needed, not every message"). opencode sends every MCP tool's schema with
+5:/// every model call, so the full set (memory, documents, media, apps, connectors, the user's MCP servers...) stays
+6:/// behind [findTool]; opencode looks a tool up when a task needs one and runs it with [runTool]. The `telesia` skill
+7:/// says what is there. Pure, so it is tested without the app.
+8:class TelesiaGateway {
+9:  TelesiaGateway({required this.tools, required this.run, this.redirect});
+10:
+11:  /// A tool this caller may call by another name (a bot's `remember` is its own bot_remember): the name it runs as,
+12:  /// or null. The call still runs under its own name (the app maps it).
+13:  final String? Function(String name)? redirect;
+14:
+15:  /// opencode's own tools. Called through run_tool they are not found (2026-11-05: run_tool name "webfetch"), so the
+16:  /// answer says to call them directly instead of a bare "no Telesia tool".
+17:  static const engineTools = {
+18:    'bash', 'read', 'write', 'edit', 'glob', 'grep', 'list', 'ls', 'webfetch', 'websearch', 'codesearch', 'todowrite', 'todoread',
+19:    'task', 'skill', 'patch', 'multiedit', 'question',
+20:  };
+21:
+22:  /// The full Telesia tool list (OpenAI function form), read fresh on every lookup.
+23:  final List<Map<String, dynamic>> Function() tools;
+24:
+25:  /// Runs one Telesia tool by name (through Telesia's own gate and approval card).
+26:  final Future<String> Function(String name, Map<String, dynamic> args) run;
+27:
+28:  static const findName = 'find_tools';
+29:  static const runName = 'run_tool';
+30:
+31:  static const findTool = {
+32:    'type': 'function',
+33:    'function': {
+34:      'name': findName,
+35:      'description': 'Find Telesia app tools on this phone (the built-in browser for websites, phone control of other apps, '
+36:          'alarms, SMS, contacts, calendar, WhatsApp, connected apps and their actions, the user\'s MCP servers, '
+37:          'connectors, memory, reading and making documents, pictures and media, the app\'s settings, projects and pages). '
+38:          'Returns matching tools with their parameters; run one with run_tool. An empty query lists every tool by name.',
+39:      'parameters': {
+40:        'type': 'object',
+41:        'properties': {
+42:          'query': {'type': 'string', 'description': 'Words for what you need, e.g. "gmail send", "pdf", "remember"'},
+43:        },
+44:      },
+45:    },
+46:  };
+47:
+48:  static const runTool = {
+49:    'type': 'function',
+50:    'function': {
+51:      'name': runName,
+52:      'description': 'Run a Telesia app tool found with find_tools. A risky action asks the user on Telesia\'s approval card first.',
+53:      'parameters': {
+54:        'type': 'object',
+55:        'properties': {
+56:          'name': {'type': 'string', 'description': 'The tool name from find_tools'},
+57:          'arguments': {'type': 'object', 'description': 'The tool\'s arguments, as its parameters describe'},
+58:        },
+59:        'required': ['name'],
+60:      },
+61:    },
+62:  };
+63:
+64:  static const definitions = [findTool, runTool];
+65:
+66:  /// Telesia tools offered to opencode by their own name as well (not only through run_tool), because a task needs them
+67:  /// without knowing to look (owner 2026-11-04: "no visual output ability, why?"). Each still runs only when the
+68:  /// calling chat's own tool list has it, and through the same gate as run_tool.
+69:  static const directNames = {'generate_image'};
+70:
+71:  /// The MCP tool list: find_tools, run_tool, and each direct tool [available] has right now (generate_image only
+72:  /// while Telesia's server can make pictures).
+73:  static List<Map<String, dynamic>> listing(List<Map<String, dynamic>> available) => [
+74:        ...definitions,
+75:        for (final t in available)
+76:          if (directNames.contains(_fn(t)['name'])) t,
+77:      ];
+78:
+79:  static Map<String, dynamic> _fn(Map<String, dynamic> t) =>
+80:      t['function'] is Map ? Map<String, dynamic>.from(t['function'] as Map) : t;
+81:
+82:  /// The tool a run_tool call names, and its arguments (for showing the step and routing it to its chat).
+83:  static (String, Map<String, dynamic>) inner(Map<String, dynamic> args) {
+84:    // Models also send the arguments as "parameters" (seen 2026-11-03 in a bot's office wake): read either.
+85:    final a = args['arguments'] ?? args['parameters'];
+86:    Map<String, dynamic> m = const {};
+87:    if (a is Map) {
+88:      m = Map<String, dynamic>.from(a);
+89:    } else if (a is String && a.trim().isNotEmpty) {
+90:      try {
+91:        final d = jsonDecode(a);
+92:        if (d is Map) m = Map<String, dynamic>.from(d);
+93:      } catch (_) {}
+94:    }
+95:    return (bare('${args['name'] ?? ''}'.trim()), m);
+96:  }
+97:
+98:  /// A tool name without the MCP wrapper's prefix models often add ("telesia_run_tool", "telesia_apps_list_tools").
+99:  /// Used both where a call is noted for routing and where it runs, so the two always agree (a prefix stripped on one
+100:  /// side only made the route miss and the call fall back to whatever chat was open: bots leak, 2026-11-03).
+101:  static String bare(String name) => name.startsWith('telesia_') ? name.substring(7) : name;
+102:
+103:  Future<String> call(String name, Map<String, dynamic> args) async {
+104:    if (name == findName) return find('${args['query'] ?? ''}');
+105:    if (directNames.contains(bare(name))) {
+106:      final n = bare(name);
+107:      if (!tools().any((t) => _fn(t)['name'] == n)) return 'Error: $n is not available here.';
+108:      return run(n, args);
+109:    }
+110:    if (name == runName) {
+111:      // inner() already drops the MCP wrapper's prefix models often add (see bare).
+112:      final (tool, a) = inner(args);
+113:      if (tool.isEmpty) return 'Error: name is required. Use find_tools to see the tools.';
+114:      if (tool == findName || tool == runName) return 'Error: $tool is not a Telesia app tool.';
+115:      if (!tools().any((t) => _fn(t)['name'] == tool)) {
+116:        final to = redirect?.call(tool);
+117:        if (to != null && tools().any((t) => _fn(t)['name'] == to)) return run(tool, a);
+118:        if (engineTools.contains(tool.toLowerCase())) {
+119:          return 'Error: "$tool" is one of your own tools, not a Telesia app tool. Call $tool directly (not through run_tool).';
+120:        }
+121:        return 'Error: no Telesia tool named "$tool". ${find(tool.replaceAll('_', ' '))}';
+122:      }
+123:      return run(tool, a);
+124:    }
+125:    return 'Error: unknown tool $name.';
+126:  }
+127:
+128:  /// Matching tools with their parameters (best first, at most 8); every name when the query is empty.
+129:  String find(String query) {
+130:    final all = [for (final t in tools()) _fn(t)];
+131:    final words = query.toLowerCase().split(RegExp(r'[^a-z0-9]+')).where((w) => w.length > 1).toList();
+132:    if (words.isEmpty) {
+133:      return 'Telesia tools (look one up with a query for its parameters):\n'
+134:          '${all.map((f) => '- ${f['name']}: ${_short('${f['description'] ?? ''}')}').join('\n')}';
+135:    }
+136:    final scored = <(int, Map<String, dynamic>)>[];
+137:    for (final f in all) {
+138:      final n = '${f['name']}'.toLowerCase();
+139:      final d = '${f['description'] ?? ''}'.toLowerCase();
+140:      var s = 0;
+141:      for (final w in words) {
+142:        if (n.contains(w)) s += 3;
+143:        if (d.contains(w)) s += 1;
+144:      }
+145:      if (s > 0) scored.add((s, f));
+146:    }
+147:    scored.sort((a, b) => b.$1.compareTo(a.$1));
+148:    if (scored.isEmpty) return 'No Telesia tool matches "$query". Try other words, or an empty query for the full list.';
+149:    return jsonEncode([
+150:      for (final (_, f) in scored.take(8))
+151:        {'name': f['name'], 'description': f['description'], 'parameters': f['parameters'] ?? {'type': 'object'}},
+152:    ]);
+153:  }
+154:
+155:  static String _short(String d) {
+156:    final i = d.indexOf('. ');
+157:    final s = i > 0 ? d.substring(0, i + 1) : d;
+158:    return s.length > 140 ? '${s.substring(0, 137)}...' : s;
+159:  }
+160:
+161:  /// The `telesia` opencode skill: what the app offers and how to reach it. opencode sees only its name and description
+162:  /// until it loads it.
+163:  static const skill = '''---
+164:name: telesia
+165:description: "Telesia app tools on this phone: a real browser for websites (sign in, forms, shopping, booking), control of the phone and its other apps (tap, type, scroll, alarms, SMS, contacts, calendar, WhatsApp), connected apps (Gmail, Calendar, GitHub...), the user's MCP servers, connectors, memory, reading PDFs/Word/photos, making documents and media, pictures, video, speech and music with the user's own media providers, how to show images, charts, drawings, pages and videos in the chat, the app's settings, projects and pages. Load when a task needs the phone's apps or the user's accounts, or a visual answer."
+166:---
+167:
+168:# Telesia app tools
+169:
+170:You run inside the Telesia app on the user's phone. Beyond your own tools, the app has its own, reached with two MCP tools:
+171:
+172:1. `telesia_find_tools` with a few words for what you need ("gmail send", "calendar", "pdf", "remember"). It returns the matching tools and their parameters. An empty query lists every tool.
+173:2. `telesia_run_tool` with `name` and `arguments`.
+174:
+175:What is there:
+176:- Websites: `browser_task` hands a whole job (sign in, fill forms, book, shop, research across pages) to Telesia's browser agent, which shows the user a live card and returns its report. Give the full goal with every detail. `wait:false` runs several jobs at once; then `browser_task_wait`. Use it whenever a page needs clicks, typing or a sign-in; your own webfetch is fine for reading a public page.
+177:- The phone and its other apps: `phone_screen` reads what is on screen (numbered elements), then `phone_tap`, `phone_type`, `phone_scroll`, `phone_gesture`, `phone_nav`, `phone_wait`. Read the screen again after each change. Direct tools are faster when they exist: `set_alarm`, `set_timer`, `open_app`, SMS, contacts, calendar, WhatsApp. Phone control needs the user to switch it on; if a tool says it is off, tell them how.
+178:- Connected apps and their actions: `apps_list_tools` lists an app's actions, `apps_run_tool` runs one. `connect_app` connects a new one.
+179:- The user's own MCP servers: their tools are listed by find_tools. `add_mcp_server` adds a server from a URL (and key). For Composio, pass the user's key as `token`; the app knows the address. Never say a server connected unless add_mcp_server said so.
+180:- Connectors and their APIs.
+181:- Memory: remember, forget, list_memories.
+182:- Reading: PDFs, Word documents, text in photos.
+183:- Making: documents, images to PDF, media conversions.
+184:- Visuals: the chat shows pictures, drawings, charts, pages and videos. `generate_image` makes a photo-like picture (when it is listed). For charts, diagrams, icons, posters and anything with exact shapes or text, write the file yourself: an `.svg` (hand-written SVG), an `.html` page (inline SVG or a canvas/JS chart; it opens full screen), or a `.png` from a script when `python3` is on PATH. `code_media` draws a picture, poster or short animation from JavaScript. Then name the file's path in your answer, or put `![what it is](path)` on its own line: the chat draws it there and a tap opens it full screen. Never paste base64 into the answer.
+185:- Media with the user's own providers: `media_generate` (kind image, video, speech or audio) makes pictures, video, spoken audio (text to speech) and music or sound effects with the media providers the user set up in Settings > Media models (their own keys, called from the phone; look it up with find_tools "media"; it exists only while one is set up). Use it when the user asks for generated media or says to use their provider; never make media they did not ask for. `provider` picks one of theirs by name (empty = their default); `input_image` edits or animates a picture. Video takes minutes: say it is on its way; progress shows in the chat and stopping the chat cancels it. The result shows as a card by itself; do not repeat its path. `generate_image` also uses their image provider when Telesia has no picture model.
+186:- The app: settings, projects, pages (sites).
+187:
+188:Risky actions ask the user on Telesia's approval card; wait for the result. If a tool fails, say so plainly; never say it worked.
+189:''';
+190:}
+### mcp_routes.dart (full)
+1:import 'dart:async';
+2:import 'dart:convert';
+3:
+4:import 'telesia_gateway.dart';
+5:
+6:/// Which Telesia chat (or team member) a Telesia tool call from opencode belongs to.
+7:///
+8:/// An MCP call from opencode does not say which session made it. The session's own event stream does: a tool part
+9:/// with the tool's name and arguments appears there as the call starts. Each such part is noted here with its chat,
+10:/// and the MCP call takes the entry with the same name and the same arguments. Matching on the arguments (not only the
+11:/// name) keeps two chats, two bots or two team members that run the same tool at once apart, so one bot's memory,
+12:/// desk or approval never lands on another (no leaks between chats).
+13:///
+14:/// Entries are taken once and expire, so the table never grows. Pure, so it is tested without the app.
+15:class McpRoutes {
+16:  McpRoutes({this.ttl = const Duration(minutes: 10), this.max = 200, DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
+17:
+18:  final Duration ttl;
+19:  final int max;
+20:  final DateTime Function() _clock;
+21:  final List<({String key, String tool, String conv, DateTime at, String part})> _open = [];
+22:  final Set<String> _seenParts = {};
+23:
+24:  /// Arguments in a fixed key order, so the same call matches however its map was built.
+25:  static String canon(Object? v) {
+26:    if (v is Map) {
+27:      final keys = v.keys.map((k) => '$k').toList()..sort();
+28:      return '{${keys.map((k) => '${jsonEncode(k)}:${canon(v[k])}').join(',')}}';
+29:    }
+30:    if (v is List) return '[${v.map(canon).join(',')}]';
+31:    if (v is num && v == v.roundToDouble() && v.abs() < 1e15) return '${v.toInt()}';
+32:    return jsonEncode(v);
+33:  }
+34:
+35:  static String keyOf(String tool, Map<String, dynamic> args) => '$tool ${canon(args)}';
+36:
+37:  void _prune() {
+38:    final cut = _clock().subtract(ttl);
+39:    _open.removeWhere((e) => e.at.isBefore(cut));
+40:    while (_open.length > max) {
+41:      _open.removeAt(0);
+42:    }
+43:    if (_seenParts.length > max * 4) _seenParts.clear();
+44:  }
+45:
+46:  /// A tool part seen in [conv]'s event stream. [part] is the part's id: a part is noted once however many updates
+47:  /// it gets.
+48:  void note(String tool, Map<String, dynamic> args, String conv, {required String part}) {
+49:    if (tool.isEmpty || !_seenParts.add(part)) return;
+50:    _prune();
+51:    _open.add((key: keyOf(tool, args), tool: tool, conv: conv, at: _clock(), part: part));
+52:  }
+53:
+54:  /// The chat of an MCP call. The event may arrive a moment after the call, so this waits up to [wait] for it. Null:
+55:  /// no matching part (the caller falls back to the open chat).
+56:  ///
+57:  /// [fuzzy]: when no entry has the same arguments, take the only open entry of that tool. Only safe while one turn
+58:  /// runs: with several, that entry may be another turn's call whose own MCP request has not arrived yet, and taking
+59:  /// it would run this call as the other chat (bots team audit 2026-11-04).
+60:  ///
+61:  /// [orphan] (''): the call came from a session no running turn owns (see [watchOrphans]); the caller refuses it.
+62:  Future<String?> take(String tool, Map<String, dynamic> args,
+63:      {Duration wait = const Duration(milliseconds: 1500), bool fuzzy = true}) async {
+64:    final key = keyOf(tool, args);
+65:    final until = _clock().add(wait);
+66:    while (true) {
+67:      _prune();
+68:      final i = _open.indexWhere((e) => e.key == key);
+69:      if (i >= 0) return _open.removeAt(i).conv;
+70:      if (!_clock().isBefore(until)) break;
+71:      await Future<void>.delayed(const Duration(milliseconds: 50));
+72:    }
+73:    // Arguments that did not survive the trip byte for byte: the only open call of that tool, when there is one.
+74:    if (!fuzzy) return null;
+75:    final same = _open.where((e) => e.tool == tool).toList();
+76:    if (same.length == 1) {
+77:      _open.remove(same.first);
+78:      return same.first.conv;
+79:    }
+80:    return null;
+81:  }
+82:
+83:  int get openCount => _open.length;
+84:
+85:  /// Notes the Telesia gateway calls (find_tools, run_tool) in one engine event for [conv], when the event comes from
+86:  /// a session of [family]: the turn's own session and every sub-session opencode starts under it (its `task` tool
+87:  /// runs a subagent in a child session). The family grows here as `session.created`/`session.updated` events name a
+88:  /// parent in it. Without this, a subagent's Telesia call had no route and ran as whatever chat was open (a bot's
+89:  /// work could land in the owner's chat and the other way round; 2026-11-03).
+90:  void watch(Map<String, dynamic> e, String conv, Set<String> family) {
+91:    final props = e['properties'];
+92:    if (props is! Map) return;
+93:    final type = e['type'];
+94:    if (type == 'session.created' || type == 'session.updated') {
+95:      final info = props['info'];
+96:      if (info is Map && info['id'] != null && family.contains('${info['parentID']}')) family.add('${info['id']}');
+97:      return;
+98:    }
+99:    if (type != 'message.part.updated') return;
+100:    final p = props['part'];
+101:    if (p is! Map || p['type'] != 'tool' || !family.contains('${p['sessionID']}')) return;
+102:    final st = p['state'] is Map ? p['state'] as Map : const {};
+103:    if (st['status'] != 'running' || st['input'] is! Map) return;
+104:    final input = Map<String, dynamic>.from(st['input'] as Map);
+105:    final tool = TelesiaGateway.bare('${p['tool'] ?? ''}');
+106:    if (tool == TelesiaGateway.runName) {
+107:      final (n, a) = TelesiaGateway.inner(input);
+108:      if (n.isNotEmpty) note(n, a, conv, part: '${p['id']}');
+109:    } else if ((tool == TelesiaGateway.findName || TelesiaGateway.directNames.contains(tool)) && '${p['tool']}' != tool) {
+110:      note(tool, input, conv, part: '${p['id']}');
+111:    }
+112:  }
+113:
+114:  /// The route of a call that came from no running turn's session.
+115:  static const orphan = '';
+116:
+117:  /// Notes Telesia gateway calls made by sessions that no running turn owns ([owned] is false for them): a turn that
+118:  /// was stopped while opencode still finished a step, a deleted team session, the opencode test screen. They are
+119:  /// noted as [orphan], so their MCP call is refused instead of falling back to "the only turn running", which ran
+120:  /// it as that other chat (a leak). Call it before the turns' own [watch] for each event.
+121:  void watchOrphans(Map<String, dynamic> e, bool Function(String session) owned) {
+122:    if (e['type'] != 'message.part.updated') return;
+123:    final props = e['properties'];
+124:    final p = props is Map ? props['part'] : null;
+125:    if (p is! Map || p['type'] != 'tool') return;
+126:    final session = '${p['sessionID'] ?? ''}';
+127:    if (session.isEmpty || owned(session)) return;
+128:    watch(e, orphan, {session});
+129:  }
+130:
+131:  /// The Telesia chat of [session]: its own, or the nearest parent's ([parent]: child session -> parent, from
+132:  /// `session.created` events). A subagent's permission or question card shows in the chat whose turn started it,
+133:  /// never in whatever chat happens to be open (2026-11-03).
+134:  static String? rootConv(String session, String? Function(String session) convOf, Map<String, String> parent) {
+135:    var s = session;
+136:    for (var i = 0; i < 16; i++) {
+137:      final c = convOf(s);
+138:      if (c != null) return c;
+139:      final up = parent[s];
+140:      if (up == null) return null;
+141:      s = up;
+142:    }
+143:    return null;
+144:  }
+145:
+146:  /// Where a call with no matching part goes: the only Telesia turn running (chat, bot or team member), or null when
+147:  /// there are several or none. Never "the chat on screen": that is how one bot's call used to act on another chat.
+148:  static String? soleLive(Iterable<String> live) {
+149:    final l = live.toSet();
+150:    return l.length == 1 ? l.first : null;
+151:  }
+152:}
+### prefix/substring hits across lib
+lib/agent/core.dart:248:Model<Map<String, dynamic>> telesiaModel({String name = 'telesia', Transport? transport}) {
+lib/agent/core.dart:747:    this.modelName = 'telesia',
+lib/screens/bot_job_screen.dart:388:      final t = e.text.substring(6);
+lib/screens/bot_job_screen.dart:416:          sub: '${g.routines.length == 1 ? routineWhen(g.routines.first) : g.when[0].toUpperCase() + g.when.substring(1)}'
+lib/screens/bot_activity_screen.dart:75:    return s.isEmpty ? t : s[0].toUpperCase() + s.substring(1);
+lib/screens/bot_activity_screen.dart:172:      final f = File('${dir.path}/${safe.isEmpty ? 'telesia' : safe}.telesia.json');
+lib/screens/bot_activity_screen.dart:201:    if ('${j['telesia']}' == 'bot') {
+lib/screens/bot_activity_screen.dart:207:    if ('${j['telesia']}' == 'office') {
+lib/screens/home_screen.dart:106:      Navigator.push(context, MaterialPageRoute(builder: (_) => InboxScreen(openId: r.startsWith('inbox/') ? r.substring(6) : null)));
+lib/screens/home_screen.dart:107:    } else if (r.startsWith('office/') && Offices.I.byId(r.substring(7)) != null) {
+lib/screens/home_screen.dart:108:      Navigator.push(context, MaterialPageRoute(builder: (_) => OfficeScreen(officeId: r.substring(7))));
+lib/screens/home_screen.dart:111:      final b = Bots.I.byId(r.substring(8));
+lib/screens/home_screen.dart:130:        Navigator.push(context, MaterialPageRoute(builder: (_) => OfficeScreen(officeId: to.substring(7), share: m)));
+lib/screens/home_screen.dart:134:        final b = Bots.I.byId(to.substring(4));
+lib/screens/home_screen.dart:901:      if (m.name == 'telesia_team') return TeamMessageCard(key: ValueKey(m.id), message: m);
+lib/screens/billing/checkout_webview_screen.dart:351:      if (u != null && u.scheme == 'telesia') return;
+lib/screens/opencode_lab_screen.dart:186:        final data = line.substring(5).trim();
+lib/screens/bots_workspace.dart:159:    if (open.startsWith('bot:') && Bots.I.byId(open.substring(4)) != null) return BotStatus.botKey(open.substring(4));
+lib/screens/bots_workspace.dart:160:    if (open.startsWith('team:') && Offices.I.byId(open.substring(5)) != null) return BotStatus.teamKey(open.substring(5));
+lib/screens/bots_workspace.dart:183:      if (Offices.I.byId(key.substring(2)) == null) return;
+lib/screens/bots_workspace.dart:191:    final b = Bots.I.byId(key.substring(2));
+lib/screens/bots_workspace.dart:273:  Bot? get _activeBot => _active.startsWith('b:') ? Bots.I.byId(_active.substring(2)) : null;
+lib/screens/bots_workspace.dart:274:  Office? get _activeTeam => _active.startsWith('t:') ? Offices.I.byId(_active.substring(2)) : null;
+lib/widgets/page_cards.dart:67:  if (p.startsWith('file://')) p = p.substring(7);
+lib/widgets/mission_section.dart:38:      parts.add(d.isNegative ? 'next run now' : d.inMinutes < 60 ? 'next in ${d.inMinutes + 1} min' : 'next ${Missions.when(m.nextAt!).substring(5)}');
+lib/widgets/mission_section.dart:154:                  TextSpan(text: '${Missions.when(e.at).substring(5)}  ', style: TextStyle(color: Palette.of(c).muted, fontSize: AppText.micro)),
+lib/widgets/output_cards.dart:929:        final ext = type.startsWith('image/') ? type.substring(6).replaceAll('jpeg', 'jpg').replaceAll('svg+xml', 'svg')
+lib/widgets/output_cards.dart:933:        name = 'telesia_${DateTime.now().millisecondsSinceEpoch}.$ext';
+lib/widgets/composer.dart:922:    final lower = '${line[0].toLowerCase()}${line.substring(1)}';
+lib/widgets/browser_card.dart:392:    if (host.startsWith('www.')) host = host.substring(4);
+lib/widgets/sub_avatar.dart:35:    final p = look.substring(prefix.length).split('.');
+lib/widgets/chat_logic.dart:191:    return x[0].toUpperCase() + x.substring(1);
+lib/widgets/message_view.dart:386:        visible.add(ImageResultCard(path: res.substring(12).split('\n').first.trim()));
+lib/widgets/message_view.dart:388:        visible.add(AudioCard(res.substring(12).split('\n').first.trim()));
+lib/widgets/message_view.dart:390:        visible.add(MediaCard(res.substring(12).split('\n').first.trim()));
+lib/widgets/message_view.dart:983:    final image = res.startsWith('IMAGE_SAVED ') ? res.substring(12).split('\n').first.trim() : null;
+lib/widgets/video_inline.dart:39:    return VideoPlayerController.file(File(path.startsWith('file://') ? Uri.decodeFull(path.substring(7)) : path));
+lib/widgets/ask_bar.dart:420:    final id = s.substring(4);
+lib/widgets/ask_bar.dart:424:  ConnDef? get _def => widget.ask.site.startsWith('app:') ? ConnectorCatalog.byId(widget.ask.site.substring(4)) : null;
+lib/widgets/audio_card.dart:217:    final title = name.isEmpty ? 'Sound' : name[0].toUpperCase() + name.substring(1);
+lib/services/sites.dart:19:  static const free = 'telesia'; // free 7-day link on telesia-sites.pages.dev
+lib/services/turn_visuals.dart:85:          final j = jsonDecode(o.substring(11).split('\n').first);
+lib/services/turn_visuals.dart:96:    if (p.toLowerCase().startsWith('file://')) p = p.substring(7);
+lib/services/code_tools.dart:174:      return s.startsWith('Exception: Error') ? s.substring(11) : 'Error: $s';
+lib/services/code_tools.dart:532:        final body = l.isEmpty ? '' : l.substring(1);
+lib/services/bot_package.dart:225:    if ('${raw['telesia']}' != format) return null;
+lib/services/bot_package.dart:289:      'telesia': format,
+lib/services/offices.dart:1025:      'telesia': 'office',
+lib/services/offices.dart:1039:    if ('${j['telesia']}' != 'office') return null;
+lib/services/browser/extract.dart:107:  if (s.startsWith('www.')) s = s.substring(4);
+lib/services/browser/page_model.dart:126:    return h.startsWith('www.') ? h.substring(4) : h;
+lib/services/browser/read_page.dart:33:      if (name.startsWith('#x') || name.startsWith('#X')) code = int.tryParse(name.substring(2), radix: 16);
+lib/services/browser/read_page.dart:34:      if (name.startsWith('#') && !name.startsWith('#x') && !name.startsWith('#X')) code = int.tryParse(name.substring(1));
+lib/services/browser_jobs.dart:106:    return h.startsWith('www.') ? h.substring(4) : h;
+lib/services/bots.dart:409:        'telesia': BotPackage.format,
+lib/services/bots.dart:426:    return t.isEmpty ? t : t[0].toUpperCase() + t.substring(1);
+lib/services/bots.dart:1192:        if (!e.at.isBefore(since) && e.kind == 'work' && e.text.startsWith('Done: ')) e.text.substring(6),
+lib/services/telesia_mcp.dart:15:  TelesiaMcp({required this.tools, required this.call, this.name = 'telesia', this.version = '1'});
+lib/services/forged_tools.dart:37:    final n = toolName.startsWith(prefix) ? toolName.substring(prefix.length) : toolName;
+lib/services/doc_maker.dart:574:      if (!head && s.startsWith('=')) return '<c r="$ref"><f>${_x(s.substring(1))}</f></c>';
+lib/services/outbound_guard.dart:161:        to = l.substring(3).trim();
+lib/services/outbound_guard.dart:163:        cc = l.substring(3).trim();
+lib/services/outbound_guard.dart:165:        subject = l.substring(8).trim();
+lib/services/readable.dart:89:        if (t.isNotEmpty) sb.write('\n\n${'#' * int.parse(tag.substring(1))} $t\n');
+lib/services/skill_library.dart:106:  static String label(String cat) => catLabels[cat] ?? (cat.isEmpty ? 'Other' : '${cat[0].toUpperCase()}${cat.substring(1)}');
+lib/services/team_key.dart:26:    final mid = key!.substring(prefix.length, key.lastIndexOf(':'));
+lib/services/mcp_routes.dart:4:import 'telesia_gateway.dart';
+lib/services/billing/checkout_url.dart:51:  if (scheme == 'telesia') {
+lib/services/billing/checkout_url.dart:103:  if (u.scheme.toLowerCase() != 'telesia' || u.host.toLowerCase() != 'pay') return null;
+lib/services/billing/somali_wallet.dart:55:  if (d.startsWith('00')) d = d.substring(2);
+lib/services/billing/somali_wallet.dart:57:    d = d.substring(3);
+lib/services/billing/somali_wallet.dart:58:    if (d.startsWith('0')) d = d.substring(1); // +252 0612...
+lib/services/billing/somali_wallet.dart:60:    d = d.substring(1);
+lib/services/billing/somali_wallet.dart:86:    final national = digits.startsWith('252') ? digits.substring(3) : digits.startsWith('0') ? digits.substring(1) : digits;
+lib/services/billing/somali_wallet.dart:106:  return '+252 ${normalized.substring(3, 5)} ${normalized.substring(5, 8)} ${normalized.substring(8)}';
+lib/services/intro_sound.dart:41:      final p = _player ??= AudioPlayer(playerId: 'telesia_intro');
+lib/services/telesia_gateway.dart:98:  /// A tool name without the MCP wrapper's prefix models often add ("telesia_run_tool", "telesia_apps_list_tools").
+lib/services/telesia_gateway.dart:101:  static String bare(String name) => name.startsWith('telesia_') ? name.substring(7) : name;
+lib/services/telesia_gateway.dart:172:1. `telesia_find_tools` with a few words for what you need ("gmail send", "calendar", "pdf", "remember"). It returns the matching tools and their parameters. An empty query lists every tool.
+lib/services/telesia_gateway.dart:173:2. `telesia_run_tool` with `name` and `arguments`.
+### IntroMotion
+lib/ui/intro_motion.dart:8:class IntroMotion {
+lib/ui/intro_motion.dart:9:  const IntroMotion._();
+lib/ui/intro_motion.dart-10-
+lib/ui/intro_motion.dart-11-  /// The whole intro: the wordmark draws in, resolves into the logo, the dot lands, a short hold.
+lib/ui/intro_motion.dart-12-  static const Duration total = Duration(milliseconds: 3000);
+lib/ui/intro_motion.dart-13-
+--
+lib/screens/intro_screen.dart:20:/// Pure Flutter: one AnimationController, every beat a fraction of it (IntroMotion).
+lib/screens/intro_screen.dart-21-class IntroScreen extends StatefulWidget {
+lib/screens/intro_screen.dart-22-  const IntroScreen({super.key, required this.onDone, this.sound});
+lib/screens/intro_screen.dart-23-
+lib/screens/intro_screen.dart-24-  /// Called once, when the intro finishes or is skipped.
+--
+lib/screens/intro_screen.dart:35:  late final AnimationController _c = AnimationController(vsync: this, duration: IntroMotion.total);
+lib/screens/intro_screen.dart-36-  IntroSound? _sound;
+lib/screens/intro_screen.dart-37-  bool _started = false;
+lib/screens/intro_screen.dart-38-  bool _done = false;
+lib/screens/intro_screen.dart-39-  bool _still = false;
+--
+lib/screens/intro_screen.dart:42:  late final List<double> _ticks = IntroMotion.ticks();
+lib/screens/intro_screen.dart-43-
+lib/screens/intro_screen.dart-44-  /// True once the intro has finished or was skipped. For tests.
+lib/screens/intro_screen.dart-45-  bool get done => _done;
+lib/screens/intro_screen.dart-46-
+--
+lib/screens/intro_screen.dart:58:      _c.duration = IntroMotion.still;
+lib/screens/intro_screen.dart-59-      unawaited(HapticFeedback.selectionClick());
+lib/screens/intro_screen.dart-60-    } else {
+lib/screens/intro_screen.dart-61-      _c.addListener(_beats);
+lib/screens/intro_screen.dart-62-      _sound = widget.sound ?? IntroSound.device();
+--
+lib/screens/intro_screen.dart:75:    if (!_landed && t >= IntroMotion.dotLand) {
+lib/screens/intro_screen.dart-76-      _landed = true;
+lib/screens/intro_screen.dart-77-      unawaited(HapticFeedback.mediumImpact());
+lib/screens/intro_screen.dart-78-    }
+lib/screens/intro_screen.dart-79-  }
+--
+lib/screens/intro_screen.dart:115:          color: IntroMotion.paper,
+lib/screens/intro_screen.dart-116-          child: Center(
+lib/screens/intro_screen.dart-117-            child: RepaintBoundary(
+### gateway call/inner error strings
+lib/ui/feedback_words.dart:43:    'The camera is not available.',
+lib/agent/core.dart:169:  /// Model replies in a row with only unknown tools before the run stops on its own (no endless re-sends).
+lib/agent/core.dart:367:/// CB-3: the stub that unknown tool names are mapped to. [CommitMiddleware] answers it without the app.
+lib/screens/feedback_screen.dart:152:      if (mounted) _notice(camera ? ft('The camera is not available.') : _words(FeedbackProblem.server));
+lib/screens/bot_setup_screens.dart:396:    if (d == null) return '${a.name} is not available in this version of Telesia.';
+lib/widgets/media_view.dart:99:/// user once that it is not available any more.
+lib/widgets/composer.dart:201:        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Camera is not available: $e')));
+lib/widgets/model_picker.dart:35:    if (pick == null) return '${BotModelWords.defaultLabel} · ${ByokRef.parse(s)!.model} is not available';
+lib/services/somali_knowledge.dart:81:    if (all.isEmpty) return 'The Somali knowledge library is not available on this phone. Answer from what you know.';
+lib/services/web_tools.dart:109:      return 'Error: unknown tool "$name"';
+lib/services/biz_tools.dart:286:    return 'Error: unknown tool $name';
+lib/services/code_tools.dart:168:        _ => 'Error: unknown tool $name',
+lib/services/offices.dart:1931:    return 'Error: unknown tool $name.';
+lib/services/phone_tools.dart:161:      return 'Error: unknown tool "$name"';
+lib/services/phone_tools.dart:165:      return 'Error: this phone action is not available in this build.';
+lib/services/browser_jobs.dart:450:    return 'Error: unknown tool $name';
+lib/services/bots.dart:2549:    return 'Error: unknown tool $name.';
+lib/services/telesia_mcp.dart:107:              {'type': 'text', 'text': 'Unknown tool: $tool'}
+lib/services/telesia_gateway.dart:107:      if (!tools().any((t) => _fn(t)['name'] == n)) return 'Error: $n is not available here.';
+lib/services/telesia_gateway.dart:121:        return 'Error: no Telesia tool named "$tool". ${find(tool.replaceAll('_', ' '))}';
+lib/services/telesia_gateway.dart:125:    return 'Error: unknown tool $name.';
+lib/services/tools.dart:392:          return 'Error: unknown tool "$name"';
+lib/services/connector_tools.dart:87:        return 'Error: unknown tool "$name"';
+lib/services/setup_tools.dart:76:    return 'Unknown tool $name';
+lib/services/media_store.dart:25:///  * only when the file is in neither place does the card say it is not available.
+lib/services/system_tools.dart:434:    return 'Unknown tool $name';
+lib/services/system_bridge.dart:360:          'Phone control is not available on this device.';
+lib/services/bot_store.dart:237:      return (null, _plain(e).contains('not open yet') ? 'Sharing by code is not available yet. Share it as a file instead.' : 'The code isn\'t ready right now. Share it as a file instead.');
+lib/services/bot_store.dart:266:      return (null, _plain(e).contains('not open yet') ? 'Adding by code is not available yet. Ask for the file instead.' : 'Telesia is resting for a moment. Try again shortly.');
+lib/services/missions.dart:785:    return 'Error: unknown tool $name.';
