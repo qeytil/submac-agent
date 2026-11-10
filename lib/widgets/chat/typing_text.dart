@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../ui/motion.dart';
 
-/// The empty chat's greeting (owner, 2026-10-24): ONE smooth intro. The letters fade in one by one with SubMac's settle
+/// The empty chat's greeting (owner, 2026-10-24): ONE smooth intro. The letters fade in one by one with Telesia's settle
 /// curve, and that is all: no loop, no erase, no cursor. It plays once each time an empty chat shows it (the widget is
 /// keyed by the chat), and stands still with Remove animations.
 ///

@@ -32,7 +32,7 @@ public.usage_charge_enqueue(...)    -- same arguments; when usage_charge failed.
 - `code`: `limit_daily` (`reason = 'bot_share'` for bots), `limit_total`, `no_plan`. `reply_cap` = min(8192, today left).
 - Idempotent by `request_id` (another user's id: `request_id_conflict`). The last reply may overrun: logged, never billed.
 - Live: `usage_charge(uid, <seconds>, 0, 'live', 'live:<call>:<seconds so far>')`.
-- Headers (Contract A): `x-submac-today-left`, `x-submac-total-left`, `x-submac-resets-at`, `x-submac-plan`.
+- Headers (Contract A): `x-telesia-today-left`, `x-telesia-total-left`, `x-telesia-resets-at`, `x-telesia-plan`.
 
 ## Switch
 
@@ -45,7 +45,7 @@ public.usage_charge_enqueue(...)    -- same arguments; when usage_charge failed.
 - Always re-verify with Sifalo; unknown ≠ failed; double-tap and idempotency guards; credit once per provider ref.
 - A ref from outside (return URL, webhook) must be the provider's payment for that order (verify by order id), else
   `sid_not_for_order`.
-- `billing-return` always redirects to the app (`submac://pay?status=…&purchase=…`), never a JSON page.
+- `billing-return` always redirects to the app (`telesia://pay?status=…&purchase=…`), never a JSON page.
 
 ## Jobs (pg_cron)
 

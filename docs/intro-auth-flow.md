@@ -1,6 +1,6 @@
 # First-launch intro, agreement on the sign-in screen, sign-in to chat (2026-10-26)
 
-Owner ask: "the first time app launch we want Animation drawing Submac then our logo with professional clean intro style,
+Owner ask: "the first time app launch we want Animation drawing Telesia then our logo with professional clean intro style,
 then the login and the age consent should be in the auth screen not seperate after auth, and after auth, smooth animation
 should open chat screen" + "That drawing intro should have smooth satisfying sound with haptic, not ropotic, smooth modern
 sound effect".
@@ -9,10 +9,10 @@ sound effect".
 - Plays once per install, only when nobody is signed in (`shouldShowIntro`). Flag `intro_seen_v1` (SharedPreferences),
   set on finish or skip; read in main() before the first frame, so later cold starts never wait. Someone updating the
   app while signed in never sees it (flag set quietly).
-- White page. 0–1500 ms "SubMac" revealed left to right by a soft mask with a thin #86c0f3 pen line on the edge;
+- White page. 0–1500 ms "Telesia" revealed left to right by a soft mask with a thin #86c0f3 pen line on the edge;
   1500–1800 the word fades/shrinks; 1700–2200 the logo tile scales 0.82→1 and fades in; 2200–2450 the white dot drops
   in and settles (impact at 2295); hold; 3000 ms done; 600 ms hand-over to sign-in. Tap anywhere to skip.
-- Logo: assets/intro/submac_tile.svg (the new 1024 logo without its dot, via flutter_svg); the dot is painted in code
+- Logo: assets/intro/telesia_tile.svg (the new 1024 logo without its dot, via flutter_svg); the dot is painted in code
   so it lands last.
 - Remove animations: the finished logo fades in (900 ms total), one selection tick, no sound.
 - Haptics: `HapticFeedback.selectionClick` as the reveal passes each of the 6 letters, one `mediumImpact` when the dot lands.

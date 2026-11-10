@@ -139,7 +139,7 @@ class _SidebarState extends State<Sidebar> {
       shape: const RoundedRectangleBorder(),
       child: SafeArea(
         child: Column(
-          // SubMac motion: the menu's rows rise and settle in turn as it opens.
+          // Telesia motion: the menu's rows rise and settle in turn as it opens.
           children: revealRows([
             Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 4),

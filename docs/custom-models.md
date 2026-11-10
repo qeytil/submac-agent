@@ -19,7 +19,7 @@ them and shows the results as smooth cards. Owner change 12:01: no Settings scre
     `MEDIA_CARD {json}` (kind image / images / audio / video / file(s), files, model, prompt, provider).
     Output links on other hosts are fetched without the key.
   - `ai_providers`: list / save (only after the user says yes) / forget / models (GET /models) / test.
-- Calls go straight from the phone to the provider. No SubMac server, no SubMac billing.
+- Calls go straight from the phone to the provider. No Telesia server, no Telesia billing.
 
 ## Cards (lib/widgets/media_cards.dart, lib/widgets/media_lightbox.dart)
 Styled from a study of hark.com (2026-10-24):

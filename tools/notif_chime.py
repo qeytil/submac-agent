@@ -1,4 +1,4 @@
-"""Generates android_native/res/raw/submac_chime.wav: SubMac's light notification sound (2026-11-05).
+"""Generates android_native/res/raw/telesia_chime.wav: Telesia's light notification sound (2026-11-05).
 
 A soft two-tone chime, 880 Hz then 1320 Hz (a fifth up), each a sine with a little second harmonic, a gentle
 attack (12 ms) and a long exponential decay, overlapping slightly, at a low level (peak about -14 dBFS).
@@ -25,7 +25,7 @@ def note(t, start, freq, dur):
     return s * env * tail
 
 
-def main(path="android_native/res/raw/submac_chime.wav"):
+def main(path="android_native/res/raw/telesia_chime.wav"):
     n = int(RATE * LENGTH)
     raw = []
     for i in range(n):

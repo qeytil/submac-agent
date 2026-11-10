@@ -81,7 +81,7 @@ class FeedbackDevice {
   final String? locale;
   const FeedbackDevice({this.appVersion, this.buildNumber, this.deviceModel, this.osVersion, this.locale});
 
-  static const _ch = MethodChannel('submac/update');
+  static const _ch = MethodChannel('telesia/update');
 
   /// Reads the installed version and the phone model from Android (the update channel's `info`), with safe
   /// fallbacks off Android and in tests.

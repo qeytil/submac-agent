@@ -13,9 +13,9 @@ import 'connector_tools.dart';
 /// Git for the Coder bot, on the user's own GitHub (their token, their free Actions minutes and Pages): clone a repo
 /// into the workspace, see what changed, diff, pull, commit and push, branches, pull requests, issues, and builds
 /// (APK, web, tests) on GitHub Actions with the result downloaded back to the phone. There is no git program on the
-/// phone, so a local copy keeps `.submac-git.json`: the repo, branch, base commit and every file's blob sha.
+/// phone, so a local copy keeps `.telesia-git.json`: the repo, branch, base commit and every file's blob sha.
 class CodeGit {
-  static const meta = '.submac-git.json';
+  static const meta = '.telesia-git.json';
   static const api = 'https://api.github.com';
 
   /// Set by the app: shows the GitHub connect sheet and returns true when the user connected.
@@ -40,7 +40,7 @@ class CodeGit {
         'Authorization': 'Bearer $token',
         'Accept': 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'SubMac',
+        'User-Agent': 'Telesia',
       };
 
   static Future<(int, dynamic)> call(String method, String path, [Object? body]) async {
@@ -262,13 +262,13 @@ class CodeGit {
       await readme.writeAsString('# $name\n${description.isEmpty ? '' : '\n$description\n'}');
     }
     await writeMeta(root, {'repo': repo, 'branch': branch, 'commit': head, 'files': shas});
-    final p = await push(root, 'First version from SubMac');
+    final p = await push(root, 'First version from Telesia');
     return 'Made ${private ? 'private' : 'public'} repo https://github.com/$repo\n$p';
   }
 
   // ---------------------------------------------------------------- builds on GitHub Actions
 
-  static const workflow = '.github/workflows/submac-build.yml';
+  static const workflow = '.github/workflows/telesia-build.yml';
 
   /// What kind of project a folder holds: flutter | android | react-native | capacitor | node | python | go | rust | static | unknown.
   static Future<String> kindOf(Directory root) async {
@@ -295,13 +295,13 @@ class CodeGit {
   /// A Flutter project made on the phone has no android/ or web/ folder: the build makes them (existing files stay).
   static const _create = '      - name: Platform folders\n        run: |\n'
       '          N=\$(grep -m1 "^name:" pubspec.yaml | awk \'{print \$2}\')\n'
-      '          [ -d android ] && [ -d web ] || flutter create . --project-name "\$N" --platforms=android,web --org com.submac.app\n';
+      '          [ -d android ] && [ -d web ] || flutter create . --project-name "\$N" --platforms=android,web --org com.telesia.app\n';
 
   /// The workflow file for a build (pure; unit tested). target: apk | aab | web | test.
   static String? workflowFor(String kind, String target) {
     // React Native and Capacitor are Node projects for tests and websites.
     if ((kind == 'react-native' || kind == 'capacitor') && target != 'apk') return workflowFor('node', target);
-    const head = 'name: SubMac build\non:\n  workflow_dispatch:\n';
+    const head = 'name: Telesia build\non:\n  workflow_dispatch:\n';
     const pagesPerms = 'permissions:\n  contents: read\n  pages: write\n  id-token: write\n';
     const deploy = '  deploy:\n    needs: build\n    runs-on: ubuntu-latest\n    environment:\n      name: github-pages\n'
         '      url: \${{ steps.d.outputs.page_url }}\n    steps:\n      - id: d\n        uses: actions/deploy-pages@v4\n';
@@ -401,14 +401,14 @@ class CodeGit {
       await f.parent.create(recursive: true);
       await f.writeAsString(wf);
     }
-    final p = await push(root, 'SubMac: build $target');
+    final p = await push(root, 'Telesia: build $target');
     if (p.startsWith('Error')) return p;
     // GitHub needs a moment to see a new workflow file.
     var started = false;
     String last = '';
     for (var i = 0; i < 6 && !started; i++) {
       if (i > 0) await Future<void>.delayed(const Duration(seconds: 3));
-      final (c, r) = await call('POST', '/repos/$repo/actions/workflows/submac-build.yml/dispatches', {'ref': branch});
+      final (c, r) = await call('POST', '/repos/$repo/actions/workflows/telesia-build.yml/dispatches', {'ref': branch});
       started = c == 204;
       last = err(c, r);
     }
@@ -425,7 +425,7 @@ class CodeGit {
   }
 
   static Future<Map<String, dynamic>?> _latestRun(String repo) async {
-    final (c, r) = await call('GET', '/repos/$repo/actions/workflows/submac-build.yml/runs?per_page=1');
+    final (c, r) = await call('GET', '/repos/$repo/actions/workflows/telesia-build.yml/runs?per_page=1');
     if (c != 200) return null;
     final runs = (r['workflow_runs'] as List? ?? const []);
     return runs.isEmpty ? null : Map<String, dynamic>.from(runs.first as Map);

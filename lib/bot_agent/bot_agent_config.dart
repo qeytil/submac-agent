@@ -1,8 +1,8 @@
-// The per-bot configuration of SubMac's own bot engine (owner 2026-11-07).
+// The per-bot configuration of Telesia's own bot engine (owner 2026-11-07).
 //
 // Bots used to run on opencode, the same engine as the owner's chat. A bot is a "digital person" that works on its own,
 // 24/7, on the phone and under its own profile (its model, its allowance, its notes folder), so it gets its own engine:
-// one bot, one [BotAgentConfig]. opencode stays reserved for the SubMac agent (the owner's chat). See docs/bot-autonomy.md.
+// one bot, one [BotAgentConfig]. opencode stays reserved for the Telesia agent (the owner's chat). See docs/bot-autonomy.md.
 
 import '../services/bots.dart';
 
@@ -25,7 +25,7 @@ class BotAgentConfig {
   /// The bot's name, shown in logs and the notification line.
   final String name;
 
-  /// The bot's own folder inside SubMac's workspace (notes, drafts, files).
+  /// The bot's own folder inside Telesia's workspace (notes, drafts, files).
   final String folder;
 
   /// The most model steps one turn may take (each step may run tools). A backstop against a looping bot.

@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 import 'ai_keys.dart';
 import 'tools.dart';
 
-/// An AI connection the user asked SubMac to remember (name, address, how the key is sent). The key itself sits in
+/// An AI connection the user asked Telesia to remember (name, address, how the key is sent). The key itself sits in
 /// encrypted storage under its `key_ref`; this record only names the reference.
 class AiProvider {
   String name;
@@ -97,7 +97,7 @@ class AiCallError implements Exception {
 /// Calls AI models the user brings: any OpenAI-compatible API (chat, images, image edits, speech, transcription,
 /// embeddings, videos) and any other REST API (custom path, payload, headers), including async jobs that are polled
 /// until done. Results are downloaded into the workspace and shown in chat as media cards (MEDIA_CARD results).
-/// Calls go straight from the phone to the provider: nothing passes SubMac's servers and nothing is billed by SubMac.
+/// Calls go straight from the phone to the provider: nothing passes Telesia's servers and nothing is billed by Telesia.
 class AiModels {
   AiModels({AiSecretStore? store, http.Client Function()? client, Future<void> Function(Duration)? sleep, Future<String> Function()? mediaDir})
       : _store = store,

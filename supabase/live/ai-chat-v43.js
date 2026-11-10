@@ -20,7 +20,7 @@ function snapFrom(v) {
   };
 }
 var FRIENDLY = {
-  busy: "SubMac is busy right now. Please try again in a moment.",
+  busy: "Telesia is busy right now. Please try again in a moment.",
   too_long: "This is too long to send in one go. Start a new chat or send less at once.",
   limit_daily: "You've used today's replies. They reset at midnight.",
   limit_total: "You've used all the replies in your plan.",
@@ -291,7 +291,7 @@ async function runChat(o) {
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${k.key}`,
-          "user-agent": "submac-proxy/1"
+          "user-agent": "telesia-proxy/1"
         },
         body: JSON.stringify(o.payloadFor(r))
       }), ctl.signal);
@@ -1088,12 +1088,12 @@ var ISO = crypto.randomUUID().slice(0, 6);
 var isoHits = 0;
 var CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, x-submac-source, x-submac-chat, x-submac-lane, x-submac-effort, x-region",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, x-telesia-source, x-telesia-chat, x-telesia-lane, x-telesia-effort, x-region",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Expose-Headers": "x-submac-usage, x-submac-state, x-submac-window, x-submac-bg, x-submac-today-left, x-submac-total-left, x-submac-resets-at, x-submac-plan, x-submac-error, retry-after, server-timing"
+  "Access-Control-Expose-Headers": "x-telesia-usage, x-telesia-state, x-telesia-window, x-telesia-bg, x-telesia-today-left, x-telesia-total-left, x-telesia-resets-at, x-telesia-plan, x-telesia-error, retry-after, server-timing"
 };
-var CHAT_ALIAS = "submac";
-var LEGACY_ALIAS = "submac-smart";
+var CHAT_ALIAS = "telesia";
+var LEGACY_ALIAS = "telesia-smart";
 var CFG_TTL = 6e4;
 var cache = null;
 function warmCfg() {
@@ -1223,14 +1223,14 @@ function errJson(status, code, legacy, message, retry = false, extra = {}) {
   return json({
     error: {
       code: legacy,
-      submac_code: code,
+      telesia_code: code,
       message: message ?? FRIENDLY[code],
       ...ra ? {
         retry_after: ra
       } : {}
     }
   }, status, {
-    "x-submac-error": code,
+    "x-telesia-error": code,
     ...ra ? {
       "Retry-After": String(ra)
     } : {},
@@ -1250,8 +1250,8 @@ async function userFromJwt(req) {
 var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 var internalOk = /* @__PURE__ */ new Map();
 async function internalUser(req) {
-  const sec = req.headers.get("x-submac-internal") ?? "";
-  const u = req.headers.get("x-submac-user") ?? "";
+  const sec = req.headers.get("x-telesia-internal") ?? "";
+  const u = req.headers.get("x-telesia-user") ?? "";
   if (!sec || !UUID_RE.test(u)) return null;
   const t = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   let service = t.length > 20 && t === SB_SERVICE;
@@ -1629,10 +1629,10 @@ function balanceHeaders(ent, st) {
     total = Math.max(today2, Math.floor(num2(ent.total_left, today2) - spent));
     const reset = resetsAtHeader(ent.resets_at);
     return {
-      "x-submac-today-left": String(today2),
-      "x-submac-total-left": String(total),
-      "x-submac-resets-at": reset,
-      "x-submac-plan": String(ent.plan ?? "free")
+      "x-telesia-today-left": String(today2),
+      "x-telesia-total-left": String(total),
+      "x-telesia-resets-at": reset,
+      "x-telesia-plan": String(ent.plan ?? "free")
     };
   }
   if (ent) {
@@ -1646,16 +1646,16 @@ function balanceHeaders(ent, st) {
     else if (Number(ent.pack_left ?? 0) > 0) plan = "payg";
   }
   return {
-    "x-submac-today-left": String(today2),
-    "x-submac-total-left": String(total),
-    "x-submac-resets-at": resetsAtHeader(),
-    "x-submac-plan": plan
+    "x-telesia-today-left": String(today2),
+    "x-telesia-total-left": String(total),
+    "x-telesia-resets-at": resetsAtHeader(),
+    "x-telesia-plan": plan
   };
 }
-var BAL_EXPOSE = CORS["Access-Control-Expose-Headers"] + ", x-submac-balance";
+var BAL_EXPOSE = CORS["Access-Control-Expose-Headers"] + ", x-telesia-balance";
 function balHdr(n2) {
   return {
-    "x-submac-balance": String(Math.max(0, Math.floor(n2))),
+    "x-telesia-balance": String(Math.max(0, Math.floor(n2))),
     "Access-Control-Expose-Headers": BAL_EXPOSE
   };
 }
@@ -1730,7 +1730,7 @@ function limitReply(e, s, hdrs = {}) {
     if (typeof s.billing_limit_message === "string" && s.billing_limit_message) msg2 = s.billing_limit_message;
     return billErr(429, code, msg2, e, s, String(e.reason ?? code), {}, {
       ...hdrs,
-      "x-submac-error": code
+      "x-telesia-error": code
     });
   }
   const out = billingOut(e, s);
@@ -1793,7 +1793,7 @@ function replyCap(balance, mult, promptTokens, s, gateCap = 0) {
   return Math.max(Math.max(1, num2(s.billing_min_reply_tokens, 512)), capped);
 }
 var NO_BALANCE = "You've used your allowance for now. Get a pass or a token pack to keep going, or wait for tomorrow's free allowance.";
-var CALL_BALANCE = "Your call time is used up. Get a pass or a token pack to keep calling. You can still type to SubMac.";
+var CALL_BALANCE = "Your call time is used up. Get a pass or a token pack to keep calling. You can still type to Telesia.";
 var BG_PAUSED = "Background tasks are paused until midnight (00:00 EAT) to save your allowance. Your own chats still work.";
 var liveLeftCache = /* @__PURE__ */ new Map();
 function liveLeftGuess(uid, s) {
@@ -1945,7 +1945,7 @@ async function classify(text, cfg) {
           headers: {
             "content-type": "application/json",
             authorization: `Bearer ${k.key}`,
-            "user-agent": "submac-proxy/1"
+            "user-agent": "telesia-proxy/1"
           },
           body: JSON.stringify({
             ...r.extra_body ?? {},
@@ -2179,7 +2179,7 @@ function features(cfg) {
   return {
     live: s.live_enabled !== false && !!s.live_provider,
     transcribe: s.transcribe_enabled !== false && !!s.live_provider,
-    image: has("submac-image"),
+    image: has("telesia-image"),
     video: false,
     live_voices: [
       "Kore",
@@ -2243,7 +2243,7 @@ function numOrNull(v) {
   return Number.isFinite(n2) && n2 >= 0 ? Math.floor(Math.min(n2, 86400)) : null;
 }
 function minutesUsedMessage() {
-  return "Today's call minutes are used up. They come back at midnight UTC. You can still type to SubMac.";
+  return "Today's call minutes are used up. They come back at midnight UTC. You can still type to Telesia.";
 }
 function minsOut(m) {
   return {
@@ -2412,7 +2412,7 @@ async function mediaRoute(req, url, uid, cfg) {
   if (s.kill_switch === true) return json({
     error: {
       code: "paused",
-      message: "SubMac is taking a short break. Please try again in a few minutes."
+      message: "Telesia is taking a short break. Please try again in a few minutes."
     }
   }, 503);
   const blocked = (await rows(`ai_blocked_users?select=user_id&user_id=eq.${uid}&limit=1`)).length > 0;
@@ -2505,7 +2505,7 @@ async function mediaRoute(req, url, uid, cfg) {
     if (mins.enabled === false) return json({
       error: {
         code: "live_off",
-        message: "Calls are switched off for your account. You can still type to SubMac."
+        message: "Calls are switched off for your account. You can still type to Telesia."
       },
       ...minsOut(mins),
       minutes_left: 0,
@@ -2765,7 +2765,7 @@ async function mediaRoute(req, url, uid, cfg) {
       }
     }, 503);
   }
-  const alias = cfg.aliases.find((a)=>a.alias === "submac-image");
+  const alias = cfg.aliases.find((a)=>a.alias === "telesia-image");
   if (!alias?.routes.length) return json({
     error: {
       code: "unavailable",
@@ -2801,7 +2801,7 @@ async function mediaRoute(req, url, uid, cfg) {
       record({
         user_id: uid,
         source: "image",
-        alias: "submac-image",
+        alias: "telesia-image",
         provider: r.provider,
         model: r.model,
         key_id: k.id,
@@ -2854,8 +2854,8 @@ function billCtx(ent, mrows, background) {
     mrows,
     balance,
     hdrs: {
-      "x-submac-usage": st.ratio.toFixed(3),
-      "x-submac-state": st.state
+      "x-telesia-usage": st.ratio.toFixed(3),
+      "x-telesia-state": st.state
     }
   };
   return {
@@ -2927,7 +2927,7 @@ function makePlan(cfg, body, state, bx, effort = null) {
     return {
       ...empty,
       error: errJson(413, "too_long", "too_long", TOO_LONG_MSG, false, {
-        "x-submac-window": smallestWindow
+        "x-telesia-window": smallestWindow
       })
     };
   }
@@ -2941,7 +2941,7 @@ function makePlan(cfg, body, state, bx, effort = null) {
           needed: needIn
         }, {
           ...bx.hdrs,
-          "x-submac-error": "limit_daily"
+          "x-telesia-error": "limit_daily"
         }, bx.balance)
       };
     }
@@ -3062,7 +3062,7 @@ async function handle(req, tm) {
     headers: CORS
   });
   const url = new URL(req.url);
-  const internal = req.headers.has("x-submac-internal") ? await internalUser(req) : null;
+  const internal = req.headers.has("x-telesia-internal") ? await internalUser(req) : null;
   const uid = internal ?? await userFromJwt(req);
   if (!uid) return json({
     error: {
@@ -3174,7 +3174,7 @@ async function handle(req, tm) {
           {
             id: CHAT_ALIAS,
             object: "model",
-            owned_by: "submac"
+            owned_by: "telesia"
           }
         ]
       });
@@ -3189,12 +3189,12 @@ async function handle(req, tm) {
   const BAD = Symbol("bad json");
   const parsed = await req.json().catch(()=>BAD);
   const body = parsed === BAD || !parsed || typeof parsed !== "object" ? {} : parsed;
-  const source = internal ? "bot-cloud" : (req.headers.get("x-submac-source") ?? "agent").slice(0, 20);
-  const background = !!internal || ((req.headers.get("x-submac-lane") ?? "").toLowerCase() === "background" && !chatLane(source));
+  const source = internal ? "bot-cloud" : (req.headers.get("x-telesia-source") ?? "agent").slice(0, 20);
+  const background = !!internal || ((req.headers.get("x-telesia-lane") ?? "").toLowerCase() === "background" && !chatLane(source));
   const lane = background ? "background" : "user";
-  const chatHdr = (req.headers.get("x-submac-chat") ?? "").slice(0, 64);
+  const chatHdr = (req.headers.get("x-telesia-chat") ?? "").slice(0, 64);
   const chat = chatHdr ? uid + ":" + chatHdr : "";
-  const effort = effortOf(req.headers.get("x-submac-effort"));
+  const effort = effortOf(req.headers.get("x-telesia-effort"));
   const needTools0 = Array.isArray(body.tools) && body.tools.length > 0;
   const warm = warmCfg();
   tm.warm = warm ? 1 : 0;
@@ -3222,7 +3222,7 @@ async function handle(req, tm) {
   const cfg = cache?.cfg;
   if (!cfg) return errJson(503, "busy", "busy", void 0, true);
   const s = cfg.settings;
-  if (s.kill_switch === true) return errJson(503, "busy", "paused", "SubMac is taking a short break. Please try again in a few minutes.", true);
+  if (s.kill_switch === true) return errJson(503, "busy", "paused", "Telesia is taking a short break. Please try again in a few minutes.", true);
   if (g.blocked) return errJson(403, "blocked", "blocked");
   if (parsed === BAD) return errJson(400, "server", "bad_request", "Invalid JSON");
   const rpm = Number(s.user_rpm ?? 40);
@@ -3249,8 +3249,8 @@ async function handle(req, tm) {
   const balance = ctx ? ctx.balance : 0;
   const balHdrs = balanceHeaders(ent, st);
   const stHdrs = {
-    "x-submac-usage": st.ratio.toFixed(3),
-    "x-submac-state": st.state
+    "x-telesia-usage": st.ratio.toFixed(3),
+    "x-telesia-state": st.state
   };
   const withBal = (r)=>{
     for (const [k, v] of Object.entries(balHdrs)){
@@ -3263,7 +3263,7 @@ async function handle(req, tm) {
   if (ctx && st.state === "limit") {
     const r = withBal(await emptyReply(uid, ent, s, stHdrs));
     try {
-      if (!r.headers.get("x-submac-error")) r.headers.set("x-submac-error", r.status === 503 ? "busy" : "limit_daily");
+      if (!r.headers.get("x-telesia-error")) r.headers.set("x-telesia-error", r.status === 503 ? "busy" : "limit_daily");
     } catch  {}
     return r;
   }
@@ -3275,23 +3275,23 @@ async function handle(req, tm) {
       resets_at: eatReset()
     }, {
       ...stHdrs,
-      "x-submac-bg": "1.000",
-      "x-submac-error": "limit_daily"
+      "x-telesia-bg": "1.000",
+      "x-telesia-error": "limit_daily"
     }));
   }
   if (!ctx && background && (bgs.paused || st.state === "light")) {
     return withBal(json({
       error: {
         code: "background_paused",
-        submac_code: "limit_daily",
+        telesia_code: "limit_daily",
         message: "Paused until tomorrow to save your daily allowance."
       },
       background_left: 0,
       resets_at: eatReset()
     }, 429, {
       ...stHdrs,
-      "x-submac-bg": bgs.ratio.toFixed(3),
-      "x-submac-error": "limit_daily"
+      "x-telesia-bg": bgs.ratio.toFixed(3),
+      "x-telesia-error": "limit_daily"
     }));
   }
   if (!background && !internal) screenLater(uid, Array.isArray(body.messages) ? body.messages : [], cfg);
@@ -3311,8 +3311,8 @@ async function handle(req, tm) {
   const baseHeaders = {
     ...CORS,
     ...stHdrs,
-    "x-submac-window": smallestWindow,
-    "x-submac-bg": bgs.ratio.toFixed(3),
+    "x-telesia-window": smallestWindow,
+    "x-telesia-bg": bgs.ratio.toFixed(3),
     ...bilHdrs(0),
     ...balHdrs
   };
@@ -3410,10 +3410,10 @@ async function handle(req, tm) {
         const after2 = billState(ent, cost);
         return json(data, 200, {
           ...balHdrs,
-          "x-submac-usage": after2.ratio.toFixed(3),
-          "x-submac-state": after2.state,
-          "x-submac-window": smallestWindow,
-          "x-submac-bg": (background && bgLeft - cost <= 0 ? 1 : bgs.ratio).toFixed(3),
+          "x-telesia-usage": after2.ratio.toFixed(3),
+          "x-telesia-state": after2.state,
+          "x-telesia-window": smallestWindow,
+          "x-telesia-bg": (background && bgLeft - cost <= 0 ? 1 : bgs.ratio).toFixed(3),
           ...bilHdrs(cost),
           ...balanceHeaders(ent, after2)
         });
@@ -3421,10 +3421,10 @@ async function handle(req, tm) {
       const after = stateFor(used.tokens + c.w, s2);
       return json(data, 200, {
         ...balanceHeaders(null, after),
-        "x-submac-usage": after.ratio.toFixed(3),
-        "x-submac-state": after.state,
-        "x-submac-window": smallestWindow,
-        "x-submac-bg": backgroundFor(after.used, used.bg + (background ? c.w : 0), s2).ratio.toFixed(3)
+        "x-telesia-usage": after.ratio.toFixed(3),
+        "x-telesia-state": after.state,
+        "x-telesia-window": smallestWindow,
+        "x-telesia-bg": backgroundFor(after.used, used.bg + (background ? c.w : 0), s2).ratio.toFixed(3)
       });
     }
   });

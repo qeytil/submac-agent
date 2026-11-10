@@ -8,7 +8,7 @@ import 'tools.dart' show AgentTools;
 /// Tools that work without any login: web search, weather, Wikipedia,
 /// currency rates, places, RSS feeds and YouTube transcripts.
 class WebTools {
-  static const userAgent = 'SubMacAgent/1.4 (+https://submac.site; Android app)';
+  static const userAgent = 'TelesiaAgent/1.4 (+https://telesia.site; Android app)';
   static const _browserUa =
       'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36';
 

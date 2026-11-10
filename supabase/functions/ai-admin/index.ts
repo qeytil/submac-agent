@@ -1,4 +1,4 @@
-// SubMac proxy admin API: used by the Cloudflare dashboard (admin login) and the hourly benchmark (cron secret).
+// Telesia proxy admin API: used by the Cloudflare dashboard (admin login) and the hourly benchmark (cron secret).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -37,7 +37,7 @@ async function callModel(base: string, key: string, model: string, extra: any, m
   try {
     const res = await fetch(base.replace(/\/$/, "") + "/chat/completions", {
       method: "POST", signal: ctl.signal,
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}`, "user-agent": "submac-proxy/1" },
+      headers: { "content-type": "application/json", authorization: `Bearer ${key}`, "user-agent": "telesia-proxy/1" },
       body: JSON.stringify({ ...(extra ?? {}), model, messages, max_tokens, stream: true, stream_options: { include_usage: true } }),
     });
     if (!res.ok) return { ok: false, status: res.status, error: (await res.text()).slice(0, 200), total_ms: Date.now() - t0 };
@@ -112,7 +112,7 @@ async function userIdOf(body: any): Promise<string | null> {
   return null;
 }
 
-// ---------- Users section: messages to users ("From SubMac") ----------
+// ---------- Users section: messages to users ("From Telesia") ----------
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -184,7 +184,7 @@ async function grantReward(admin: string, body: any) {
   if (!Number.isFinite(days) || days < 1 || days > 3650) throw new Error("Days must be 1 to 3650");
   const note = String(body.note ?? "").trim().slice(0, 300);
   const k = amount >= 1000000 ? (amount / 1000000).toFixed(1).replace(/\.0$/, "") + "M" : amount >= 1000 ? Math.floor(amount / 1000) + "k" : String(amount);
-  const title = String(body.title ?? "").trim() || "A gift from SubMac";
+  const title = String(body.title ?? "").trim() || "A gift from Telesia";
   const text = `+${k} extra a day for ${days} day${days === 1 ? "" : "s"}, on top of your daily allowance.` + (body.show_note && note ? ` ${note}` : "");
   const id = must(await db.rpc("reward_grant", { p_uid: uid, p_kind: "admin_grant", p_amount: amount, p_days: days, p_referral: null,
     p_note: note || null, p_by: admin, p_title: title.slice(0, 200), p_body: text }));
@@ -202,9 +202,9 @@ async function liveList() {
 const REL_BUCKET = "app-updates";
 const REL_PART_MAX = 40 * 1024 * 1024;
 const REL_FIELDS = "id,version_code,version_name,notes,apk_path,parts,size_bytes,sha256,required_at,published,published_at,created_by,created_at,updated_at,storage,file_url,file_key";
-// New releases: ONE file in Cloudflare R2 (bucket submac-app-updates), uploaded by the dashboard Worker
-// (submac-proxy-admin, /api/updates/*). The key is made by the Worker; its public base is ai_settings.app_updates_public_base.
-const REL_R2_KEY = /^android\/([0-9]+)-[0-9a-f]{8}\/SubMac-([0-9]+)\.apk$/;
+// New releases: ONE file in Cloudflare R2 (bucket telesia-app-updates), uploaded by the dashboard Worker
+// (telesia-proxy-admin, /api/updates/*). The key is made by the Worker; its public base is ai_settings.app_updates_public_base.
+const REL_R2_KEY = /^android\/([0-9]+)-[0-9a-f]{8}\/Telesia-([0-9]+)\.apk$/;
 async function relR2Base(): Promise<string> {
   const { data } = await db.from("ai_settings").select("value").eq("key", "app_updates_public_base").maybeSingle();
   const base = typeof data?.value === "string" ? data.value.replace(/\/+$/, "") : "";

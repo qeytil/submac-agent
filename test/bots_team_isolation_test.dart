@@ -144,12 +144,12 @@ void main() {
     });
   });
 
-  group('SubMac calls route only to the turn that made them', () {
+  group('Telesia calls route only to the turn that made them', () {
     test('a call from a session no running turn owns is refused, not run as the only live turn', () async {
       final r = McpRoutes();
       final owned = {'sesMain'};
       // A stopped bot turn's session still finishes a step after its turn ended.
-      final e = _part('sesGone', 'p1', 'submac_run_tool', {'name': 'bot_remember', 'arguments': {'fact': 'x'}});
+      final e = _part('sesGone', 'p1', 'telesia_run_tool', {'name': 'bot_remember', 'arguments': {'fact': 'x'}});
       r.watchOrphans(e, owned.contains);
       r.watch(e, 'mainConv', owned);
       expect(await r.take('bot_remember', {'fact': 'x'}, wait: Duration.zero), McpRoutes.orphan);
@@ -168,7 +168,7 @@ void main() {
       };
       r.watchOrphans(created, owned);
       r.watch(created, 'mainConv', fam);
-      final e = _part('sesChild', 'p2', 'submac_run_tool', {'name': 'browser_task', 'arguments': {'goal': 'g'}});
+      final e = _part('sesChild', 'p2', 'telesia_run_tool', {'name': 'browser_task', 'arguments': {'goal': 'g'}});
       r.watchOrphans(e, owned);
       r.watch(e, 'mainConv', fam);
       expect(await r.take('browser_task', {'goal': 'g'}, wait: Duration.zero), 'mainConv');
@@ -176,14 +176,14 @@ void main() {
 
     test('with several turns running, a call with other arguments never takes another turn\'s entry', () async {
       final r = McpRoutes();
-      r.watch(_part('sesBot', 'p1', 'submac_run_tool', {'name': 'remember', 'arguments': {'fact': 'bot fact'}}), 'botConv', {'sesBot'});
+      r.watch(_part('sesBot', 'p1', 'telesia_run_tool', {'name': 'remember', 'arguments': {'fact': 'bot fact'}}), 'botConv', {'sesBot'});
       expect(await r.take('remember', {'fact': 'main fact'}, wait: Duration.zero, fuzzy: false), isNull);
       expect(await r.take('remember', {'fact': 'bot fact'}, wait: Duration.zero, fuzzy: false), 'botConv');
     });
 
     test('alone, a call whose arguments changed on the way still finds its only entry', () async {
       final r = McpRoutes();
-      r.watch(_part('s', 'p1', 'submac_run_tool', {'name': 'remember', 'arguments': {'fact': 'a'}}), 'mainConv', {'s'});
+      r.watch(_part('s', 'p1', 'telesia_run_tool', {'name': 'remember', 'arguments': {'fact': 'a'}}), 'mainConv', {'s'});
       expect(await r.take('remember', {'fact': 'a '}, wait: Duration.zero), 'mainConv');
     });
   });
@@ -196,7 +196,7 @@ void main() {
       expect(OpenCodeEngine.shouldRestart(stale: false, turnsInFlight: 0, appBusy: false), isFalse);
     });
 
-    test('SubMac\'s MCP server is re-added only by a turn running alone', () {
+    test('Telesia\'s MCP server is re-added only by a turn running alone', () {
       expect(OpenCodeEngine.mayResync(0), isTrue);
       expect(OpenCodeEngine.mayResync(1), isTrue);
       expect(OpenCodeEngine.mayResync(2), isFalse);
@@ -328,15 +328,15 @@ void main() {
       expect(run, contains('Offices.I.post(o, b.id'));
     });
 
-    test('a team turn runs on SubMac\'s bot engine under its key, not the member\'s chat', () {
+    test('a team turn runs on Telesia\'s bot engine under its key, not the member\'s chat', () {
       final tt = _between(runner, 'Future<String> teamTurn(', 'Future<String?> _teamPermission(');
       expect(tt, contains('BotAgentEngine('));
-      expect(tt, contains('BotBrowserModel.of(b, submacRef)'));
+      expect(tt, contains('BotBrowserModel.of(b, telesiaRef)'));
       expect(tt, contains('convId: key'));
       expect(tt, isNot(contains('OpenCodeEngine')), reason: 'team work no longer runs on opencode');
       expect(tt, isNot(contains('newSession(')), reason: 'team work opens no opencode session');
       expect(tt, isNot(contains('b.convId')));
-      expect(tt, isNot(contains('_teamConv')), reason: 'member asks used to land in the "SubMac team" chat');
+      expect(tt, isNot(contains('_teamConv')), reason: 'member asks used to land in the "Telesia team" chat');
       expect(tt, contains('teamLive[key]'));
       expect(runner, contains('if (TeamKey.isKey(convId)) return;'), reason: 'no team key ever runs as a chat turn');
       final routed = _between(runner, 'Future<String> _runRouted(', 'String _screenLabel(');

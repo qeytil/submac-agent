@@ -329,7 +329,7 @@ k('so-first-aid-home','First aid and home care','somalia','Health',
  'Basic first aid and safe home care: ORS for diarrhea, fever, burns, cuts, heat, with clear danger signs that need a clinic now.',
  ['first aid','gargaar degdeg','ors','diarrhea','shuban','fever','qandho','burn','gubasho','cut','dhaawac','heat','cholera','daacuun'],[],
 """## When to use
-Everyday first aid questions. Diagnosis, treatment plans and medicines are for health workers: point to a clinic or a SubMac health bot if the user has one.
+Everyday first aid questions. Diagnosis, treatment plans and medicines are for health workers: point to a clinic or a Telesia health bot if the user has one.
 
 ## Steps
 1. First, danger signs: if any apply, say "go to a clinic or hospital now" first, in one line. These include trouble breathing, unconscious or fitting, heavy bleeding, severe dehydration (no urine, very sleepy, sunken eyes), a baby under 2 months with fever, chest pain, or a poisoning.

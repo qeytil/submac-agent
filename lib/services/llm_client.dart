@@ -73,11 +73,11 @@ class LlmClient {
     if (a != null && !a.isCompleted) a.complete();
   }
 
-  /// Conversation id sent as `x-submac-chat`, so the cloud keeps one chat on the same model and key
+  /// Conversation id sent as `x-telesia-chat`, so the cloud keeps one chat on the same model and key
   /// and the provider's prompt cache is reused between steps. Never contains message content.
   String? chatId;
 
-  /// Work nobody is watching (bot wakes, office work): sent as `x-submac-lane: background`, so it uses the bots'
+  /// Work nobody is watching (bot wakes, office work): sent as `x-telesia-lane: background`, so it uses the bots'
   /// share of the daily allowance and pauses (429 background_paused) instead of blocking the user's own chats.
   bool background = false;
 
@@ -103,14 +103,14 @@ class LlmClient {
   /// so 30 s of nothing is a dead line (PLAN 1.3).
   static Duration get idleTimeout => StreamPolicy.silence;
 
-  /// Every request goes to SubMac Cloud, signed with the user's session.
+  /// Every request goes to Telesia Cloud, signed with the user's session.
   Future<Map<String, String>> _headers(String source) async {
     final th = testHeaders;
     if (th != null) return th(source);
     try {
       final h = await Cloud.headers(source: source, background: background);
       final c = chatId;
-      if (c != null && c.isNotEmpty) h['x-submac-chat'] = c.length > 64 ? c.substring(0, 64) : c;
+      if (c != null && c.isNotEmpty) h['x-telesia-chat'] = c.length > 64 ? c.substring(0, 64) : c;
       return h;
     } on CloudException catch (e) {
       throw LlmException(e.message, status: e.status, code: e.code);
@@ -134,7 +134,7 @@ class LlmClient {
     void Function(String name)? onToolStart,
     /// The server's heartbeat (`: ping`): the line is alive while the model works.
     void Function()? onPing,
-    /// `x-submac-effort`: 'low' (greetings, short questions, step 1), 'high' ("think harder"), null = normal.
+    /// `x-telesia-effort`: 'low' (greetings, short questions, step 1), 'high' ("think harder"), null = normal.
     String? effort,
   }) async {
     final abort = Completer<void>();
@@ -153,7 +153,7 @@ class LlmClient {
     final req = http.AbortableRequest('POST', Uri.parse(provider.normalizedBaseUrl), abortTrigger: abort.future);
     req.headers.addAll(await _headers(source));
     req.headers['Accept'] = 'text/event-stream';
-    if (effort != null) req.headers['x-submac-effort'] = effort;
+    if (effort != null) req.headers['x-telesia-effort'] = effort;
     req.body = jsonEncode(body);
 
     final buf = StringBuffer();
@@ -365,7 +365,7 @@ class LlmClient {
     final raw = err is Map ? err['code'] : null;
     // Older servers put a number (the upstream status) in `code`: that is a dropped model, not a Contract A code.
     if (raw is num || raw == null) {
-      return LlmException('SubMac lost the connection for a moment. Please try again.', status: raw is num ? raw.toInt() : 502);
+      return LlmException('Telesia lost the connection for a moment. Please try again.', status: raw is num ? raw.toInt() : 502);
     }
     final code = '$raw';
     final known = StreamPolicy.finalCodes.contains(code) || StreamPolicy.retryCodes.contains(code) || code == 'too_long';

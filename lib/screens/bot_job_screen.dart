@@ -127,7 +127,7 @@ class _BotProfileScreenState extends State<BotProfileScreen> with SingleTickerPr
                 child: Padding(
                   padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 20, 8),
                   child: Column(children: [
-                    // Tap the face to change how this bot looks (SubMac avatar set).
+                    // Tap the face to change how this bot looks (Telesia avatar set).
                     Semantics(
                       button: true,
                       label: 'Change look',
@@ -621,7 +621,7 @@ class _SettingsTab extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: Space.x4),
           leading: Icon(Icons.smartphone_rounded, color: p.text),
           title: const Text('Runs on this phone'),
-          subtitle: Text('Active 24/7 on this phone. SubMac does not run your bots in the cloud.',
+          subtitle: Text('Active 24/7 on this phone. Telesia does not run your bots in the cloud.',
               style: TextStyle(color: p.muted)),
         ),
       ),
@@ -716,7 +716,7 @@ class _SyncRow extends StatelessWidget {
 }
 
 /// The bot's own model (owner 2026-11-05): part of the bot's settings in its profile, not in Settings. Always shown.
-/// "Default (same as SubMac)" follows the model the owner's chats use; SubMac or one of the owner's own provider
+/// "Default (same as Telesia)" follows the model the owner's chats use; Telesia or one of the owner's own provider
 /// models pins this bot to it. Saved on the bot (`model`) and synced with its other settings; every turn of this bot
 /// (its chat, team parts, routines and wakes) runs on it (OcLane.pick).
 class BotModelRow extends StatelessWidget {

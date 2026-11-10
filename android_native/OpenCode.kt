@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.content.Context
 import android.util.Log
@@ -21,7 +21,7 @@ import java.net.URL
  * temp files) lives under filesDir/oc. It listens on 127.0.0.1 only, behind a password.
  */
 object OpenCode {
-    private const val TAG = "SubMacOpenCode"
+    private const val TAG = "TelesiaOpenCode"
     @Volatile private var proc: Process? = null
     @Volatile var port: Int = 0
         private set
@@ -68,7 +68,7 @@ object OpenCode {
         val proxyPort = LocalProxy.start()
         if (baseUrl.isNotEmpty()) LocalProxy.upstream = baseUrl
         if (token.isNotEmpty()) LocalProxy.token = token
-        // SubMac's skill (the app's tools, reached through SubMac's MCP server): opencode lists them and loads one when it wants it.
+        // Telesia's skill (the app's tools, reached through Telesia's MCP server): opencode lists them and loads one when it wants it.
         val skillDir = File(root, "skills")
         skillDir.deleteRecursively()
         for ((name, body) in skills) {
@@ -89,10 +89,10 @@ object OpenCode {
         env["TMPDIR"] = tmp.path
         env["SHELL"] = "/system/bin/sh"
         // bin first so opencode (Bun.which("rg")) and every bash-tool command find rg, curl and opencode; the system
-        // dirs stay after it. SUBMAC_OC_LIB tells ocexec where the soname links are (same as --library-path below).
+        // dirs stay after it. TELESIA_OC_LIB tells ocexec where the soname links are (same as --library-path below).
         val sysPath = env["PATH"].takeUnless { it.isNullOrEmpty() } ?: "/system/bin:/system/xbin:/vendor/bin"
         env["PATH"] = binDir.path + ":" + sysPath
-        env["SUBMAC_OC_LIB"] = links.path
+        env["TELESIA_OC_LIB"] = links.path
         env["OPENCODE_CONFIG"] = cfg.path
         env["OPENCODE_SERVER_PASSWORD"] = pass
         env["OPENCODE_DISABLE_AUTOUPDATE"] = "1"
@@ -100,8 +100,8 @@ object OpenCode {
         // which cut long replies short (owner 2026-11-06). The app passes the largest limit of any configured model.
         if (outputTokenMax > 0) env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"] = "$outputTokenMax"
         // The user's own provider keys (BYOK, owner 2026-11-03): only in this process's environment, named by the
-        // config as {env:SUBMAC_BYOK_<ID>}; never written to opencode.json or logged.
-        for ((k, v) in byokEnv) if (Regex("SUBMAC_BYOK_[A-Z0-9_]{1,40}").matches(k) && v.isNotEmpty()) env[k] = v
+        // config as {env:TELESIA_BYOK_<ID>}; never written to opencode.json or logged.
+        for ((k, v) in byokEnv) if (Regex("TELESIA_BYOK_[A-Z0-9_]{1,40}").matches(k) && v.isNotEmpty()) env[k] = v
         // Android has no /etc/resolv.conf, so musl cannot resolve names: all outbound traffic goes through the
         // app's own proxy, which resolves with Android's resolver (LocalProxy).
         val proxy = "http://127.0.0.1:$proxyPort"
@@ -164,32 +164,32 @@ object OpenCode {
 
     private fun isLink(f: File): Boolean = try { android.system.Os.lstat(f.path); true } catch (_: Throwable) { false }
 
-    /** SubMac's own model gateway, which speaks the OpenAI chat API, reached through LocalProxy (which adds the token).
-     *  One provider per allowance lane (owner 2026-11-03, OcLane in the app): `submac` is the user's own lane; each
-     *  background provider (`submac-bg`, `submac-office`) points at `/__submac/lane/<source>`, which LocalProxy sends on
-     *  with `x-submac-lane: background`, so the lane rides in each request's own path and never leaks between sessions.
+    /** Telesia's own model gateway, which speaks the OpenAI chat API, reached through LocalProxy (which adds the token).
+     *  One provider per allowance lane (owner 2026-11-03, OcLane in the app): `telesia` is the user's own lane; each
+     *  background provider (`telesia-bg`, `telesia-office`) points at `/__telesia/lane/<source>`, which LocalProxy sends on
+     *  with `x-telesia-lane: background`, so the lane rides in each request's own path and never leaks between sessions.
      *  The app names the provider in every prompt. No `small_model`: opencode then runs its small jobs (titles,
      *  summaries) on the turn's own provider, so they bill to the same lane. With no list from the app, the one
      *  foreground provider is written as before.
      *  Permissions: reading, editing files in the workspace and fetching pages go ahead; running a command,
-     *  touching files outside the workspace and a step repeating itself ask first, on SubMac's ask card in the chat
-     *  (OpenCodeAsks). SubMac's own tools come through SubMac's MCP server (registered by the app after start) and ask
-     *  through SubMac's own approval card. */
+     *  touching files outside the workspace and a step repeating itself ask first, on Telesia's ask card in the chat
+     *  (OpenCodeAsks). Telesia's own tools come through Telesia's MCP server (registered by the app after start) and ask
+     *  through Telesia's own approval card. */
     private fun config(baseUrl: String, skills: String, providers: List<Map<String, String>>, models: List<String>,
                        byok: String = "", modelOutput: Int = 0): String {
         val list = providers.filter { Regex("[a-z0-9-]{1,32}").matches(it["id"] ?: "") }
-            .ifEmpty { listOf(mapOf("id" to "submac", "name" to "SubMac", "path" to "", "source" to "opencode")) }
-        val names = models.filter { Regex("[a-z0-9.-]{1,48}").matches(it) }.ifEmpty { listOf("submac") }
+            .ifEmpty { listOf(mapOf("id" to "telesia", "name" to "Telesia", "path" to "", "source" to "opencode")) }
+        val names = models.filter { Regex("[a-z0-9.-]{1,48}").matches(it) }.ifEmpty { listOf("telesia") }
         val prov = org.json.JSONObject()
         for (p in list) {
             val path = (p["path"] ?: "").let { if (it.isEmpty() || Regex("/lane/[a-z-]{1,20}").matches(it)) it else "" }
             val ms = org.json.JSONObject()
             for (m in names) {
-                val model = org.json.JSONObject().put("name", if (m == "submac") "SubMac" else m).put("tool_call", true)
-                // A vision model can read pictures and PDFs. Without this opencode thinks every SubMac model is
+                val model = org.json.JSONObject().put("name", if (m == "telesia") "Telesia" else m).put("tool_call", true)
+                // A vision model can read pictures and PDFs. Without this opencode thinks every Telesia model is
                 // text-only, drops the attachment and hands the model an "cannot read image" note, so even a
-                // vision model answered "I can't see it" (owner 2026-11-09). `submac` is the model the picker
-                // uses; SubMac Cloud decides on its side what it can read.
+                // vision model answered "I can't see it" (owner 2026-11-09). `telesia` is the model the picker
+                // uses; Telesia Cloud decides on its side what it can read.
                 if (!m.contains("image")) model.put("attachment", true)
                 // The output limit (owner 2026-11-06): without one opencode asked for its 32,000 default. The server
                 // clamps it to what the route it picks can do. context 0 keeps opencode's behaviour as before (no
@@ -199,15 +199,15 @@ object OpenCode {
             }
             prov.put(p.getValue("id"), org.json.JSONObject()
                 .put("npm", "@ai-sdk/openai-compatible")
-                .put("name", p["name"] ?: "SubMac")
+                .put("name", p["name"] ?: "Telesia")
                 .put("options", org.json.JSONObject()
                     .put("baseURL", baseUrl + path)
                     .put("apiKey", "via-proxy")
-                    .put("headers", org.json.JSONObject().put("x-submac-source", p["source"] ?: "opencode")))
+                    .put("headers", org.json.JSONObject().put("x-telesia-source", p["source"] ?: "opencode")))
                 .put("models", ms))
         }
         // The user's own providers (BYOK, owner 2026-11-03), built by the app (ByokOpencode): only `byok-*` ids are
-        // taken, so they can never replace a SubMac lane provider. Their packages are bundled in the binary.
+        // taken, so they can never replace a Telesia lane provider. Their packages are bundled in the binary.
         if (byok.isNotEmpty()) {
             try {
                 val extra = org.json.JSONObject(byok)
@@ -223,7 +223,7 @@ object OpenCode {
             .put("autoupdate", false)
             .put("share", "disabled")
             .put("provider", prov)
-            .put("model", "submac/submac")
+            .put("model", "telesia/telesia")
             .put("skills", org.json.JSONObject().put("paths", org.json.JSONArray().put(skills)))
             .put("permission", org.json.JSONObject().put("edit", "allow").put("bash", "ask").put("webfetch", "allow")
                 .put("external_directory", "ask").put("doom_loop", "ask").put("question", "allow"))

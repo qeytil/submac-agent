@@ -15,7 +15,7 @@
 ./docs/audit/ui.md:36
 ./android_native/Bridge.kt:32
 ./tools/patch_android.py:31
-./lib/services/submac_gateway.dart:28
+./lib/services/telesia_gateway.dart:28
 ./docs/app-update.md:28
 ./lib/state/bots_controller.dart:27
 ./docs/plans-2026-10.md:27
@@ -79,7 +79,7 @@
 ./lib/agent/core.dart:10
 ./android_native/LocalProxy.kt:10
 ./ROADMAP.md:10
-./test/submac_mcp_test.dart:9
+./test/telesia_mcp_test.dart:9
 ./test/luxury_ui_test.dart:9
 ./test/bots_team_isolation_test.dart:9
 ./lib/widgets/message_view.dart:9
@@ -90,10 +90,10 @@
 ./lib/main.dart:9
 ./integration_test/chat_regress_test.dart:9
 ./docs/ui-grok-reference.md:9
-./test/submac_gateway_test.dart:8
+./test/telesia_gateway_test.dart:8
 ./test/max_output_test.dart:8
 ./lib/state/live_calls.dart:8
-./lib/services/submac_mcp.dart:8
+./lib/services/telesia_mcp.dart:8
 ./lib/services/hire_links.dart:8
 ./lib/screens/auth_screen.dart:8
 ./docs/teams-opencode-plan.md:8
@@ -102,7 +102,7 @@
 ./docs/agent-flexibility.md:8
 ./docs/ISSUES.md:8
 ./android_native/TaskBubble.kt:8
-./android_native/SubMacA11y.kt:8
+./android_native/TelesiaA11y.kt:8
 ./android_native/MainActivity.kt:8
 ./tools/bots/coder/build.py:7
 ./test/live_audio_test.dart:7
@@ -175,7 +175,7 @@
 ./test/chat_regress_attach_test.dart:4
 ./test/bots_background_test.dart:4
 ./test/bots_act_on_their_own_test.dart:4
-./supabase/migrations/20261023_submac_gemini_first.sql:4
+./supabase/migrations/20261023_telesia_gemini_first.sql:4
 ./supabase/migrations/20261021_app_releases_r2.sql:4
 ./lib/widgets/sub_avatar.dart:4
 ./lib/widgets/hark_cards.dart:4
@@ -184,7 +184,7 @@
 ./lib/ui/intro_motion.dart:4
 ./lib/theme.dart:4
 ./lib/state/chat_controller.dart:4
-./lib/services/submac_style.dart:4
+./lib/services/telesia_style.dart:4
 ./lib/services/site_check.dart:4
 ./lib/services/screen_control.dart:4
 ./lib/services/paste_guard.dart:4
@@ -201,9 +201,9 @@
 ./docs/bots-opencode.md:4
 ./docs/ISSUES-ui.md:4
 ./assets/bots/coder.json:4
-./android_native/res/layout/submac_widget.xml:4
-./android_native/res/layout/submac_notif_big.xml:4
-./android_native/SubMacApp.kt:4
+./android_native/res/layout/telesia_widget.xml:4
+./android_native/res/layout/telesia_notif_big.xml:4
+./android_native/TelesiaApp.kt:4
 ./android_native/Overlay.kt:4
 ./android_native/NotifListener.kt:4
 ./android_native/Ghost.kt:4
@@ -243,10 +243,10 @@
 ./docs/intro-auth-flow.md:3
 ./docs/audit/backend.md:3
 ./docs/audit-5.6.md:3
-./android_native/res/values/submac_strings.xml:3
+./android_native/res/values/telesia_strings.xml:3
 ./android_native/res/values-v31/styles.xml:3
 ./android_native/res/values-night-v31/styles.xml:3
-./android_native/res/layout/submac_notif_small.xml:3
+./android_native/res/layout/telesia_notif_small.xml:3
 ./android_native/QuickWidget.kt:3
 ./android_native/Chime.kt:3
 ./tools/notif_chime.py:2
@@ -300,8 +300,8 @@
 ./docs/bots-workspace.md:2
 ./docs/billing/README.md:2
 ./docs/apps-dcr-check.md:2
-./android_native/res/xml/submac_widget.xml:2
-./android_native/res/values/submac_launch.xml:2
+./android_native/res/xml/telesia_widget.xml:2
+./android_native/res/values/telesia_launch.xml:2
 ./android_native/res/drawable/launch_background.xml:2
 ./android_native/res/drawable-v21/launch_background.xml:2
 ./android_native/ocexec.c:2
@@ -417,9 +417,9 @@
 ./docs/custom-models.md:1
 ./docs/bughunt-1106.md:1
 ./docs/bot-runtime.md:1
-./android_native/res/xml/submac_a11y.xml:1
+./android_native/res/xml/telesia_a11y.xml:1
 ./android_native/res/raw/keep.xml:1
-./android_native/res/drawable/ic_stat_submac.xml:1
+./android_native/res/drawable/ic_stat_telesia.xml:1
 ./android_native/Sms.kt:1
 ./android_native/ScreenGuard.kt:1
 ./android_native/PhoneData.kt:1
@@ -430,8 +430,8 @@ assets/bg/night.webp
 assets/bots/business.json
 assets/bots/coder.json
 assets/bots/health.json
-assets/brand/submac_mark.svg
-assets/brand/submac_mark_plain.svg
+assets/brand/telesia_mark.svg
+assets/brand/telesia_mark_plain.svg
 assets/fonts/Geist-Bold.ttf
 assets/fonts/Geist-Medium.ttf
 assets/fonts/Geist-Regular.ttf
@@ -479,7 +479,7 @@ assets/icons/stop.svg
 assets/icons/store.svg
 assets/icons/trash.svg
 assets/intro/intro_sound.m4a
-assets/intro/submac_tile.svg
+assets/intro/telesia_tile.svg
 assets/knowledge/somali/part1.json
 assets/knowledge/somali/part2.json
 assets/knowledge/somali/part3.json
@@ -640,220 +640,220 @@ assets/logos/zendesk.svg
 assets/logos/zenrows.png
 assets/logos/zoho.svg
 ### android_native refs
-android_native/res/xml/submac_a11y.xml:10:    android:description="@string/submac_a11y_desc" />
-android_native/res/xml/submac_widget.xml:6:    android:initialLayout="@layout/submac_widget" android:updatePeriodMillis="0"
-android_native/res/xml/submac_widget.xml:7:    android:description="@string/submac_widget_desc"/>
-android_native/res/drawable/launch_background.xml:2:<!-- SubMac's own launch screen (replaces the white Flutter template): the brand sky with the SubMac mark, shown
-android_native/res/drawable/launch_background.xml:6:    <item android:drawable="@color/submac_launch_sky" />
-android_native/res/drawable/ic_stat_submac.xml:2:<!-- SubMac notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
-android_native/res/values-v31/styles.xml:3:     behind the adaptive SubMac icon makes the first second of the app look like SubMac, in light and dark. -->
-android_native/res/values-v31/styles.xml:7:        <item name="android:windowSplashScreenBackground">@color/submac_launch_sky</item>
-android_native/res/values-v31/styles.xml:8:        <item name="android:windowSplashScreenIconBackgroundColor">@color/submac_launch_sky</item>
-android_native/res/drawable-v21/launch_background.xml:2:<!-- SubMac's own launch screen (replaces the white Flutter template): the brand sky with the SubMac mark, shown
-android_native/res/drawable-v21/launch_background.xml:6:    <item android:drawable="@color/submac_launch_sky" />
-android_native/res/values/submac_strings.xml:3:    <string name="submac_a11y_desc">Lets SubMac read the screen and tap, type and scroll for you, only when you ask it to. SubMac asks before anything that sends, buys or deletes.</string>
-android_native/res/values/submac_strings.xml:4:    <string name="submac_a11y_label">SubMac phone control</string>
-android_native/res/values/submac_strings.xml:5:    <string name="submac_widget_desc">Ask SubMac, scan a page or start Live from your home screen.</string>
-android_native/res/values/submac_launch.xml:3:    <!-- The middle stop of the logo's sky gradient (docs/brand/submac_logo_master.svg). -->
-android_native/res/values/submac_launch.xml:4:    <color name="submac_launch_sky">#86C0F3</color>
-android_native/res/raw/keep.xml:3:    tools:keep="@raw/submac_wake,@raw/submac_done,@raw/submac_chime,@layout/submac_notif_small,@layout/submac_notif_big,@xml/submac_a11y,@string/submac_a11y_desc" />
-android_native/res/layout/submac_notif_small.xml:2:<!-- SubMac notification, folded: a red-dot kicker, a serif headline, one quiet line. -->
-android_native/res/layout/submac_notif_small.xml:24:            android:text="SUBMAC" />
-android_native/res/layout/submac_notif_small.xml:52:        android:src="@drawable/submac_dot"
-android_native/res/layout/submac_widget.xml:4:    android:background="@drawable/submac_widget_bg" android:orientation="horizontal"
-android_native/res/layout/submac_widget.xml:8:        <ImageView android:layout_width="10dp" android:layout_height="10dp" android:src="@drawable/submac_dot"/>
-android_native/res/layout/submac_widget.xml:10:            android:layout_marginStart="10dp" android:text="Ask SubMac" android:textColor="#6E685C"
-android_native/res/layout/submac_widget.xml:17:        android:background="@drawable/submac_widget_pill" android:gravity="center"
-android_native/res/layout/submac_notif_big.xml:2:<!-- SubMac notification, opened: more air, a larger serif headline, a hairline, one quiet line. -->
-android_native/res/layout/submac_notif_big.xml:20:            android:src="@drawable/submac_dot"
-android_native/res/layout/submac_notif_big.xml:32:            android:text="SUBMAC" />
-android_native/res/layout/submac_notif_big.xml:52:        android:src="@drawable/submac_hairline"
-android_native/res/values-night-v31/styles.xml:3:     behind the adaptive SubMac icon makes the first second of the app look like SubMac, in light and dark. -->
-android_native/res/values-night-v31/styles.xml:7:        <item name="android:windowSplashScreenBackground">@color/submac_launch_sky</item>
-android_native/res/values-night-v31/styles.xml:8:        <item name="android:windowSplashScreenIconBackgroundColor">@color/submac_launch_sky</item>
-android_native/TaskService.kt:1:package com.submac.agent
-android_native/TaskService.kt:16: * Keeps SubMac alive while a task runs with the app closed, showing one calm line.
-android_native/TaskService.kt:25:        @Volatile var text = "SubMac is active"
-android_native/TaskService.kt:60:        // Always "SubMac is active" (owner 2026-11-07); the bot and its task are the second line, "Nova · Hourly news".
-android_native/TaskService.kt:64:            .setSmallIcon(R.drawable.ic_stat_submac)
-android_native/TaskService.kt:66:            .setContentTitle("SubMac is active")
-android_native/TaskService.kt:72:        if (line.isNotEmpty() && !line.equals("SubMac is active", ignoreCase = true)) b.setContentText(line)
-android_native/TaskService.kt:89:                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "submac:task").also { it.setReferenceCounted(false) }
-android_native/TaskService.kt:122:/** Fires a scheduled task: wakes SubMac (even if closed) and hands the task id to Dart. */
-android_native/TaskService.kt:129:            SubMacApp.engine(ctx)
-android_native/TaskService.kt:137:            Notifier.missed(ctx, note, missed, intent.getStringExtra("name") ?: "SubMac", intent.getStringExtra("reason") ?: "")
-android_native/TaskService.kt:138:            if (SubMacApp.engineIfRunning() != null) Bridge.send("botMissed", missed)
-android_native/TaskService.kt:145:            SubMacApp.engine(ctx)
-android_native/TaskService.kt:153:            val name = intent.getStringExtra("name") ?: "SubMac"
-android_native/TaskService.kt:158:                SubMacApp.engine(ctx)
-android_native/TaskService.kt:166:        TaskService.start(ctx, if (label.isEmpty()) "SubMac · Getting ready" else label)
-android_native/TaskService.kt:167:        SubMacApp.engine(ctx)
-android_native/NotifListener.kt:1:package com.submac.agent
-android_native/NotifListener.kt:11:/** Keeps the latest notifications (on the phone only) so SubMac can answer "what did I miss?". */
-android_native/NotifListener.kt:47:            val prefs = getSharedPreferences("submac_bots", Context.MODE_PRIVATE)
-android_native/NotifListener.kt:99:                // WhatsApp: kept per chat in SubMac's phone-only store; watches see the new message itself.
-android_native/PhoneData.kt:1:package com.submac.agent
-android_native/TaskBubble.kt:1:package com.submac.agent
-android_native/TaskBubble.kt:40: * The floating task chat, shown over other apps while SubMac or a bot drives the screen.
-android_native/TaskBubble.kt:226:        val a11y = SubMacA11y.instance
-android_native/TaskBubble.kt:471:        val et = textBox(c, "Tell ${state.optString("who", "SubMac")} something", draft)
-android_native/TaskBubble.kt:489:        open.text = "Open SubMac"
-android_native/TaskBubble.kt:531:        try { SubMacA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
-android_native/TaskBubble.kt:544:        whoTv?.text = s.optString("who", "SubMac")
-android_native/TaskBubble.kt:637:            ask.optBoolean("needsApp") -> row.addView(pillButton(c, "Open SubMac", strong = true) { send("open"); hideNow() }, first)
-android_native/WaFiles.kt:1:package com.submac.agent
-android_native/WaFiles.kt:16: * Read-only access to the files SubMac shares into WhatsApp (cache/wa_share only). Not exported: WhatsApp gets a
-android_native/WebHands.kt:1:package com.submac.agent
-android_native/WebHands.kt:16: * Real hands for the in-app browser. Instead of faking clicks with page script, SubMac sends genuine
-android_native/Bridge.kt:1:package com.submac.agent
-android_native/Bridge.kt:20:/** "submac/system": wake word, floating Live, phone control, SMS, notifications, permissions. */
-android_native/Bridge.kt:33:        val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "submac/system")
-android_native/Bridge.kt:141:                            call.argument<String>("title") ?: "SubMac",
-android_native/Bridge.kt:154:                            call.argument<String>("name") ?: "SubMac",
-android_native/Bridge.kt:168:                            call.argument<String>("name") ?: "SubMac",
-android_native/Bridge.kt:181:                            call.argument<String>("title") ?: "SubMac",
-android_native/Bridge.kt:211:                            call.argument<String>("name") ?: "SubMac",
-android_native/Bridge.kt:218:                        ctx.getSharedPreferences("submac_bots", Context.MODE_PRIVATE).edit()
-android_native/Bridge.kt:290:                        if (call.argument<Boolean>("on") == true) TaskService.start(ctx, call.argument<String>("text") ?: "SubMac is active")
-android_native/Bridge.kt:308:                    "a11yEnabled" -> result.success(SubMacA11y.instance != null)
-android_native/Bridge.kt:311:                            SubMacA11y.instance != null -> "on"
-android_native/Bridge.kt:319:                        val a = SubMacA11y.instance
-android_native/Bridge.kt:330:                        val a = SubMacA11y.instance
-android_native/Bridge.kt:334:                    "a11yIdle" -> result.success((SubMacA11y.instance?.idleMs() ?: 99999L).toInt())
-android_native/Bridge.kt:335:                    // ---- the floating task chat while SubMac or a bot drives the screen ----
-android_native/Bridge.kt:344:                        try { SubMacA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
-android_native/Bridge.kt:350:                        try { SubMacA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
-android_native/Bridge.kt:414:                if (ch == null) SubMacApp.engine(SubMacApp.app)
-android_native/Bridge.kt:425:        val p = i?.getStringExtra("submac_payload") ?: return
-android_native/Bridge.kt:426:        i.removeExtra("submac_payload")
-android_native/Bridge.kt:434:        if (route != null) i.putExtra("submac_payload", route)
-android_native/Bridge.kt:444:        m["accessibility"] = SubMacA11y.instance != null
-android_native/Bridge.kt:446:        m["accessibilityStalled"] = SubMacA11y.instance == null && a11yOnInSettings()
-android_native/Bridge.kt:458:    /** One phone action at a time, off the main thread, with a time limit: a slow app can't freeze SubMac. */
-android_native/Bridge.kt:462:        val a = SubMacA11y.instance
-android_native/Bridge.kt:518:                    val a = SubMacA11y.instance
-android_native/Bridge.kt:535:                        hands == null -> j(false, "phone_control_off", "Phone control is off. Turn it on in SubMac > Apps > WhatsApp.")
-android_native/Bridge.kt:601:                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "$dir/SubMac")
-android_native/Bridge.kt:610:            return "$dir/SubMac/$name"
-android_native/Bridge.kt:613:        val outDir = File(android.os.Environment.getExternalStoragePublicDirectory(dir), "SubMac")
-android_native/Bridge.kt:618:        return "$dir/SubMac/$name"
-android_native/SubMacApp.kt:1:package com.submac.agent
-android_native/SubMacApp.kt:13:class SubMacApp : Application() {
-android_native/SubMacApp.kt:21:        lateinit var app: SubMacApp
-android_native/SubMacApp.kt:22:        private const val ENGINE = "submac_main"
-android_native/ScreenGuard.kt:1:package com.submac.agent
-android_native/WaHands.kt:1:package com.submac.agent
-android_native/WaHands.kt:16:class WaHands(private val a: SubMacA11y) {
-android_native/Overlay.kt:1:package com.submac.agent
-android_native/Overlay.kt:44: *  sheet  - the card plus a box to type to SubMac.
-android_native/Overlay.kt:48:    // The app's real ink (theme.dart), not pure black, so the card reads as SubMac.
-android_native/Overlay.kt:363:            et.hint = "Message SubMac"
-android_native/ocexec.c:9: *   <nativeLibraryDir>/libocld.so --library-path $SUBMAC_OC_LIB <nativeLibraryDir>/libopencode.so args...
-android_native/ocexec.c:29:    const char *libs = getenv("SUBMAC_OC_LIB"); /* filesDir/oc/lib: libstdc++.so.6 and libgcc_s.so.1 by soname */
-android_native/MainActivity.kt:1:package com.submac.agent
-android_native/MainActivity.kt:17: * SubMac native bridge (copied over the generated MainActivity by CI):
-android_native/MainActivity.kt:19: * - receiving "Share to SubMac" text and files from other apps
-android_native/MainActivity.kt:25:    // One long-lived engine (owned by SubMacApp) so Live, the wake word and background tasks
-android_native/MainActivity.kt:27:    override fun provideFlutterEngine(context: Context): FlutterEngine = SubMacApp.engine(context)
-android_native/MainActivity.kt:65:     * long-lived engine (SubMacApp), so Dart's main() and its SystemChrome.setEnabledSystemUIMode(edgeToEdge) run
-android_native/MainActivity.kt:132:        val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "submac/native")
-android_native/MainActivity.kt:138:                    // SubMac with no screen (OcChannel, 2026-11-05).
-android_native/Sms.kt:1:package com.submac.agent
-android_native/WhatsApp.kt:1:package com.submac.agent
+android_native/res/xml/telesia_a11y.xml:10:    android:description="@string/telesia_a11y_desc" />
+android_native/res/xml/telesia_widget.xml:6:    android:initialLayout="@layout/telesia_widget" android:updatePeriodMillis="0"
+android_native/res/xml/telesia_widget.xml:7:    android:description="@string/telesia_widget_desc"/>
+android_native/res/drawable/launch_background.xml:2:<!-- Telesia's own launch screen (replaces the white Flutter template): the brand sky with the Telesia mark, shown
+android_native/res/drawable/launch_background.xml:6:    <item android:drawable="@color/telesia_launch_sky" />
+android_native/res/drawable/ic_stat_telesia.xml:2:<!-- Telesia notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
+android_native/res/values-v31/styles.xml:3:     behind the adaptive Telesia icon makes the first second of the app look like Telesia, in light and dark. -->
+android_native/res/values-v31/styles.xml:7:        <item name="android:windowSplashScreenBackground">@color/telesia_launch_sky</item>
+android_native/res/values-v31/styles.xml:8:        <item name="android:windowSplashScreenIconBackgroundColor">@color/telesia_launch_sky</item>
+android_native/res/drawable-v21/launch_background.xml:2:<!-- Telesia's own launch screen (replaces the white Flutter template): the brand sky with the Telesia mark, shown
+android_native/res/drawable-v21/launch_background.xml:6:    <item android:drawable="@color/telesia_launch_sky" />
+android_native/res/values/telesia_strings.xml:3:    <string name="telesia_a11y_desc">Lets Telesia read the screen and tap, type and scroll for you, only when you ask it to. Telesia asks before anything that sends, buys or deletes.</string>
+android_native/res/values/telesia_strings.xml:4:    <string name="telesia_a11y_label">Telesia phone control</string>
+android_native/res/values/telesia_strings.xml:5:    <string name="telesia_widget_desc">Ask Telesia, scan a page or start Live from your home screen.</string>
+android_native/res/values/telesia_launch.xml:3:    <!-- The middle stop of the logo's sky gradient (docs/brand/telesia_logo_master.svg). -->
+android_native/res/values/telesia_launch.xml:4:    <color name="telesia_launch_sky">#86C0F3</color>
+android_native/res/raw/keep.xml:3:    tools:keep="@raw/telesia_wake,@raw/telesia_done,@raw/telesia_chime,@layout/telesia_notif_small,@layout/telesia_notif_big,@xml/telesia_a11y,@string/telesia_a11y_desc" />
+android_native/res/layout/telesia_notif_small.xml:2:<!-- Telesia notification, folded: a red-dot kicker, a serif headline, one quiet line. -->
+android_native/res/layout/telesia_notif_small.xml:24:            android:text="TELESIA" />
+android_native/res/layout/telesia_notif_small.xml:52:        android:src="@drawable/telesia_dot"
+android_native/res/layout/telesia_widget.xml:4:    android:background="@drawable/telesia_widget_bg" android:orientation="horizontal"
+android_native/res/layout/telesia_widget.xml:8:        <ImageView android:layout_width="10dp" android:layout_height="10dp" android:src="@drawable/telesia_dot"/>
+android_native/res/layout/telesia_widget.xml:10:            android:layout_marginStart="10dp" android:text="Ask Telesia" android:textColor="#6E685C"
+android_native/res/layout/telesia_widget.xml:17:        android:background="@drawable/telesia_widget_pill" android:gravity="center"
+android_native/res/layout/telesia_notif_big.xml:2:<!-- Telesia notification, opened: more air, a larger serif headline, a hairline, one quiet line. -->
+android_native/res/layout/telesia_notif_big.xml:20:            android:src="@drawable/telesia_dot"
+android_native/res/layout/telesia_notif_big.xml:32:            android:text="TELESIA" />
+android_native/res/layout/telesia_notif_big.xml:52:        android:src="@drawable/telesia_hairline"
+android_native/res/values-night-v31/styles.xml:3:     behind the adaptive Telesia icon makes the first second of the app look like Telesia, in light and dark. -->
+android_native/res/values-night-v31/styles.xml:7:        <item name="android:windowSplashScreenBackground">@color/telesia_launch_sky</item>
+android_native/res/values-night-v31/styles.xml:8:        <item name="android:windowSplashScreenIconBackgroundColor">@color/telesia_launch_sky</item>
+android_native/TaskService.kt:1:package com.telesia.app
+android_native/TaskService.kt:16: * Keeps Telesia alive while a task runs with the app closed, showing one calm line.
+android_native/TaskService.kt:25:        @Volatile var text = "Telesia is active"
+android_native/TaskService.kt:60:        // Always "Telesia is active" (owner 2026-11-07); the bot and its task are the second line, "Nova · Hourly news".
+android_native/TaskService.kt:64:            .setSmallIcon(R.drawable.ic_stat_telesia)
+android_native/TaskService.kt:66:            .setContentTitle("Telesia is active")
+android_native/TaskService.kt:72:        if (line.isNotEmpty() && !line.equals("Telesia is active", ignoreCase = true)) b.setContentText(line)
+android_native/TaskService.kt:89:                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "telesia:task").also { it.setReferenceCounted(false) }
+android_native/TaskService.kt:122:/** Fires a scheduled task: wakes Telesia (even if closed) and hands the task id to Dart. */
+android_native/TaskService.kt:129:            TelesiaApp.engine(ctx)
+android_native/TaskService.kt:137:            Notifier.missed(ctx, note, missed, intent.getStringExtra("name") ?: "Telesia", intent.getStringExtra("reason") ?: "")
+android_native/TaskService.kt:138:            if (TelesiaApp.engineIfRunning() != null) Bridge.send("botMissed", missed)
+android_native/TaskService.kt:145:            TelesiaApp.engine(ctx)
+android_native/TaskService.kt:153:            val name = intent.getStringExtra("name") ?: "Telesia"
+android_native/TaskService.kt:158:                TelesiaApp.engine(ctx)
+android_native/TaskService.kt:166:        TaskService.start(ctx, if (label.isEmpty()) "Telesia · Getting ready" else label)
+android_native/TaskService.kt:167:        TelesiaApp.engine(ctx)
+android_native/NotifListener.kt:1:package com.telesia.app
+android_native/NotifListener.kt:11:/** Keeps the latest notifications (on the phone only) so Telesia can answer "what did I miss?". */
+android_native/NotifListener.kt:47:            val prefs = getSharedPreferences("telesia_bots", Context.MODE_PRIVATE)
+android_native/NotifListener.kt:99:                // WhatsApp: kept per chat in Telesia's phone-only store; watches see the new message itself.
+android_native/PhoneData.kt:1:package com.telesia.app
+android_native/TaskBubble.kt:1:package com.telesia.app
+android_native/TaskBubble.kt:40: * The floating task chat, shown over other apps while Telesia or a bot drives the screen.
+android_native/TaskBubble.kt:226:        val a11y = TelesiaA11y.instance
+android_native/TaskBubble.kt:471:        val et = textBox(c, "Tell ${state.optString("who", "Telesia")} something", draft)
+android_native/TaskBubble.kt:489:        open.text = "Open Telesia"
+android_native/TaskBubble.kt:531:        try { TelesiaA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
+android_native/TaskBubble.kt:544:        whoTv?.text = s.optString("who", "Telesia")
+android_native/TaskBubble.kt:637:            ask.optBoolean("needsApp") -> row.addView(pillButton(c, "Open Telesia", strong = true) { send("open"); hideNow() }, first)
+android_native/WaFiles.kt:1:package com.telesia.app
+android_native/WaFiles.kt:16: * Read-only access to the files Telesia shares into WhatsApp (cache/wa_share only). Not exported: WhatsApp gets a
+android_native/WebHands.kt:1:package com.telesia.app
+android_native/WebHands.kt:16: * Real hands for the in-app browser. Instead of faking clicks with page script, Telesia sends genuine
+android_native/Bridge.kt:1:package com.telesia.app
+android_native/Bridge.kt:20:/** "telesia/system": wake word, floating Live, phone control, SMS, notifications, permissions. */
+android_native/Bridge.kt:33:        val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "telesia/system")
+android_native/Bridge.kt:141:                            call.argument<String>("title") ?: "Telesia",
+android_native/Bridge.kt:154:                            call.argument<String>("name") ?: "Telesia",
+android_native/Bridge.kt:168:                            call.argument<String>("name") ?: "Telesia",
+android_native/Bridge.kt:181:                            call.argument<String>("title") ?: "Telesia",
+android_native/Bridge.kt:211:                            call.argument<String>("name") ?: "Telesia",
+android_native/Bridge.kt:218:                        ctx.getSharedPreferences("telesia_bots", Context.MODE_PRIVATE).edit()
+android_native/Bridge.kt:290:                        if (call.argument<Boolean>("on") == true) TaskService.start(ctx, call.argument<String>("text") ?: "Telesia is active")
+android_native/Bridge.kt:308:                    "a11yEnabled" -> result.success(TelesiaA11y.instance != null)
+android_native/Bridge.kt:311:                            TelesiaA11y.instance != null -> "on"
+android_native/Bridge.kt:319:                        val a = TelesiaA11y.instance
+android_native/Bridge.kt:330:                        val a = TelesiaA11y.instance
+android_native/Bridge.kt:334:                    "a11yIdle" -> result.success((TelesiaA11y.instance?.idleMs() ?: 99999L).toInt())
+android_native/Bridge.kt:335:                    // ---- the floating task chat while Telesia or a bot drives the screen ----
+android_native/Bridge.kt:344:                        try { TelesiaA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
+android_native/Bridge.kt:350:                        try { TelesiaA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
+android_native/Bridge.kt:414:                if (ch == null) TelesiaApp.engine(TelesiaApp.app)
+android_native/Bridge.kt:425:        val p = i?.getStringExtra("telesia_payload") ?: return
+android_native/Bridge.kt:426:        i.removeExtra("telesia_payload")
+android_native/Bridge.kt:434:        if (route != null) i.putExtra("telesia_payload", route)
+android_native/Bridge.kt:444:        m["accessibility"] = TelesiaA11y.instance != null
+android_native/Bridge.kt:446:        m["accessibilityStalled"] = TelesiaA11y.instance == null && a11yOnInSettings()
+android_native/Bridge.kt:458:    /** One phone action at a time, off the main thread, with a time limit: a slow app can't freeze Telesia. */
+android_native/Bridge.kt:462:        val a = TelesiaA11y.instance
+android_native/Bridge.kt:518:                    val a = TelesiaA11y.instance
+android_native/Bridge.kt:535:                        hands == null -> j(false, "phone_control_off", "Phone control is off. Turn it on in Telesia > Apps > WhatsApp.")
+android_native/Bridge.kt:601:                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "$dir/Telesia")
+android_native/Bridge.kt:610:            return "$dir/Telesia/$name"
+android_native/Bridge.kt:613:        val outDir = File(android.os.Environment.getExternalStoragePublicDirectory(dir), "Telesia")
+android_native/Bridge.kt:618:        return "$dir/Telesia/$name"
+android_native/TelesiaApp.kt:1:package com.telesia.app
+android_native/TelesiaApp.kt:13:class TelesiaApp : Application() {
+android_native/TelesiaApp.kt:21:        lateinit var app: TelesiaApp
+android_native/TelesiaApp.kt:22:        private const val ENGINE = "telesia_main"
+android_native/ScreenGuard.kt:1:package com.telesia.app
+android_native/WaHands.kt:1:package com.telesia.app
+android_native/WaHands.kt:16:class WaHands(private val a: TelesiaA11y) {
+android_native/Overlay.kt:1:package com.telesia.app
+android_native/Overlay.kt:44: *  sheet  - the card plus a box to type to Telesia.
+android_native/Overlay.kt:48:    // The app's real ink (theme.dart), not pure black, so the card reads as Telesia.
+android_native/Overlay.kt:363:            et.hint = "Message Telesia"
+android_native/ocexec.c:9: *   <nativeLibraryDir>/libocld.so --library-path $TELESIA_OC_LIB <nativeLibraryDir>/libopencode.so args...
+android_native/ocexec.c:29:    const char *libs = getenv("TELESIA_OC_LIB"); /* filesDir/oc/lib: libstdc++.so.6 and libgcc_s.so.1 by soname */
+android_native/MainActivity.kt:1:package com.telesia.app
+android_native/MainActivity.kt:17: * Telesia native bridge (copied over the generated MainActivity by CI):
+android_native/MainActivity.kt:19: * - receiving "Share to Telesia" text and files from other apps
+android_native/MainActivity.kt:25:    // One long-lived engine (owned by TelesiaApp) so Live, the wake word and background tasks
+android_native/MainActivity.kt:27:    override fun provideFlutterEngine(context: Context): FlutterEngine = TelesiaApp.engine(context)
+android_native/MainActivity.kt:65:     * long-lived engine (TelesiaApp), so Dart's main() and its SystemChrome.setEnabledSystemUIMode(edgeToEdge) run
+android_native/MainActivity.kt:132:        val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "telesia/native")
+android_native/MainActivity.kt:138:                    // Telesia with no screen (OcChannel, 2026-11-05).
+android_native/Sms.kt:1:package com.telesia.app
+android_native/WhatsApp.kt:1:package com.telesia.app
 ### tools refs
-tools/bots/business/build.py:1:"""Builds assets/bots/business.json: the knowledge pack of SubMac's built-in Business adviser bot.
-tools/bots/health/build.py:1:"""Builds assets/bots/health.json: the knowledge pack of SubMac's built-in Health adviser bot (Caafimaad).
-tools/bots/coder/build.py:1:"""Builds assets/bots/coder.json: the knowledge pack of SubMac's built-in Coder bot (Barnaamije).
-tools/bots/coder/build.py:2:How a senior engineer works with SubMac's coding tools. Written 2026-10-21. Run: python3 tools/bots/coder/build.py"""
-tools/bots/coder/build.py:11:delete_file (to SubMac Trash), run_shell (Android toybox sh: no python, node or git on the phone).
-tools/bots/coder/build.py:77:(a free 7-day SubMac link, or the user's own Vercel). For a permanent free address: code_git publish (public repo) then code_build
-tools/bots/coder/build.py:92:5. Show it with a ```file card. To install: open it, allow "install unknown apps" for SubMac once. The build is signed with a
-tools/bots/coder/build.py:101:(ANDROID_HOME is set). Android Studio is only an editor and is never needed; no computer is needed; SubMac itself is built this way.
-tools/bots/coder/build.py:144:- The token stays in SubMac: never print it, never put it in files. If GitHub answers 401, ask the user to connect GitHub again;
-tools/browser_page.js:1:// SubMac browser page script v2 (browser-use v2). Injected at document start and on demand.
-tools/chat_regress_capture.sh:6:# step fails the job on: drive exit != 0, any QAERR line, any STEPFAIL, a logcat FATAL EXCEPTION in SubMac, an
-tools/chat_regress_capture.sh:9:PKG=com.submac.agent
-tools/chat_regress_capture.sh:28:  adb shell dumpsys notification --noredact 2>/dev/null | grep -E "pkg=com.submac.agent|android.title=|android.text=|android.bigText=" | head -60 >> out/logs/notifications.txt; }
-tools/chat_regress_capture.sh:30:  adb shell dumpsys alarm 2>/dev/null | grep -B1 -A4 "com.submac.agent" | grep -E "RTC|when|origWhen|com.submac|tag=" | head -40 >> out/logs/alarms.txt; }
-tools/chat_regress_capture.sh:88:    note "P3 pid after the alarm: '$(adb shell pidof $PKG | tr -d '\r')'; opening SubMac to read the result"
-tools/chat_regress_capture.sh:105:# A FATAL EXCEPTION counts only when it is SubMac's process.
-tools/intro_sound.py:4:# Synthesizes the SubMac intro sound (original, no samples): one soft rounded glass/marimba pluck per letter of the
-tools/proxy-admin/index.html:6:<title>SubMac Proxy Admin</title>
-tools/proxy-admin/index.html:62:  <h2>SubMac Proxy Admin</h2>
-tools/proxy-admin/index.html:73:    <h1>SubMac Proxy</h1>
-tools/proxy-admin/index.html:243:  }).join("") + `<div class="card"><h2>Add a name</h2><div class="row"><input id="newAlias" placeholder="submac-something"><input id="newAliasDesc" placeholder="What it's for" style="flex:1"><button class="b" onclick="newAlias()">Add</button></div>
-tools/proxy-admin/index.html:246:// The app plans every request against a fixed 48k window (ContextWindow). A model in submac-smart or
-tools/proxy-admin/index.html:247:// submac-vision with a smaller window than that budget plus the reply would make swaps fail, so flag it.
-tools/proxy-admin/index.html:250:  if (!["submac-smart", "submac-vision"].includes(a.alias) || !m.context_window) return "";
-tools/proxy-admin/index.html:564:window.userGrant = async () => { await userDo("reward_grant", { user_id: S.uid, amount_per_day: +$("#ugAmt").value, days: +$("#ugDays").value, note: $("#ugNote").value.trim(), show_note: $("#ugShow").checked }, "Reward granted. The user sees it in From SubMac."); };
-tools/proxy-admin/index.html:603:    <p class="mute" style="margin:8px 0 0">Shows in the user's From SubMac inbox and adds to their daily allowance right away. Not limited by the caps above.</p></div>
-tools/proxy-admin/index.html:611:// ---------- Messages to users ("From SubMac") ----------
-tools/proxy-admin/index.html:618:      <div class="row" style="margin-top:6px"><button class="b p" onclick="msgSaveEdit('${m.id}')">Save edit</button><button class="b" onclick="S.editMsg=null;render()">Cancel</button><span class="mute">Edits show in the app's From SubMac and chat. A push already shown on a phone can't change.</span></div></td></tr>`
-tools/proxy-admin/index.html:630:    <p class="mute" style="margin:6px 0">Every message also lands in the user's From SubMac inbox. In chat it shows as a "SubMac team" card. You can edit or delete it after sending.</p>
-tools/proxy-admin/index.html:640:    ${C.delivery !== "push" ? `<div class="stat" style="width:360px;border-color:var(--acc)"><span style="color:var(--acc);font-weight:600">✓ SubMac team</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span style="color:var(--text);font-size:13px">${b}</span></div></div>` : ""}
-tools/proxy-admin/index.html:641:    <div class="stat" style="width:300px"><span>From SubMac inbox</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span class="mute" style="font-size:12px">SubMac team · now</span></div></div></div>`;
-tools/proxy-admin/index.html:836:  if (F.info && F.info.package && F.info.package !== "com.submac.agent") warn.push("This file is not SubMac Agent (" + esc(F.info.package) + ").");
-tools/proxy-admin/index.html:1040:  ["grace_alias", "Name used after the cap (e.g. \"submac-lite\")."],
-tools/proxy-admin/worker.mjs:11:// ---------- /api/updates/*: app update files into Cloudflare R2 (binding UPDATES -> bucket submac-app-updates) ----------
-tools/proxy-admin/worker.mjs:16:const KEY = /^android\/([0-9]+)-[0-9a-f]{8}\/SubMac-([0-9]+)\.apk$/;
-tools/proxy-admin/worker.mjs:60:      const key = `android/${code}-${rnd}/SubMac-${code}.apk`;
-tools/proxy-admin/worker.mjs:62:        httpMetadata: { contentType: "application/vnd.android.package-archive", contentDisposition: `attachment; filename="SubMac-${code}.apk"` },
-tools/qa_capture.sh:5:PKG=com.submac.agent
-tools/emu_conflicts.sh:5:PKG=com.submac.agent; OLD=$1; NEW=$2
-tools/skills/somali/README.md:5:Health and law here stay at the information level. Professional advice belongs to SubMac built-in bots.
-tools/skills/somali/build.py:332:Everyday first aid questions. Diagnosis, treatment plans and medicines are for health workers: point to a clinic or a SubMac health bot if the user has one.
-tools/skills/thirdparty/README.md:3:`build.py` holds skills rewritten for SubMac from permissively licensed skill packs (obra/superpowers, MIT; anthropics/skills, only the folders that ship an Apache-2.0 LICENSE.txt; alirezarezvani/claude-skills, MIT). Every skill keeps a credit line in its body and `source`, `license`, `author` fields in its file; the index line carries `license`. Licences and versions are listed in `docs/third-party.md`.
-tools/skills/thirdparty/build.py:1:"""Skills adapted from open-source skill collections (MIT / Apache-2.0) for the SubMac skill library.
-tools/skills/thirdparty/build.py:3:Each skill is rewritten for SubMac's tools and for everyday users (plain words, phone first), keeps a
-tools/skills/thirdparty/build.py:22:    credit = (f"\n---\nAdapted for SubMac from \"{path}\" by {s['author']}, {s['license']} licence, {s['url']}. "
-tools/skills/thirdparty/build.py:23:              "Changed: rewritten for SubMac's tools and everyday users.")
-tools/browser_eval/package.json:2:  "name": "submac-browser-eval",
-tools/browser_eval/package.json:4:  "description": "browser_eval: SubMac's page script on real sites (docs/browser-eval.md)",
-tools/browser_eval/eval.js:4:// What it measures: the part of SubMac's browser that does not need the model — the page script the phone injects
-tools/browser_eval/eval.js:186:    const filled = await T.S('login', 'submac', 'secret');
-tools/browser_eval/eval.js:246:    const r = await T.S('upload', f.i, 'note.txt', 'text/plain', Buffer.from('hello from submac').toString('base64'));
-tools/reel_capture.sh:4:PKG=com.submac.agent
-tools/oc_rename_survey.txt:18:./lib/services/submac_gateway.dart:28
-tools/oc_rename_survey.txt:82:./test/submac_mcp_test.dart:9
-tools/oc_rename_survey.txt:93:./test/submac_gateway_test.dart:8
-tools/oc_rename_survey.txt:96:./lib/services/submac_mcp.dart:8
-tools/oc_rename_survey.txt:105:./android_native/SubMacA11y.kt:8
-tools/oc_rename_survey.txt:178:./supabase/migrations/20261023_submac_gemini_first.sql:4
-tools/oc_rename_survey.txt:187:./lib/services/submac_style.dart:4
-tools/oc_rename_survey.txt:204:./android_native/res/layout/submac_widget.xml:4
-tools/oc_rename_survey.txt:205:./android_native/res/layout/submac_notif_big.xml:4
-tools/oc_rename_survey.txt:206:./android_native/SubMacApp.kt:4
-tools/oc_rename_survey.txt:246:./android_native/res/values/submac_strings.xml:3
-tools/oc_rename_survey.txt:249:./android_native/res/layout/submac_notif_small.xml:3
-tools/oc_rename_survey.txt:303:./android_native/res/xml/submac_widget.xml:2
-tools/oc_rename_survey.txt:304:./android_native/res/values/submac_launch.xml:2
-tools/oc_rename_survey.txt:420:./android_native/res/xml/submac_a11y.xml:1
-tools/oc_rename_survey.txt:422:./android_native/res/drawable/ic_stat_submac.xml:1
-tools/oc_rename_survey.txt:433:assets/brand/submac_mark.svg
-tools/oc_rename_survey.txt:434:assets/brand/submac_mark_plain.svg
-tools/oc_rename_survey.txt:482:assets/intro/submac_tile.svg
-tools/oc_rename_survey.txt:643:android_native/res/xml/submac_a11y.xml:10:    android:description="@string/submac_a11y_desc" />
-tools/oc_rename_survey.txt:644:android_native/res/xml/submac_widget.xml:6:    android:initialLayout="@layout/submac_widget" android:updatePeriodMillis="0"
-tools/oc_rename_survey.txt:645:android_native/res/xml/submac_widget.xml:7:    android:description="@string/submac_widget_desc"/>
-tools/oc_rename_survey.txt:646:android_native/res/drawable/launch_background.xml:2:<!-- SubMac's own launch screen (replaces the white Flutter template): the brand sky with the SubMac mark, shown
-tools/oc_rename_survey.txt:647:android_native/res/drawable/launch_background.xml:6:    <item android:drawable="@color/submac_launch_sky" />
-tools/oc_rename_survey.txt:648:android_native/res/drawable/ic_stat_submac.xml:2:<!-- SubMac notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
-tools/oc_rename_survey.txt:649:android_native/res/values-v31/styles.xml:3:     behind the adaptive SubMac icon makes the first second of the app look like SubMac, in light and dark. -->
-tools/oc_rename_survey.txt:650:android_native/res/values-v31/styles.xml:7:        <item name="android:windowSplashScreenBackground">@color/submac_launch_sky</item>
-tools/oc_rename_survey.txt:651:android_native/res/values-v31/styles.xml:8:        <item name="android:windowSplashScreenIconBackgroundColor">@color/submac_launch_sky</item>
+tools/bots/business/build.py:1:"""Builds assets/bots/business.json: the knowledge pack of Telesia's built-in Business adviser bot.
+tools/bots/health/build.py:1:"""Builds assets/bots/health.json: the knowledge pack of Telesia's built-in Health adviser bot (Caafimaad).
+tools/bots/coder/build.py:1:"""Builds assets/bots/coder.json: the knowledge pack of Telesia's built-in Coder bot (Barnaamije).
+tools/bots/coder/build.py:2:How a senior engineer works with Telesia's coding tools. Written 2026-10-21. Run: python3 tools/bots/coder/build.py"""
+tools/bots/coder/build.py:11:delete_file (to Telesia Trash), run_shell (Android toybox sh: no python, node or git on the phone).
+tools/bots/coder/build.py:77:(a free 7-day Telesia link, or the user's own Vercel). For a permanent free address: code_git publish (public repo) then code_build
+tools/bots/coder/build.py:92:5. Show it with a ```file card. To install: open it, allow "install unknown apps" for Telesia once. The build is signed with a
+tools/bots/coder/build.py:101:(ANDROID_HOME is set). Android Studio is only an editor and is never needed; no computer is needed; Telesia itself is built this way.
+tools/bots/coder/build.py:144:- The token stays in Telesia: never print it, never put it in files. If GitHub answers 401, ask the user to connect GitHub again;
+tools/browser_page.js:1:// Telesia browser page script v2 (browser-use v2). Injected at document start and on demand.
+tools/chat_regress_capture.sh:6:# step fails the job on: drive exit != 0, any QAERR line, any STEPFAIL, a logcat FATAL EXCEPTION in Telesia, an
+tools/chat_regress_capture.sh:9:PKG=com.telesia.app
+tools/chat_regress_capture.sh:28:  adb shell dumpsys notification --noredact 2>/dev/null | grep -E "pkg=com.telesia.app|android.title=|android.text=|android.bigText=" | head -60 >> out/logs/notifications.txt; }
+tools/chat_regress_capture.sh:30:  adb shell dumpsys alarm 2>/dev/null | grep -B1 -A4 "com.telesia.app" | grep -E "RTC|when|origWhen|com.telesia|tag=" | head -40 >> out/logs/alarms.txt; }
+tools/chat_regress_capture.sh:88:    note "P3 pid after the alarm: '$(adb shell pidof $PKG | tr -d '\r')'; opening Telesia to read the result"
+tools/chat_regress_capture.sh:105:# A FATAL EXCEPTION counts only when it is Telesia's process.
+tools/intro_sound.py:4:# Synthesizes the Telesia intro sound (original, no samples): one soft rounded glass/marimba pluck per letter of the
+tools/proxy-admin/index.html:6:<title>Telesia Proxy Admin</title>
+tools/proxy-admin/index.html:62:  <h2>Telesia Proxy Admin</h2>
+tools/proxy-admin/index.html:73:    <h1>Telesia Proxy</h1>
+tools/proxy-admin/index.html:243:  }).join("") + `<div class="card"><h2>Add a name</h2><div class="row"><input id="newAlias" placeholder="telesia-something"><input id="newAliasDesc" placeholder="What it's for" style="flex:1"><button class="b" onclick="newAlias()">Add</button></div>
+tools/proxy-admin/index.html:246:// The app plans every request against a fixed 48k window (ContextWindow). A model in telesia-smart or
+tools/proxy-admin/index.html:247:// telesia-vision with a smaller window than that budget plus the reply would make swaps fail, so flag it.
+tools/proxy-admin/index.html:250:  if (!["telesia-smart", "telesia-vision"].includes(a.alias) || !m.context_window) return "";
+tools/proxy-admin/index.html:564:window.userGrant = async () => { await userDo("reward_grant", { user_id: S.uid, amount_per_day: +$("#ugAmt").value, days: +$("#ugDays").value, note: $("#ugNote").value.trim(), show_note: $("#ugShow").checked }, "Reward granted. The user sees it in From Telesia."); };
+tools/proxy-admin/index.html:603:    <p class="mute" style="margin:8px 0 0">Shows in the user's From Telesia inbox and adds to their daily allowance right away. Not limited by the caps above.</p></div>
+tools/proxy-admin/index.html:611:// ---------- Messages to users ("From Telesia") ----------
+tools/proxy-admin/index.html:618:      <div class="row" style="margin-top:6px"><button class="b p" onclick="msgSaveEdit('${m.id}')">Save edit</button><button class="b" onclick="S.editMsg=null;render()">Cancel</button><span class="mute">Edits show in the app's From Telesia and chat. A push already shown on a phone can't change.</span></div></td></tr>`
+tools/proxy-admin/index.html:630:    <p class="mute" style="margin:6px 0">Every message also lands in the user's From Telesia inbox. In chat it shows as a "Telesia team" card. You can edit or delete it after sending.</p>
+tools/proxy-admin/index.html:640:    ${C.delivery !== "push" ? `<div class="stat" style="width:360px;border-color:var(--acc)"><span style="color:var(--acc);font-weight:600">✓ Telesia team</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span style="color:var(--text);font-size:13px">${b}</span></div></div>` : ""}
+tools/proxy-admin/index.html:641:    <div class="stat" style="width:300px"><span>From Telesia inbox</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span class="mute" style="font-size:12px">Telesia team · now</span></div></div></div>`;
+tools/proxy-admin/index.html:836:  if (F.info && F.info.package && F.info.package !== "com.telesia.app") warn.push("This file is not Telesia (" + esc(F.info.package) + ").");
+tools/proxy-admin/index.html:1040:  ["grace_alias", "Name used after the cap (e.g. \"telesia-lite\")."],
+tools/proxy-admin/worker.mjs:11:// ---------- /api/updates/*: app update files into Cloudflare R2 (binding UPDATES -> bucket telesia-app-updates) ----------
+tools/proxy-admin/worker.mjs:16:const KEY = /^android\/([0-9]+)-[0-9a-f]{8}\/Telesia-([0-9]+)\.apk$/;
+tools/proxy-admin/worker.mjs:60:      const key = `android/${code}-${rnd}/Telesia-${code}.apk`;
+tools/proxy-admin/worker.mjs:62:        httpMetadata: { contentType: "application/vnd.android.package-archive", contentDisposition: `attachment; filename="Telesia-${code}.apk"` },
+tools/qa_capture.sh:5:PKG=com.telesia.app
+tools/emu_conflicts.sh:5:PKG=com.telesia.app; OLD=$1; NEW=$2
+tools/skills/somali/README.md:5:Health and law here stay at the information level. Professional advice belongs to Telesia built-in bots.
+tools/skills/somali/build.py:332:Everyday first aid questions. Diagnosis, treatment plans and medicines are for health workers: point to a clinic or a Telesia health bot if the user has one.
+tools/skills/thirdparty/README.md:3:`build.py` holds skills rewritten for Telesia from permissively licensed skill packs (obra/superpowers, MIT; anthropics/skills, only the folders that ship an Apache-2.0 LICENSE.txt; alirezarezvani/claude-skills, MIT). Every skill keeps a credit line in its body and `source`, `license`, `author` fields in its file; the index line carries `license`. Licences and versions are listed in `docs/third-party.md`.
+tools/skills/thirdparty/build.py:1:"""Skills adapted from open-source skill collections (MIT / Apache-2.0) for the Telesia skill library.
+tools/skills/thirdparty/build.py:3:Each skill is rewritten for Telesia's tools and for everyday users (plain words, phone first), keeps a
+tools/skills/thirdparty/build.py:22:    credit = (f"\n---\nAdapted for Telesia from \"{path}\" by {s['author']}, {s['license']} licence, {s['url']}. "
+tools/skills/thirdparty/build.py:23:              "Changed: rewritten for Telesia's tools and everyday users.")
+tools/browser_eval/package.json:2:  "name": "telesia-browser-eval",
+tools/browser_eval/package.json:4:  "description": "browser_eval: Telesia's page script on real sites (docs/browser-eval.md)",
+tools/browser_eval/eval.js:4:// What it measures: the part of Telesia's browser that does not need the model — the page script the phone injects
+tools/browser_eval/eval.js:186:    const filled = await T.S('login', 'telesia', 'secret');
+tools/browser_eval/eval.js:246:    const r = await T.S('upload', f.i, 'note.txt', 'text/plain', Buffer.from('hello from telesia').toString('base64'));
+tools/reel_capture.sh:4:PKG=com.telesia.app
+tools/oc_rename_survey.txt:18:./lib/services/telesia_gateway.dart:28
+tools/oc_rename_survey.txt:82:./test/telesia_mcp_test.dart:9
+tools/oc_rename_survey.txt:93:./test/telesia_gateway_test.dart:8
+tools/oc_rename_survey.txt:96:./lib/services/telesia_mcp.dart:8
+tools/oc_rename_survey.txt:105:./android_native/TelesiaA11y.kt:8
+tools/oc_rename_survey.txt:178:./supabase/migrations/20261023_telesia_gemini_first.sql:4
+tools/oc_rename_survey.txt:187:./lib/services/telesia_style.dart:4
+tools/oc_rename_survey.txt:204:./android_native/res/layout/telesia_widget.xml:4
+tools/oc_rename_survey.txt:205:./android_native/res/layout/telesia_notif_big.xml:4
+tools/oc_rename_survey.txt:206:./android_native/TelesiaApp.kt:4
+tools/oc_rename_survey.txt:246:./android_native/res/values/telesia_strings.xml:3
+tools/oc_rename_survey.txt:249:./android_native/res/layout/telesia_notif_small.xml:3
+tools/oc_rename_survey.txt:303:./android_native/res/xml/telesia_widget.xml:2
+tools/oc_rename_survey.txt:304:./android_native/res/values/telesia_launch.xml:2
+tools/oc_rename_survey.txt:420:./android_native/res/xml/telesia_a11y.xml:1
+tools/oc_rename_survey.txt:422:./android_native/res/drawable/ic_stat_telesia.xml:1
+tools/oc_rename_survey.txt:433:assets/brand/telesia_mark.svg
+tools/oc_rename_survey.txt:434:assets/brand/telesia_mark_plain.svg
+tools/oc_rename_survey.txt:482:assets/intro/telesia_tile.svg
+tools/oc_rename_survey.txt:643:android_native/res/xml/telesia_a11y.xml:10:    android:description="@string/telesia_a11y_desc" />
+tools/oc_rename_survey.txt:644:android_native/res/xml/telesia_widget.xml:6:    android:initialLayout="@layout/telesia_widget" android:updatePeriodMillis="0"
+tools/oc_rename_survey.txt:645:android_native/res/xml/telesia_widget.xml:7:    android:description="@string/telesia_widget_desc"/>
+tools/oc_rename_survey.txt:646:android_native/res/drawable/launch_background.xml:2:<!-- Telesia's own launch screen (replaces the white Flutter template): the brand sky with the Telesia mark, shown
+tools/oc_rename_survey.txt:647:android_native/res/drawable/launch_background.xml:6:    <item android:drawable="@color/telesia_launch_sky" />
+tools/oc_rename_survey.txt:648:android_native/res/drawable/ic_stat_telesia.xml:2:<!-- Telesia notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
+tools/oc_rename_survey.txt:649:android_native/res/values-v31/styles.xml:3:     behind the adaptive Telesia icon makes the first second of the app look like Telesia, in light and dark. -->
+tools/oc_rename_survey.txt:650:android_native/res/values-v31/styles.xml:7:        <item name="android:windowSplashScreenBackground">@color/telesia_launch_sky</item>
+tools/oc_rename_survey.txt:651:android_native/res/values-v31/styles.xml:8:        <item name="android:windowSplashScreenIconBackgroundColor">@color/telesia_launch_sky</item>
 ### pubspec/app id (patch_android head)
-63:s = s.replace('android:label="agent"', 'android:label="SubMac Agent"')
-82:                <data android:scheme="com.submac.agent" android:host="login-callback"/>
-123:            android:label="@string/submac_a11y_label"
-137:            android:label="SubMac"
-147:        <provider android:name=".WaFiles" android:authorities="com.submac.agent.wafiles"
-151:        <provider android:name=".UpdateFiles" android:authorities="com.submac.agent.updates"
-156:        <receiver android:name=".QuickWidget" android:exported="true" android:label="SubMac">
-168:kdir = "android/app/src/main/kotlin/com/submac/agent"
+63:s = s.replace('android:label="agent"', 'android:label="Telesia"')
+82:                <data android:scheme="com.telesia.app" android:host="login-callback"/>
+123:            android:label="@string/telesia_a11y_label"
+137:            android:label="Telesia"
+147:        <provider android:name=".WaFiles" android:authorities="com.telesia.app.wafiles"
+151:        <provider android:name=".UpdateFiles" android:authorities="com.telesia.app.updates"
+156:        <receiver android:name=".QuickWidget" android:exported="true" android:label="Telesia">
+168:kdir = "android/app/src/main/kotlin/com/telesia/agent"
 
 ===== FILE: pubspec.yaml =====
 name: agent
-description: SubMac Agent - an agentic chat app.
+description: Telesia - an agentic chat app.
 publish_to: 'none'
 version: 1.13.140+210
 
@@ -896,7 +896,7 @@ dependencies:
   # v1.6: email over IMAP/SMTP with app passwords
   enough_mail: ^2.1.7
   crypto: ^3.0.3
-  # v1.7: SubMac's own icon set (assets/icons)
+  # v1.7: Telesia's own icon set (assets/icons)
   flutter_svg: ^2.3.0
   qr_flutter: ^4.1.0
   flutter_math_fork: ^0.7.4
@@ -963,7 +963,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
-  # New logo (submac.site). Master: docs/brand/submac_logo_master.svg; PNGs rendered from it.
+  # New logo (telesia.site). Master: docs/brand/telesia_logo_master.svg; PNGs rendered from it.
   image_path: assets/icon.png
   image_path_ios: assets/icon_ios.png
   adaptive_icon_background: assets/icon_bg.png
@@ -987,7 +987,7 @@ import '../ui/i18n.dart';
 import '../ui/intro_motion.dart';
 import '../ui/motion.dart';
 
-/// The first-launch intro (owner, 2026-10-26): on a clean white page the wordmark "SubMac" draws itself in behind a
+/// The first-launch intro (owner, 2026-10-26): on a clean white page the wordmark "Telesia" draws itself in behind a
 /// thin brand-blue pen line, then resolves into the logo (it scales and fades in), and the white dot lands last.
 /// As the pen passes each letter a light selection tick fires with one soft glass-like pluck (rising A-major
 /// pentatonic notes), then a warm two-note bloom plays as the logo lands, with one soft impact when the dot touches down. About three seconds; a tap anywhere skips
@@ -1133,7 +1133,7 @@ class IntroScreenState extends State<IntroScreen> with SingleTickerProviderState
   }
 }
 
-/// "SubMac" revealed left to right up to [edge] (0..1) through a soft mask, with a thin pen line riding the edge.
+/// "Telesia" revealed left to right up to [edge] (0..1) through a soft mask, with a thin pen line riding the edge.
 class IntroWordmark extends StatelessWidget {
   const IntroWordmark({super.key, required this.edge, this.pen = 1});
   final double edge;
@@ -1185,7 +1185,7 @@ class _PenPainter extends CustomPainter {
   bool shouldRepaint(_PenPainter old) => old.edge != edge || old.opacity != opacity;
 }
 
-/// The new SubMac logo: the light-blue tile with its blue "S" (assets/intro/submac_tile.svg), and the white dot drawn
+/// The new Telesia logo: the light-blue tile with its blue "S" (assets/intro/telesia_tile.svg), and the white dot drawn
 /// on top so it can land last. [dot] is the dot's arrival (0 = not there, 1 = landed).
 class IntroLogo extends StatelessWidget {
   const IntroLogo({super.key, this.dot = 1, this.size = IntroMotion.tileSize});
@@ -1198,7 +1198,7 @@ class IntroLogo extends StatelessWidget {
       dimension: size,
       child: CustomPaint(
         foregroundPainter: _DotPainter(dot),
-        child: SvgPicture.asset('assets/intro/submac_tile.svg', width: size, height: size),
+        child: SvgPicture.asset('assets/intro/telesia_tile.svg', width: size, height: size),
       ),
     );
   }
@@ -1229,7 +1229,7 @@ import 'package:audioplayers/audioplayers.dart';
 
 /// The intro's sound: one soft rounded pluck per letter of the wordmark, on the haptic ticks, then a warm two-note bloom
 /// as the logo resolves and the dot lands (assets/intro/intro_sound.m4a, 3.3 s, about -17.5 LUFS; synthesized for
-/// SubMac by tools/intro_sound.py, no samples).
+/// Telesia by tools/intro_sound.py, no samples).
 ///
 /// It never gets in the way:
 /// * an ambient session: it mixes with (and on Android briefly ducks) the user's music, never stops it;
@@ -1263,7 +1263,7 @@ class _DeviceIntroSound implements IntroSound {
   @override
   Future<void> play() async {
     try {
-      final p = _player ??= AudioPlayer(playerId: 'submac_intro');
+      final p = _player ??= AudioPlayer(playerId: 'telesia_intro');
       await p.setAudioContext(context);
       await p.setReleaseMode(ReleaseMode.release);
       if (_stopped) return;
@@ -1301,7 +1301,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme.dart';
 
-/// SubMac logo (the new mark from submac.site): a blue "S" and a white dot on a light-blue rounded tile.
+/// Telesia logo (the new mark from telesia.site): a blue "S" and a white dot on a light-blue rounded tile.
 /// Drawn from the vector master in assets/brand, so it stays sharp at every size.
 /// [tile] false draws only the S and the dot, for places that already sit on their own surface.
 class AppLogo extends StatelessWidget {
@@ -1309,13 +1309,13 @@ class AppLogo extends StatelessWidget {
   final bool tile;
   const AppLogo({super.key, this.size = 32, this.tile = true});
 
-  static const tileAsset = 'assets/brand/submac_mark.svg';
-  static const plainAsset = 'assets/brand/submac_mark_plain.svg';
+  static const tileAsset = 'assets/brand/telesia_mark.svg';
+  static const plainAsset = 'assets/brand/telesia_mark_plain.svg';
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'SubMac',
+      label: 'Telesia',
       image: true,
       child: SvgPicture.asset(
         tile ? tileAsset : plainAsset,
@@ -1355,7 +1355,7 @@ class RedDot extends StatelessWidget {
 /// What the agent is doing, shown through the brand mark.
 enum MarkMode { idle, thinking, working, roaming }
 
-/// The SubMac mark (the serif "S") as a living indicator. No dots (owner rule): motion is carried by the letter
+/// The Telesia mark (the serif "S") as a living indicator. No dots (owner rule): motion is carried by the letter
 /// and one fine line.
 /// - idle: the S breathes slowly;
 /// - thinking: the S glows softly while a fine ring opens out around it;

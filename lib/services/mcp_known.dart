@@ -1,4 +1,4 @@
-/// Servers whose address and key header SubMac knows, so a key given in chat connects even when the model guesses
+/// Servers whose address and key header Telesia knows, so a key given in chat connects even when the model guesses
 /// the address (2026-11-03: the agent tried mcp.composio.dev, backend.composio.dev/mcp and a session API with a
 /// Composio consumer key sent as a Bearer token; none of them work). Pure, so it is tested on its own.
 class McpKnown {

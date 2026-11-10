@@ -1,5 +1,5 @@
-// site-preview: free 7-day preview links for sites SubMac builds, on Cloudflare Pages.
-// Every site is one branch of the Pages project `submac-sites`, served at https://<slug>.submac-sites.pages.dev
+// site-preview: free 7-day preview links for sites Telesia builds, on Cloudflare Pages.
+// Every site is one branch of the Pages project `telesia-sites`, served at https://<slug>.telesia-sites.pages.dev
 // (branch previews carry noindex, which suits try-before-you-connect links).
 //
 // Auth: the gateway checks the JWT (verify_jwt on). User actions need a signed-in user's session.
@@ -20,7 +20,7 @@ const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CF_TOKEN = Deno.env.get("CF_PAGES_TOKEN") ?? "";
 const CF_ACCOUNT = Deno.env.get("CF_ACCOUNT_ID") ?? "";
-const PROJECT = "submac-sites";
+const PROJECT = "telesia-sites";
 const CF = "https://api.cloudflare.com/client/v4";
 const db = createClient(SB_URL, SERVICE, { auth: { persistSession: false } });
 

@@ -20,7 +20,7 @@ class RunJournal extends RunLog {
   final String runId;
   final String convId;
 
-  /// 'main' (a chat with SubMac or a bot), 'member' (a team member's part), 'browser' (the browser sub-agent).
+  /// 'main' (a chat with Telesia or a bot), 'member' (a team member's part), 'browser' (the browser sub-agent).
   final String kind;
   Timer? _beat;
   bool _closed = false;
@@ -291,7 +291,7 @@ class ResumeSettle {
 
   /// The note the resumed run starts with.
   static String note(int settled) => '# Resumed after the app closed\n'
-      'SubMac was closed by the phone while you were working on this task${settled > 0 ? ', and $settled tool call(s) were cut off (their results say what is known)' : ''}. '
+      'Telesia was closed by the phone while you were working on this task${settled > 0 ? ', and $settled tool call(s) were cut off (their results say what is known)' : ''}. '
       'Carry on from where you were: do not start over, do not repeat anything that already happened, and never repeat a '
       'send, payment, post or delete whose result says it is unknown; check first. Then finish the task as asked.';
 }

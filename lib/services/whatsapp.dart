@@ -13,7 +13,7 @@ export 'whatsapp_text.dart';
 
 /// WhatsApp and WhatsApp Business on the user's own phone: read new messages from notifications, quick-reply,
 /// send to anyone, read a chat, send a file, start a call, and let bots watch chats. No WhatsApp Web, no
-/// unofficial client, no Meta API: SubMac uses the phone the way the user would, with their permission.
+/// unofficial client, no Meta API: Telesia uses the phone the way the user would, with their permission.
 ///
 /// One tool ("whatsapp", with an action) keeps the toolbox lean. Sends, files and calls always pass the
 /// approval card in AppState (see [approvalFor]) unless the user trusted that bot for WhatsApp.
@@ -124,7 +124,7 @@ class WhatsAppTools {
       case 'call':
         return ActionRequest(
           title: '${a['video'] == true ? 'Video' : 'Voice'} call $to on $app?',
-          body: 'SubMac opens the chat and starts the call. You do the talking.',
+          body: 'Telesia opens the chat and starts the call. You do the talking.',
           detail: to,
           confirmLabel: 'Call',
         );
@@ -176,7 +176,7 @@ class WhatsAppTools {
       if (st['capture'] == false) 'Keeping messages is switched off by the user.',
       if (st['locked'] == true) 'The phone is locked right now: only quick replies from notifications work.',
       'Saved chats: ${st['chats'] ?? 0}.',
-      if (st['notifRead'] != true || st['phoneControl'] != true) 'The user can switch these on in SubMac > Apps > WhatsApp.',
+      if (st['notifRead'] != true || st['phoneControl'] != true) 'The user can switch these on in Telesia > Apps > WhatsApp.',
     ].join('\n');
   }
 
@@ -213,7 +213,7 @@ class WhatsAppTools {
       case 'not_installed':
         return 'Error: $d';
       case 'phone_control_off':
-        return 'Error: phone control is off, so SubMac cannot press Send$what. Ask the user to turn it on in SubMac > Apps > WhatsApp, or use a number (then WhatsApp opens with the text ready for them).';
+        return 'Error: phone control is off, so Telesia cannot press Send$what. Ask the user to turn it on in Telesia > Apps > WhatsApp, or use a number (then WhatsApp opens with the text ready for them).';
       case 'not_found':
         return 'Error$what: ${d.isEmpty ? 'that chat was not found' : d} Ask the user for the exact chat name or the number with country code.';
       default:
@@ -254,7 +254,7 @@ class WhatsAppTools {
     return _explain(r, ' to $to');
   }
 
-  /// [convId] is the chat the call came from (bots are found by it); [afterUi] brings SubMac back after WhatsApp
+  /// [convId] is the chat the call came from (bots are found by it); [afterUi] brings Telesia back after WhatsApp
   /// was opened on screen.
   static Future<String> execute(Map<String, dynamic> a, {String? convId, Future<void> Function()? afterUi}) async {
     await init();
@@ -269,7 +269,7 @@ class WhatsAppTools {
     if (pkg == WaText.business && st['business'] != true && st['personal'] == true && _s(a, 'app').isEmpty) pkg = WaText.personal;
     final to = _s(a, 'to');
     final msg = _s(a, 'message');
-    const needNotif = 'Error: notification access is off, so SubMac cannot see WhatsApp messages. Ask the user to switch it on in SubMac > Apps > WhatsApp.';
+    const needNotif = 'Error: notification access is off, so Telesia cannot see WhatsApp messages. Ask the user to switch it on in Telesia > Apps > WhatsApp.';
     switch (act) {
       case 'status':
         return statusText(st);
@@ -290,10 +290,10 @@ class WhatsAppTools {
             final s = await SystemBridge.I.waCall<String>('waInbox', {'pkg': '', 'query': to, 'unread': false, 'limit': 1, 'per': 30});
             final list = s == null ? <Map<String, dynamic>>[] : [for (final e in jsonDecode(s) as List) Map<String, dynamic>.from(e as Map)];
             if (list.isNotEmpty) {
-              return '${WaText.inboxText(list)}\n(Only messages that came in as notifications. Turn on phone control in SubMac > Apps > WhatsApp to read the whole chat.)';
+              return '${WaText.inboxText(list)}\n(Only messages that came in as notifications. Turn on phone control in Telesia > Apps > WhatsApp to read the whole chat.)';
             }
           }
-          return 'Error: phone control is off, so SubMac cannot open WhatsApp chats. Ask the user to turn it on in SubMac > Apps > WhatsApp.';
+          return 'Error: phone control is off, so Telesia cannot open WhatsApp chats. Ask the user to turn it on in Telesia > Apps > WhatsApp.';
         }
         if (to.isNotEmpty) {
           final o = await _open(to, pkg);
@@ -357,7 +357,7 @@ class WhatsAppTools {
         return _explain(rf, ' (${path.split('/').last} to $to)').replaceFirst('Sent on WhatsApp', 'Sent the file on WhatsApp');
       case 'call':
         if (to.isEmpty) return 'Error: call needs "to".';
-        if (st['phoneControl'] != true) return 'Error: phone control is off, so SubMac cannot start WhatsApp calls. Ask the user to turn it on in SubMac > Apps > WhatsApp.';
+        if (st['phoneControl'] != true) return 'Error: phone control is off, so Telesia cannot start WhatsApp calls. Ask the user to turn it on in Telesia > Apps > WhatsApp.';
         final o = await _open(to, pkg);
         if (o != null) return o;
         final rc = await _act('call', pkg, {'video': a['video'] == true});
@@ -416,7 +416,7 @@ class WhatsAppTools {
         final st = await status();
         return 'Watching $app${chat.isEmpty ? '' : ' chat "$chat"'}${kw.isEmpty ? '' : ' for "$kw"'} (${w.id}). '
             'You wake on each new matching message (at most every 2 minutes per chat). Draft replies go to the owner to approve.'
-            '${st['notifRead'] == true ? '' : ' Notification access is off: ask the owner to turn it on in SubMac > Apps > WhatsApp.'}';
+            '${st['notifRead'] == true ? '' : ' Notification access is off: ask the owner to turn it on in Telesia > Apps > WhatsApp.'}';
     }
   }
 }

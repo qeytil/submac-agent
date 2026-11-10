@@ -1,4 +1,4 @@
--- v2.4 public bot pages (submac.site/b/<code>). PROPOSED, not applied: anon may read one bot's card fields by code/id/name.
+-- v2.4 public bot pages (telesia.site/b/<code>). PROPOSED, not applied: anon may read one bot's card fields by code/id/name.
 -- bot_store itself stays closed to anon; this returns no instructions, knowledge text, persona or author_id.
 -- Agent project moeemacbvsueekuvfjbo. Card fields only: never instructions, knowledge text, persona or author_id.
 create or replace function public.bot_store_public(key text)

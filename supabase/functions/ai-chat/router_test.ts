@@ -65,7 +65,7 @@ function run(routes: Route[], snap: RouterSnap, byRoute: Record<string, Behaviou
     attemptFailed: () => {},
   };
   const p = runChat({
-    routes, snap, chat: "user1:chat1", stream: true, alias: "submac",
+    routes, snap, chat: "user1:chat1", stream: true, alias: "telesia",
     payloadFor: (r) => ({ model: r.model, messages: [] }), ensureKeys: () => Promise.resolve(),
     t0: Date.now(), budget: FAST, headers: {}, deps, onDone: (d) => probe.done.push(d), ...opts,
   });
@@ -174,7 +174,7 @@ test("hard stop: nothing answers -> ping, then a busy error event before the 25 
   const text = await readAll(res, 3000);
   const took = Date.now() - t;
   assert(text.startsWith(": ping"), "ping first");
-  assertMatch(text, /event: error\ndata: \{"error":\{"code":"busy","message":"SubMac is busy right now\. Please try again in a moment\.","retry_after":(1[5-9]|2\d|30)\}\}/);
+  assertMatch(text, /event: error\ndata: \{"error":\{"code":"busy","message":"Telesia is busy right now\. Please try again in a moment\.","retry_after":(1[5-9]|2\d|30)\}\}/);
   assert(took >= 480 && took < 800, `ended at the hard stop (${took} ms)`);
   assert(aborted >= 3, "in-flight attempts aborted");
   assertEquals(probe.done.length, 0, "no usage/charge when nothing was delivered");
@@ -260,7 +260,7 @@ test("non-streamed: busy JSON with Retry-After 15–30 s; success rewrites the m
   const good = run([A], snap("A"), { A: () => Promise.resolve(Response.json({ model: "model-A", choices: [{ message: { content: "yo" } }], usage: { prompt_tokens: 1, completion_tokens: 1 } })) }, { stream: false });
   const r2 = await good.p;
   const j2 = await r2.json();
-  assertEquals(j2.model, "submac");
+  assertEquals(j2.model, "telesia");
   assertEquals(good.probe.done[0].status, 200);
 });
 
@@ -367,7 +367,7 @@ test("CB-15 swap-back: rest expired + 15 min on the fallback -> the preferred ro
     report: () => {}, markKey: () => {}, attemptFailed: () => {},
     home: (h, from, okv, kind) => { homes.push([h, from, okv, kind]); if (okv && from === pointer) pointer = h; },
   };
-  const res = await runChat({ routes: [H, F], snap: s(), chat: "u:c", stream: true, alias: "submac", homeId: "H", homeAfterMs: 15 * 60_000,
+  const res = await runChat({ routes: [H, F], snap: s(), chat: "u:c", stream: true, alias: "telesia", homeId: "H", homeAfterMs: 15 * 60_000,
     payloadFor: (r) => ({ model: r.model }), ensureKeys: () => Promise.resolve(), t0: Date.now(), budget: FAST, headers: {}, deps, onDone: () => {} });
   const text = await readAll(res);
   assertMatch(text, /home/);
@@ -377,7 +377,7 @@ test("CB-15 swap-back: rest expired + 15 min on the fallback -> the preferred ro
   assertEquals(pointer, "H", "pointer moved home");
   // Next request: H is current, no probe and no further home call.
   const fetched2: string[] = []; const homes2: unknown[] = [];
-  const res2 = await runChat({ routes: [H, F], snap: s(), chat: "u:c", stream: true, alias: "submac", homeId: "H", homeAfterMs: 15 * 60_000,
+  const res2 = await runChat({ routes: [H, F], snap: s(), chat: "u:c", stream: true, alias: "telesia", homeId: "H", homeAfterMs: 15 * 60_000,
     payloadFor: (r) => ({ model: r.model }), ensureKeys: () => Promise.resolve(), t0: Date.now(), budget: FAST, headers: {},
     deps: { ...deps, fetch: mockFetch({ H: ok("home"), F: ok("fallback") }, fetched2), home: (...a) => homes2.push(a) }, onDone: () => {} });
   await readAll(res2);
@@ -402,7 +402,7 @@ test("CB-15 swap-back: no probe while the preferred route rests or before 15 min
     fetch: mockFetch({ H: status(503), F: ok("fallback") }, fetched), now: () => Date.now(),
     report: (...a) => reports.push(a), markKey: () => {}, attemptFailed: () => {}, home: (...a) => homes.push(a),
   };
-  const res = await runChat({ routes: [H, F], snap: { current_route_id: "F", since: old, rest: {} }, chat: "u:c", stream: true, alias: "submac",
+  const res = await runChat({ routes: [H, F], snap: { current_route_id: "F", since: old, rest: {} }, chat: "u:c", stream: true, alias: "telesia",
     homeId: "H", homeAfterMs: 15 * 60_000, payloadFor: (r) => ({ model: r.model }), ensureKeys: () => Promise.resolve(), t0: Date.now(),
     budget: FAST, headers: {}, deps, onDone: () => {} });
   assertMatch(await readAll(res), /fallback/);

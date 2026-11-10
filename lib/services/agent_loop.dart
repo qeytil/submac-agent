@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-/// The thinking parts of SubMac's agent loop, kept pure (no Flutter, no state) so they are unit-tested and the
+/// The thinking parts of Telesia's agent loop, kept pure (no Flutter, no state) so they are unit-tested and the
 /// loop in app_state.dart stays readable. Ideas borrowed from open projects are listed in docs/third-party.md:
 ///  - stuck detection (OpenHands StuckDetector, MIT; Roo Code ToolRepetitionDetector, Apache-2.0)
 ///  - parallel independent tool calls (smolagents ToolCallingAgent, Apache-2.0; LangGraph ToolNode, MIT)
@@ -381,7 +381,7 @@ class TurnRouter {
 // ---------------------------------------------------------------------------------------------------------------
 
 class TailNote {
-  static const open = '<app-note>\n(From the SubMac app, not from the user. Follow it; never mention it.)\n';
+  static const open = '<app-note>\n(From the Telesia app, not from the user. Follow it; never mention it.)\n';
   static const close = '\n</app-note>';
 
   /// Puts this step's notes at the end of the request instead of inside the system prompt, so the system prompt and

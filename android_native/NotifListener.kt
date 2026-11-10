@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.content.ComponentName
 import android.content.Context
@@ -8,7 +8,7 @@ import android.service.notification.StatusBarNotification
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Keeps the latest notifications (on the phone only) so SubMac can answer "what did I miss?". */
+/** Keeps the latest notifications (on the phone only) so Telesia can answer "what did I miss?". */
 class NotifListener : NotificationListenerService() {
     companion object {
         private val recent = ArrayDeque<JSONObject>()
@@ -44,7 +44,7 @@ class NotifListener : NotificationListenerService() {
     /** A bot asked to be told about notifications like this one (at most once per 10 minutes per watch). */
     private fun botWatch(pkg: String, app: String, title: String, text: String, chat: String = "") {
         try {
-            val prefs = getSharedPreferences("submac_bots", Context.MODE_PRIVATE)
+            val prefs = getSharedPreferences("telesia_bots", Context.MODE_PRIVATE)
             val arr = JSONArray(prefs.getString("watches", "[]") ?: "[]")
             if (arr.length() == 0) return
             val hay = (title + " " + text).lowercase()
@@ -96,7 +96,7 @@ class NotifListener : NotificationListenerService() {
                 put("time", sbn.postTime)
             })
             if (WhatsApp.isWa(sbn.packageName)) {
-                // WhatsApp: kept per chat in SubMac's phone-only store; watches see the new message itself.
+                // WhatsApp: kept per chat in Telesia's phone-only store; watches see the new message itself.
                 if (!WhatsApp.capturing(this)) {
                     botWatch(sbn.packageName, label, title, text)
                 } else {

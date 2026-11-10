@@ -35,7 +35,7 @@ class CloudUsage {
   String get line {
     switch (state) {
       case 'limit':
-        return message.isNotEmpty ? message : 'You\'ve done a lot today! SubMac is resting until tomorrow.';
+        return message.isNotEmpty ? message : 'You\'ve done a lot today! Telesia is resting until tomorrow.';
       case 'light':
         return 'Busy day! Replies are a little shorter until tomorrow.';
       case 'notice':
@@ -100,8 +100,8 @@ class CallMinutes {
 
   /// The friendly line when there are no minutes left.
   String get usedUpMessage => !enabled
-      ? 'Calls are switched off for your account. You can still type to SubMac.'
-      : 'Today\'s call minutes are used up. They come back $resetText. You can still type to SubMac.';
+      ? 'Calls are switched off for your account. You can still type to Telesia.'
+      : 'Today\'s call minutes are used up. They come back $resetText. You can still type to Telesia.';
 
   static DateTime _nextUtcMidnight() {
     final n = DateTime.now().toUtc();
@@ -157,29 +157,29 @@ class CloudException implements Exception {
   String toString() => message;
 }
 
-/// SubMac Cloud: every model call goes through SubMac's own server. Users never set up models or keys;
+/// Telesia Cloud: every model call goes through Telesia's own server. Users never set up models or keys;
 /// the server picks the model, switches when one is busy, and keeps a fair daily allowance.
 class Cloud {
-  static const providerId = 'submac';
+  static const providerId = 'telesia';
 
   /// The one name the app asks for. The server maps it to the health-gated chain and swaps
   /// only when a model fails. Every user gets the same model: coins and passes buy allowance,
   /// never a different model.
-  static const submac = 'submac';
+  static const telesia = 'telesia';
 
   /// Making a picture is a different capability, not a different tier. The app asks for it only
   /// when the user asks for a picture, and it is not something the user ever picks.
-  static const imageModel = 'submac-image';
+  static const imageModel = 'telesia-image';
 
   static String get _base => '${AppConfig.supabaseUrl}/functions/v1/ai-chat';
 
   /// The one provider the app talks to. Its "key" is the signed-in user's session, added per request.
   static final ProviderConfig provider = ProviderConfig(
     id: providerId,
-    name: 'SubMac',
+    name: 'Telesia',
     baseUrl: _base,
-    defaultModel: submac,
-    models: [submac, imageModel],
+    defaultModel: telesia,
+    models: [telesia, imageModel],
   );
 
   static bool isCloud(ProviderConfig p) => p.id == providerId;
@@ -194,7 +194,7 @@ class Cloud {
       background.value = BackgroundShare(ratio: 1, paused: true, day: BackgroundShare.today());
 
   /// The bots' share from a reply. The engine makes the model calls and consumes its replies, so the native proxy
-  /// reads `x-submac-bg` for the app (bug audit 2026-11-07); Dart-side calls come through [readHeaders].
+  /// reads `x-telesia-bg` for the app (bug audit 2026-11-07); Dart-side calls come through [readHeaders].
   static void noteBackgroundShare(String raw) {
     final bg = double.tryParse(raw);
     if (bg == null) return;
@@ -238,9 +238,9 @@ class Cloud {
         if (json) 'Content-Type': 'application/json',
         'Authorization': 'Bearer ${await token()}',
         'apikey': AppConfig.supabaseAnonKey,
-        'x-submac-source': source,
+        'x-telesia-source': source,
         'x-region': AppConfig.edgeRegion,
-        if (background) 'x-submac-lane': 'background',
+        if (background) 'x-telesia-lane': 'background',
       };
 
   static bool _regionLogged = false;
@@ -258,14 +258,14 @@ class Cloud {
   /// The server reports today's allowance on every reply. [filtered]: the request carried pictures or tools (CB-23).
   static void readHeaders(Map<String, String> h, {bool filtered = false}) {
     _noteRegion(h);
-    // How much SubMac can read at once (the smallest healthy route's window, PLAN 1.6): compaction follows it.
-    ContextWindow.note(h['x-submac-window'], filtered: filtered);
+    // How much Telesia can read at once (the smallest healthy route's window, PLAN 1.6): compaction follows it.
+    ContextWindow.note(h['x-telesia-window'], filtered: filtered);
     // Billing (when on): weighted tokens left. Absent with billing off, so nothing changes then.
     Billing.I.noteHeaders(h);
-    final bg = h['x-submac-bg'];
+    final bg = h['x-telesia-bg'];
     if (bg != null) noteBackgroundShare(bg);
-    final r = double.tryParse(h['x-submac-usage'] ?? '');
-    final st = h['x-submac-state'];
+    final r = double.tryParse(h['x-telesia-usage'] ?? '');
+    final st = h['x-telesia-state'];
     if (r == null && st == null) return;
     final cur = usage.value;
     usage.value = CloudUsage(ratio: r ?? cur.ratio, state: st ?? cur.state, message: cur.message, checkedAt: DateTime.now());
@@ -308,9 +308,9 @@ class Cloud {
       msg = status == 401
           ? 'Please sign in again.'
           : status == 429
-              ? 'SubMac is very busy right now. Please try again in a moment.'
+              ? 'Telesia is very busy right now. Please try again in a moment.'
               : status >= 500 || status == 0
-                  ? 'SubMac couldn\'t get an answer just now. Please try again in a moment.'
+                  ? 'Telesia couldn\'t get an answer just now. Please try again in a moment.'
                   : 'Something went wrong. Please try again.';
     }
     return CloudException(msg, status: status, code: code);

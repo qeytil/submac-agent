@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'cloud.dart';
 
-/// Turns a recording into text through SubMac Cloud (Somali, Arabic, English and more).
+/// Turns a recording into text through Telesia Cloud (Somali, Arabic, English and more).
 class MeetingNotes {
   /// Recordings up to about 18 MB (roughly 30 to 40 minutes) go in one piece.
   static const maxBytes = 18 * 1024 * 1024;

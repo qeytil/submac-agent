@@ -66,8 +66,8 @@ extension AppStateBots on AppState {
     } catch (_) {}
   }
 
-  /// Posts SubMac team messages that were sent "in chat" into one "SubMac team" chat, once each. An edit by the team
-  /// replaces the message (same id), a delete removes it. Rendered as a team card (name 'submac_team').
+  /// Posts Telesia team messages that were sent "in chat" into one "Telesia team" chat, once each. An edit by the team
+  /// replaces the message (same id), a delete removes it. Rendered as a team card (name 'telesia_team').
   Future<void> _mirrorTeamMessages(List<InboxItem> all) async {
     if (_mirroring) return;
     _mirroring = true;
@@ -96,7 +96,7 @@ extension AppStateBots on AppState {
         final conv = await _teamConv();
         if (conv == null) break;
         final list = _lists[conv] ??= await repo.listMessages(conv).catchError((_) => <ChatMessage>[]);
-        final m = ChatMessage(id: it.id, role: 'assistant', name: 'submac_team', content: '**${it.title}**\n\n${it.body}'.trim());
+        final m = ChatMessage(id: it.id, role: 'assistant', name: 'telesia_team', content: '**${it.title}**\n\n${it.body}'.trim());
         final i = list.indexWhere((x) => x.id == it.id);
         if (i >= 0) {
           list[i] = m;
@@ -118,12 +118,12 @@ extension AppStateBots on AppState {
     }
   }
 
-  /// The "SubMac team" chat (made on first use; made again if the user deleted it).
+  /// The "Telesia team" chat (made on first use; made again if the user deleted it).
   Future<String?> _teamConv() async {
     final id = local.prefs.getString(AppState._teamConvKey);
     if (id != null && conversations.any((c) => c.id == id)) return id;
     try {
-      final c = await repo.createConversation(title: 'SubMac team');
+      final c = await repo.createConversation(title: 'Telesia team');
       conversations.insert(0, c);
       _lists[c.id] = <ChatMessage>[];
       await local.prefs.setString(AppState._teamConvKey, c.id);
@@ -217,19 +217,19 @@ extension AppStateBots on AppState {
 
   /// Wakes a bot to work on its own. It decides at the end whether to stay silent, keep a note, message or call.
   Future<void> _botWake(Bot b, String reason, String instruction, String kind) async {
-    // BYOK only: with no model of the owner's own there is nothing to run on (SubMac's own model is going away).
+    // BYOK only: with no model of the owner's own there is nothing to run on (Telesia's own model is going away).
     if (ByokStore.I.loaded && !ByokStore.I.hasChoices) {
       b.log('note', 'I need a model before I can work. Connect one in Settings > Models.');
       await Bots.I.save();
       return;
     }
-    // CB-46: an alarm can start SubMac before it is ready (no account restored yet). The wake waits a little, and is
-    // otherwise kept and run once SubMac is ready, never dropped without a word.
+    // CB-46: an alarm can start Telesia before it is ready (no account restored yet). The wake waits a little, and is
+    // otherwise kept and run once Telesia is ready, never dropped without a word.
     final key = Bots.I.wakeKey(b) ?? '${b.id}|$reason|$instruction';
     if (!await _awaitWakeReady()) {
       // A mission retries by itself (Missions.wake): its wake is never held with a stale plan in it.
       if (kind != 'chat' && kind != 'mission' && await Bots.I.holdWake(b, key, reason, instruction, kind)) {
-        b.log('note', 'Woken for $reason before SubMac was ready. I will do it as soon as SubMac is ready.');
+        b.log('note', 'Woken for $reason before Telesia was ready. I will do it as soon as Telesia is ready.');
         await Bots.I.save();
       }
       return;
@@ -244,8 +244,8 @@ extension AppStateBots on AppState {
       return;
     }
     // Its own daily token budget is used up: background work waits for tomorrow (chats with the owner still answer).
-    // The budget is its share of SubMac's allowance, so it only stops SubMac-billed work: a bot on its own (BYOK) key
-    // is not billed by SubMac, and its allowance never fights that (owner 2026-11-08).
+    // The budget is its share of Telesia's allowance, so it only stops Telesia-billed work: a bot on its own (BYOK) key
+    // is not billed by Telesia, and its allowance never fights that (owner 2026-11-08).
     if (b.overBudget && kind != 'chat' && BotModelRoute.of(b).byok == null) {
       if (!b.journal.any((e) => e.kind == 'budget' && DateTime.now().difference(e.at).inHours < 20)) {
         b.log('budget', 'Skipped work: today\'s token budget is used up');
@@ -267,7 +267,7 @@ extension AppStateBots on AppState {
       return;
     }
     // Owner 2026-11-07: a bot is governed by the allowance in its own profile ([b.overBudget], checked above), never
-    // by a hardcoded account-wide guard. SubMac's server still refuses a SubMac call when the whole account is out.
+    // by a hardcoded account-wide guard. Telesia's server still refuses a Telesia call when the whole account is out.
     if (!await _ensureBotConv(b)) {
       rt.phase = BotPhase.idle;
       return;
@@ -316,7 +316,7 @@ extension AppStateBots on AppState {
       return;
     }
     _botWakeConvs[b.convId] = kind;
-    // With SubMac closed the foreground service (and its wake lock) carries the work; its line names the bot and the
+    // With Telesia closed the foreground service (and its wake lock) carries the work; its line names the bot and the
     // task: "<Bot name> · <task title>" (2026-11-05).
     if (kind != 'chat' && !appVisible) {
       final title = kind == 'mission' ? 'Mission: ${Missions.I.liveOf('bot', b.id)?.goal ?? ''}' : (Bots.isHeartbeat(asked) ? '' : asked);
@@ -359,7 +359,7 @@ extension AppStateBots on AppState {
     return _wakeReady;
   }
 
-  /// CB-46: runs the wakes that came before SubMac was ready, once each (at the start, and after signing in).
+  /// CB-46: runs the wakes that came before Telesia was ready, once each (at the start, and after signing in).
   Future<void> _runHeldWakes() async {
     if (!_wakeReady) return;
     for (final w in await Bots.I.takeHeldWakes()) {
@@ -417,7 +417,7 @@ extension AppStateBots on AppState {
   /// an error) the bot wakes as before.
   Future<bool> _worthWaking(Bot b) async {
     // On the bot's own model (owner 2026-11-06): a bot on one of the owner's providers is never stopped here by
-    // SubMac's allowance, and its check is not billed to it either.
+    // Telesia's allowance, and its check is not billed to it either.
     final route = BotModelRoute.of(b);
     String cut(String t, int n) => t.length > n ? '${t.substring(0, n)}…' : t;
     final open = b.desk.where((t) => t.status != 'done').take(12).map((t) => '- (${t.status}) ${cut(t.text, 160)}').join('\n');
@@ -435,7 +435,7 @@ extension AppStateBots on AppState {
     try {
       final t = await BotLlm.complete(b, [
         {'role': 'user', 'content': prompt},
-      ], maxTokens: 60, source: 'bot', background: true, route: route, provider: submacRef.provider);
+      ], maxTokens: 60, source: 'bot', background: true, route: route, provider: telesiaRef.provider);
       final a = t.trim();
       if (a.isEmpty) return true;
       return !RegExp(r'^\W*no\b', caseSensitive: false).hasMatch(a);
@@ -681,19 +681,19 @@ extension AppStateBots on AppState {
 
   /// One plain answer for a team (who speaks, the plan, the combined answer): one model call on the bots' lane,
   /// counted toward the bot's own budget (estimated from the text, about 4 characters a token).
-  /// On that bot's own model (owner 2026-11-06: the lead's plan and the "who speaks" call used to go to SubMac's model
+  /// On that bot's own model (owner 2026-11-06: the lead's plan and the "who speaks" call used to go to Telesia's model
   /// whatever the lead's profile said).
   Future<String> _teamAsk(Bot b, String system, String user, {int maxTokens = OutputLimits.answer}) async {
     final route = BotModelRoute.of(b);
     if (!route.isByok) {
-      await RateLimiter.acquire(submacRef.provider, (system.length + user.length) ~/ 4 + maxTokens, local, onWait: (_) {}, cancelled: () => false);
+      await RateLimiter.acquire(telesiaRef.provider, (system.length + user.length) ~/ 4 + maxTokens, local, onWait: (_) {}, cancelled: () => false);
     }
     // No chat id: a team's decision is no part of the bot's private chat (bots team audit 2026-11-04).
     final t = await BotLlm.complete(b, [
       {'role': 'system', 'content': system},
       {'role': 'user', 'content': user},
-    ], maxTokens: maxTokens, continues: ReplyContinuation.maxContinues, source: 'office', background: true, route: route, provider: submacRef.provider);
-    // Its SubMac allowance counts the SubMac lane only; on its own key this is the owner's spend, not SubMac's.
+    ], maxTokens: maxTokens, continues: ReplyContinuation.maxContinues, source: 'office', background: true, route: route, provider: telesiaRef.provider);
+    // Its Telesia allowance counts the Telesia lane only; on its own key this is the owner's spend, not Telesia's.
     if (!route.isByok) {
       b.addTokens((system.length + user.length + t.length) ~/ 4);
       unawaited(Bots.I.save());
@@ -706,12 +706,12 @@ extension AppStateBots on AppState {
   Future<String> _botConsult(Bot asker, Bot expert, String question) async {
     final route = BotModelRoute.of(expert);
     try {
-      if (!route.isByok) await RateLimiter.acquire(submacRef.provider, 1500, local, onWait: (_) {}, cancelled: () => false);
+      if (!route.isByok) await RateLimiter.acquire(telesiaRef.provider, 1500, local, onWait: (_) {}, cancelled: () => false);
       // An expert view is a full answer: the model's own maximum, continued when it is cut (was 1,200, owner 2026-11-06).
       final t = await BotLlm.complete(expert, [
         {'role': 'system', 'content': '${Bots.I.chatPromptOf(expert)}\n\nYour colleague ${asker.name} (${asker.role}) asks for your expert view. Answer concisely and concretely.'},
         {'role': 'user', 'content': question},
-      ], maxTokens: OutputLimits.answer, continues: ReplyContinuation.maxContinues, source: 'bot', background: _backgroundLane(asker.convId), route: route, provider: submacRef.provider);
+      ], maxTokens: OutputLimits.answer, continues: ReplyContinuation.maxContinues, source: 'bot', background: _backgroundLane(asker.convId), route: route, provider: telesiaRef.provider);
       expert.log('work', 'Helped ${asker.name}: ${question.length > 80 ? '${question.substring(0, 80)}…' : question}');
       unawaited(Bots.I.save());
       return t.trim();
@@ -1077,10 +1077,10 @@ extension AppStateBots on AppState {
     // On the bot's own model (owner 2026-11-06), like the rest of its team work.
     final route = BotModelRoute.of(b);
     try {
-      if (!route.isByok) await RateLimiter.acquire(submacRef.provider, 600, local, onWait: (_) {}, cancelled: () => false);
+      if (!route.isByok) await RateLimiter.acquire(telesiaRef.provider, 600, local, onWait: (_) {}, cancelled: () => false);
       final recent = o.posts.reversed.take(6).toList().reversed.map((x) =>
           '${x.from == 'you' ? 'Owner' : (Bots.I.byId(x.from)?.name ?? 'System')}: ${x.text.length > 200 ? '${x.text.substring(0, 200)}…' : x.text}');
-      final t = await BotLlm.complete(b, source: 'office', maxTokens: 400, route: route, provider: submacRef.provider, [
+      final t = await BotLlm.complete(b, source: 'office', maxTokens: 400, route: route, provider: telesiaRef.provider, [
         {
           'role': 'system',
           'content': '${Bots.I.quickPromptOf(b)}\nYou are in the "${o.name}" team chat with the owner and your teammates'
@@ -1116,7 +1116,7 @@ extension AppStateBots on AppState {
     final same = Offices.I.pending.where((x) => x.group == a.group).length + 1;
     final title = same > 1 ? '$same ${ApprovalGroups.noun(a.group, same)}' : req.title;
     await SystemBridge.I.notifyApproval(id: note, approvalId: a.id, name: o == null ? b.name : '${b.name} · ${o.name}', title: title, body: a.body);
-    // A run nobody is watching (a scheduled task, SubMac closed) waits a few minutes, not three hours: then it moves
+    // A run nobody is watching (a scheduled task, Telesia closed) waits a few minutes, not three hours: then it moves
     // on, and one notification says what still needs the owner's OK (2026-11-05).
     final unattended = unattendedRun(convId);
     final ok = await Offices.I.ask(a, wait: unattended ? BgRun.approvalWait : const Duration(hours: 3));
@@ -1184,7 +1184,7 @@ extension AppStateBots on AppState {
     _notifyConvs.add(convId);
     _notifReplyConvs.add(convId);
     final bot = Bots.I.byConv(convId);
-    await SystemBridge.I.keepAlive(true, text: NotifText.running(bot?.name ?? 'SubMac', 'Your reply'));
+    await SystemBridge.I.keepAlive(true, text: NotifText.running(bot?.name ?? 'Telesia', 'Your reply'));
     _notify();
     unawaited(_runAgent(convId));
   }
@@ -1317,7 +1317,7 @@ extension AppStateBots on AppState {
 
   /// Make a new bot from a plain description.
   Future<Bot?> createBotFromText(String desc) async {
-    final route = submacRef;
+    final route = telesiaRef;
     try {
       await RateLimiter.acquire(route.provider, 1500, local, onWait: (_) {}, cancelled: () => false);
       final raw = await LlmClient().complete(source: 'agent', maxTokens: OutputLimits.structured, provider: route.provider, model: route.model, messages: [

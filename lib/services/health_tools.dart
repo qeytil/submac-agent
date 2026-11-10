@@ -5,7 +5,7 @@ import 'biz_pdf.dart';
 import 'doc_maker.dart';
 import 'tools.dart';
 
-/// SubMac's health toolkit for the Health bot (Caafimaad) and for health questions in the main chat.
+/// Telesia's health toolkit for the Health bot (Caafimaad) and for health questions in the main chat.
 /// It keeps a private family health book on the phone (Health/health.json in the workspace): people, medicines and
 /// doses taken, readings (blood pressure, sugar, temperature, weight...), pregnancy, child vaccines and clinic visits.
 /// It also runs a fixed danger-sign check (rules, not the model's guess) and safe health maths, and makes a summary
@@ -1331,7 +1331,7 @@ class HealthTools {
         ReportPart.table('', ['When', 'Note'], [for (final e in symptoms.reversed.take(20)) [e['at'], e['text']]]),
       ],
       if (visitRows.isNotEmpty) ...[ReportPart.heading('Visits'), ReportPart.table('', ['Date', 'Place', 'Reason', 'Found', 'Tests', 'Advice'], visitRows)],
-      ReportPart.text('Made with SubMac from what the family recorded. It is not a medical record or a diagnosis; the doctor\'s own notes come first.'),
+      ReportPart.text('Made with Telesia from what the family recorded. It is not a medical record or a diagnosis; the doctor\'s own notes come first.'),
     ];
     final bytes = await BizPdf.report('Health summary: ${p['name']}', 'Prepared ${_day(_today())}', parts);
     return _saved(await _out('Health summary ${p['name']}', 'pdf', bytes));

@@ -5,20 +5,20 @@ part of '../app_state.dart';
 extension AppStateTools on AppState {
   void _wireBrowserJobs() {
     final j = BrowserJobs.I;
-    // A bot's browser task thinks on the bot's own model (owner 2026-11-07, BotBrowserModel); SubMac's on SubMac's.
+    // A bot's browser task thinks on the bot's own model (owner 2026-11-07, BotBrowserModel); Telesia's on Telesia's.
     j.botOf = (convId) => Bots.I.byConv(convId)?.id ?? '';
-    // With no screen (started by an alarm, or SubMac in the background) the browser opens off-screen web views, and
+    // With no screen (started by an alarm, or Telesia in the background) the browser opens off-screen web views, and
     // falls back to read-only page reads when those cannot start (owner 2026-11-07, docs/bot-autonomy.md).
     BrowserAgent.noScreen = () => headless || !appVisible;
     j.llm = (job, payload, tools) async {
-      final pick = BotBrowserModel.of(job.botId.isEmpty ? null : Bots.I.byId(job.botId), submacRef);
+      final pick = BotBrowserModel.of(job.botId.isEmpty ? null : Bots.I.byId(job.botId), telesiaRef);
       final own = pick.byok;
       if (own != null) {
         final msgs = pick.sees ? payload : BotBrowserModel.withoutImages(payload);
-        // On the owner's own key: not billed by SubMac, so it does not count toward the bot's SubMac allowance.
+        // On the owner's own key: not billed by Telesia, so it does not count toward the bot's Telesia allowance.
         return await BotBrowserModel.byokStep(own, msgs, tools);
       }
-      final route = pick.submac ?? submacRef;
+      final route = pick.telesia ?? telesiaRef;
       final run = _jobRuns[job.id] ??= AgentRun(convId: job.convId, side: true, title: 'Browser');
       run.cancelled = job.cancelled;
       job.steerHook = () => run.client?.cancelForSteer();
@@ -49,7 +49,7 @@ extension AppStateTools on AppState {
       _browserConv = job.convId;
       return runToolWithApproval(name, args, callId: callId, convId: job.convId);
     };
-    // Every route behind `submac` can see pictures (PLAN 1.1), so screenshots always go along.
+    // Every route behind `telesia` can see pictures (PLAN 1.1), so screenshots always go along.
     j.canSee = () => canSee;
     j.say = (convId, text) => unawaited(_sayIn(convId, text));
     BrowserAgent.I.approveDialog = (message, host, job) async {
@@ -202,19 +202,19 @@ extension AppStateTools on AppState {
     }
     // Owner 2026-11-08: bots and team members are people, not an approval workflow. No gate, no card, no "say start":
     // they decide and act, and their brief says to ask the owner in words first for money, sending as them, deleting or
-    // a big account change. SubMac's own chat keeps its card for the actions it takes for the owner.
+    // a big account change. Telesia's own chat keeps its card for the actions it takes for the owner.
     if (worker != null) return ToolGate.none();
-    // SubMac's own chat (the owner's, or a scheduled run of theirs): it follows Settings > Trust level ("full" =
+    // Telesia's own chat (the owner's, or a scheduled run of theirs): it follows Settings > Trust level ("full" =
     // Trusted): a card first for the action the owner asked it to take.
     final risk = await _riskFor(name, args);
     if (risk == null) return ToolGate.none();
     var kind = BotTrust.kindOf(name, '${risk.title} ${risk.detail}', destructive: risk.destructive);
     // A press on a payment page is money, whatever its button says ("Continue"): money always asks.
     if (BrowserAgent.names.contains(name) && BrowserAgent.I.snapFor(BrowserAgent.jobNow).moneyPage) kind = 'money';
-    // SubMac's own settings that change how it works always ask (Full access, a trusted team or bot included).
+    // Telesia's own settings that change how it works always ask (Full access, a trusted team or bot included).
     if (name == 'app_settings') kind = FullAccess.alwaysAskKind;
     final level = fullAccess ? BotTrust.levelTrusted : BotTrust.levelNew;
-    // Full access (Settings) acts without asking; money always asks. Small changes in SubMac's own space never ask.
+    // Full access (Settings) acts without asking; money always asks. Small changes in Telesia's own space never ask.
     final ask = FullAccess.shouldAsk(level: level, kind: kind, tool: name, fullAccess: FullAccess.I.on) &&
         (office?.trust != 'trusted' || kind == 'money' || kind == FullAccess.alwaysAskKind);
     final field = kind == 'send' ? AppState._editField(name, args) : null;
@@ -232,7 +232,7 @@ extension AppStateTools on AppState {
   }
 
   /// Shows the approval for [g] where the user can answer it: a bot working in the background asks from a notification;
-  /// outside SubMac the floating bubble asks; the browser card asks inline; otherwise the in-app sheet. True = approved.
+  /// outside Telesia the floating bubble asks; the browser card asks inline; otherwise the in-app sheet. True = approved.
   Future<bool> presentApproval(ToolGate g, String name, Map<String, dynamic> args, String? convId) async {
     final req = g.ask;
     if (req == null) return true;
@@ -245,7 +245,7 @@ extension AppStateTools on AppState {
       return ok;
     }
     if (confirmCallback == null) {
-      // No screen at all (SubMac started by an alarm for its own scheduled task): nobody can answer, so it is refused
+      // No screen at all (Telesia started by an alarm for its own scheduled task): nobody can answer, so it is refused
       // at once and one notification says what still needs the owner's OK (same rule as a bot's run, bg_runs.dart).
       if (convId != null && unattendedRun(convId)) {
         g.refusal = OutboundGuard.noAnswer(readOnly: _readOnlyTask(name, convId));
@@ -265,8 +265,8 @@ extension AppStateTools on AppState {
       req.allowAlways = r.always;
       if (!ok && DateTime.now().difference(asked) >= limit) req.timedOut = true;
     } else {
-      // Outside SubMac while this chat drives the screen: ask in the floating bubble. Otherwise the question needs
-      // the screen: bring SubMac up if it's in the background (floating Live), with a notification that opens it.
+      // Outside Telesia while this chat drives the screen: ask in the floating bubble. Otherwise the question needs
+      // the screen: bring Telesia up if it's in the background (floating Live), with a notification that opens it.
       Future<bool> show() async => await TaskBubble.I.confirm(req, convId) ?? await _confirmInApp(req, convId);
       ok = await show().timeout(limit, onTimeout: () {
         req.timedOut = true;
@@ -336,12 +336,12 @@ extension AppStateTools on AppState {
       // The card lives under the messages of the chat it belongs to, so it never needs a "from" line.
       req.convId ??= convId;
       req.where = '';
-      // CB-42: SubMac is in the background (another app is in front, e.g. one a task opened): a high-priority
-      // notification says an OK is waiting and opens SubMac on the sheet, so the ask is never hidden.
+      // CB-42: Telesia is in the background (another app is in front, e.g. one a task opened): a high-priority
+      // notification says an OK is waiting and opens Telesia on the sheet, so the ask is never hidden.
       int? note;
       if (!appVisible) {
         note = 9600 + ((convId ?? 'none').hashCode % 90).abs();
-        await OutboundGuard.notify(id: note, title: 'SubMac needs your OK', body: req.title, payload: convId == null ? '' : 'conv/$convId');
+        await OutboundGuard.notify(id: note, title: 'Telesia needs your OK', body: req.title, payload: convId == null ? '' : 'conv/$convId');
         await SystemBridge.I.bringToFront();
       }
       HapticFeedback.lightImpact(); // SubHaptics.attention (part file)
@@ -423,7 +423,7 @@ extension AppStateTools on AppState {
           'not the web page. For the page, steer it with browser_task_reply. Only if the user asked you to use another app on '
           'their phone: repeat this call with "outside_browser": true.';
     }
-    // A bot's own schedule: the bot wakes for it and does the work itself (not a separate SubMac chat).
+    // A bot's own schedule: the bot wakes for it and does the work itself (not a separate Telesia chat).
     if (name == 'schedule_task' && Bots.I.byConv(convId) != null) {
       return Scheduler.I.add('${args['task'] ?? ''}', '${args['when'] ?? ''}', '${args['repeat'] ?? 'none'}',
           watch: args['watch'] == true, bot: Bots.I.byConv(convId)!.id, inMinutes: int.tryParse('${args['in_minutes'] ?? ''}'));
@@ -444,7 +444,7 @@ extension AppStateTools on AppState {
     if (Bots.names.contains(name)) return Bots.I.execute(name, args, convId);
     if (SkillLibrary.names.contains(name)) {
       final who = Bots.I.byConv(convId);
-      return SkillLibrary.I.execute(name, args, who?.id ?? SkillLibrary.agent, who: who?.name ?? 'SubMac');
+      return SkillLibrary.I.execute(name, args, who?.id ?? SkillLibrary.agent, who: who?.name ?? 'Telesia');
     }
     if (Offices.names.contains(name)) {
       final o = _officeCtx[convId] == null ? null : Offices.I.byId(_officeCtx[convId]!);
@@ -567,7 +567,7 @@ extension AppStateTools on AppState {
     final prompt = '${args['prompt'] ?? ''}'.trim();
     if (prompt.isEmpty) return 'Error: give a prompt that describes the picture.';
     if (!Cloud.features.value.image) {
-      // No picture model on SubMac's server: the user's own image provider makes it (owner 2026-11-04, "no server
+      // No picture model on Telesia's server: the user's own image provider makes it (owner 2026-11-04, "no server
       // image model needed"), so "draw X" works with their key.
       if (MediaProviderStore.I.has(MediaKind.image)) {
         return MediaGen.I.generateImageCompat(args,
@@ -692,7 +692,7 @@ extension AppStateTools on AppState {
     await Sites.I.init();
     final action = '${a['action'] ?? 'list'}';
     if (action == 'list') {
-      if (Sites.I.list.isEmpty) return 'No sites published from SubMac yet.';
+      if (Sites.I.list.isEmpty) return 'No sites published from Telesia yet.';
       return [
         for (final s in Sites.I.list)
           '- "${s.title}": ${s.statusLine}${s.url.isEmpty ? '' : ' · ${s.url}'}${s.host.isEmpty ? '' : ' (${s.hostName})'}'
@@ -782,8 +782,8 @@ extension AppStateTools on AppState {
     _notify();
   }
 
-  /// SubMac can look at pictures: every route behind `submac` must accept images (PLAN 1.1 model checks; the server
-  /// filters routes by capability). This used to test the model name for "submac-", which the one name `submac`
+  /// Telesia can look at pictures: every route behind `telesia` must accept images (PLAN 1.1 model checks; the server
+  /// filters routes by capability). This used to test the model name for "telesia-", which the one name `telesia`
   /// never matched, so browsing and phone tasks sent no screenshots at all.
   bool get canSee => true;
 
@@ -798,7 +798,7 @@ extension AppStateTools on AppState {
       }
     }
     if (t == null || !t.server.readOnly || AppState._readOnlyTool.hasMatch(t.name)) return null;
-    return 'Not allowed: ${t.server.name} is set to read only, so SubMac can look things up there but not change anything. '
+    return 'Not allowed: ${t.server.name} is set to read only, so Telesia can look things up there but not change anything. '
         'Do not try it another way. Tell the user in one line, and that they can turn off "Read only" in Apps > ${t.server.name}.';
   }
 
@@ -855,7 +855,7 @@ extension AppStateTools on AppState {
       if (AppState._readOnlyTool.hasMatch(tool)) return null;
       return ActionRequest(
         title: 'Let ${t?.server.name ?? 'the connector'} do this?',
-        body: 'SubMac wants to use "${tool.replaceAll('_', ' ').toLowerCase()}". It may change things in your connected account.',
+        body: 'Telesia wants to use "${tool.replaceAll('_', ' ').toLowerCase()}". It may change things in your connected account.',
         detail: AppState.plainDetails(args),
         confirmLabel: 'Allow',
       );

@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Each bot's own model (owner 2026-11-05): chosen in the bot's profile, saved on the Bot and synced, never exported,
-// and every turn of the bot runs on it (falling back to the default, same as SubMac, when it is not usable here).
+// and every turn of the bot runs on it (falling back to the default, same as Telesia, when it is not usable here).
 
 const _pid = 'byok-1a2b3c4d';
 
@@ -36,7 +36,7 @@ ByokProvider _prov({bool enabled = true, List<ByokModel>? models}) => ByokProvid
           ],
     );
 
-void _withProvider({String chat = ByokRef.submac, bool enabled = true}) =>
+void _withProvider({String chat = ByokRef.telesia, bool enabled = true}) =>
     ByokStore.I.resetForTests(ByokConfig(providers: [_prov(enabled: enabled)], chat: chat), {'k1': 'secret'});
 
 Bot _bot([String model = 'auto']) => Bot(id: 'b1', name: 'Hodan', role: 'Researcher', persona: 'You are Hodan.', model: model);
@@ -48,7 +48,7 @@ void main() {
     test('the model survives save and load (toJson/fromJson)', () {
       final b = _bot('$_pid|gpt-x');
       expect(Bot.fromJson(b.toJson()).model, '$_pid|gpt-x');
-      expect(Bot.fromJson(_bot('submac').toJson()).model, 'submac');
+      expect(Bot.fromJson(_bot('telesia').toJson()).model, 'telesia');
       expect(Bot.fromJson({'id': 'x', 'name': 'Old'}).model, 'auto', reason: 'older bots start on the default');
     });
 
@@ -63,8 +63,8 @@ void main() {
       final b = _bot();
       await Bots.I.setModel(b, '$_pid|gpt-x');
       expect(b.model, '$_pid|gpt-x');
-      await Bots.I.setModel(b, 'submac');
-      expect(b.model, 'submac');
+      await Bots.I.setModel(b, 'telesia');
+      expect(b.model, 'telesia');
       await Bots.I.setModel(b, '');
       expect(b.model, 'auto');
     });
@@ -79,17 +79,17 @@ void main() {
     });
 
     test('an incoming package\'s model hint is dropped: the copy starts on its default', () {
-      final j = BotPackage.sanitize({'submac': BotPackage.format, 'name': 'Nova', 'persona': 'You are Nova.', 'model': 'byok-ffff|gpt-9'});
+      final j = BotPackage.sanitize({'telesia': BotPackage.format, 'name': 'Nova', 'persona': 'You are Nova.', 'model': 'byok-ffff|gpt-9'});
       expect(j, isNotNull);
       expect(j!['model'], 'auto');
     });
   });
 
   group('fallback', () {
-    test('default follows SubMac\'s model (the owner\'s chats)', () {
+    test('default follows Telesia\'s model (the owner\'s chats)', () {
       ByokStore.I.resetForTests();
-      expect(OcLane.botSetting('auto'), ByokRef.submac);
-      expect(OcLane.pick(background: true, botModel: 'auto'), {'providerID': OcLane.bot, 'modelID': Cloud.submac});
+      expect(OcLane.botSetting('auto'), ByokRef.telesia);
+      expect(OcLane.pick(background: true, botModel: 'auto'), {'providerID': OcLane.bot, 'modelID': Cloud.telesia});
       _withProvider(chat: '$_pid|gpt-x');
       expect(OcLane.botSetting('auto'), '$_pid|gpt-x');
       expect(OcLane.botSetting(''), '$_pid|gpt-x');
@@ -100,22 +100,22 @@ void main() {
       _withProvider();
       for (final s in ['$_pid|off-model', '$_pid|missing', 'byok-ffffffff|gpt-x']) {
         expect(OcLane.botModelUnavailable(s), isTrue, reason: s);
-        expect(OcLane.botSetting(s), ByokRef.submac, reason: s);
-        expect(OcLane.pick(background: true, botModel: s), {'providerID': OcLane.bot, 'modelID': Cloud.submac}, reason: s);
+        expect(OcLane.botSetting(s), ByokRef.telesia, reason: s);
+        expect(OcLane.pick(background: true, botModel: s), {'providerID': OcLane.bot, 'modelID': Cloud.telesia}, reason: s);
       }
       // The owner's chats on an own model: the unusable bot model falls back to that one.
       _withProvider(chat: '$_pid|claude-opus-4');
       expect(OcLane.pick(background: true, botModel: 'byok-ffffffff|gpt-x'), {'providerID': _pid, 'modelID': 'claude-opus-4'});
-      // Provider switched off: the bot's own model is unusable, and so is the chat model: SubMac.
+      // Provider switched off: the bot's own model is unusable, and so is the chat model: Telesia.
       _withProvider(chat: '$_pid|claude-opus-4', enabled: false);
-      expect(OcLane.pick(background: true, botModel: '$_pid|gpt-x'), {'providerID': OcLane.bot, 'modelID': Cloud.submac});
+      expect(OcLane.pick(background: true, botModel: '$_pid|gpt-x'), {'providerID': OcLane.bot, 'modelID': Cloud.telesia});
     });
 
-    test('SubMac chosen for the bot stays SubMac even when the owner\'s chats use an own model', () {
+    test('Telesia chosen for the bot stays Telesia even when the owner\'s chats use an own model', () {
       _withProvider(chat: '$_pid|gpt-x');
-      expect(OcLane.botModelUnavailable('submac'), isFalse);
-      expect(OcLane.pick(background: true, botModel: 'submac'), {'providerID': OcLane.bot, 'modelID': Cloud.submac});
-      expect(OcLane.pick(background: true, officeWork: true, botModel: 'submac'), {'providerID': OcLane.office, 'modelID': Cloud.submac});
+      expect(OcLane.botModelUnavailable('telesia'), isFalse);
+      expect(OcLane.pick(background: true, botModel: 'telesia'), {'providerID': OcLane.bot, 'modelID': Cloud.telesia});
+      expect(OcLane.pick(background: true, officeWork: true, botModel: 'telesia'), {'providerID': OcLane.office, 'modelID': Cloud.telesia});
     });
 
     test('a usable own model is used whatever the lane', () {
@@ -129,7 +129,7 @@ void main() {
     test('profile words', () {
       _withProvider();
       expect(botModelLabel('auto'), BotModelWords.defaultLabel);
-      expect(botModelLabel('submac'), BotModelWords.defaultLabel);
+      expect(botModelLabel('telesia'), BotModelWords.defaultLabel);
       expect(botModelLabel('$_pid|claude-opus-4'), contains('Claude Opus 4'));
       expect(botModelLabel('$_pid|missing'), startsWith(BotModelWords.defaultLabel));
       expect(botModelLabel('$_pid|missing'), contains('not available'));
@@ -194,7 +194,7 @@ void main() {
       await t.tap(find.byKey(const ValueKey('bot-model')));
       await t.pumpAndSettle();
       expect(find.byKey(const ValueKey('model-default')), findsOneWidget);
-      expect(find.byKey(const ValueKey('model-submac')), findsNothing);
+      expect(find.byKey(const ValueKey('model-telesia')), findsNothing);
       expect(find.byKey(const ValueKey('model-$_pid|claude-opus-4')), findsOneWidget);
       // Strong first in the sheet too.
       final opus = t.getTopLeft(find.byKey(const ValueKey('model-$_pid|claude-opus-4'))).dy;

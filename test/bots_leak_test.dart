@@ -1,12 +1,12 @@
 // Bots leak audit (owner, 2026-11-03: "there is leakages of bots on agent, investigate that"). Bots and the owner's
-// chat all run on one opencode engine and reach SubMac's tools through the same two MCP tools, so every SubMac call
+// chat all run on one opencode engine and reach Telesia's tools through the same two MCP tools, so every Telesia call
 // must go to the turn that made it, and each turn must see only its own tools.
 import 'dart:io';
 
 import 'package:agent/models.dart';
 import 'package:agent/services/mcp_routes.dart';
 import 'package:agent/services/oc_scope.dart';
-import 'package:agent/services/submac_gateway.dart';
+import 'package:agent/services/telesia_gateway.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, dynamic> _tool(String name) => {
@@ -30,12 +30,12 @@ Map<String, dynamic> _part(String session, String id, String tool, Map<String, d
     };
 
 void main() {
-  group('routing a SubMac call to the turn that made it', () {
+  group('routing a Telesia call to the turn that made it', () {
     test('a run_tool call in the turn\'s own session routes to it; another session\'s does not', () async {
       final r = McpRoutes();
       final mine = {'sesBot'};
-      r.watch(_part('sesBot', 'p1', 'submac_run_tool', {'name': 'bot_remember', 'arguments': {'fact': 'x'}}), 'botConv', mine);
-      r.watch(_part('sesMain', 'p2', 'submac_run_tool', {'name': 'remember', 'arguments': {'fact': 'y'}}), 'botConv', mine);
+      r.watch(_part('sesBot', 'p1', 'telesia_run_tool', {'name': 'bot_remember', 'arguments': {'fact': 'x'}}), 'botConv', mine);
+      r.watch(_part('sesMain', 'p2', 'telesia_run_tool', {'name': 'remember', 'arguments': {'fact': 'y'}}), 'botConv', mine);
       expect(r.openCount, 1);
       expect(await r.take('bot_remember', {'fact': 'x'}, wait: Duration.zero), 'botConv');
       expect(await r.take('remember', {'fact': 'y'}, wait: Duration.zero), isNull);
@@ -51,33 +51,33 @@ void main() {
         },
       }, 'mainConv', fam);
       expect(fam, contains('sesChild'));
-      r.watch(_part('sesChild', 'p1', 'submac_run_tool', {'name': 'browser_task', 'arguments': {'goal': 'g'}}), 'mainConv', fam);
+      r.watch(_part('sesChild', 'p1', 'telesia_run_tool', {'name': 'browser_task', 'arguments': {'goal': 'g'}}), 'mainConv', fam);
       expect(await r.take('browser_task', {'goal': 'g'}, wait: Duration.zero), 'mainConv');
     });
 
     test('find_tools is routed too, so a lookup lists the caller\'s own tools', () async {
       final r = McpRoutes();
-      r.watch(_part('s', 'p1', 'submac_find_tools', {'query': 'office'}), 'botConv', {'s'});
+      r.watch(_part('s', 'p1', 'telesia_find_tools', {'query': 'office'}), 'botConv', {'s'});
       expect(await r.take('find_tools', {'query': 'office'}, wait: Duration.zero), 'botConv');
     });
 
-    test('a "submac_" prefix on the inner name routes the same as without it (the call is run without it)', () async {
+    test('a "telesia_" prefix on the inner name routes the same as without it (the call is run without it)', () async {
       final r = McpRoutes();
-      r.watch(_part('s', 'p1', 'submac_run_tool', {'name': 'submac_bot_followup', 'arguments': {'in_minutes': 20}}), 'seo', {'s'});
-      final (n, a) = SubMacGateway.inner({'name': 'submac_bot_followup', 'arguments': {'in_minutes': 20}});
+      r.watch(_part('s', 'p1', 'telesia_run_tool', {'name': 'telesia_bot_followup', 'arguments': {'in_minutes': 20}}), 'seo', {'s'});
+      final (n, a) = TelesiaGateway.inner({'name': 'telesia_bot_followup', 'arguments': {'in_minutes': 20}});
       expect(n, 'bot_followup');
       expect(await r.take(n, a, wait: Duration.zero), 'seo');
     });
 
     test('arguments sent as "parameters" are read (seen in a bot\'s office wake)', () {
-      final (n, a) = SubMacGateway.inner({'name': 'office_post', 'parameters': {'message': 'Hi'}});
+      final (n, a) = TelesiaGateway.inner({'name': 'office_post', 'parameters': {'message': 'Hi'}});
       expect(n, 'office_post');
       expect(a, {'message': 'Hi'});
     });
 
     test('a pending part (no input yet) is not noted', () {
       final r = McpRoutes();
-      r.watch(_part('s', 'p1', 'submac_run_tool', {}, status: 'pending'), 'c', {'s'});
+      r.watch(_part('s', 'p1', 'telesia_run_tool', {}, status: 'pending'), 'c', {'s'});
       expect(r.openCount, 0);
     });
 
@@ -103,14 +103,14 @@ void main() {
     test('the owner\'s chat gets no bot or team tools', () {
       final names = OcToolScope.of(app: app).map(OcToolScope.nameOf).toList();
       expect(names, ['remember', 'browser_task', 'apps_run_tool']);
-      final g = SubMacGateway(tools: () => OcToolScope.of(app: app), run: (n, a) async => 'ran $n');
+      final g = TelesiaGateway(tools: () => OcToolScope.of(app: app), run: (n, a) async => 'ran $n');
       expect(g.find('bot followup'), isNot(contains('bot_followup')));
     });
 
     test('the main agent cannot run a bot tool through run_tool', () async {
-      final g = SubMacGateway(tools: () => OcToolScope.of(app: app), run: (n, a) async => 'ran $n');
+      final g = TelesiaGateway(tools: () => OcToolScope.of(app: app), run: (n, a) async => 'ran $n');
       expect(await g.call('run_tool', {'name': 'bot_followup', 'arguments': {'in_minutes': 20, 'instruction': 'x'}}),
-          startsWith('Error: no SubMac tool named "bot_followup"'));
+          startsWith('Error: no Telesia tool named "bot_followup"'));
     });
 
     test('a bot gets its own tools, office tools during office work, and the app\'s cut by its powers', () {
@@ -130,7 +130,7 @@ void main() {
     expect(OcRunEnd.replyOf([old, think, step], {'t', 's'}), '');
   });
 
-  test('source: no SubMac call or ask falls back to the chat on screen', () {
+  test('source: no Telesia call or ask falls back to the chat on screen', () {
     final src = File('lib/state/agent_runner.dart').readAsStringSync();
     expect(src, isNot(contains('home ?? currentId')));
     expect(src, isNot(contains('conv.isEmpty ? (currentId')));

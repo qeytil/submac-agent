@@ -249,7 +249,7 @@ class UpdateMachine {
     return state;
   }
 
-  /// Back in SubMac with the old version still running: the installer was closed, so Install is offered again.
+  /// Back in Telesia with the old version still running: the installer was closed, so Install is offered again.
   UpdateState onResumed() {
     if (state.phase == UpdatePhase.installing) state = state.copyWith(phase: UpdatePhase.downloaded);
     return state;

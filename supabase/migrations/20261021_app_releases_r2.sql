@@ -1,6 +1,6 @@
--- In-app updates: one-file releases in Cloudflare R2 (bucket submac-app-updates). Additive only.
+-- In-app updates: one-file releases in Cloudflare R2 (bucket telesia-app-updates). Additive only.
 -- Before this, Supabase Storage capped one file at 50 MB on this plan, so builds were stored in 40 MiB parts in the
--- Supabase bucket app-updates. Now the dashboard Worker (submac-proxy-admin, R2 binding UPDATES) streams the file
+-- Supabase bucket app-updates. Now the dashboard Worker (telesia-proxy-admin, R2 binding UPDATES) streams the file
 -- into R2 with a multipart upload and the phone downloads ONE file from the public URL.
 -- Old rows keep storage = 'supabase' and their parts (the phone still understands them).
 
@@ -13,8 +13,8 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 do $$ begin
   alter table public.app_releases add constraint app_releases_r2_chk check (
-    storage <> 'r2' or (file_url ~ '^https://[A-Za-z0-9.-]+/android/[0-9]+-[0-9a-f]{8}/SubMac-[0-9]+\.apk$'
-                        and file_key ~ '^android/[0-9]+-[0-9a-f]{8}/SubMac-[0-9]+\.apk$'));
+    storage <> 'r2' or (file_url ~ '^https://[A-Za-z0-9.-]+/android/[0-9]+-[0-9a-f]{8}/Telesia-[0-9]+\.apk$'
+                        and file_key ~ '^android/[0-9]+-[0-9a-f]{8}/Telesia-[0-9]+\.apk$'));
 exception when duplicate_object then null; end $$;
 
 -- Public address of the R2 bucket (r2.dev for now; a custom domain is better for production).

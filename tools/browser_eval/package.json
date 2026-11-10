@@ -1,7 +1,7 @@
 {
-  "name": "submac-browser-eval",
+  "name": "telesia-browser-eval",
   "private": true,
-  "description": "browser_eval: SubMac's page script on real sites (docs/browser-eval.md)",
+  "description": "browser_eval: Telesia's page script on real sites (docs/browser-eval.md)",
   "scripts": { "eval": "node eval.js" },
   "dependencies": { "playwright": "^1" }
 }

@@ -1,4 +1,4 @@
--- Admin dashboard Users section: per-user panel data, admin notes, admin messages ("From SubMac"), anomaly scan.
+-- Admin dashboard Users section: per-user panel data, admin notes, admin messages ("From Telesia"), anomaly scan.
 -- Agent project moeemacbvsueekuvfjbo. Recorded in schema_migrations as 20261019230000. Needs 20261019_rewards.
 --
 -- Privacy line: nothing here returns the text of a user's private chats, memories, files or bot setups. The admin sees
@@ -188,12 +188,12 @@ begin
     perform flag_user(u, 'multi_account', 'medium', 'anomaly', array_length(r.ids, 1) || ' accounts on one phone', jsonb_build_object('device', left(r.device_id, 6))) from unnest(r.ids) u;
     n := n + 1;
   end loop;
-  -- Invitees who never used SubMac (2+ days after joining) for an inviter with 3+ rewarded invites.
+  -- Invitees who never used Telesia (2+ days after joining) for an inviter with 3+ rewarded invites.
   for r in select f.inviter_id, count(*) idle from referrals f
             where f.kind = 'invite' and f.status = 'rewarded' and f.created_at < now() - interval '2 days'
               and not exists (select 1 from ai_user_daily y where y.user_id = f.invitee_id)
             group by f.inviter_id having count(*) >= 3 loop
-    perform flag_user(r.inviter_id, 'reward_farming', 'medium', 'anomaly', r.idle || ' invited accounts never used SubMac', '{}'::jsonb); n := n + 1;
+    perform flag_user(r.inviter_id, 'reward_farming', 'medium', 'anomaly', r.idle || ' invited accounts never used Telesia', '{}'::jsonb); n := n + 1;
   end loop;
   return jsonb_build_object('ok', true, 'flags_touched', n);
 end $$;

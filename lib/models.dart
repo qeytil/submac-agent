@@ -181,7 +181,7 @@ class ChatMessage {
       );
 }
 
-/// Where model requests go. There is exactly one: SubMac Cloud (see services/cloud.dart).
+/// Where model requests go. There is exactly one: Telesia Cloud (see services/cloud.dart).
 class ProviderConfig {
   final String id;
   final String name;

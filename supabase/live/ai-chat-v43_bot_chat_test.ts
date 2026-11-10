@@ -1,5 +1,5 @@
 // CB-45 on the deployable bundle: 'bot-chat' bills in the user's chat lane (like 'agent'), is not a bot source, and an
-// x-submac-lane: background header cannot push it into the bot share. Loads the bundle with Deno.serve stubbed.
+// x-telesia-lane: background header cannot push it into the bot share. Loads the bundle with Deno.serve stubbed.
 // Run: deno test --no-check -A supabase/live/ai-chat-v43_bot_chat_test.ts   (BUNDLE=./ai-chat-v42.js shows the old behaviour)
 // deno-lint-ignore-file no-explicit-any
 import { assert, assertEquals } from "jsr:@std/assert@1";

@@ -1,7 +1,7 @@
 # Bring your own key (BYOK), v1.13.118+188
 
-Owner request 2026-11-03: bring BYOK back (removed in v1.13.0 when everyone moved to the SubMac proxy) as a
-professional provider system. The user picks either **SubMac** (our proxy, alias `submac`, default) or any model of
+Owner request 2026-11-03: bring BYOK back (removed in v1.13.0 when everyone moved to the Telesia proxy) as a
+professional provider system. The user picks either **Telesia** (our proxy, alias `telesia`, default) or any model of
 their own providers, and that choice is really used by the opencode agent on the phone.
 
 The original BYOK code is not in this checkout (history here starts at 0c01666; the v1.13.0 removal predates it), so
@@ -16,7 +16,7 @@ that wipe never touches it).
 ByokProvider { id: byok-xxxxxxxx, kind, preset, name, baseUrl, modelsUrl?, headers{}, enabled,
                keys: [ByokKey{id, name, hint(last 4)}], activeKey, rotate,
                models: [ByokModel{id, name?, context?, output?, reasoning?, vision?, tools?, enabled}] }
-ByokConfig   { v: 1, providers: [...], chat: "<ref>" }   ref = "submac" | "<providerId>|<modelId>"
+ByokConfig   { v: 1, providers: [...], chat: "<ref>" }   ref = "telesia" | "<providerId>|<modelId>"
 ```
 
 - Stored in the phone's encrypted storage (`SecureAiStore`): the config without secrets under `byok_config_v1`, each
@@ -83,7 +83,7 @@ needed on the phone. Each enabled BYOK provider becomes one custom opencode prov
 
 ```json
 "byok-1a2b3c4d": { "npm": "@ai-sdk/anthropic", "name": "Anthropic",
-  "options": { "baseURL": "https://api.anthropic.com/v1", "apiKey": "{env:SUBMAC_BYOK_1A2B3C4D}", "headers": {} },
+  "options": { "baseURL": "https://api.anthropic.com/v1", "apiKey": "{env:TELESIA_BYOK_1A2B3C4D}", "headers": {} },
   "models": { "claude-sonnet-4-5": { "name": "Claude Sonnet 4.5", "tool_call": true, "reasoning": true,
               "attachment": true, "limit": { "context": 200000, "output": 64000 } } } }
 ```
@@ -91,7 +91,7 @@ needed on the phone. Each enabled BYOK provider becomes one custom opencode prov
 npm per kind: openai → `@ai-sdk/openai`, openaiCompatible → `@ai-sdk/openai-compatible`, anthropic(+compatible) →
 `@ai-sdk/anthropic`, gemini → `@ai-sdk/google`, openrouter → `@openrouter/ai-sdk-provider`.
 
-- The key is **not written into opencode.json**: `apiKey` is `{env:SUBMAC_BYOK_<ID>}` and the app passes the active key
+- The key is **not written into opencode.json**: `apiKey` is `{env:TELESIA_BYOK_<ID>}` and the app passes the active key
   in the opencode process environment only (opencode's config variable substitution).
 - The JSON comes from Dart (`ByokOpencode.providers`) and is passed to `OpenCode.kt` as `byokProviders` (a JSON
   string) plus `byokEnv`; Kotlin merges only `byok-*` ids next to the lane providers, so lanes cannot be overridden.
@@ -99,31 +99,31 @@ npm per kind: openai → `@ai-sdk/openai`, openaiCompatible → `@ai-sdk/openai-
   restarted before the next prompt, but only while no turn is running. A prompt naming a BYOK provider the running
   engine does not have yet fails with a clear message instead of an opaque opencode error.
 - Traffic: opencode's HTTPS goes through LocalProxy CONNECT (TLS end to end, phone → provider). Nothing passes
-  SubMac's servers, nothing bills the SubMac allowance. Local servers (Ollama, LM Studio) on 127.0.0.1 are reached
+  Telesia's servers, nothing bills the Telesia allowance. Local servers (Ollama, LM Studio) on 127.0.0.1 are reached
   directly (NO_PROXY); a LAN address goes through the proxy's plain-HTTP path.
 - Selection: `OcLane.pick` reads the owner's chat choice (`ByokStore.chatModel`) when no bot is involved, and a bot's
-  `model` setting (`auto`, `submac|<alias>`, or `byok-…|<model>`) for bots. A BYOK choice routes to that provider and
-  model for foreground and background turns alike (background lanes exist only for SubMac billing). A choice whose
-  provider was deleted/disabled or whose model is gone falls back to SubMac. BYOK bot/team turns are not stopped by
-  the bots' SubMac share being paused.
+  `model` setting (`auto`, `telesia|<alias>`, or `byok-…|<model>`) for bots. A BYOK choice routes to that provider and
+  model for foreground and background turns alike (background lanes exist only for Telesia billing). A choice whose
+  provider was deleted/disabled or whose model is gone falls back to Telesia. BYOK bot/team turns are not stopped by
+  the bots' Telesia share being paused.
 - Key rotation (optional per provider): when a BYOK turn fails with a key/quota error (401/403/429, invalid key,
   quota, credit) and the provider has more than one key with rotate on, the next key becomes active; the engine picks
   it up before the next turn.
 
 ### Non-opencode paths
 LlmClient side jobs (chat titles, Live call notes, bot/office helper calls, the browser worker on agent/core.dart)
-stay on SubMac: they are small, server-shaped (lanes, allowance) and not the agent the user chose a model for.
+stay on Telesia: they are small, server-shaped (lanes, allowance) and not the agent the user chose a model for.
 opencode's own small jobs (titles, summaries) run on the turn's provider, so a BYOK turn's helpers use the BYOK model.
-The cloud bot runner (bot-run) never sees keys; a bot set to a BYOK model runs on SubMac when it runs in the cloud.
+The cloud bot runner (bot-run) never sees keys; a bot set to a BYOK model runs on Telesia when it runs in the cloud.
 
 ## UI
-- Settings → **Models**: the current chat model, "SubMac" first, then each provider (BrandLogo tile, name, model
+- Settings → **Models**: the current chat model, "Telesia" first, then each provider (BrandLogo tile, name, model
   count, enabled switch). Add provider → preset grid → key (masked, optional for local) → Fetch models → searchable
   multi-select list + "Add a model by id" → Save. Edit screen: name, base URL, models URL, extra headers, keys (add,
   name, choose active, remove, rotate switch), models (enable, per-model display name/context/output/flags), Test
   connection, Delete.
 - Composer: a small model pill next to Ask · Autopilot, only when at least one BYOK model exists; the sheet lists
-  SubMac first, then models grouped by provider.
+  Telesia first, then models grouped by provider.
 - Bot setup: "Model" row on the bot's settings uses the same picker.
 - Style: `lib/ui/tokens.dart` + `Palette` only (design_guard_test budget unchanged); logos from Simple Icons (CC0)
   for OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek, NVIDIA, Mistral, xAI, Ollama, Moonshot, OpenCode, LM Studio;

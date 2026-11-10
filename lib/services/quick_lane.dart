@@ -25,7 +25,7 @@ class QuickLane {
       r'مرحبا|اهلا|أهلا|شكرا|السلام عليكم|كيف حالك|صباح الخير|مساء الخير)'
       r'[\s,.!?😊🙂👍🙏❤️]*'
       r'((there|bro|friend|sir|man|buddy|mate|dear|walaal|saaxiib|habibi|again)[\s,.!?😊🙂👍🙏❤️]*)?'
-      r'((submac|nova|amal|rank|ustad|[a-z]{2,12})[\s,.!?😊🙂👍🙏❤️]*)?$',
+      r'((telesia|nova|amal|rank|ustad|[a-z]{2,12})[\s,.!?😊🙂👍🙏❤️]*)?$',
       caseSensitive: false);
 
   /// Words that mean "do something" or need fresh facts: never the quick lane.
@@ -38,7 +38,7 @@ class QuickLane {
       r'raadi|samee|dir|iibso|ii soo|qor|fur)\b|https?://|\.(com|org|net|so|io)\b',
       caseSensitive: false);
 
-  /// A short answer to a question (yes, no, nope, maya, haa...). After SubMac asked something, it continues that task.
+  /// A short answer to a question (yes, no, nope, maya, haa...). After Telesia asked something, it continues that task.
   static final _answer = RegExp(
       r'^(yes|yeah|yep|yup|yes please|no|nope|nah|no thanks|not now|not yet|never mind|ok(ay)?|k|sure|fine|go( ahead)?|do it|'
       r'both|neither|none|either|the first( one)?|the second( one)?|the last( one)?|first|second|third|this one|that one|'
@@ -70,7 +70,7 @@ class QuickLane {
   /// True when [text] is a short answer to a question (see [laneFor] answeringQuestion).
   static bool isAnswer(String text) => _answer.hasMatch(text.trim());
 
-  /// The lane for the newest user message. [answeringQuestion] = SubMac's own last reply asked the user something
+  /// The lane for the newest user message. [answeringQuestion] = Telesia's own last reply asked the user something
   /// (a question, choices, a confirm): then a short "no", "nope" or "maya" is an answer that continues the task,
   /// not small talk.
   static String laneFor(String text, {bool hasAttachments = false, bool midTask = false, bool answeringQuestion = false}) {

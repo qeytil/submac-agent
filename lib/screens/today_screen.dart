@@ -16,7 +16,7 @@ import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 import '../widgets/surface.dart';
 
-/// Today (PLAN.md 3.3): the single feed. Needs your OK, done while you were away, From SubMac, coming up.
+/// Today (PLAN.md 3.3): the single feed. Needs your OK, done while you were away, From Telesia, coming up.
 /// No ask box here: the chat is the one place to ask. The menu shows Today only once there is a bot or a routine.
 class TodayScreen extends StatelessWidget {
   const TodayScreen({super.key});

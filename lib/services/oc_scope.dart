@@ -1,8 +1,8 @@
 import '../models.dart';
 
-/// Which SubMac tools an opencode turn may find and run, by who runs it (bots leak audit, owner 2026-11-03).
+/// Which Telesia tools an opencode turn may find and run, by who runs it (bots leak audit, owner 2026-11-03).
 ///
-/// Every opencode turn reaches SubMac's tools through the same two MCP tools (find_tools, run_tool), so the list
+/// Every opencode turn reaches Telesia's tools through the same two MCP tools (find_tools, run_tool), so the list
 /// behind them has to be cut per caller: the owner's own chat gets the app's tools only (no bot_make, bot_followup,
 /// bot_remember, team_assign, team_task: those act on a bot, and offered to the main agent they invited calls that
 /// failed or, routed to the wrong chat, acted on a bot), and a bot (or a team member) gets its own tools on top of the

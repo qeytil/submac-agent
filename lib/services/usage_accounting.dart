@@ -65,7 +65,7 @@ class UsageUnits {
   static int ofResult(LlmResult r) => of(r.tokensIn, r.tokensOut, cached: r.tokensCached, fallback: r.tokens);
 }
 
-/// The `x-submac-source` of a chat model call (CB-45). Only a bot's own work (a wake, an office job) is bot work;
+/// The `x-telesia-source` of a chat model call (CB-45). Only a bot's own work (a wake, an office job) is bot work;
 /// what the owner types to a bot is `bot-chat`, billed to the owner's chat bucket (ai-chat v43, S-2).
 class UsageSource {
   static const bot = 'bot', botChat = 'bot-chat', office = 'office', agent = 'agent', side = 'side';

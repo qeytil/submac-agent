@@ -1,4 +1,4 @@
-# SubMac Agent: timing, streaming and stress audit
+# Telesia: timing, streaming and stress audit
 
 Read-only review of the working copy in `/workspace/work/repo`, 23 October 2026. Nothing was changed and no live service was called. Timings come from three places, and each number says which:
 - **measured**: numbers the team already recorded in `docs/project-state.md` and `docs/model-routes-2026-10-21.md`. These are real traffic and test-box runs.
@@ -25,7 +25,7 @@ This builds on `audit/agent.md` and `audit/backend.md` and does not repeat them.
    - The server answers a provider "too many requests" with a generic "busy" error. The app treats that as a reason to retry quickly, twice, and each retry starts a full new chain of up to about 50 model attempts.
    - The server keeps working after the phone has hung up.
    - One "slow down" on a background bot pauses every chat on the phone.
-7. **The single sticky "SubMac model" plan fits this code well.** It removes about a dozen moving parts and most of the cache churn. Health tracking, key rotation, capability checks and failover must stay. The new budget should be:
+7. **The single sticky "Telesia model" plan fits this code well.** It removes about a dozen moving parts and most of the cache churn. Health tracking, key rotation, capability checks and failover must stay. The new budget should be:
    - server: 25 s to start a reply (with a heartbeat every 10 s);
    - app: 10 s to see the reply start once the server sends that heartbeat (30 s until it does), and 30 s of silence before treating the connection as dead;
    - at most one automatic retry.
@@ -87,7 +87,7 @@ Measured end to end from a US test box (no phone, same routes): **first token 0.
 1. **The model and its route.** This is 60–90% of the wait. Ollama gpt-oss:120b answers in about 0.5 s and NVIDIA in 1.5 s (p50). Gemini takes 4.4 s and the Somali routes may wait up to 30 s each.
    - **Fix:** the sticky router (section 5). Keep the fastest healthy route as the standing choice; never try a known-slow route first.
 2. **Hidden reasoning.** The app sends no reasoning setting. `QuickLane.effortFor` is never sent (the `effort` parameter is accepted by `streamChat` and ignored), and the quick lane's 400-token cap is never sent either. So a greeting can wait on a medium-length chain of thought.
-   - **Fix:** let the app send a hint header such as `x-submac-effort: low|normal|high`, and let the server map it to the chosen model's setting. Send `low` for quick and light lanes and for step 1 of a task. A hint is not a model name, so it fits the single-model plan.
+   - **Fix:** let the app send a hint header such as `x-telesia-effort: low|normal|high`, and let the server map it to the chosen model's setting. Send `low` for quick and light lanes and for step 1 of a task. A hint is not a model name, so it fits the single-model plan.
 3. **Attachments upload before the model call.**
    - **Fix:** start the model call at once (the image is already in the request), and upload to storage in parallel or afterwards. Compress gallery images to the same 2048 px / quality 85 used for the camera.
 4. **Images re-sent every step.**
@@ -224,11 +224,11 @@ A typical research task of 5–8 steps takes **20–60 s**. A build with 20–40
   - It sends **no Retry-After header**.
   - The app treats any 5xx as "retry soon" (`isRetryable`) and tries twice more, after 2 s and 4 s.
   - **Result:** in a provider outage every user's step becomes 3 full server chains. That roughly triples the load on providers that are already struggling, and keeps their keys resting.
-- **The app's own 429 handling** only triggers on the server's `slow_down` (40 requests per minute per user). It sets a cooldown on the provider id `submac`, which is **shared by every chat, bot, office and browser job on the phone**. One busy bot pauses the user's own chat.
+- **The app's own 429 handling** only triggers on the server's `slow_down` (40 requests per minute per user). It sets a cooldown on the provider id `telesia`, which is **shared by every chat, bot, office and browser job on the phone**. One busy bot pauses the user's own chat.
 
 **Fixes:**
 1. Server: on `busy`, send `Retry-After: 15–30` with random jitter, and a code (`busy`) the app treats as "retry once, after the given time".
-2. App: at most **one** automatic retry for "busy" or 5xx before any output. Then show a calm "SubMac is busy. Tap to try again" with the message kept.
+2. App: at most **one** automatic retry for "busy" or 5xx before any output. Then show a calm "Telesia is busy. Tap to try again" with the message kept.
 3. App: keep cooldowns per lane (foreground chat vs background work), not per provider.
 
 ### 4.2 Slow providers
@@ -246,16 +246,16 @@ A typical research task of 5–8 steps takes **20–60 s**. A build with 20–40
   - **Rule of thumb:** users served at once ≈ keys × concurrent streams allowed per key. With one sticky model, *all* traffic hits one provider. Measure per-key concurrency before launch and size the key pool to peak concurrent users. Pick keys by "fewest streams in flight" as well as the per-chat sticky hash.
 - **Function isolates:** each request runs in a fresh isolate. That is fine for scale, but the in-memory caches (config 60 s, keys 2 min, cooldowns, `lastGateOk`, moderation de-dupe) almost never help. Anything that must be shared across requests has to live in the database or a KV store.
 - **Moderation:** `screenLater` de-dupes per isolate only (20 s). From step 2 of a task the newest "user" message is the app's note that recites the user's request. A message that trips the keyword screen is therefore re-checked with an extra model call **on every step**.
-  - **Fix:** de-dupe by user and text hash in the database, or screen only the user's real message once (the app could send `x-submac-turn: new` on the first step of a turn).
+  - **Fix:** de-dupe by user and text hash in the database, or screen only the user's real message once (the app could send `x-telesia-turn: new` on the first step of a turn).
 
 ### 4.4 Long chats (context growth and compaction)
-- **Working window:** the app plans for 48k tokens for any `submac-` model and compacts when a request passes ~36k estimated tokens (`ContextWindow.compactAt`).
+- **Working window:** the app plans for 48k tokens for any `telesia-` model and compacts when a request passes ~36k estimated tokens (`ContextWindow.compactAt`).
 - **After each reply:** if the chat history (after the last summary) is over ~14k tokens, it is folded in the background 2 s later, keeping the newest ~5k whole.
 - **During a task:** the history can grow past 36k inside a single long task. Then a **blocking** summary call runs before the next step: up to 60 s in the app and up to 300 s on the server, non-streamed, with the line showing "Thinking". If the fast model is busy, the summary falls back to a plain digest.
 - **When the server says "too long" (413):** the app compacts and retries once, then sends only the last 16 messages.
-- The server already sends the real smallest window in `x-submac-window`, but **the app never reads it**.
+- The server already sends the real smallest window in `x-telesia-window`, but **the app never reads it**.
 - **Fixes:**
-  - Read `x-submac-window` and size compaction from it.
+  - Read `x-telesia-window` and size compaction from it.
   - Run in-task compaction ahead of time, in parallel with tool execution, so it never blocks a step.
   - Cap the summary at 45 s.
 
@@ -303,14 +303,14 @@ A typical research task of 5–8 steps takes **20–60 s**. A build with 20–40
 
 ### 4.10 Quota exhaustion
 - **Daily limit:** returns `429 daily_limit`. The app treats it as final, shows it, and does not retry. Correct.
-- **"Light" state (over the cap, in the grace zone):** the server switches to `submac-lite` with 400-token replies, which changes the model mid-task.
+- **"Light" state (over the cap, in the grace zone):** the server switches to `telesia-lite` with 400-token replies, which changes the model mid-task.
 - **Bots:** `background_paused` is final, and bots wait for the reset. Correct. The app's reset time (UTC) still differs from the billing reset (EAT), as backend.md says.
 - **Long tasks:** before a long task runs dry, the app wraps up at 90% used (`allowanceLow`) with a "send continue" note. Good.
 - **In the single-model plan:** the light state becomes "same model, shorter replies" (a `max_tokens` cap), not a different model.
 
 ---
 
-## 5. The single "SubMac model" with a sticky router
+## 5. The single "Telesia model" with a sticky router
 
 ### 5.1 What changes
 Today one task can move between up to five model families: fast, smart, think, vision and Somali. Each move:
@@ -328,7 +328,7 @@ Two things to decide up front:
 ### 5.2 Code to delete
 **App (`lib/`):**
 - `cloud.dart`:
-  - delete `Cloud.smart/fast/think/vision`; use one name (e.g. `submac`);
+  - delete `Cloud.smart/fast/think/vision`; use one name (e.g. `telesia`);
   - set `provider.models` to that one name.
 - `app_state.dart`, routing and model choice:
   - `roleRef` (fast/vision roles; keep image/video only if those stay separate endpoints);
@@ -354,9 +354,9 @@ Two things to decide up front:
 - `services/quick_lane.dart`:
   - delete `effortFor` (dead today) and `quickMaxTokens` (never sent);
   - **keep `laneFor`.** The quick and light lanes save prompt size and tools, which is most of their speed win, and they work the same on one model.
-- `services/context_window.dart`: the whole model table. Use `x-submac-window` from the server, with 48k as the default.
+- `services/context_window.dart`: the whole model table. Use `x-telesia-window` from the server, with 48k as the default.
 - `widgets/composer.dart`: the Auto/Quick/Think chip (`_ThinkingChip`) and `local_store` `thinking`.
-  - If the owner wants to keep a "Think harder" option, keep it as an **effort hint** (`x-submac-effort: high`), not a model.
+  - If the owner wants to keep a "Think harder" option, keep it as an **effort hint** (`x-telesia-effort: high`), not a model.
 - Tests that cover the removed routing (`TurnRouter`, `AutoRouter`, `_withThinking`).
 
 **Server (`supabase/functions/ai-chat/index.ts` and the database):**
@@ -367,11 +367,11 @@ Two things to decide up front:
   - Language guidance stays in the app's prompt (`Somali.chatGuide`).
 - Other aliases in `makePlan`:
   - the "light → grace alias" switch: keep it as a `max_tokens` cap on the same model;
-  - forcing `submac-vision` when images appear: replace with a "route must have vision" capability filter;
+  - forcing `telesia-vision` when images appear: replace with a "route must have vision" capability filter;
   - `thinkIn`;
   - the `spare` routes borrowed from other aliases (one list now).
 - `classify()` alias lookup (moderation uses the same model with `max_tokens: 120`).
-- `bot-run`: `submac-fast` and `submac-smart` become one name. Use a small `max_tokens` for the heartbeat check.
+- `bot-run`: `telesia-fast` and `telesia-smart` become one name. Use a small `max_tokens` for the heartbeat check.
 - The `ai_gate` alias parameter, and alias rows in `ai_aliases` (keep one).
 - The admin dashboard's per-alias editing.
 - The `docs/model-routes-*` revert SQL.
@@ -431,7 +431,7 @@ The rule: **every server limit ends before the matching app limit, and the serve
 |---|---|
 | Response headers | **10 s** with the early heartbeat (30 s if the server change ships later than the app) |
 | Silence inside a stream | **30 s** (3 missed heartbeats). The idle timer already counts comment lines, because it counts bytes |
-| First visible word | no separate timer; the line says "Still thinking" at 8 s and "Taking longer than usual" at 20 s. At **45 s** with no token, stop and show "SubMac is busy. Tap to try again" (the message is kept) |
+| First visible word | no separate timer; the line says "Still thinking" at 8 s and "Taking longer than usual" at 20 s. At **45 s** with no token, stop and show "Telesia is busy. Tap to try again" (the message is kept) |
 | Automatic retries | **1** before any output, only for retryable codes, honouring `Retry-After`. Mid-reply drops: "continue" at most 2 times per step (today 6) |
 | `complete()` (titles, summaries, bot checks) | 50 s |
 | Session refresh | 5 s |
@@ -471,7 +471,7 @@ Live already has its own pool (`live_routes`) with per-row rests. To match the c
 | 6 | Register the run before any await in `send` | No double agents or double cost | Small |
 | 7 | Stream re-draw: per-message notifier; plain text for code/tables while streaming | Smooth long replies on cheap phones | Medium |
 | 8 | Keep-alive started with the task + partial wake lock; network-change abort | Tasks survive screen-off and Wi-Fi changes | Small–medium |
-| 9 | Batch budget for parallel tool results; compaction never blocking; read `x-submac-window` | No 30k-token surprise steps | Small |
+| 9 | Batch budget for parallel tool results; compaction never blocking; read `x-telesia-window` | No 30k-token surprise steps | Small |
 | 10 | Server writes key state only on change; moderation de-dupe in the DB | Lower DB load at scale | Small |
 | 11 | gzip request bodies | −0.3–1 s per step on 3G | Small |
 | 12 | Drop the forced "say every 6 steps" note; show the truth-checked final answer only after the check | Fewer extra steps and no vanishing answers | Small |
@@ -519,11 +519,11 @@ Live already has its own pool (`live_routes`) with per-row rests. To match the c
 - `lib/services/cloud.dart`:
   - `token()`: refreshSession has no timeout;
   - `headers()` adds `x-region: eu-central-1`;
-  - `readHeaders()` ignores `x-submac-window`.
+  - `readHeaders()` ignores `x-telesia-window`.
 - `lib/services/rate_limiter.dart`: `estimateTokens` runs `jsonEncode(tools)` on every call; `cooldown` is keyed by provider id.
 - `lib/services/quick_lane.dart`: `laneFor` (keep); `effortFor` and `quickMaxTokens` (unused).
 - `lib/services/tool_scope.dart`: groups only ever grow within a chat; `more_tools` opens all.
-- `lib/services/context_window.dart`: `submac-` → 48k; `compactAt` = 36k.
+- `lib/services/context_window.dart`: `telesia-` → 48k; `compactAt` = 36k.
 - `lib/services/agent_loop.dart`:
   - `TurnRouter` (delete escalate);
   - `ParallelPlan.maxTogether = 6`;
@@ -569,10 +569,10 @@ Live already has its own pool (`live_routes`) with per-row rests. To match the c
     - Somali swap (`isSomaliChat` reads the last user-role message, which is the app's note on later steps);
     - vision forcing;
     - `spare` routes from other aliases;
-    - fit check / 413; `x-submac-window`.
+    - fit check / 413; `x-telesia-window`.
   - `screenLater` / `classify` (~529–585): per-isolate de-dupe.
   - Live `/live-token` in `mediaRoute` (~922): `liveRoutes()` decrypts up to 6 secrets serially; Google `auth_tokens` fetch has no timeout.
-- `supabase/functions/bot-run/index.ts`: `MODEL_TIMEOUT_MS` 55 s, `DEADLINE_MS` 105 s, `MAX_STEPS`, `submac-fast` / `submac-smart`.
+- `supabase/functions/bot-run/index.ts`: `MODEL_TIMEOUT_MS` 55 s, `DEADLINE_MS` 105 s, `MAX_STEPS`, `telesia-fast` / `telesia-smart`.
 
 **Measurements relied on**
 - `docs/project-state.md`:

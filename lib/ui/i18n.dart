@@ -63,12 +63,12 @@ class Strings {
           'Your digital people work for you: research, keep track, message you when it matters.',
       'A team needs at least two bots. Make another bot first, then put them together.':
           'A team needs at least two digital people. Make another one first, then put them together.',
-      'On: SubMac and your bots act without asking. Payments and purchases still ask every time.':
-          'On: SubMac and your digital people act without asking. Payments and purchases still ask every time.',
-      'Off: SubMac and your bots ask before sending, deleting or changing things for you. Small, safe steps go ahead.':
-          'Off: SubMac and your digital people ask before sending, deleting or changing things for you. Small, safe steps go ahead.',
-      'SubMac and your bots will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.':
-          'SubMac and your digital people will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.',
+      'On: Telesia and your bots act without asking. Payments and purchases still ask every time.':
+          'On: Telesia and your digital people act without asking. Payments and purchases still ask every time.',
+      'Off: Telesia and your bots ask before sending, deleting or changing things for you. Small, safe steps go ahead.':
+          'Off: Telesia and your digital people ask before sending, deleting or changing things for you. Small, safe steps go ahead.',
+      'Telesia and your bots will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.':
+          'Telesia and your digital people will send, post, change and delete things for you without asking first. Payments and purchases still ask every time. You can turn this off anytime.',
       "Each bot picks its own model in its profile. Bots left on Default use your chats' model.":
           "Each digital person picks their own model in their profile. Ones left on Default use your chat's model.",
       'Give it a task in its chat. It carries the work through and comes back when it needs you.':

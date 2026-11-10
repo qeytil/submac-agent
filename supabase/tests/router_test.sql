@@ -1,4 +1,4 @@
--- Router migration tests (throwaway DB only): seeding of alias `submac`, CAS swap, windows, backoff ladder, ai_gate.
+-- Router migration tests (throwaway DB only): seeding of alias `telesia`, CAS swap, windows, backoff ladder, ai_gate.
 -- Run: supabase/tests/run_router_tests.sh
 \set ON_ERROR_STOP 1
 \pset tuples_only on
@@ -7,18 +7,18 @@ create or replace function pg_temp.ok(c boolean, what text) returns void languag
 begin if not c then raise exception 'FAIL: %', what; end if; raise notice 'ok - %', what; end $$;
 
 -- Seeded routes: 3 smart (incl. one Gemini), Gemini from somali + vision, nothing else.
-select pg_temp.ok((select count(*) from ai_routes where alias = 'submac') = 5, 'R01 submac has 3 smart + 2 extra Gemini routes');
-select pg_temp.ok((select count(*) from ai_routes r join ai_models m on m.id = r.model_ref where r.alias = 'submac' and m.model_id = 'open-x') = 0, 'R02 non-Gemini routes of other aliases are not copied');
-select pg_temp.ok((select min(priority) from ai_routes r join ai_models m on m.id=r.model_ref where r.alias='submac' and m.model_id in ('gemini-so','gemini-vis')) > 1000, 'R03 Gemini extras come after the smart routes');
-select pg_temp.ok((select count(*) from ai_routes where alias = 'submac-smart') = 3, 'R04 old alias rows untouched');
+select pg_temp.ok((select count(*) from ai_routes where alias = 'telesia') = 5, 'R01 telesia has 3 smart + 2 extra Gemini routes');
+select pg_temp.ok((select count(*) from ai_routes r join ai_models m on m.id = r.model_ref where r.alias = 'telesia' and m.model_id = 'open-x') = 0, 'R02 non-Gemini routes of other aliases are not copied');
+select pg_temp.ok((select min(priority) from ai_routes r join ai_models m on m.id=r.model_ref where r.alias='telesia' and m.model_id in ('gemini-so','gemini-vis')) > 1000, 'R03 Gemini extras come after the smart routes');
+select pg_temp.ok((select count(*) from ai_routes where alias = 'telesia-smart') = 3, 'R04 old alias rows untouched');
 
 -- Snapshot with no pointer.
 select pg_temp.ok(ai_router_snapshot() -> 'current_route_id' = 'null'::jsonb, 'R05 no pointer yet');
 
 create temp table ids as select
-  (select r.id from ai_routes r join ai_models m on m.id=r.model_ref where r.alias='submac' and m.model_id='smart-a') a,
-  (select r.id from ai_routes r join ai_models m on m.id=r.model_ref where r.alias='submac' and m.model_id='smart-b') b,
-  (select r.id from ai_routes r join ai_models m on m.id=r.model_ref where r.alias='submac' and m.model_id='gemini-so') c;
+  (select r.id from ai_routes r join ai_models m on m.id=r.model_ref where r.alias='telesia' and m.model_id='smart-a') a,
+  (select r.id from ai_routes r join ai_models m on m.id=r.model_ref where r.alias='telesia' and m.model_id='smart-b') b,
+  (select r.id from ai_routes r join ai_models m on m.id=r.model_ref where r.alias='telesia' and m.model_id='gemini-so') c;
 
 -- Two hard failures: no swap. Third: swap to b, a rests 1 min.
 select pg_temp.ok((ai_router_report(a, 'hard', b) ->> 'swapped')::boolean = false, 'R06 1st hard failure: no swap') from ids;
@@ -68,10 +68,10 @@ select pg_temp.ok(ai_router_snapshot() -> 'current_route_id' = 'null'::jsonb, 'R
 update ai_routes set enabled = true where id = (select b from ids);
 
 -- ai_gate carries the router and prefers the current route's provider keys.
-select pg_temp.ok((ai_gate(gen_random_uuid(), false, 'submac', false) -> 'router' ->> 'current_route_id')::uuid = b, 'R22 ai_gate returns the pointer') from ids;
-select pg_temp.ok((select jsonb_object_keys(ai_gate(gen_random_uuid(), false, 'submac', false) -> 'keys') limit 1)::uuid =
+select pg_temp.ok((ai_gate(gen_random_uuid(), false, 'telesia', false) -> 'router' ->> 'current_route_id')::uuid = b, 'R22 ai_gate returns the pointer') from ids;
+select pg_temp.ok((select jsonb_object_keys(ai_gate(gen_random_uuid(), false, 'telesia', false) -> 'keys') limit 1)::uuid =
   (select m.provider_id from ai_routes r join ai_models m on m.id=r.model_ref where r.id=(select b from ids)), 'R23 cold-start keys are the current route''s provider');
-select pg_temp.ok(ai_gate(gen_random_uuid(), true, null, false) -> 'config' -> 'aliases' @> '[{"alias":"submac"}]', 'R24 config lists alias submac');
+select pg_temp.ok(ai_gate(gen_random_uuid(), true, null, false) -> 'config' -> 'aliases' @> '[{"alias":"telesia"}]', 'R24 config lists alias telesia');
 -- Service role only.
 select pg_temp.ok(not has_function_privilege('authenticated', 'public.ai_router_report(uuid,text,uuid)', 'execute'), 'R25 report is service-only');
 select pg_temp.ok(not has_table_privilege('authenticated', 'public.ai_router_state', 'select'), 'R26 state table closed to users');

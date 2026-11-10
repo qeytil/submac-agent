@@ -12,7 +12,7 @@ import '../sub_icon.dart';
 /// replied message when clicked"). Swipe a message toward the middle, or hold it and pick Reply: a quoted preview sits
 /// above the composer, the sent message shows the quote in its bubble, and a tap on the quote jumps to the original.
 ///
-/// Used by the main SubMac chat, bot chats (the same chat screen) and team chats.
+/// Used by the main Telesia chat, bot chats (the same chat screen) and team chats.
 
 /// What a message replies to: the original's id, who wrote it, and a short quote of it.
 class ReplyRef {
@@ -33,7 +33,7 @@ class ReplyRef {
 /// How a reply travels inside a chat message's text. Messages sync as rows with fixed columns (no server change for
 /// this), so the link rides at the top of the user's text in a form the model reads naturally:
 ///
-///     [Reply to SubMac · #<id>]
+///     [Reply to Telesia · #<id>]
 ///     > the quoted words, on one line
 ///
 ///     the user's own words

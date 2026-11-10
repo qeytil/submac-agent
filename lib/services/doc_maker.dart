@@ -9,7 +9,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'tools.dart';
 
 /// Makes real files people can send: PDF, Word (.docx), Excel (.xlsx), CSV and slide decks (landscape PDF).
-/// Written in the SubMac look: serif headings, calm body text, a thin red rule.
+/// Written in the Telesia look: serif headings, calm body text, a thin red rule.
 class DocMaker {
   static const names = {'make_document', 'images_to_pdf'};
 
@@ -263,7 +263,7 @@ class DocMaker {
     final doc = PdfDocument();
     doc.pageSettings.margins.all = 54;
     doc.documentInformation.title = title;
-    doc.documentInformation.creator = 'SubMac';
+    doc.documentInformation.creator = 'Telesia';
     var page = doc.pages.add();
     final w = page.getClientSize().width;
     var y = 0.0;

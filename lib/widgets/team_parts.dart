@@ -13,9 +13,9 @@ import 'sub_icon.dart';
 import '../ui/i18n.dart';
 
 /// Small shared pieces of the Team pages (people, teams, settings rows) and the "Send to" picker for things shared
-/// into SubMac.
+/// into Telesia.
 
-/// Something was shared into SubMac: send it to a chat, a bot or a team. Returns 'chat', 'bot:<id>' or
+/// Something was shared into Telesia: send it to a chat, a bot or a team. Returns 'chat', 'bot:<id>' or
 /// 'office:<id>' (null = cancelled).
 Future<String?> pickShareTarget(BuildContext context) {
   return showModalBottomSheet<String>(

@@ -47,7 +47,7 @@ class ApprovalsScreen extends StatelessWidget {
                   dense: true,
                   title: Text(a.title, maxLines: 2, overflow: TextOverflow.ellipsis),
                   subtitle: Text(
-                      '${Bots.I.byId(a.botId)?.name ?? 'SubMac'} · ${switch (a.status) {
+                      '${Bots.I.byId(a.botId)?.name ?? 'Telesia'} · ${switch (a.status) {
                         'approved' => a.edited.isNotEmpty ? tr('Approved with your edit') : tr('Approved'),
                         'denied' => a.wantsChange ? tr('You asked for a change') : tr('Not now'),
                         _ => tr('No answer')

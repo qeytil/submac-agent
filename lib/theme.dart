@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'ui/tokens.dart';
 
-/// SubMac brand palette: warm paper, deep ink, one signature red.
+/// Telesia brand palette: warm paper, deep ink, one signature red.
 class Palette {
   final Color bg;
   final Color sidebar;
@@ -106,9 +106,9 @@ class Palette {
       Theme.of(context).brightness == Brightness.dark ? dark : light;
 }
 
-/// Brand type (owner, 2026-10-23): one refined bold sans for display text (the SubMac wordmark,
+/// Brand type (owner, 2026-10-23): one refined bold sans for display text (the Telesia wordmark,
 /// titles, headings, your short messages, call names) and the Geist reading sans for everything you
-/// read. No serif in the app UI any more (documents SubMac makes may still use one).
+/// read. No serif in the app UI any more (documents Telesia makes may still use one).
 class Brand {
   static const sans = 'Geist';
 
@@ -178,7 +178,7 @@ ThemeData buildTheme(Brightness b) {
     splashFactory: InkRipple.splashFactory,
     highlightColor: p.text.withValues(alpha: 0.04),
     splashColor: p.text.withValues(alpha: 0.06),
-    // SubMac's own screen motion (ui/motion.dart): a fade with a small rise that settles.
+    // Telesia's own screen motion (ui/motion.dart): a fade with a small rise that settles.
     pageTransitionsTheme: const PageTransitionsTheme(builders: {
       TargetPlatform.android: SubPageTransitions(),
       TargetPlatform.iOS: SubPageTransitions(),

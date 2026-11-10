@@ -1,8 +1,8 @@
-/// Who is driving the phone's screen right now (SubMac's own task, a bot's run, Live), and when each last did
+/// Who is driving the phone's screen right now (Telesia's own task, a bot's run, Live), and when each last did
 /// something. Pure logic with no Flutter or platform calls, so it can be tested on its own.
 ///
 /// It decides two things:
-///  * whether the "SubMac is using your phone" badge may stay up (some owner is still active), and
+///  * whether the "Telesia is using your phone" badge may stay up (some owner is still active), and
 ///  * which task the floating chat bubble should show.
 ///
 /// The watchdog: an owner that has not taken a step for a while is dropped, even if nobody told us it ended (a crash,
@@ -152,7 +152,7 @@ class BubbleAsk {
     this.needsApp = false,
   });
 
-  /// approval (a bot's ask), confirm (SubMac's own ask), question (the task asks something), app (only in the app).
+  /// approval (a bot's ask), confirm (Telesia's own ask), question (the task asks something), app (only in the app).
   final String id;
   final String kind;
   final String who;
@@ -163,7 +163,7 @@ class BubbleAsk {
   final String? editText;
   final List<String> options;
 
-  /// Sign-ins and private answers are never typed into the bubble: it offers "Open SubMac".
+  /// Sign-ins and private answers are never typed into the bubble: it offers "Open Telesia".
   final bool needsApp;
 
   Map<String, Object?> toJson() => {

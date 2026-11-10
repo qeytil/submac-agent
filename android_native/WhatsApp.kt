@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.app.KeyguardManager
 import android.app.Notification
@@ -45,7 +45,7 @@ object WhatsApp {
     fun isWa(pkg: String?) = pkg != null && pkg in PKGS
     fun appName(pkg: String) = if (pkg == BUSINESS) "WhatsApp Business" else "WhatsApp"
 
-    private fun prefs(ctx: Context) = ctx.getSharedPreferences("submac_wa", Context.MODE_PRIVATE)
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences("telesia_wa", Context.MODE_PRIVATE)
     fun capturing(ctx: Context) = prefs(ctx).getBoolean("capture", true)
     fun setCapturing(ctx: Context, on: Boolean) {
         prefs(ctx).edit().putBoolean("capture", on).apply()
@@ -232,7 +232,7 @@ object WhatsApp {
         } catch (_: Throwable) {}
     }
 
-    /** Adds a message SubMac sent, so the chat history the agent sees includes it. */
+    /** Adds a message Telesia sent, so the chat history the agent sees includes it. */
     @Synchronized fun noteSent(ctx: Context, key: String, text: String) {
         load(ctx)
         val c = chats[key] ?: return
@@ -323,7 +323,7 @@ object WhatsApp {
 
     // ------------------------------------------------------------------ intents
 
-    private fun starter(ctx: Context): Context = SubMacA11y.instance ?: ctx
+    private fun starter(ctx: Context): Context = TelesiaA11y.instance ?: ctx
 
     /** Opens the chat with [phone] (digits with country code), with [text] typed in when given. */
     fun openChat(ctx: Context, pkg: String, phone: String, text: String): String {
@@ -354,7 +354,7 @@ object WhatsApp {
 
     /**
      * Shares a file into WhatsApp. With [phone], WhatsApp goes straight to that chat's preview; without it,
-     * WhatsApp shows its chat picker. Files are served by [WaFiles] from SubMac's cache, read-only.
+     * WhatsApp shows its chat picker. Files are served by [WaFiles] from Telesia's cache, read-only.
      */
     fun shareFile(ctx: Context, pkg: String, path: String, mime: String, phone: String, caption: String): String {
         if (!installed(ctx, pkg)) return "not-installed"
@@ -386,7 +386,7 @@ object WhatsApp {
         put("personal", installed(ctx, PERSONAL))
         put("business", installed(ctx, BUSINESS))
         put("notifRead", NotifListener.enabled(ctx))
-        put("phoneControl", SubMacA11y.instance != null)
+        put("phoneControl", TelesiaA11y.instance != null)
         put("locked", locked(ctx))
         put("capture", capturing(ctx))
         put("chats", count(ctx))

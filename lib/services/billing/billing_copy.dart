@@ -98,7 +98,7 @@ class BillingCopy {
     'Bots have used their share for today.': 'Bot-yadu qaybtoodii maanta way dhammaysteen.',
     "You've used all your replies.": 'Dhammaan jawaabahaagii waad isticmaashay.',
     'You need a plan for this.': 'Tan waxaad u baahan tahay qorshe.',
-    'SubMac is busy. Try again soon.': 'SubMac waa mashquul. Dhawaan isku day.',
+    'Telesia is busy. Try again soon.': 'Telesia waa mashquul. Dhawaan isku day.',
     "This reply couldn't be sent.": 'Jawaabtan lama dirin.',
     'Resets at midnight.': 'Saqda dhexe ayuu dib u bilaabanayaa.',
     'Resets at {t} (in {d}).': 'Dib u bilaabanaya {t} ({d} kadib).',

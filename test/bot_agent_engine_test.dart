@@ -1,4 +1,4 @@
-// The bot engine's turn loop on its own (no app, no network): SubMac's own bot engine, owner 2026-11-07.
+// The bot engine's turn loop on its own (no app, no network): Telesia's own bot engine, owner 2026-11-07.
 
 import 'package:agent/bot_agent/bot_agent_config.dart';
 import 'package:agent/bot_agent/bot_agent_engine.dart';

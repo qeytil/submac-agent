@@ -95,7 +95,7 @@ class WaText {
     final n = now ?? DateTime.now();
     if (chats.isEmpty) {
       return unreadOnly
-          ? 'No unread WhatsApp messages since SubMac started reading notifications.'
+          ? 'No unread WhatsApp messages since Telesia started reading notifications.'
           : 'No WhatsApp messages saved yet. New ones appear here as they arrive (notification access must be on).';
     }
     final sb = StringBuffer();

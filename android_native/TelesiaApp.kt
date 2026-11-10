@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.app.Application
 import android.content.Context
@@ -10,7 +10,7 @@ import io.flutter.embedding.engine.dart.DartExecutor
  * Owns the one Flutter engine. The screen borrows it, and the wake word, the floating
  * Live orb and background tasks keep using it after the screen is closed.
  */
-class SubMacApp : Application() {
+class TelesiaApp : Application() {
     override fun onCreate() {
         super.onCreate()
         app = this
@@ -18,8 +18,8 @@ class SubMacApp : Application() {
     }
 
     companion object {
-        lateinit var app: SubMacApp
-        private const val ENGINE = "submac_main"
+        lateinit var app: TelesiaApp
+        private const val ENGINE = "telesia_main"
 
         @JvmStatic
         fun engineIfRunning(): FlutterEngine? = FlutterEngineCache.getInstance().get(ENGINE)

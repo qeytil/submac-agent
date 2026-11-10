@@ -13,13 +13,13 @@ export 'update_logic.dart';
 
 /// In-app updates (branch feature/app-update). Checks `latest_release` on cold start, on resume (at most every
 /// 30 minutes) and from Settings > App update. The download itself runs in Android's DownloadManager
-/// (android_native/AppUpdater.kt), so it keeps going when the user leaves SubMac. State is saved, so a restart
+/// (android_native/AppUpdater.kt), so it keeps going when the user leaves Telesia. State is saved, so a restart
 /// shows the same window: progress, or Install straight away when the file is already here.
 class Updater extends ChangeNotifier {
   Updater._();
   static final Updater I = Updater._();
 
-  static const _ch = MethodChannel('submac/update');
+  static const _ch = MethodChannel('telesia/update');
   static const _key = 'app_update_v1';
   static const resumeEvery = Duration(minutes: 30);
 
@@ -62,7 +62,7 @@ class Updater extends ChangeNotifier {
     }
     if (!supported) return;
     _ch.setMethodCallHandler((call) async {
-      // The SubMac screen was opened again (the app kept running in the background): show the window again.
+      // The Telesia screen was opened again (the app kept running in the background): show the window again.
       if (call.method == 'opened') {
         dismissed = false;
         notifyListeners();
@@ -154,7 +154,7 @@ class Updater extends ChangeNotifier {
         'urls': r.urls(AppConfig.supabaseUrl),
         'sha256': r.sha256,
         'size': r.sizeBytes,
-        'title': 'SubMac ${r.versionName}',
+        'title': 'Telesia ${r.versionName}',
       });
     } catch (e) {
       debugPrint('update start failed: $e');
@@ -193,7 +193,7 @@ class Updater extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Opens Android's "Install unknown apps" switch for SubMac; Install continues when the user comes back.
+  /// Opens Android's "Install unknown apps" switch for Telesia; Install continues when the user comes back.
   Future<void> openInstallSettings() async {
     _pendingInstall = true;
     try {

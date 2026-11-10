@@ -7,7 +7,7 @@ void main() {
     expect(s.statusLine, 'Not online yet');
     s
       ..host = SiteHost.free
-      ..url = 'https://cafe-amal-x7k2.submac-sites.pages.dev'
+      ..url = 'https://cafe-amal-x7k2.telesia-sites.pages.dev'
       ..expiresAt = DateTime.now().add(const Duration(days: 6, hours: 2));
     expect(s.isLive, true);
     expect(s.statusLine, 'Free link · 7 days left');
@@ -41,7 +41,7 @@ void main() {
   });
 
   test('site survives a save round trip', () {
-    final s = Site(id: 's9', title: 'T', entryPath: '/p.html', host: SiteHost.free, url: 'https://t.submac-sites.pages.dev', publishCount: 2);
+    final s = Site(id: 's9', title: 'T', entryPath: '/p.html', host: SiteHost.free, url: 'https://t.telesia-sites.pages.dev', publishCount: 2);
     final back = Site.fromJson(s.toJson());
     expect(back.url, s.url);
     expect(back.publishCount, 2);

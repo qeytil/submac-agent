@@ -84,8 +84,8 @@ class BotManner {
       'Cidna ma qaadan. Xubin @ ku xus si aad si toos ah u weydiiso.', 'لم يتولَّ أحد هذا. اذكر أحد أعضاء الفريق بـ @ لتسأله مباشرة.');
   static String noReply(String member, {String lang = 'en'}) => _l(lang, '$member did not reply. Ask again, or mention another teammate with @.',
       '$member kama jawaabin. Mar kale weydii, ama xubin kale @ ku xus.', 'لم يرد $member. اسأل مرة أخرى، أو اذكر عضوًا آخر بـ @.');
-  static String interrupted({String lang = 'en'}) => _l(lang, 'The team\'s work was interrupted when SubMac closed. Say "go" to restart.',
-      'Shaqada kooxda way go\'day markii SubMac xirmay. Dheh "go" si dib loogu bilaabo.', 'توقف عمل الفريق عندما أُغلق SubMac. اكتب "go" لإعادة البدء.');
+  static String interrupted({String lang = 'en'}) => _l(lang, 'The team\'s work was interrupted when Telesia closed. Say "go" to restart.',
+      'Shaqada kooxda way go\'day markii Telesia xirmay. Dheh "go" si dib loogu bilaabo.', 'توقف عمل الفريق عندما أُغلق Telesia. اكتب "go" لإعادة البدء.');
 
   /// Lead mode lines (owner 2026-11-05): the owner hands the team to the lead, or takes it back.
   static String leadTakesOver(String lead, {String lang = 'en'}) => _l(lang, '$lead is leading the team until you are back.',

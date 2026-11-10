@@ -50,11 +50,11 @@ Future<void> main() async {
   // Errors never crash the app or paint a red screen: log them and keep going.
   FlutterError.onError = (d) {
     FlutterError.presentError(d);
-    debugPrint('SubMac UI error: ${LogScrub.clean(d.exceptionAsString())}');
+    debugPrint('Telesia UI error: ${LogScrub.clean(d.exceptionAsString())}');
     Events.I.log('error', props: {'from': 'main', 'kind': 'ui'});
   };
   PlatformDispatcher.instance.onError = (e, st) {
-    debugPrint('SubMac error: ${LogScrub.clean(e)}');
+    debugPrint('Telesia error: ${LogScrub.clean(e)}');
     Events.I.log('error', props: {'from': 'main', 'kind': 'crash'});
     return true;
   };
@@ -64,7 +64,7 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('Supabase init failed: $e');
   }
-  // "Hire in SubMac" links from submac.site/b/<code> (kept until the signed-in home screen takes them).
+  // "Hire in Telesia" links from telesia.site/b/<code> (kept until the signed-in home screen takes them).
   HireLinks.I.listen();
   // The app is English only (owner 2026-11-08): clear any language an older version saved.
   await AppLang.I.load();
@@ -97,7 +97,7 @@ Future<void> main() async {
   unawaited(state.initAlwaysOn().catchError((Object e) => debugPrint('always on: $e')));
   // Push (plan 2.1). Optional: if Firebase fails the app runs as before, just without push.
   unawaited(Push.I.init().catchError((_) {}));
-  // Plan 2.4 rewards (invite link, claim a referral once after sign-up) and the "From SubMac" inbox.
+  // Plan 2.4 rewards (invite link, claim a referral once after sign-up) and the "From Telesia" inbox.
   unawaited(Rewards.I.init().catchError((_) {}));
   unawaited(Inbox.I.init().catchError((_) {}));
   // In-app updates: the update window shows on every start while a newer version is published.
@@ -173,7 +173,7 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
       unawaited(Updater.I.resumed());
       if (Supabase.instance.client.auth.currentSession != null) {
         Cloud.refreshStatus();
-        // A task the phone killed while SubMac was away picks up where it left off.
+        // A task the phone killed while Telesia was away picks up where it left off.
         unawaited(state.resumeKilledRuns().catchError((Object e) => debugPrint('resume runs: $e')));
         // An owner message the daily allowance blocked gets its turn now if the allowance is back (owner 2026-11-07).
         unawaited(PendingTurns.I.drain());
@@ -207,7 +207,7 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
       themeMode: mode,
-      // Switching looks eases on SubMac's own curve, in step with the sky's veils (it was a 200 ms linear fade
+      // Switching looks eases on Telesia's own curve, in step with the sky's veils (it was a 200 ms linear fade
       // while the sky's veils switched at once).
       themeAnimationDuration: SubMotion.base,
       themeAnimationCurve: SubMotion.settle,
@@ -257,7 +257,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
-    // After a reset (the emailed code, or the link in older emails) SubMac asks for the new password.
+    // After a reset (the emailed code, or the link in older emails) Telesia asks for the new password.
     _sub = Supabase.instance.client.auth.onAuthStateChange.listen((s) {
       final codeReset = s.event == AuthChangeEvent.signedIn && AuthFlow.takePendingReset();
       if (s.event == AuthChangeEvent.passwordRecovery || codeReset) {
@@ -313,7 +313,7 @@ enum GateStep { signIn, verify, recordConsent, confirmConsent, home }
 
 /// Every account confirms 18+ and agrees to the Terms and Privacy Policy once (again if consentVersion goes up). The
 /// box is on the sign-in screen, so after sign-in the agreement is saved without another page ([GateStep.recordConsent]).
-/// Accounts that already agreed go straight in. Only a session kept from an older SubMac that never agreed and never
+/// Accounts that already agreed go straight in. Only a session kept from an older Telesia that never agreed and never
 /// ticked the box on this phone is asked on the sign-in screen's own agreement view ([GateStep.confirmConsent]).
 GateStep gateStep({required bool signedIn, required bool needsVerify, required bool hasConsent, required bool ticked}) {
   if (!signedIn) return GateStep.signIn;
@@ -345,7 +345,7 @@ class GateSwitch extends StatelessWidget {
 }
 
 /// The first-launch intro in front of the sign-in screen. It plays once per install, only when nobody is signed in
-/// yet (someone updating SubMac while signed in goes straight to chat and never sees it), and hands over to sign-in
+/// yet (someone updating Telesia while signed in goes straight to chat and never sees it), and hands over to sign-in
 /// with [GateSwitch]. Later starts never wait on it: [IntroFlag.seen] is read before the first frame.
 class LaunchGate extends StatefulWidget {
   const LaunchGate({super.key, required this.child, required this.showIntro, this.sound});

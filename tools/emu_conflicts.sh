@@ -2,7 +2,7 @@
 # Reproduce leftover-install scenarios: OLD then NEW apk (different signing keys / versions).
 # Usage: tools/emu_conflicts.sh old.apk new.apk
 set -u
-PKG=com.submac.agent; OLD=$1; NEW=$2
+PKG=com.telesia.app; OLD=$1; NEW=$2
 st(){ echo "---- $1"; }
 clean(){ adb shell pm uninstall $PKG >/dev/null 2>&1; adb shell pm uninstall --user 10 $PKG >/dev/null 2>&1; true; }
 pushapk(){ adb push "$1" /data/local/tmp/$2.apk >/dev/null; }

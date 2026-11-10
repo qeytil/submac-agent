@@ -2,19 +2,19 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:agent/services/opencode.dart';
-import 'package:agent/services/submac_mcp.dart';
+import 'package:agent/services/telesia_mcp.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Layer 1 of opencode + SubMac (owner, 2026-11-02): SubMac's MCP server, and opencode's permission and question
-/// requests shown as SubMac's ask card. Proven against opencode 1.19.5 in the sandbox the same day (connected, a call
+/// Layer 1 of opencode + Telesia (owner, 2026-11-02): Telesia's MCP server, and opencode's permission and question
+/// requests shown as Telesia's ask card. Proven against opencode 1.19.5 in the sandbox the same day (connected, a call
 /// round trip, a 75 s call with the long timeout, a bash permission, a question).
 void main() {
-  group('SubMac MCP server', () {
-    late SubMacMcp mcp;
+  group('Telesia MCP server', () {
+    late TelesiaMcp mcp;
     final calls = <String>[];
     setUp(() async {
       calls.clear();
-      mcp = SubMacMcp(
+      mcp = TelesiaMcp(
         tools: () => [
           {
             'type': 'function',
@@ -74,7 +74,7 @@ void main() {
       expect(code, 200);
       expect(j['result']['protocolVersion'], '2025-03-26');
       expect(j['result']['capabilities']['tools'], isNotNull);
-      expect(j['result']['serverInfo']['name'], 'submac');
+      expect(j['result']['serverInfo']['name'], 'telesia');
     });
 
     test('a notification gets 202 and no body', () async {
@@ -91,7 +91,7 @@ void main() {
       expect(tools[1]['inputSchema'], {'type': 'object', 'properties': {}});
     });
 
-    test('tools/call runs the SubMac tool and returns its text', () async {
+    test('tools/call runs the Telesia tool and returns its text', () async {
       final (_, j) = await post({
         'jsonrpc': '2.0',
         'id': 3,
@@ -120,7 +120,7 @@ void main() {
     });
   });
 
-  group('opencode asks on SubMac\'s card', () {
+  group('opencode asks on Telesia\'s card', () {
     late List<(String, String, String, List<String>)> shown;
     late List<(String, String)> permits;
     late List<(String, List<List<String>>?)> answers;

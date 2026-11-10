@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
@@ -13,7 +13,7 @@ import org.json.JSONObject
  *
  * Runs on Bridge's phone-control worker thread (never the main thread).
  */
-class WaHands(private val a: SubMacA11y) {
+class WaHands(private val a: TelesiaA11y) {
     companion object {
         // Words WhatsApp uses for these buttons (content descriptions), lowercased. English first.
         val SEND = listOf("send", "إرسال", "ارسال", "envoyer", "enviar", "senden", "gönder", "kirim", "invia", "отправить", "verzenden", "wysłij", "भेजें", "ارسال کریں", "dir", "tuma")

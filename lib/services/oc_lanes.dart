@@ -4,13 +4,13 @@ import 'opencode.dart';
 
 /// Which allowance lane an opencode turn's model calls bill to (owner 2026-11-03).
 ///
-/// The cause: opencode on the phone had one provider (`submac`), so every model call it made, a bot's wake and a team
-/// member's part included, reached ai-chat without `x-submac-lane: background`. Bot work was billed as the owner's own
-/// chat and was never paused when the bots' share ran out; bots also always ran on the `submac` alias.
+/// The cause: opencode on the phone had one provider (`telesia`), so every model call it made, a bot's wake and a team
+/// member's part included, reached ai-chat without `x-telesia-lane: background`. Bot work was billed as the owner's own
+/// chat and was never paused when the bots' share ran out; bots also always ran on the `telesia` alias.
 ///
 /// The fix: opencode gets one provider per lane, each pointing at its own path on the app's local proxy. The proxy
-/// (LocalProxy.kt) turns the path into the lane: `/__submac/lane/<source>/...` goes out with `x-submac-lane: background`
-/// and `x-submac-source: <source>`; any other `/__submac/...` call goes out with the lane header removed, so a
+/// (LocalProxy.kt) turns the path into the lane: `/__telesia/lane/<source>/...` goes out with `x-telesia-lane: background`
+/// and `x-telesia-source: <source>`; any other `/__telesia/...` call goes out with the lane header removed, so a
 /// foreground call can never carry it. Every prompt names its provider and model explicitly (opencode's per-message
 /// `model`), so the lane is chosen per turn and per session and cannot leak between turns running side by side: it
 /// travels in each request's own path, not in shared state. (opencode would otherwise reuse a session's last model, so
@@ -20,13 +20,13 @@ class OcLane {
   OcLane._();
 
   /// The owner's own chats (and the owner typing in a bot's chat): the user's lane.
-  static const fg = 'submac';
+  static const fg = 'telesia';
 
   /// A bot's own background work (wakes, routines, follow-ups): the bots' share, billed as `bot`.
-  static const bot = 'submac-bg';
+  static const bot = 'telesia-bg';
 
   /// Office and team work nobody is watching (team members' and leads' parts): the bots' share, billed as `office`.
-  static const office = 'submac-office';
+  static const office = 'telesia-office';
 
   /// The source each background provider sends (ai-chat BOT_SOURCES: both bill to the bots' share).
   static const bgSources = {bot: 'bot', office: 'office'};
@@ -34,27 +34,27 @@ class OcLane {
   /// The proxy path prefix that marks the background lane (after LocalProxy.PREFIX).
   static const lanePath = '/lane/';
 
-  /// SubMac's chat model names opencode may be asked for. ai-chat treats every `submac*` chat name as the one model
+  /// Telesia's chat model names opencode may be asked for. ai-chat treats every `telesia*` chat name as the one model
   /// (older apps sent these aliases), so each is safe to send. The image model is not a chat model.
-  // BYOK only: no SubMac chat-model aliases are offered any more.
+  // BYOK only: no Telesia chat-model aliases are offered any more.
   static const models = <String>[];
 
   /// The providers written into opencode's config (OpenCode.kt builds the JSON): id, shown name, proxy path and the
-  /// `x-submac-source` header. Every provider offers the same [models].
-  /// BYOK only: no SubMac providers are injected; opencode runs the owner's own providers.
+  /// `x-telesia-source` header. Every provider offers the same [models].
+  /// BYOK only: no Telesia providers are injected; opencode runs the owner's own providers.
   static List<Map<String, String>> providers() => const [];
 
-  /// The SubMac model a bot's turn runs on: its own setting (`auto` or `providerId|model`) when that names one of
-  /// SubMac's chat models, else `submac`. A BYOK setting (`byok-…|model`) is resolved first by [pick]; here any other
-  /// provider id falls back to `submac`.
+  /// The Telesia model a bot's turn runs on: its own setting (`auto` or `providerId|model`) when that names one of
+  /// Telesia's chat models, else `telesia`. A BYOK setting (`byok-…|model`) is resolved first by [pick]; here any other
+  /// provider id falls back to `telesia`.
   static String modelFor(String? setting) {
     final s = (setting ?? '').trim();
-    if (s.isEmpty || s == 'auto') return Cloud.submac;
+    if (s.isEmpty || s == 'auto') return Cloud.telesia;
     final i = s.indexOf('|');
     final provider = i >= 0 ? s.substring(0, i).trim() : '';
     final model = (i >= 0 ? s.substring(i + 1) : s).trim().toLowerCase();
-    if (provider.isNotEmpty && provider != Cloud.providerId) return Cloud.submac;
-    return models.contains(model) ? model : Cloud.submac;
+    if (provider.isNotEmpty && provider != Cloud.providerId) return Cloud.telesia;
+    return models.contains(model) ? model : Cloud.telesia;
   }
 
   /// The prompt's `model` for one turn. [background]: nobody is watching (a bot's wake, office or team work).
@@ -63,29 +63,29 @@ class OcLane {
   /// BYOK (owner 2026-11-03, docs/byok.md): the owner's chats use the model chosen in Settings → Models
   /// ([userModel], default the saved choice), a bot uses its own setting; when either names a usable model of the
   /// user's own providers, the turn goes to that provider and model directly (`byok-…`), whatever the lane: lanes only
-  /// decide SubMac billing, and a BYOK call is never billed by SubMac. Anything unusable falls back to SubMac.
+  /// decide Telesia billing, and a BYOK call is never billed by Telesia. Anything unusable falls back to Telesia.
   static Map<String, String> pick({required bool background, bool officeWork = false, String? botModel, String? userModel}) {
     final setting = botModel == null ? (userModel ?? ByokStore.I.chatModel) : botSetting(botModel, userModel: userModel);
     final own = byokFor(setting);
     if (own != null) return own;
     return {
       'providerID': background ? (officeWork ? office : bot) : fg,
-      'modelID': botModel == null ? Cloud.submac : modelFor(setting),
+      'modelID': botModel == null ? Cloud.telesia : modelFor(setting),
     };
   }
 
-  /// A bot's model setting left at its default: `auto` or empty ("Default (same as SubMac)" in its profile).
+  /// A bot's model setting left at its default: `auto` or empty ("Default (same as Telesia)" in its profile).
   static bool isDefault(String? setting) {
     final s = (setting ?? '').trim();
     return s.isEmpty || s == 'auto';
   }
 
   /// The model setting a bot's turn really runs on (owner 2026-11-05: each bot picks its model in its own profile).
-  ///  - Default (`auto`): the same model as SubMac, i.e. the owner's chat model ([userModel], default the one chosen
-  ///    in Settings → Models), whether that is SubMac or one of the owner's own providers.
+  ///  - Default (`auto`): the same model as Telesia, i.e. the owner's chat model ([userModel], default the one chosen
+  ///    in Settings → Models), whether that is Telesia or one of the owner's own providers.
   ///  - An own-provider model (`byok-…|model`) that is no longer usable here (provider removed or off, model off,
   ///    no key, or a setting synced from another phone with other providers): falls back to that default.
-  ///  - `submac` / `submac|alias`: SubMac's own model, whatever the owner's chats use.
+  ///  - `telesia` / `telesia|alias`: Telesia's own model, whatever the owner's chats use.
   static String botSetting(String? botModel, {String? userModel, ByokStore? store}) {
     final st = store ?? ByokStore.I;
     final fallback = userModel ?? st.chatModel;
@@ -107,7 +107,7 @@ class OcLane {
     return pick == null ? null : {'providerID': pick.provider.id, 'modelID': pick.model.id};
   }
 
-  /// A turn on one of the user's own providers (not billed by SubMac, not stopped by the bots' share).
+  /// A turn on one of the user's own providers (not billed by Telesia, not stopped by the bots' share).
   static bool isByok(Map<String, String>? model) => model != null && (model['providerID'] ?? '').startsWith(ByokProvider.prefix);
 
   static bool isBackground(Map<String, String>? model) => model != null && bgSources.containsKey(model['providerID']);
@@ -131,7 +131,7 @@ class OcBgGuard {
   final bool background;
   final int? budgetLeft;
 
-  /// The turn runs on the user's own provider (BYOK, owner 2026-11-03): SubMac's bots' share does not apply to it.
+  /// The turn runs on the user's own provider (BYOK, owner 2026-11-03): Telesia's bots' share does not apply to it.
   final bool byok;
 
   static const paused = 'paused', budget = 'budget';

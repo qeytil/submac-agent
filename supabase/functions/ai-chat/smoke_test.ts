@@ -13,8 +13,8 @@ const route = (id: string, model: string, vision: boolean) => ({
 const config = {
   settings: { daily_cap_tokens: 200000 },
   aliases: [
-    { alias: "submac", max_output_tokens: 64000, system_hint: null, routes: [route("A", "gpt-oss:120b", false), route("G", "gemini-3-flash-preview", true)] },
-    { alias: "submac-smart", max_output_tokens: 4096, system_hint: null, routes: [route("S", "legacy-smart", false)] },
+    { alias: "telesia", max_output_tokens: 64000, system_hint: null, routes: [route("A", "gpt-oss:120b", false), route("G", "gemini-3-flash-preview", true)] },
+    { alias: "telesia-smart", max_output_tokens: 4096, system_hint: null, routes: [route("S", "legacy-smart", false)] },
   ],
   key_meta: { pA: [{ id: "kA", cooldown_until: null }], pG: [{ id: "kG", cooldown_until: null }], pS: [{ id: "kS", cooldown_until: null }] },
 };
@@ -57,7 +57,7 @@ async function ready() {
   throw new Error("function did not start");
 }
 const chat = (body: unknown, extra: Record<string, string> = {}) => fetch(`http://127.0.0.1:${FN}/ai-chat`, {
-  method: "POST", headers: { authorization: "Bearer " + jwt, "content-type": "application/json", "x-submac-chat": "c1", ...extra }, body: JSON.stringify(body),
+  method: "POST", headers: { authorization: "Bearer " + jwt, "content-type": "application/json", "x-telesia-chat": "c1", ...extra }, body: JSON.stringify(body),
 });
 const upstreamBodies = (id: string) => calls.filter((c) => c.path === `/up/${id}/chat/completions`).map((c) => c.body);
 
@@ -65,34 +65,34 @@ Deno.test({ name: "ai-chat smoke (mock DB + mock upstream)", sanitizeOps: false,
   await ready();
   try {
     await t.step("old alias name -> one model, current route, ping first, Contract A headers, effort hint", async () => {
-      const r = await chat({ model: "submac-think", stream: true, messages: [{ role: "user", content: "hi" }] }, { "x-submac-effort": "low" });
+      const r = await chat({ model: "telesia-think", stream: true, messages: [{ role: "user", content: "hi" }] }, { "x-telesia-effort": "low" });
       assertEquals(r.status, 200);
-      for (const h of ["x-submac-today-left", "x-submac-total-left", "x-submac-resets-at", "x-submac-plan"]) assert(r.headers.get(h), h);
-      assertEquals(r.headers.get("x-submac-today-left"), "199000");
+      for (const h of ["x-telesia-today-left", "x-telesia-total-left", "x-telesia-resets-at", "x-telesia-plan"]) assert(r.headers.get(h), h);
+      assertEquals(r.headers.get("x-telesia-today-left"), "199000");
       // Contract A: next 00:00 EAT (= 21:00 UTC) with billing off too; the legacy counter's day is the EAT date.
       const eatNow = new Date(Date.now() + 3 * 3600_000);
       const next = new Date(Date.UTC(eatNow.getUTCFullYear(), eatNow.getUTCMonth(), eatNow.getUTCDate() + 1)).toISOString().slice(0, 10);
-      assertEquals(r.headers.get("x-submac-resets-at"), next + "T00:00:00+03:00");
-      assertEquals(Date.parse(r.headers.get("x-submac-resets-at")!) % 86_400_000, 21 * 3600_000);
-      assertEquals(r.headers.get("x-submac-plan"), "free");
+      assertEquals(r.headers.get("x-telesia-resets-at"), next + "T00:00:00+03:00");
+      assertEquals(Date.parse(r.headers.get("x-telesia-resets-at")!) % 86_400_000, 21 * 3600_000);
+      assertEquals(r.headers.get("x-telesia-plan"), "free");
       const text = await r.text();
       assert(text.startsWith(": ping"), text.slice(0, 40));
       assertMatch(text, /hello from A/);
-      assertMatch(text, /"model":"submac"/);
+      assertMatch(text, /"model":"telesia"/);
       const b = upstreamBodies("A").at(-1);
       assertEquals(b.model, "gpt-oss:120b");
       assertEquals(b.reasoning_effort, "low");
       assertEquals(b.max_tokens, 32768, "Poolside never gets more than its 32768 output limit (alias asks 64000)");
-      assertEquals(upstreamBodies("S").length, 0, "legacy submac-smart routes unused once alias submac exists");
+      assertEquals(upstreamBodies("S").length, 0, "legacy telesia-smart routes unused once alias telesia exists");
     });
     await t.step("photo -> capability filter picks the vision route (no alias forcing)", async () => {
-      const r = await chat({ model: "submac-smart", stream: true, messages: [{ role: "user", content: [{ type: "text", text: "what is this" }, { type: "image_url", image_url: { url: "data:image/png;base64,AA" } }] }] });
+      const r = await chat({ model: "telesia-smart", stream: true, messages: [{ role: "user", content: [{ type: "text", text: "what is this" }, { type: "image_url", image_url: { url: "data:image/png;base64,AA" } }] }] });
       assertMatch(await r.text(), /hello from G/);
       assertEquals(upstreamBodies("G").at(-1).max_tokens, 64000, "no clamp for a provider without a known limit");
     });
     await t.step("current route fails -> same request answered by the next route; failure reported to the router", async () => {
       failA = true;
-      const r = await chat({ model: "submac", stream: true, messages: [{ role: "user", content: "hi again" }] });
+      const r = await chat({ model: "telesia", stream: true, messages: [{ role: "user", content: "hi again" }] });
       assertMatch(await r.text(), /hello from G/);
       await new Promise((ok) => setTimeout(ok, 200));
       const rep = calls.filter((c) => c.path === "/rest/v1/rpc/ai_router_report").at(-1);
@@ -101,19 +101,19 @@ Deno.test({ name: "ai-chat smoke (mock DB + mock upstream)", sanitizeOps: false,
     });
     await t.step("/models lists the one model", async () => {
       const r = await fetch(`http://127.0.0.1:${FN}/ai-chat/models`, { headers: { authorization: "Bearer " + jwt } });
-      assertEquals((await r.json()).data.map((m: any) => m.id), ["submac"]);
+      assertEquals((await r.json()).data.map((m: any) => m.id), ["telesia"]);
     });
     await t.step("slow gate (> 2 s) -> friendly busy with Retry-After, no raw text", async () => {
       gateDelay = 3000;
       const t0 = Date.now();
-      const r = await chat({ model: "submac", stream: true, messages: [{ role: "user", content: "x" }] });
+      const r = await chat({ model: "telesia", stream: true, messages: [{ role: "user", content: "x" }] });
       const took = Date.now() - t0;
       const j = await r.json();
       gateDelay = 0;
       assertEquals(r.status, 503);
       assert(took < 2800, `gave up at the 2 s gate limit (${took} ms)`);
-      assertEquals(j.error.submac_code, "busy");
-      assertEquals(r.headers.get("x-submac-error"), "busy");
+      assertEquals(j.error.telesia_code, "busy");
+      assertEquals(r.headers.get("x-telesia-error"), "busy");
       const ra = Number(r.headers.get("retry-after"));
       assert(ra >= 15 && ra <= 30);
       assert(!/gate|timeout|TypeError/i.test(j.error.message), j.error.message);

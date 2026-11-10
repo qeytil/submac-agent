@@ -1,4 +1,4 @@
--- SubMac Agent billing follow-up (step 3b): charges are never lost, Live seconds closed by the server are billed,
+-- Telesia billing follow-up (step 3b): charges are never lost, Live seconds closed by the server are billed,
 -- and the per-user wallet lock can never be waited on for long.
 -- ADDITIVE ONLY. Requires 20261020_billing.sql. Independent of 20261021_billing_providers / _hardening. Safe to run twice.
 --

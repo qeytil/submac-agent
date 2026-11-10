@@ -13,7 +13,7 @@ import 'output_limits.dart';
 /// whose id is the BYOK id (`byok-…`), with its models listed explicitly, so opencode's models.dev catalogue is never
 /// needed. Verified with the real binary against local mock servers (all five packages, keys from the environment).
 ///
-/// The key is never written into opencode.json: `apiKey` is `{env:SUBMAC_BYOK_<ID>}` (opencode's config variable) and
+/// The key is never written into opencode.json: `apiKey` is `{env:TELESIA_BYOK_<ID>}` (opencode's config variable) and
 /// the active key travels only in the opencode process environment ([env]).
 class ByokOpencode {
   ByokOpencode._();
@@ -28,7 +28,7 @@ class ByokOpencode {
       };
 
   /// The environment variable that carries a provider's active key.
-  static String envName(String providerId) => 'SUBMAC_BYOK_${providerId.substring(ByokProvider.prefix.length).toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '_')}';
+  static String envName(String providerId) => 'TELESIA_BYOK_${providerId.substring(ByokProvider.prefix.length).toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '_')}';
 
   /// Without a known output limit opencode asks for 32,000 output tokens, which some servers refuse (seen in the mock
   /// run). A model the provider gave no output limit for gets its family's known maximum, else

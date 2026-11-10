@@ -40,7 +40,7 @@ class _HireScreenState extends State<HireScreen> {
   final _rules = TextEditingController();
   late AvatarSpec _look;
   final Set<String> _off = {};
-  /// The bot's own model (owner 2026-11-05): `auto` is Default (same as SubMac).
+  /// The bot's own model (owner 2026-11-05): `auto` is Default (same as Telesia).
   String _model = BotModelWords.defaultValue;
   BotRole? _from;
   Bot? _described;

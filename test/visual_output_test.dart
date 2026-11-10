@@ -7,8 +7,8 @@ import 'dart:io';
 
 import 'package:agent/app_state.dart';
 import 'package:agent/services/mcp_routes.dart';
-import 'package:agent/services/submac_gateway.dart';
-import 'package:agent/services/submac_mcp.dart';
+import 'package:agent/services/telesia_gateway.dart';
+import 'package:agent/services/telesia_mcp.dart';
 import 'package:agent/services/tools.dart';
 import 'package:agent/services/turn_visuals.dart';
 import 'package:agent/theme.dart';
@@ -164,22 +164,22 @@ void main() {
   group('generate_image reaches opencode', () {
     test('listed by name only while the server can make pictures', () {
       List<String> names(List<Map<String, dynamic>> l) => [for (final t in l) '${(t['function'] as Map)['name']}'];
-      expect(names(SubMacGateway.listing([])), ['find_tools', 'run_tool']);
-      expect(names(SubMacGateway.listing([AgentTools.imageTool, fn('remember')])), ['find_tools', 'run_tool', 'generate_image']);
-      final mcp = SubMacMcp(tools: () => SubMacGateway.listing([AgentTools.imageTool]), call: (n, a) async => '');
+      expect(names(TelesiaGateway.listing([])), ['find_tools', 'run_tool']);
+      expect(names(TelesiaGateway.listing([AgentTools.imageTool, fn('remember')])), ['find_tools', 'run_tool', 'generate_image']);
+      final mcp = TelesiaMcp(tools: () => TelesiaGateway.listing([AgentTools.imageTool]), call: (n, a) async => '');
       expect(mcp.listed().map((t) => t['name']), contains('generate_image'));
     });
 
     test('a direct call runs through the chat\'s own tool list, prefix or not', () async {
       final ran = <String>[];
-      final g = SubMacGateway(tools: () => [AgentTools.imageTool], run: (n, a) async {
+      final g = TelesiaGateway(tools: () => [AgentTools.imageTool], run: (n, a) async {
         ran.add('$n ${a['prompt']}');
         return 'IMAGE_SAVED /ws/media/i.png';
       });
       expect(await g.call('generate_image', {'prompt': 'a red fox'}), startsWith('IMAGE_SAVED'));
-      expect(await g.call('submac_generate_image', {'prompt': 'b'}), startsWith('IMAGE_SAVED'));
+      expect(await g.call('telesia_generate_image', {'prompt': 'b'}), startsWith('IMAGE_SAVED'));
       expect(ran, ['generate_image a red fox', 'generate_image b']);
-      final off = SubMacGateway(tools: () => [fn('remember')], run: (n, a) async => 'ran');
+      final off = TelesiaGateway(tools: () => [fn('remember')], run: (n, a) async => 'ran');
       expect(await off.call('generate_image', {'prompt': 'x'}), startsWith('Error: generate_image is not available'));
     });
 
@@ -191,7 +191,7 @@ void main() {
           'part': {
             'id': 'p1',
             'type': 'tool',
-            'tool': 'submac_generate_image',
+            'tool': 'telesia_generate_image',
             'sessionID': 's1',
             'state': {'status': 'running', 'input': {'prompt': 'fox'}},
           },
@@ -208,9 +208,9 @@ void main() {
     });
 
     test('the agent is told what shows and what to do when pictures are off', () {
-      expect(SubMacGateway.skill, contains('.svg'));
-      expect(SubMacGateway.skill, contains('![what it is](path)'));
-      expect(SubMacGateway.skill, contains('visual answer'));
+      expect(TelesiaGateway.skill, contains('.svg'));
+      expect(TelesiaGateway.skill, contains('![what it is](path)'));
+      expect(TelesiaGateway.skill, contains('visual answer'));
       expect(AgentTools.imageOffNote, startsWith('Error:'));
       expect(AgentTools.imageOffNote, contains('code_media'));
       expect(AgentTools.imageOffNote, contains('.svg'));

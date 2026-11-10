@@ -9,7 +9,7 @@ import '../config.dart';
 
 /// Plan 2.4: referral and creator rewards, as the app sees them.
 ///
-/// - Every account has a personal invite link (submac.site/download?ref=CODE) and code. When a NEW person signs up
+/// - Every account has a personal invite link (telesia.site/download?ref=CODE) and code. When a NEW person signs up
 ///   through it (the link's ref, a hire link's ref, or the code typed at sign-up), the inviter gets extra daily allowance
 ///   for a few days. The claim happens once, server-side (`claim_referral`), right after sign-in.
 /// - When someone hires your published Bot Store bot for the first time, you get a bonus too (`bot_store_hired`).
@@ -160,17 +160,17 @@ class Rewards {
     return state.value?.inviteLink ?? (_myCode == null ? null : linkFor(_myCode!));
   }
 
-  static String linkFor(String code) => 'https://submac.site/download?ref=$code';
+  static String linkFor(String code) => 'https://telesia.site/download?ref=$code';
 
   /// The public page of a bot (listing id or share code), carrying my invite code so a newcomer counts for me.
   String botLink(String key) {
     final ref = _myCode;
-    return 'https://submac.site/b/${Uri.encodeComponent(key)}${ref == null ? '' : '?ref=$ref'}';
+    return 'https://telesia.site/b/${Uri.encodeComponent(key)}${ref == null ? '' : '?ref=$ref'}';
   }
 
   /// The text people share to invite a friend.
   static String inviteText(String link, String code) =>
-      'I use SubMac, an AI agent with bots that work for me. Get it here: $link\nWhen you sign up, use my invite code $code.';
+      'I use Telesia, an AI agent with bots that work for me. Get it here: $link\nWhen you sign up, use my invite code $code.';
 }
 
 class ActiveReward {
@@ -254,7 +254,7 @@ class RewardState {
     final parts = <String>[
       if (activeReferral > 0) '$activeReferral ${activeReferral == 1 ? 'friend who joined' : 'friends who joined'}',
       if (activeCreator > 0) '$activeCreator ${activeCreator == 1 ? 'hire' : 'hires'} of your bots',
-      if (activeGrant > 0) activeGrant == 1 ? 'a gift from SubMac' : '$activeGrant gifts from SubMac',
+      if (activeGrant > 0) activeGrant == 1 ? 'a gift from Telesia' : '$activeGrant gifts from Telesia',
     ];
     return '+${short(bonus)} today from ${parts.isEmpty ? 'rewards' : _join(parts)}';
   }

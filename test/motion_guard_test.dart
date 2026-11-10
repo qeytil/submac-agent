@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Motion guard (owner, 2026-10-24: "all the app have many animation glitches"): every animation in the UI takes its
-/// timing and curve from SubMac's motion (lib/ui/motion.dart, also exported by lib/ui/tokens.dart as LuxMotion's
+/// timing and curve from Telesia's motion (lib/ui/motion.dart, also exported by lib/ui/tokens.dart as LuxMotion's
 /// source). See docs/motion-audit.md for what was found and fixed.
 ///
 /// * No raw `Curves.` in the UI layer.
@@ -26,7 +26,7 @@ void main() {
     return out;
   }
 
-  test('no raw curves or animation durations outside SubMac motion', () {
+  test('no raw curves or animation durations outside Telesia motion', () {
     final named = RegExp(r'\b(duration|reverseDuration|transitionDuration|reverseTransitionDuration|delay|themeAnimationDuration)\s*:');
     final problems = <String>[];
     for (final f in uiFiles()) {

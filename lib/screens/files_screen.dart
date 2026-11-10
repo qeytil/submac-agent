@@ -25,7 +25,7 @@ import '../ui/i18n.dart';
 /// The filters Files shows. Library, Sites and Trash live here as filters, not as their own menu items (PLAN.md 3.3).
 enum FilesView { files, made, sites, trash }
 
-/// Browse SubMac's own files and (with permission) the phone's storage; filter to what SubMac made, sites, or Trash.
+/// Browse Telesia's own files and (with permission) the phone's storage; filter to what Telesia made, sites, or Trash.
 class FilesScreen extends StatefulWidget {
   final String? start;
   final FilesView view;
@@ -81,7 +81,7 @@ class _FilesScreenState extends State<FilesScreen> {
 
   String _title() {
     if (_view != FilesView.files) return 'Files';
-    if (_dir == _workspace) return 'SubMac files';
+    if (_dir == _workspace) return 'Telesia files';
     if (_dir == DeviceAccess.root) return 'Phone';
     return _dir?.split('/').last ?? 'Files';
   }
@@ -122,7 +122,7 @@ class _FilesScreenState extends State<FilesScreen> {
             },
           ),
           ListTile(
-            title: const Text('Ask SubMac about it'),
+            title: const Text('Ask Telesia about it'),
             subtitle: const Text('Adds it to a new message'),
             onTap: () {
               Navigator.pop(ctx);
@@ -192,14 +192,14 @@ class _FilesScreenState extends State<FilesScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 children: [
                   ChoiceChip(
-                    label: const Text('SubMac files'),
+                    label: const Text('Telesia files'),
                     selected: _view == FilesView.files && _dir != null && _dir!.startsWith(_workspace) && _workspace.isNotEmpty,
                     onSelected: (_) {
                       setState(() => _view = FilesView.files);
                       _open(_workspace);
                     },
                   ),
-                  for (final (v, label) in const [(FilesView.made, 'Made by SubMac'), (FilesView.sites, 'Sites'), (FilesView.trash, 'Trash')]) ...[
+                  for (final (v, label) in const [(FilesView.made, 'Made by Telesia'), (FilesView.sites, 'Sites'), (FilesView.trash, 'Trash')]) ...[
                     const SizedBox(width: Space.x2),
                     ChoiceChip(
                       label: Text(label),
@@ -217,7 +217,7 @@ class _FilesScreenState extends State<FilesScreen> {
                         if (!ok) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                                content: Text('Allow "All files access" for SubMac Agent to browse the phone.')));
+                                content: Text('Allow "All files access" for Telesia to browse the phone.')));
                           }
                           return;
                         }

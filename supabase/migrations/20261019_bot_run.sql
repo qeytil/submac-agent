@@ -3,7 +3,7 @@
 --
 -- Secrets (never in git): two Vault secrets the cron job reads when it fires.
 --   bot_run_secret    random, made here inside the database; bot-run refuses any call without it (x-bot-run-secret),
---                     and ai-chat accepts bot-run's internal calls (x-submac-internal) only with it.
+--                     and ai-chat accepts bot-run's internal calls (x-telesia-internal) only with it.
 --   bot_run_anon_key  the project's public anon key, so the call passes the gateway's JWT check (verify_jwt stays on).
 --                     Created once by hand: select vault.create_secret('<anon key>', 'bot_run_anon_key', '...');
 -- Functions (service role only): bot_run_check(secret), bot_run_claim(limit, user).

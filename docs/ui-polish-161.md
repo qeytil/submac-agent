@@ -24,6 +24,6 @@
    list (`ChatFooterInset`) so the newest message rests above it. "+", the field and the mic/send are separate
    `FrostedSurface`s (one blur each). Bottom edge fades like the top. Team composer field is frosted too.
 8. **Rail.** Same sizes; rounded open-side corners + faint shadow (`railEdge`, mirrored in RTL); the small "+" under the
-   heads became the SubMac mark ("Back to SubMac") that returns to the main chat. "New bot" and "Bot store" unchanged.
+   heads became the Telesia mark ("Back to Telesia") that returns to the main chat. "New bot" and "Bot store" unchanged.
 
 Tests: test/ui_polish_161_test.dart, test/bots_workspace_test.dart (header/rail/composer group), test/chat_feel_test.dart.

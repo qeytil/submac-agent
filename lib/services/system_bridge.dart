@@ -7,12 +7,12 @@ import 'package:flutter/services.dart';
 
 import 'always_on.dart';
 
-/// Talks to SubMac's Android side: wake word, floating Live, phone control, SMS,
+/// Talks to Telesia's Android side: wake word, floating Live, phone control, SMS,
 /// notifications, scheduled alarms and permission status.
 class SystemBridge {
   SystemBridge._();
   static final I = SystemBridge._();
-  static const _ch = MethodChannel('submac/system');
+  static const _ch = MethodChannel('telesia/system');
 
   bool get supported => Platform.isAndroid;
 
@@ -32,9 +32,9 @@ class SystemBridge {
   void Function(String to, String text)? onNotifReply;
   /// A phone notification matched a bot's watch.
   void Function(Map<String, dynamic> e)? onNotifEvent;
-  /// The bots' share header (`x-submac-bg`) from a reply the engine made (the native proxy reads it).
+  /// The bots' share header (`x-telesia-bg`) from a reply the engine made (the native proxy reads it).
   void Function(String value)? onBackgroundShare;
-  /// The user tapped Stop on the "SubMac is using your phone" badge.
+  /// The user tapped Stop on the "Telesia is using your phone" badge.
   void Function()? onPhoneStop;
   Future<void> phoneBadge(bool on) async {
     try {
@@ -147,9 +147,9 @@ class SystemBridge {
     }
   }
 
-  /// Saves a file into the phone's Pictures / Movies / Music / Download (SubMac folder).
+  /// Saves a file into the phone's Pictures / Movies / Music / Download (Telesia folder).
   /// Returns the place it went, or a message starting with "error:".
-  /// [folder] 'documents' puts any file in Documents/SubMac, 'downloads' in Download/SubMac.
+  /// [folder] 'documents' puts any file in Documents/Telesia, 'downloads' in Download/Telesia.
   Future<String> saveMedia(String path, {required String mime, String? name, String folder = ''}) async {
     final r = await _call<String>('saveMedia', {'path': path, 'mime': mime, 'name': name ?? path.split('/').last, 'folder': folder});
     return r ?? 'error: saving is only available on Android';
@@ -269,13 +269,13 @@ class SystemBridge {
       await _call('clearTasks');
     } catch (_) {}
   }
-  /// Turns the "SubMac is active" foreground service on or off. With "Always on" (owner 2026-11-08) a finished run does
+  /// Turns the "Telesia is active" foreground service on or off. With "Always on" (owner 2026-11-08) a finished run does
   /// not drop it: the turn-off is turned back into the steady line, so the people stay present between runs.
-  Future<void> keepAlive(bool on, {String text = 'SubMac is active'}) {
+  Future<void> keepAlive(bool on, {String text = 'Telesia is active'}) {
     if (!on && AlwaysOn.I.on) return _call('keepAlive', {'on': true, 'text': AlwaysOn.body});
     return _call('keepAlive', {'on': on, 'text': text});
   }
-  /// [label]: the line the foreground service shows when the alarm starts SubMac ("<Bot name> · <task title>").
+  /// [label]: the line the foreground service shows when the alarm starts Telesia ("<Bot name> · <task title>").
   Future<void> scheduleAlarm(String id, DateTime at, {String label = ''}) =>
       _call('scheduleAlarm', {'id': id, 'at': at.millisecondsSinceEpoch, if (label.isNotEmpty) 'label': label});
   Future<void> cancelAlarm(String id) => _call('cancelAlarm', {'id': id});
@@ -289,9 +289,9 @@ class SystemBridge {
   /// [reply] adds a Reply field right in the notification.
   Future<void> notifyBot({required int id, required String name, required String body, required String payload, bool reply = false}) =>
       _call('notifyBot', {'id': id, 'name': name, 'body': body, 'payload': payload, 'reply': reply});
-  /// A result or message from the agent ([channel] NotifChannels.agent: "SubMac", red) or a bot (NotifChannels.bots:
+  /// A result or message from the agent ([channel] NotifChannels.agent: "Telesia", red) or a bot (NotifChannels.bots:
   /// its name, a round face of [initial] on [color]). [body] is already the short summary (NotifText). [reply] adds
-  /// an inline Reply that works with SubMac closed; [high] pops up (it needs the owner).
+  /// an inline Reply that works with Telesia closed; [high] pops up (it needs the owner).
   Future<void> notifyFrom(
           {required int id,
           required String channel,

@@ -55,7 +55,7 @@ class BotsWorkspace extends StatefulWidget {
   /// What to open first: 'bot:<id>' or 'team:<id>'. Null opens the Chief.
   final String? open;
 
-  /// Something shared into SubMac for the team being opened.
+  /// Something shared into Telesia for the team being opened.
   final Map<String, dynamic>? share;
 
   /// Tests: opens a bot's chat instead of the app's own [AppState.openBot] (which reaches the network).
@@ -245,7 +245,7 @@ class BotsWorkspaceState extends State<BotsWorkspace> with SingleTickerProviderS
     }
   }
 
-  /// The SubMac mark at the rail's foot: back to the main SubMac chat (the same way Back leaves, rail folded first).
+  /// The Telesia mark at the rail's foot: back to the main Telesia chat (the same way Back leaves, rail folded first).
   @visibleForTesting
   void home() {
     if (_leaving) return;
@@ -397,7 +397,7 @@ class BotsWorkspaceState extends State<BotsWorkspace> with SingleTickerProviderS
               ),
             ),
           ),
-          // The header, the same as the main SubMac chat (v1.13.95+165): no bar or band. The rail toggle, Call and "+"
+          // The header, the same as the main Telesia chat (v1.13.95+165): no bar or band. The rail toggle, Call and "+"
           // float in blurred circles, and who you are talking to (a small face in its tiny ring + the name) floats in a
           // light blurred pill between them. The chat scrolls behind all of it and fades out under it.
           Positioned(
@@ -785,16 +785,16 @@ class _Rail extends StatelessWidget {
                           }),
                       ],
                       const SizedBox(height: Space.x2),
-                      // The SubMac mark (owner 2026-10-24): back to the main SubMac chat. It replaced a small "+" here,
+                      // The Telesia mark (owner 2026-10-24): back to the main Telesia chat. It replaced a small "+" here,
                       // which made three "+" on one screen (the header and "New bot" already have one).
                       Center(
                         child: Semantics(
                           button: true,
-                          label: tr('Back to SubMac'),
+                          label: tr('Back to Telesia'),
                           excludeSemantics: true,
                           child: IconButton(
-                            key: const ValueKey('rail-submac'),
-                            tooltip: tr('Back to SubMac'),
+                            key: const ValueKey('rail-telesia'),
+                            tooltip: tr('Back to Telesia'),
                             onPressed: onHome,
                             icon: const AppLogo(size: IconSize.lg),
                           ),
@@ -891,7 +891,7 @@ class RailHead extends StatelessWidget {
   }
 }
 
-/// An action pinned at the foot of the rail: SubMac's icon over a small label. No border, no fill.
+/// An action pinned at the foot of the rail: Telesia's icon over a small label. No border, no fill.
 class RailAction extends StatelessWidget {
   const RailAction({super.key, required this.icon, required this.label, required this.onTap});
   final String icon;
@@ -961,7 +961,7 @@ class RailPins extends ChangeNotifier {
 }
 
 
-/// The Bots workspace header, the same as the main SubMac chat (v1.13.95+165; it replaced a frosted band that read as
+/// The Bots workspace header, the same as the main Telesia chat (v1.13.95+165; it replaced a frosted band that read as
 /// too big and solid). There is no bar or band: the rail toggle on the start side and Call / "+" on the end side each
 /// float in their own small blurred circle ([FloatIcon]), and who you are talking to floats in a light blurred pill
 /// beside the toggle: a small face in its tiny status ring and the name. Nothing sits behind the row, so the chat shows

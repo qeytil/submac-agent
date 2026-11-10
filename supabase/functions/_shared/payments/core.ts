@@ -1,6 +1,6 @@
 // Provider-neutral billing payment core: the four billing-* edge functions are thin wrappers around these handlers.
 //
-// Trust model (same as submac.site lib/fulfil.js):
+// Trust model (same as telesia.site lib/fulfil.js):
 // * Webhook bodies and return-URL parameters are never trusted. Every path re-verifies with the provider's own
 //   source of truth (provider.verify) and only then calls billing_payment_paid, which credits once per
 //   (provider, provider_ref), locks the purchase row (FOR UPDATE) and rejects amount/currency mismatches.
@@ -516,7 +516,7 @@ export async function handleWebhook(req: Request, deps: Deps): Promise<Response>
 
 // ============================================================================ billing-return
 // GET from the customer's browser: ?provider=&purchase=&order_id=&sid=... -> ALWAYS 303 back to the app
-// (BILLING_APP_RETURN_URL, default submac://pay) ?status=paid|pending|failed|error&purchase=..[&reason=..]. Never a JSON page:
+// (BILLING_APP_RETURN_URL, default telesia://pay) ?status=paid|pending|failed|error&purchase=..[&reason=..]. Never a JSON page:
 // a config problem, billing off or a crash still goes back to the app (status=error, the app checks the payment itself).
 export async function handleReturn(req: Request, deps: Deps): Promise<Response> {
   const url = new URL(req.url);
@@ -544,7 +544,7 @@ export async function handleReturn(req: Request, deps: Deps): Promise<Response> 
     status = "pending"; // we could not tell: the app keeps checking, reconcile settles it
     reason = "processing";
   }
-  const app = (deps.env("BILLING_APP_RETURN_URL") ?? "submac://pay").replace(/\?$/, "");
+  const app = (deps.env("BILLING_APP_RETURN_URL") ?? "telesia://pay").replace(/\?$/, "");
   const dest = `${app}?status=${status}&purchase=${encodeURIComponent(pid ?? "")}${reason ? `&reason=${encodeURIComponent(reason)}` : ""}`;
   return new Response(null, { status: 303, headers: { location: dest, "cache-control": "no-store" } });
 }

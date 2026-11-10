@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.app.Activity
 import android.app.Application
@@ -25,15 +25,15 @@ import java.io.FileNotFoundException
 import java.security.MessageDigest
 
 /**
- * "submac/update": in-app updates. New releases are ONE file in Cloudflare R2; older ones are stored in parts (Supabase
+ * "telesia/update": in-app updates. New releases are ONE file in Cloudflare R2; older ones are stored in parts (Supabase
  * kept files under 50 MB). Every address is handed to Android's DownloadManager at once: it keeps downloading after the
  * user leaves the app, shows its own notification and survives the app being closed. A single file is checked
  * (sha256) and renamed in place; parts are joined into one file whose sha256 must match the release. Only then can
  * Install open Android's installer (through [UpdateFiles]).
- * State lives in SharedPreferences "submac_update", so a restart picks up where it was.
+ * State lives in SharedPreferences "telesia_update", so a restart picks up where it was.
  */
 object AppUpdater {
-    private const val PREFS = "submac_update"
+    private const val PREFS = "telesia_update"
     private const val DIR = "updates"
     private val main = Handler(Looper.getMainLooper())
     private val lock = Any()
@@ -43,7 +43,7 @@ object AppUpdater {
 
     fun attach(c: Context, engine: FlutterEngine) {
         val ctx = c.applicationContext
-        val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "submac/update")
+        val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "telesia/update")
         channel = ch
         watchScreen(ctx)
         ch.setMethodCallHandler { call, result ->
@@ -56,7 +56,7 @@ object AppUpdater {
                         val code = (call.argument<Any?>("code") as? Number)?.toLong() ?: 0L
                         val sha = call.argument<String>("sha256") ?: ""
                         val size = (call.argument<Any?>("size") as? Number)?.toLong() ?: 0L
-                        val title = call.argument<String>("title") ?: "SubMac update"
+                        val title = call.argument<String>("title") ?: "Telesia update"
                         result.success(start(ctx, code, urls, sha, size, title))
                     }
                     "status" -> Thread {
@@ -78,8 +78,8 @@ object AppUpdater {
     }
 
     /**
-     * The engine outlives the screen, so "close SubMac and open it again" may not restart Dart. Tell Dart each time
-     * the SubMac screen is freshly opened, so a pending update window shows again (owner: every start).
+     * The engine outlives the screen, so "close Telesia and open it again" may not restart Dart. Tell Dart each time
+     * the Telesia screen is freshly opened, so a pending update window shows again (owner: every start).
      */
     private fun watchScreen(ctx: Context) {
         if (watching) return
@@ -100,7 +100,7 @@ object AppUpdater {
 
     private fun prefs(ctx: Context): SharedPreferences = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private fun dir(ctx: Context): File = File(ctx.getExternalFilesDir(null) ?: ctx.filesDir, DIR)
-    fun finalFile(ctx: Context, code: Long): File = File(dir(ctx), "submac-update-$code.apk")
+    fun finalFile(ctx: Context, code: Long): File = File(dir(ctx), "telesia-update-$code.apk")
     private fun dm(ctx: Context) = ctx.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     private fun ids(ctx: Context): LongArray =
         (prefs(ctx).getString("ids", "") ?: "").split(',').mapNotNull { it.trim().toLongOrNull() }.toLongArray()
@@ -135,7 +135,7 @@ object AppUpdater {
         for ((i, u) in urls.withIndex()) {
             val req = DownloadManager.Request(Uri.parse(u))
                 .setTitle(if (urls.size > 1) "$title (${i + 1}/${urls.size})" else title)
-                .setDescription("Downloading the new version of SubMac")
+                .setDescription("Downloading the new version of Telesia")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true)
@@ -328,12 +328,12 @@ object AppUpdater {
         val p = prefs(ctx)
         if (s["state"] == "ready" && !p.getBoolean("notified", false)) {
             p.edit().putBoolean("notified", true).apply()
-            Notifier.task(ctx, 7401, "Your SubMac update is ready. Tap to install.", "", "update", "info")
+            Notifier.task(ctx, 7401, "Your Telesia update is ready. Tap to install.", "", "update", "info")
         }
     }
 }
 
-/** DownloadManager tells the app a part finished, even when SubMac is closed. */
+/** DownloadManager tells the app a part finished, even when Telesia is closed. */
 class UpdateDone : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return

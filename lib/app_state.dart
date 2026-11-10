@@ -50,10 +50,10 @@ import 'services/oc_lanes.dart';
 import 'services/output_limits.dart';
 import 'services/oc_scope.dart';
 import 'services/save_guard.dart';
-import 'services/submac_gateway.dart';
+import 'services/telesia_gateway.dart';
 import 'services/turn_visuals.dart';
-import 'services/submac_mcp.dart';
-import 'services/submac_style.dart';
+import 'services/telesia_mcp.dart';
+import 'services/telesia_style.dart';
 import 'services/usage_accounting.dart';
 import 'services/local_store.dart';
 import 'services/repo.dart';
@@ -147,7 +147,7 @@ class AppState extends ChangeNotifier {
   final local = LocalStore();
   late final memory = MemoryStore(local);
 
-  /// Text/files shared into SubMac from other apps, picked up by the composer.
+  /// Text/files shared into Telesia from other apps, picked up by the composer.
   final shareInbox = ValueNotifier<Map<String, dynamic>?>(null);
   /// Home-screen widget taps: 'ask' focuses the composer, 'scan' opens the camera.
   final widgetAction = ValueNotifier<String?>(null);
@@ -162,13 +162,13 @@ class AppState extends ChangeNotifier {
   Map<String, String> mcpStatus = {};
   bool memoryEnabled = true;
 
-  // One model for every job: `submac`. The server picks the real model behind it (PLAN 1.1).
+  // One model for every job: `telesia`. The server picks the real model behind it (PLAN 1.1).
   /// "Think harder" for this session only (see [thinking]); never saved.
   String _thinkingNow = 'auto';
 
   static bool usableProvider(ProviderConfig p) => Cloud.isCloud(p);
 
-  // Live voice (a short-lived pass from SubMac Cloud per call; no key on the phone)
+  // Live voice (a short-lived pass from Telesia Cloud per call; no key on the phone)
   String liveVoice = 'Kore';
   /// A one-time Live mode for the next session ('translate' = live interpreter).
   String liveMode = '';
@@ -199,7 +199,7 @@ class AppState extends ChangeNotifier {
       '- NEVER say you are doing something "in the background", or that you will "report back" or "let them know when it is '
       'done", unless live_task returned a task id (like T1) in this call. Otherwise do it now, or say you cannot.\n'
       '- live_task is only for genuinely long jobs: website work (browsing, signing in, forms, booking, shopping), deep '
-      'research, documents. It hands the job to the full SubMac agent, which keeps running after the call and posts the result in '
+      'research, documents. It hands the job to the full Telesia agent, which keeps running after the call and posts the result in '
       'the chat with a notification. Say the task id when you start one.\n'
       '- Use task_status when they ask how it is going and stop_task to stop one.\n'
       '- Messages starting with [Task update] come from the app, not the user. Tell the user the news in one or two short sentences. '
@@ -217,7 +217,7 @@ class AppState extends ChangeNotifier {
       'type': 'function',
       'function': {
         'name': 'live_task',
-        'description': 'Start a REAL tracked task run by the full SubMac agent (browser, connected apps, saved logins, files, '
+        'description': 'Start a REAL tracked task run by the full Telesia agent (browser, connected apps, saved logins, files, '
             'documents, research). Only for long jobs: websites, research, documents. Phone steps (apps, WhatsApp, taps) you do '
             'yourself instead. Returns a task id (T1...); the result arrives later as a [Task update] and in the chat.',
         'parameters': {
@@ -355,7 +355,7 @@ class AppState extends ChangeNotifier {
   /// The in-app incoming call screen watches this.
   final ValueNotifier<Bot?> incomingCall = ValueNotifier<Bot?>(null);
 
-  // ---------- "From SubMac" in chat ----------
+  // ---------- "From Telesia" in chat ----------
   static const _teamConvKey = 'team_conv_id';
   static const _teamPostedKey = 'team_posted';
   bool _mirroring = false;
@@ -658,10 +658,10 @@ class AppState extends ChangeNotifier {
     'type': 'function',
     'function': {
       'name': 'add_mcp_server',
-      'description': 'Connect an MCP server to SubMac from its address (and its key or token, when the user gives one). It is saved '
-          'in the user\'s Apps, and its tools become SubMac tools. Without a key, SubMac opens the server\'s own sign-in if it has one. '
+      'description': 'Connect an MCP server to Telesia from its address (and its key or token, when the user gives one). It is saved '
+          'in the user\'s Apps, and its tools become Telesia tools. Without a key, Telesia opens the server\'s own sign-in if it has one. '
           'This is how to add MCP servers here; the engine\'s own config file is managed by the app. Composio: pass the user\'s '
-          'key as token (ck_... or ak_...); SubMac knows its address. If it fails, report the error; never say it connected.',
+          'key as token (ck_... or ak_...); Telesia knows its address. If it fails, report the error; never say it connected.',
       'parameters': {
         'type': 'object',
         'properties': {
@@ -681,7 +681,7 @@ class AppState extends ChangeNotifier {
     'type': 'function',
     'function': {
       'name': 'sites',
-      'description': 'The websites the user published from SubMac. action "list" shows each one (title, where, address, status). '
+      'description': 'The websites the user published from Telesia. action "list" shows each one (title, where, address, status). '
           'action "unpublish" takes one offline (only when the user asks): pass site as its title or address.',
       'parameters': {
         'type': 'object',
@@ -694,12 +694,12 @@ class AppState extends ChangeNotifier {
     },
   };
 
-  /// The user's SubMac projects: list, create, put this chat in one, save a file or a note into one.
+  /// The user's Telesia projects: list, create, put this chat in one, save a file or a note into one.
   static final Map<String, dynamic> projectsTool = {
     'type': 'function',
     'function': {
       'name': 'projects',
-      'description': 'The user\'s SubMac projects (folders of chats, files and standing instructions). When they say "my project" or '
+      'description': 'The user\'s Telesia projects (folders of chats, files and standing instructions). When they say "my project" or '
           '"add this to my project", this is the tool. action: "list" | "create" (name, optional note) | "add_chat" (puts THIS chat in '
           'the project, so it keeps its context) | "save_file" (copies a file from the workspace by path, or saves content as name, into '
           'the project\'s files) | "add_note" (adds a standing note or instruction to the project). project = its name.',
@@ -755,14 +755,14 @@ class AppState extends ChangeNotifier {
   /// Chats running a scheduled task right now: they notify with a one-line result only.
   final Set<String> _scheduledConvs = {};
 
-  /// Alarms wait here until SubMac has loaded its bots and scheduled tasks (see AlarmGate; opened by initLocal).
+  /// Alarms wait here until Telesia has loaded its bots and scheduled tasks (see AlarmGate; opened by initLocal).
   final AlarmGate _alarmGate = AlarmGate();
 
-  /// SubMac was started by an alarm or a restart with no screen (a bot's scheduled task with the app closed).
+  /// Telesia was started by an alarm or a restart with no screen (a bot's scheduled task with the app closed).
   bool headless = false;
 
   /// A run nobody is watching: a bot's own wake or a scheduled run, in a chat that is not on screen (BgRun).
-  /// Team work (a team key) is unattended while SubMac is not on screen at all (2026-11-05: a team's work with the app
+  /// Team work (a team key) is unattended while Telesia is not on screen at all (2026-11-05: a team's work with the app
   /// closed waited three hours on an approval card nobody could see).
   bool unattendedRun(String? convId) => convId != null &&
       (TeamKey.isKey(convId) ? !appVisible :
@@ -964,7 +964,7 @@ class AppState extends ChangeNotifier {
       caseSensitive: false);
 
   /// The reply asks the user something (a question, a choice): stopping there is right.
-  /// SubMac's own last reply (before the newest user message) asked the user something.
+  /// Telesia's own last reply (before the newest user message) asked the user something.
   static bool _answersOurQuestion(List<ChatMessage> list) {
     var sawUser = false;
     for (final m in list.reversed) {
@@ -1180,7 +1180,7 @@ class AgentRun {
   int pageFixes = 0;
   /// Page and file cards already shown in this run's replies, so a later reply never shows the same preview again.
   final Set<String> shownCards = <String>{};
-  /// Times SubMac nudged the model to carry on (stopped with steps left, or cut off by the length limit).
+  /// Times Telesia nudged the model to carry on (stopped with steps left, or cut off by the length limit).
   int nudges = 0;
   int cutOffs = 0;
   /// Notices loops (same call, same failing call, back and forth) across this task's tool calls.

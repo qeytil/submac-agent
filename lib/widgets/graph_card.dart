@@ -10,7 +10,7 @@ import 'output_cards.dart';
 import 'sub_icon.dart';
 import '../ui/tokens.dart';
 
-/// Curve colours in the SubMac palette: brand red first, then ink, brass and slate.
+/// Curve colours in the Telesia palette: brand red first, then ink, brass and slate.
 List<Color> plotColors(Palette p) => [p.accent, p.text, const Color(0xFFB08D57), const Color(0xFF5B7083), const Color(0xFF7A5C8E)];
 
 class GraphLine {

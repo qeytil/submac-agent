@@ -7,4 +7,4 @@
     android:canPerformGestures="true"
     android:canTakeScreenshot="true"
     android:notificationTimeout="200"
-    android:description="@string/submac_a11y_desc" />
+    android:description="@string/telesia_a11y_desc" />

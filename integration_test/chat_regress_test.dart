@@ -1,4 +1,4 @@
-// SubMac chat regression harness on a real Android emulator (PR-H, branch qa/chat-regress, 2026-10-25).
+// Telesia chat regression harness on a real Android emulator (PR-H, branch qa/chat-regress, 2026-10-25).
 // Test infrastructure only: never part of the normal unit-test run (integration_test/ is driven by
 // tools/chat_regress_capture.sh from .github/workflows/chat-regress-emu.yml).
 //
@@ -14,7 +14,7 @@
 //   * approvals: per-step scripted answers; a watchdog answers any other approval sheet, team approval or ask_user with
 //     "Not now" after 20-25 s and logs "QAWARN unanswered-ask <title>"; the CB-41 step holds its ask on purpose;
 //   * no other-app tasks: "Let it take action" is off, bots and team members get the phone/apps/browser powers off,
-//     team tool calls to app/phone/browser tools are refused, and ADB:front brings SubMac back if it loses the front;
+//     team tool calls to app/phone/browser tools are refused, and ADB:front brings Telesia back if it loses the front;
 //   * every step has a hard timeout; a stall detector fails a step after 5 min with no log line, no app progress and no
 //     new charge (billing_usage moves when ai-chat writes an ai_usage row; ai_usage itself is not readable by a user);
 //   * a step that times out or stalls is cut off (its zone generation is retired), its runs are stopped, and the run
@@ -74,7 +74,7 @@ const _budgetB = int.fromEnvironment('QA_BUDGET_B', defaultValue: 28);
 const _budgetC = int.fromEnvironment('QA_BUDGET_C', defaultValue: 20);
 /// No log line, no app progress and no new charge for this long fails the running step.
 const _stallSecs = int.fromEnvironment('QA_STALL_SECS', defaultValue: 300);
-const _marker = '/data/user/0/com.submac.agent/files/qa_regress_phase.txt';
+const _marker = '/data/user/0/com.telesia.app/files/qa_regress_phase.txt';
 final _blocked = RegExp(r'^(open_app|phone_|screen_|whatsapp|sms|call_|app_settings|browser)');
 
 String _hm(DateTime at) => '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
@@ -322,7 +322,7 @@ void main() {
           lastFront = now;
           lostFront++;
           log('ADB:front');
-          log('QAWARN not-in-front SubMac lifecycle=$life: asked the script to bring it back');
+          log('QAWARN not-in-front Telesia lifecycle=$life: asked the script to bring it back');
         }
         // Approval sheets (ConfirmQueue): a scripted step says no at once; anything else gets "Not now" after 20 s.
         final sheet = find.byType(BottomSheet);
@@ -469,7 +469,7 @@ void main() {
       }
     }
 
-    bool composer() => find.byType(TextField).evaluate().isNotEmpty || find.text('Ask SubMac anything').evaluate().isNotEmpty;
+    bool composer() => find.byType(TextField).evaluate().isNotEmpty || find.text('Ask Telesia anything').evaluate().isNotEmpty;
 
     bool phaseOver(String p) {
       final s = phaseStart[p];
@@ -530,8 +530,8 @@ void main() {
     }
 
     Future<Finder> box() async {
-      if (find.byType(TextField).evaluate().isEmpty && find.text('Ask SubMac anything').evaluate().isNotEmpty) {
-        await tester.tap(find.text('Ask SubMac anything').first, warnIfMissed: false);
+      if (find.byType(TextField).evaluate().isEmpty && find.text('Ask Telesia anything').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Ask Telesia anything').first, warnIfMissed: false);
         await wait(1200);
       }
       final f = find.byType(TextField);
@@ -1824,7 +1824,7 @@ void main() {
         await shot('c05_arabic');
       }, limit: 420);
 
-      // CB-62: the team keeps working while SubMac is in the background for 60 s.
+      // CB-62: the team keeps working while Telesia is in the background for 60 s.
       await step('c06_background', () async {
         final o = team!;
         await settleTeam(o, maxS: 60, quietS: 8);
@@ -1882,7 +1882,7 @@ void main() {
         b.routines.add(BotRoutine(id: 'rk', time: _hm(at), days: 'daily', kind: 'message', instruction: 'Send me one short bookkeeping tip (force-stop test).'));
         await Bots.I.save();
         await Bots.I.arm(b);
-        await Directory('/data/user/0/com.submac.agent/files').create(recursive: true);
+        await Directory('/data/user/0/com.telesia.app/files').create(recursive: true);
         File(_marker).writeAsStringSync('p2|${b.id}|${at.toIso8601String()}');
         botState('k01', b);
         log('PHASE2_DUE:${at.millisecondsSinceEpoch ~/ 1000}');

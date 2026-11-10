@@ -31,7 +31,7 @@ enum LiveStatus { connecting, listening, speaking, thinking, ended, error }
 
 /// A real-time voice conversation with Gemini Live (WebSocket, PCM audio both ways).
 class LiveSession extends ChangeNotifier {
-  /// Filled in when the call starts: SubMac Cloud hands out a short-lived pass and the model to use.
+  /// Filled in when the call starts: Telesia Cloud hands out a short-lived pass and the model to use.
   String model = '';
   final String voice;
   final String systemPrompt;
@@ -102,7 +102,7 @@ class LiveSession extends ChangeNotifier {
   bool _closed = false;
   /// When the queued speech really ends (long answers arrive far faster than they are spoken).
   final PlaybackClock _clock = PlaybackClock();
-  /// Keeps the speaker's own voice (and room noise) from reaching the server while SubMac speaks.
+  /// Keeps the speaker's own voice (and room noise) from reaching the server while Telesia speaks.
   final EchoGate _gate = EchoGate();
   Timer? _tick;
 
@@ -114,7 +114,7 @@ class LiveSession extends ChangeNotifier {
   DateTime? _goAwayBy;
   /// The line was renewed while an answer was still arriving: ask the model to finish it on the new line.
   bool _resumeCutAnswer = false;
-  /// App notes waiting for SubMac to finish speaking (a note sent mid-answer would cut the answer off).
+  /// App notes waiting for Telesia to finish speaking (a note sent mid-answer would cut the answer off).
   final List<(String, DateTime)> _pendingNotes = [];
 
   /// Session resumption (plan 3 step 6): Gemini closes each connection after about 10 minutes (goAway first)
@@ -181,7 +181,7 @@ class LiveSession extends ChangeNotifier {
   Future<void> start() async {
     try {
       if (!await _rec.hasPermission()) {
-        _fail('SubMac needs the microphone for Live. Allow it in Android settings.');
+        _fail('Telesia needs the microphone for Live. Allow it in Android settings.');
         return;
       }
       FlutterPcmSound.setLogLevel(LogLevel.none);
@@ -203,7 +203,7 @@ class LiveSession extends ChangeNotifier {
     }
   }
 
-  /// Opens one connection: a fresh single-use pass from SubMac Cloud (a used pass is refused with
+  /// Opens one connection: a fresh single-use pass from Telesia Cloud (a used pass is refused with
   /// "Token has been used too many times"), then the setup, resuming the session when there is a handle.
   Future<void> _connect() async {
     final gen = ++_gen;
@@ -404,7 +404,7 @@ class LiveSession extends ChangeNotifier {
       // Lets a dropped or renewed connection continue the same conversation.
       'sessionResumption': <String, dynamic>{if (_handle != null) 'handle': _handle},
       // Voice detection: the user's start needs a little more than a click or a breath, and a short pause
-      // mid-sentence does not end their turn. Talking over SubMac still stops it at once.
+      // mid-sentence does not end their turn. Talking over Telesia still stops it at once.
       'realtimeInputConfig': liveRealtimeInputConfig,
       'inputAudioTranscription': <String, dynamic>{},
       'outputAudioTranscription': <String, dynamic>{},
@@ -435,7 +435,7 @@ class LiveSession extends ChangeNotifier {
     final rms = pcmRms(chunk);
     final now = DateTime.now();
     final speaking = _clock.isPlaying(now);
-    // While SubMac speaks the mic goes out as silence, unless the user clearly talks over it.
+    // While Telesia speaks the mic goes out as silence, unless the user clearly talks over it.
     final out = _gate.process(chunk, rms, playing: speaking, speakerLevel: _clock.levelAt(now), muted: muted);
     if (!speaking) level = muted ? 0 : (level * 0.6 + math.min(1.0, rms * 4) * 0.4);
     for (final data in out.send) {
@@ -510,7 +510,7 @@ class LiveSession extends ChangeNotifier {
       }
       final outT = (sc['outputTranscription'] as Map?)?['text'];
       final parts = ((sc['modelTurn'] as Map?)?['parts'] as List?) ?? const [];
-      // SubMac starts answering: what the caller said since the last answer is one turn.
+      // Telesia starts answering: what the caller said since the last answer is one turn.
       if (!_answering && sc['interrupted'] != true && (parts.isNotEmpty || (outT is String && outT.isNotEmpty))) {
         _answering = true;
         _cutCallerTurn();
@@ -777,7 +777,7 @@ class LiveSession extends ChangeNotifier {
   }
 
   /// Sends app news (a finished task, a question) into the conversation so the voice speaks it.
-  /// It waits until SubMac has finished speaking: a new turn sent mid-answer would cut that answer off.
+  /// It waits until Telesia has finished speaking: a new turn sent mid-answer would cut that answer off.
   void inject(String text) => _queueNote(text);
 
   void _queueNote(String text) {
@@ -824,7 +824,7 @@ class LiveSession extends ChangeNotifier {
     if (!_ready || _closed || text.trim().isEmpty) return;
     turns.add(LiveTurn('user', text.trim()));
     notifyListeners();
-    // The user's own words go at once (like talking over SubMac, they may stop the current answer).
+    // The user's own words go at once (like talking over Telesia, they may stop the current answer).
     _sendTurn(text.trim());
   }
 
@@ -878,7 +878,7 @@ class LiveSession extends ChangeNotifier {
 }
 
 class _TurnFix {
-  /// Index of SubMac's answer that followed the caller's turn (null until it starts).
+  /// Index of Telesia's answer that followed the caller's turn (null until it starts).
   int? anchor;
   Future<void> done = Future.value();
 }

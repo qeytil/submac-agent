@@ -1,6 +1,6 @@
-# SubMac Cloud (model proxy)
+# Telesia Cloud (model proxy)
 
-Users never set up models or keys. Every model call goes through SubMac's own server.
+Users never set up models or keys. Every model call goes through Telesia's own server.
 
 ## Pieces
 - `supabase/functions/ai-chat` — the proxy the app calls (OpenAI chat format, signed with the user's Supabase session).
@@ -9,23 +9,23 @@ Users never set up models or keys. Every model call goes through SubMac's own se
   - `POST /live-token` — a single-use, short-lived pass for one Live voice call (the provider key never reaches the phone). Refused at 0 call minutes.
   - `POST /live-usage` — the call's heartbeat (call minutes).
   - `POST /transcribe` — meeting recordings to text.
-  - `POST /image` — pictures, only when the `submac-image` name has models.
+  - `POST /image` — pictures, only when the `telesia-image` name has models.
 - `supabase/functions/ai-admin` — the API behind the admin dashboard (admins listed in `ai_admins`) and the hourly benchmark.
 - `supabase/functions/bot-run` — the cloud runner for bots (see Cloud runner).
 - `supabase/functions/account-delete` — deletes a user's account and data (Settings > Advanced > Delete account).
-- `tools/proxy-admin` — the Cloudflare Worker `submac-proxy-admin` serving the dashboard and running the benchmark every hour.
+- `tools/proxy-admin` — the Cloudflare Worker `telesia-proxy-admin` serving the dashboard and running the benchmark every hour.
 - `supabase/migrations/20261018_cloud_proxy.sql` — tables, RPCs and default settings.
 
 ## Names the app asks for
 | Name | Used for |
 | --- | --- |
-| `submac-smart` | chat, tasks, bots, offices |
-| `submac-fast` | quick replies, titles, summaries |
-| `submac-vision` | anything with a picture (picked automatically by the server) |
-| `submac-lite` | after the daily allowance, shorter replies until tomorrow |
+| `telesia-smart` | chat, tasks, bots, offices |
+| `telesia-fast` | quick replies, titles, summaries |
+| `telesia-vision` | anything with a picture (picked automatically by the server) |
+| `telesia-lite` | after the daily allowance, shorter replies until tomorrow |
 
 Each name tries its models in order and moves to the next on errors, limits or a slow first token, rotating keys first.
-Before trying a model, the proxy checks the request fits: rough prompt estimate x 1.15 plus the reply length must be within the model's `context_window` (set per model in the dashboard). Models that can't fit are skipped. If none fit, it answers 413 "Request too large" so the app compacts and retries. Sticky chats: when the app sends `x-submac-chat`, each route starts from a key chosen by a hash of user + chat, so one chat keeps the same key (and the provider's prompt cache) and only moves when that key fails or rests. Without the header, keys rotate round robin. Every chat reply carries `x-submac-window`, the smallest window among the name's healthy models. The dashboard flags any model in `submac-smart` / `submac-vision` whose window is below the app's 48k budget plus the reply length.
+Before trying a model, the proxy checks the request fits: rough prompt estimate x 1.15 plus the reply length must be within the model's `context_window` (set per model in the dashboard). Models that can't fit are skipped. If none fit, it answers 413 "Request too large" so the app compacts and retries. Sticky chats: when the app sends `x-telesia-chat`, each route starts from a key chosen by a hash of user + chat, so one chat keeps the same key (and the provider's prompt cache) and only moves when that key fails or rests. Without the header, keys rotate round robin. Every chat reply carries `x-telesia-window`, the smallest window among the name's healthy models. The dashboard flags any model in `telesia-smart` / `telesia-vision` whose window is below the app's 48k budget plus the reply length.
 Models, keys, order, reply length and the style note are all edited in the dashboard; changes are live within a minute.
 
 ## Live pool (separate from chat)
@@ -38,14 +38,14 @@ Models, keys, order, reply length and the style note are all edited in the dashb
 
 ## Daily allowance
 - 200,000 allowance tokens per user per day (UTC). Prompt tokens count at `input_weight` (0.3), reply tokens at 1, cached prompt tokens at 0.1.
-- 80%: one gentle heads-up. 100%: replies get lighter (`submac-lite`, 400 tokens) for 40,000 more; bots and offices pause (they also pause earlier at their own share, see Background lane). Live calls are not part of the allowance (see Call minutes).
+- 80%: one gentle heads-up. 100%: replies get lighter (`telesia-lite`, 400 tokens) for 40,000 more; bots and offices pause (they also pause earlier at their own share, see Background lane). Live calls are not part of the allowance (see Call minutes).
 - After that: a friendly "you've done a lot today" until the reset.
 - Fair use: at most `user_rpm` (40) successful requests per minute per user; one request at most `max_prompt_tokens`.
 
 ## Background lane (Plan 2.2)
 - Bots and Offices get `background_share` (ai_settings, default 0.3, dashboard Settings) of `daily_cap_tokens` per user per UTC day. Background use counts in the total (`ai_user_daily.tokens`) and in `ai_user_daily.bg_tokens`. The user's own chats are never limited by the share: they keep the whole cap and the grace after it.
-- A request is background when it is an internal bot-run call (source `bot-cloud`) or the app sends `x-submac-lane: background` (bot wakes: heartbeats, routines, follow-ups, call recaps; office work except answering the owner; bot_ask consults during that work). Chatting with a bot or answering the owner in an office is not background. `ai_record_usage` adds to `bg_tokens` when `p.lane = 'background'` or source is `bot-cloud` (migration `20261019_background_lane`).
-- Refused with 429 `{error:{code:"background_paused", message:"Paused until tomorrow to save your daily allowance."}, background_left:0, resets_at}` once `bg_tokens` reaches the share, or the total reaches the cap (light zone). Replies carry `x-submac-bg` (0..1 of the share used). `/status` has `background_left` and `background {share, cap, used, left, ratio, paused}`.
+- A request is background when it is an internal bot-run call (source `bot-cloud`) or the app sends `x-telesia-lane: background` (bot wakes: heartbeats, routines, follow-ups, call recaps; office work except answering the owner; bot_ask consults during that work). Chatting with a bot or answering the owner in an office is not background. `ai_record_usage` adds to `bg_tokens` when `p.lane = 'background'` or source is `bot-cloud` (migration `20261019_background_lane`).
+- Refused with 429 `{error:{code:"background_paused", message:"Paused until tomorrow to save your daily allowance."}, background_left:0, resets_at}` once `bg_tokens` reaches the share, or the total reaches the cap (light zone). Replies carry `x-telesia-bg` (0..1 of the share used). `/status` has `background_left` and `background {share, cap, used, left, ratio, paused}`.
 - App: `background_paused` is final (no retry); a phone wake stops with one "Paused until tomorrow to save your daily allowance" line a day in the bot's activity; office work other than owner replies waits in the queue until the next UTC day (retry alarm at 00:05 UTC); Settings/Today shows "Bots: X% of their share today". bot-run writes the same note once a day (`run_state.paused`) and skips the job.
 
 ## Call minutes (Plan 6 item 3)
@@ -60,8 +60,8 @@ Models, keys, order, reply length and the style note are all edited in the dashb
 - Switch: `ai_settings.bot_cloud_runner`. Off: the cron call returns `runner_off` and phones run everything. On: phones stop alarms for jobs the cloud owns. Tests: `POST {only_user: <uuid>}` with the secret runs only that user's bots even while off.
 - A round: `bot_run_claim(10)` takes due bots (`cloud_enabled`, not deleted, `next_run_at <= now()`, lock free) and locks each for 5 min; 3 bots at a time, no new job after 105 s.
 - Jobs (`schedule`, written by the phone): routines `{id,time,days,kind,do,next}` in phone-local time via `tz_offset_min` (owed from first sight per id|time|days, never more than 3 h late), follow-ups `{id,at,kind,do}` (UTC), heartbeat `{id:'hb',every_hours,next}` (never in quiet hours `qf`-`qt`). Done jobs: `run_state.done[id]`; the phone drops follow-ups listed there. Up to 3 jobs per bot per round.
-- Check first: a heartbeat asks `submac-fast` (60 tokens out) "anything worth doing?"; NO ends the wake (about 500 tokens, no journal, no push). Routines and follow-ups go straight to work.
-- Work: `submac-smart` through ai-chat as an internal call (`authorization` = service key, `x-submac-internal` = runner secret, `x-submac-user`; ai-chat records source `bot-cloud` on that user's allowance; `x-submac-chat` = `bot:<id>` keeps the key sticky for caching). Prompt: stable part first (who it is, persona, mission, instructions, knowledge titles, apps, lessons, cloud rules, outcome tags), fresh part last (memory without tombstones, open desk, last 8 journal lines, the wake). At most 6 steps and 60k tokens per job, and the bot's daily budget `tb` (counted in `run_state.tok`).
+- Check first: a heartbeat asks `telesia-fast` (60 tokens out) "anything worth doing?"; NO ends the wake (about 500 tokens, no journal, no push). Routines and follow-ups go straight to work.
+- Work: `telesia-smart` through ai-chat as an internal call (`authorization` = service key, `x-telesia-internal` = runner secret, `x-telesia-user`; ai-chat records source `bot-cloud` on that user's allowance; `x-telesia-chat` = `bot:<id>` keeps the key sticky for caching). Prompt: stable part first (who it is, persona, mission, instructions, knowledge titles, apps, lessons, cloud rules, outcome tags), fresh part last (memory without tombstones, open desk, last 8 journal lines, the wake). At most 6 steps and 60k tokens per job, and the bot's daily budget `tb` (counted in `run_state.tok`).
 - Tools: `bot_remember` (cloud_bot_memory, same item key as the phone), `bot_desk` add/update/done, `knowledge_search` / `knowledge_read`, `hand_to_phone` (journal note: what the phone or an app must do). No web, browser, apps or phone powers (no server-side search exists yet).
 - Results: journal rows `origin 'cloud'`, `device_id ''` (`message`/`note` with the full text in `chat`, `work` for a routine with nothing to tell, `missed` after two failed tries, `note` for a pause); memory and desk rows `origin 'cloud'`. Never messages, setup, schedule or device_id. Then `run_state`, `last_run_at`, `next_run_at`, lock cleared. Quiet hours turn a message into a note.
 - Allowance: the user's daily allowance used up (or ai-chat `daily_limit`) or the bot's budget spent: the job is skipped with one "Skipped work in the cloud" note a day.

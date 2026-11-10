@@ -5,7 +5,7 @@ import 'dart:io';
 
 import 'package:agent/services/mcp_known.dart';
 import 'package:agent/services/mcp_oauth.dart';
-import 'package:agent/services/submac_gateway.dart';
+import 'package:agent/services/telesia_gateway.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -43,7 +43,7 @@ void main() {
     expect(src, contains('McpKnown.fix('));
     expect(src, contains('Nothing was saved'));
     expect(src, contains('await deleteMcpServer(s.id)'));
-    expect(src, isNot(contains('submac_apps_list_tools')));
+    expect(src, isNot(contains('telesia_apps_list_tools')));
   });
 
   test('opencode can find and run every app tool (no 8-tool cap)', () {
@@ -51,9 +51,9 @@ void main() {
     expect(src, contains('..._mcpToolDefs(all: true)'));
   });
 
-  test('run_tool forgives the submac_ prefix models add', () async {
+  test('run_tool forgives the telesia_ prefix models add', () async {
     final ran = <String>[];
-    final g = SubMacGateway(
+    final g = TelesiaGateway(
         tools: () => [
               {
                 'type': 'function',
@@ -64,7 +64,7 @@ void main() {
           ran.add(n);
           return 'ok';
         });
-    expect(await g.call('run_tool', {'name': 'submac_apps_list_tools', 'arguments': {}}), 'ok');
+    expect(await g.call('run_tool', {'name': 'telesia_apps_list_tools', 'arguments': {}}), 'ok');
     expect(ran, ['apps_list_tools']);
   });
 

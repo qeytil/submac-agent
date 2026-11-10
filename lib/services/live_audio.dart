@@ -8,10 +8,10 @@ import 'dart:typed_data';
 /// the turn open until it thinks the playback is done. Anything its voice detector hears in that window
 /// (the speaker's own echo, a door, a cough) ends the turn with `interrupted`, and the app had to throw the
 /// rest of the queue away, so long answers were cut off. The mic now goes to the server as silence while
-/// SubMac speaks, unless the user is clearly talking over it ([EchoGate]).
+/// Telesia speaks, unless the user is clearly talking over it ([EchoGate]).
 
 /// Voice detection on the server. The start of the user's turn needs a little more than a click or a breath
-/// (prefix padding), and a short pause mid-sentence does not end their turn. Talking over SubMac still stops it.
+/// (prefix padding), and a short pause mid-sentence does not end their turn. Talking over Telesia still stops it.
 const Map<String, dynamic> liveRealtimeInputConfig = {
   'automaticActivityDetection': {
     'prefixPaddingMs': 200,
@@ -83,7 +83,7 @@ class PlaybackClock {
   /// Seconds of speech still queued at [now] (0 when done).
   double secondsLeft(DateTime now) => math.max(0, _end.difference(now).inMicroseconds / 1e6);
 
-  /// How loud SubMac's own speech is around [now] (the loudest part of the last ~0.4 s, since the echo
+  /// How loud Telesia's own speech is around [now] (the loudest part of the last ~0.4 s, since the echo
   /// reaches the mic a little late). 0 in a pause or when nothing plays.
   double levelAt(DateTime now) {
     final from = now.subtract(const Duration(milliseconds: 400));
@@ -105,12 +105,12 @@ class GateResult {
   final List<Uint8List> send;
 }
 
-/// Decides, chunk by chunk, whether the mic is heard by the server while SubMac is speaking.
+/// Decides, chunk by chunk, whether the mic is heard by the server while Telesia is speaking.
 ///
-/// Not speaking: everything passes. Speaking: the mic goes out as silence. The gate knows how loud SubMac's
+/// Not speaking: everything passes. Speaking: the mic goes out as silence. The gate knows how loud Telesia's
 /// own speech is at each moment ([PlaybackClock.levelAt]) and learns how much of it comes back into the mic
 /// (the echo ratio). Only a voice clearly louder than the expected echo, held for about a third of a second
-/// (short gaps forgiven), counts as the user talking over SubMac; then the last half second (so the first word
+/// (short gaps forgiven), counts as the user talking over Telesia; then the last half second (so the first word
 /// is not lost) and everything after it is sent, and the server stops the answer as usual.
 class EchoGate {
   EchoGate({
@@ -121,7 +121,7 @@ class EchoGate {
     this.releaseMs = 1500,
   });
 
-  /// Below this level (0..1 RMS) nothing ever counts as talking over SubMac.
+  /// Below this level (0..1 RMS) nothing ever counts as talking over Telesia.
   final double minLevel;
 
   /// How many times louder than the expected echo a voice must be.
@@ -130,7 +130,7 @@ class EchoGate {
   /// How long (ms, with short gaps forgiven) the voice must last before it counts.
   final int holdMs;
 
-  /// How much recent mic audio is sent when the user starts talking over SubMac.
+  /// How much recent mic audio is sent when the user starts talking over Telesia.
   final int preRollMs;
 
   /// After this long without a raised voice the gate closes again (a false start).
@@ -139,11 +139,11 @@ class EchoGate {
   static const int bytesPerMs = 32; // 16 kHz, 16-bit mono
   static const double _startRatio = 0.3;
 
-  /// The first moment SubMac speaks in a call is used to measure the echo (nobody talks over a first word).
+  /// The first moment Telesia speaks in a call is used to measure the echo (nobody talks over a first word).
   static const int calibrateMs = 1200;
   int _calibratedMs = 0;
 
-  /// Learnt share of SubMac's own voice that comes back into the mic (kept across answers in one call).
+  /// Learnt share of Telesia's own voice that comes back into the mic (kept across answers in one call).
   double _ratio = _startRatio;
   double _score = 0;
   bool _open = false;
@@ -152,13 +152,13 @@ class EchoGate {
   final List<Uint8List> _preRoll = [];
   int _preRollBytes = 0;
 
-  /// True while the user is talking over SubMac and the mic is going through.
+  /// True while the user is talking over Telesia and the mic is going through.
   bool get bargeIn => _open;
 
   /// The learnt echo ratio.
   double get echoRatio => _ratio;
 
-  /// The level a mic chunk must reach to count as the user while SubMac plays at [speakerLevel].
+  /// The level a mic chunk must reach to count as the user while Telesia plays at [speakerLevel].
   double threshold(double speakerLevel) => math.max(minLevel, _ratio * speakerLevel * overEcho);
 
   void _resetRun() {
@@ -196,7 +196,7 @@ class EchoGate {
       }
       return GateResult([chunk]);
     }
-    // Learn the echo ratio while SubMac's voice is clearly playing: quickly from chunks that look like echo,
+    // Learn the echo ratio while Telesia's voice is clearly playing: quickly from chunks that look like echo,
     // slowly from loud ones (so a strong echo still lifts it, while a real voice barely moves it).
     var calibrating = false;
     if (speakerLevel >= 0.02) {
@@ -270,7 +270,7 @@ bool goAwayMoveNow({
   return !generating && !toolRunning;
 }
 
-/// App notes (task news, the minute warning) wait until SubMac has finished speaking, so they do not cut an
+/// App notes (task news, the minute warning) wait until Telesia has finished speaking, so they do not cut an
 /// answer off: a new turn sent while the model is answering ends that answer. After [maxWait] they go anyway.
 bool injectMayGo({
   required bool speaking,

@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -14,17 +14,17 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
 /**
- * SubMac native bridge (copied over the generated MainActivity by CI):
+ * Telesia native bridge (copied over the generated MainActivity by CI):
  * - phone actions through Android intents (the user taps to finish)
- * - receiving "Share to SubMac" text and files from other apps
+ * - receiving "Share to Telesia" text and files from other apps
  */
 class MainActivity : FlutterActivity() {
     private var channel: MethodChannel? = null
     private var pending: HashMap<String, Any?>? = null
 
-    // One long-lived engine (owned by SubMacApp) so Live, the wake word and background tasks
+    // One long-lived engine (owned by TelesiaApp) so Live, the wake word and background tasks
     // keep running when this screen closes.
-    override fun provideFlutterEngine(context: Context): FlutterEngine = SubMacApp.engine(context)
+    override fun provideFlutterEngine(context: Context): FlutterEngine = TelesiaApp.engine(context)
 
     override fun shouldDestroyEngineWithHost(): Boolean = false
 
@@ -62,7 +62,7 @@ class MainActivity : FlutterActivity() {
 
     /**
      * Edge to edge, every time the screen comes back (owner 2026-10-24: "the sky bg is short"). The engine is one
-     * long-lived engine (SubMacApp), so Dart's main() and its SystemChrome.setEnabledSystemUIMode(edgeToEdge) run
+     * long-lived engine (TelesiaApp), so Dart's main() and its SystemChrome.setEnabledSystemUIMode(edgeToEdge) run
      * once, and only reach the first screen it is attached to. Every later screen (after Back, a recreate or a start
      * from a background service) got a fresh PlatformPlugin whose default flags lay out under the status bar but NOT
      * under the navigation bar, so the sky stopped above the navigation bar. Same calls as Flutter's own edgeToEdge mode.
@@ -129,13 +129,13 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "submac/native")
+        val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "telesia/native")
         channel = ch
         ch.setMethodCallHandler { call, result ->
             try {
                 when (call.method) {
                     // opencode on the phone: handled with the app context only, so it also works when an alarm starts
-                    // SubMac with no screen (OcChannel, 2026-11-05).
+                    // Telesia with no screen (OcChannel, 2026-11-05).
                     "ocStart", "ocToken", "ocStop", "ocStatus" -> OcChannel.handle(applicationContext, call, result)
                     "takeShared" -> {
                         val p = pending

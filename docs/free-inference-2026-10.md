@@ -1,6 +1,6 @@
 # Free, fast LLM inference for launch (researched 2026-10-21, official pages)
 
-Context: SubMac agent steps send 7-13k-token prompts with tools; submac-fast is short replies. Nothing here was added to the proxy; no new providers or keys.
+Context: Telesia agent steps send 7-13k-token prompts with tools; telesia-fast is short replies. Nothing here was added to the proxy; no new providers or keys.
 
 | Provider | Free limits (official) | Speed / our data | Fit as first route |
 |---|---|---|---|

@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.app.Activity
 import android.os.Handler
@@ -13,7 +13,7 @@ import android.view.inputmethod.EditorInfo
 import android.webkit.WebView
 
 /**
- * Real hands for the in-app browser. Instead of faking clicks with page script, SubMac sends genuine
+ * Real hands for the in-app browser. Instead of faking clicks with page script, Telesia sends genuine
  * Android touch and keyboard input straight into the tab's WebView, exactly like a finger and a keyboard.
  * Sites see trusted events, so React forms, sliders, maps, OTP boxes and anti-bot checks behave as for a person.
  * Coordinates are WebView pixels (the page script converts CSS pixels using zoom and device pixel ratio).

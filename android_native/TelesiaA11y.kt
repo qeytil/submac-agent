@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
@@ -19,17 +19,17 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * Phone control. The user turns it on in Android settings; SubMac then reads the screen as a
+ * Phone control. The user turns it on in Android settings; Telesia then reads the screen as a
  * numbered list and taps, types and scrolls by number, only when the user asks for something.
  *
  * Every public action is called from Bridge's worker thread (never the main thread), so a slow app
- * can't freeze SubMac and make Android mark the service "not working". Nothing here may throw:
+ * can't freeze Telesia and make Android mark the service "not working". Nothing here may throw:
  * an uncaught error would take the service down, so every action catches and answers in words.
  */
-class SubMacA11y : AccessibilityService() {
+class TelesiaA11y : AccessibilityService() {
     companion object {
-        @Volatile var instance: SubMacA11y? = null
-        /** When the screen last changed, so SubMac can wait for an app to settle before reading it. */
+        @Volatile var instance: TelesiaA11y? = null
+        /** When the screen last changed, so Telesia can wait for an app to settle before reading it. */
         @Volatile var lastEvent = 0L
         @Volatile var connectedAt = 0L
     }
@@ -171,7 +171,7 @@ class SubMacA11y : AccessibilityService() {
         }
     }
 
-    /** The app the user sees: skips SubMac's own floating card so phone control reads the real app underneath. */
+    /** The app the user sees: skips Telesia's own floating card so phone control reads the real app underneath. */
     internal fun appRoot(): AccessibilityNodeInfo? {
         try {
             val all = windows
@@ -316,7 +316,7 @@ class SubMacA11y : AccessibilityService() {
         main.post {
             try {
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cm.setPrimaryClip(ClipData.newPlainText("SubMac", text))
+                cm.setPrimaryClip(ClipData.newPlainText("Telesia", text))
             } catch (_: Throwable) {}
             latch.countDown()
         }

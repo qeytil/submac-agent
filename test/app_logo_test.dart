@@ -6,7 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('New SubMac logo', () {
+  group('New Telesia logo', () {
     test('launcher icon sources exist at full size', () {
       for (final f in ['assets/icon.png', 'assets/icon_ios.png', 'assets/icon_fg.png', 'assets/icon_bg.png', 'assets/icon_mono.png']) {
         final file = File(f);
@@ -30,13 +30,13 @@ void main() {
       expect(pub, contains('- assets/brand/'));
     });
 
-    test('the launch screen is SubMac, not the white Flutter template (light and dark, Android 12+)', () {
+    test('the launch screen is Telesia, not the white Flutter template (light and dark, Android 12+)', () {
       for (final f in ['android_native/res/drawable/launch_background.xml', 'android_native/res/drawable-v21/launch_background.xml']) {
         final x = File(f).readAsStringSync();
-        expect(x, contains('@color/submac_launch_sky'), reason: f);
+        expect(x, contains('@color/telesia_launch_sky'), reason: f);
         expect(x, contains('@drawable/ic_launcher_foreground'), reason: f);
       }
-      expect(File('android_native/res/values/submac_launch.xml').readAsStringSync(), contains('submac_launch_sky'));
+      expect(File('android_native/res/values/telesia_launch.xml').readAsStringSync(), contains('telesia_launch_sky'));
       for (final f in ['android_native/res/values-v31/styles.xml', 'android_native/res/values-night-v31/styles.xml']) {
         final x = File(f).readAsStringSync();
         expect(x, contains('name="LaunchTheme"'), reason: f);
@@ -65,7 +65,7 @@ void main() {
       final pic = find.byType(SvgPicture);
       expect(pic, findsOneWidget);
       expect(t.getSize(pic), const Size(48, 48));
-      expect(find.bySemanticsLabel('SubMac'), findsOneWidget);
+      expect(find.bySemanticsLabel('Telesia'), findsOneWidget);
       expect(find.text('S'), findsNothing); // the old serif letter is gone
     });
 

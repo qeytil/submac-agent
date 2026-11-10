@@ -5,7 +5,7 @@ import 'dart:isolate';
 /// Pictures, drawings, charts, pages and videos an opencode turn made, shown in the chat (owner, 2026-11-04: "there is
 /// no visual like image or video or graphics output ability, why?").
 ///
-/// opencode does not know SubMac's ```file / ```visual cards (that teaching lived in the old agent's prompt, which is
+/// opencode does not know Telesia's ```file / ```visual cards (that teaching lived in the old agent's prompt, which is
 /// gone). It makes visuals its own way: it writes chart.svg or page.html with its write tool, makes a PNG with a
 /// script, and names the file in its answer, or writes `![chart](chart.svg)`. This turns all of those into the cards
 /// the chat already draws. Pure (dart:io only for the file checks), so it is tested without the app.

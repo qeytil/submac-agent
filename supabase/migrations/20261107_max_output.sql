@@ -1,21 +1,21 @@
--- Max output (2026-11-07). APPLIED to project submac-agent (moeemacbvsueekuvfjbo) at 2026-11-07 14:43 UTC
+-- Max output (2026-11-07). APPLIED to project telesia-agent (moeemacbvsueekuvfjbo) at 2026-11-07 14:43 UTC
 -- (Blocks 1 and 2 in one statement batch, block 3 in the next). Owner's report: replies were cut short, for the main
 -- agent and the bots. See docs/max-output.md. Each block stands on its own; apply in this order.
 -- Blocks 1-2 take effect at once (usage_gate / ai-chat read them). Block 3 needs ai-chat v46, which reads
 -- ai_models.max_output_tokens; v45 ignores the new field, so block 3 is safe to apply before the deploy.
 
--- 1. The cap that cut every SubMac reply (main agent and bots): with billing on, usage_gate returns
+-- 1. The cap that cut every Telesia reply (main agent and bots): with billing on, usage_gate returns
 --    reply_cap = least(billing_reply_cap_tokens, today's balance) and ai-chat clamps every reply's max_tokens to it.
 --    It was 8192. The balance still bounds each reply (replyCap), and a reply never goes past the route's own room.
 --    Before: {"key": "billing_reply_cap_tokens", "value": 8192}
 update public.ai_settings set value = '65536'::jsonb, updated_at = now() where key = 'billing_reply_cap_tokens';
 
--- 2. The chat alias ceiling: ai-chat serves every chat call on alias 'submac' (CHAT_ALIAS) and asks a route for
+-- 2. The chat alias ceiling: ai-chat serves every chat call on alias 'telesia' (CHAT_ALIAS) and asks a route for
 --    min(requested, alias max_output_tokens). It was 32768. Gemini routes (priority 10/20/80) can write 65536.
 --    Routes with a smaller window still get only their room (window - prompt), and a route that refuses a big
 --    max_tokens is shrunk and remembered by ai-chat (shrinkFor), so the first refusal costs one retry.
---    Before: submac 32768
-update public.ai_aliases set max_output_tokens = 65536 where alias = 'submac';
+--    Before: telesia 32768
+update public.ai_aliases set max_output_tokens = 65536 where alias = 'telesia';
 
 -- 3. Each model's own output maximum, so ai-chat asks a route for no more than it can write (ai-chat v46 reads it;
 --    v45 ignores the new field, so this block is safe before the deploy). NULL = unknown (room and learned caps only).
@@ -50,5 +50,5 @@ $function$;
 
 -- Rollback:
 --   update public.ai_settings set value = '8192'::jsonb, updated_at = now() where key = 'billing_reply_cap_tokens';
---   update public.ai_aliases set max_output_tokens = 32768 where alias = 'submac';
+--   update public.ai_aliases set max_output_tokens = 32768 where alias = 'telesia';
 --   (block 3: re-run the previous ai_config_lite without 'max_output_tokens'; the column can stay.)

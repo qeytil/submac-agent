@@ -26,7 +26,7 @@ Route<void> liveRoute() => PageRouteBuilder(
       opaque: true,
       transitionDuration: SubMotion.page,
       pageBuilder: (_, __, ___) => const LiveScreen(),
-      // SubMac motion: the call comes up from the paper and settles.
+      // Telesia motion: the call comes up from the paper and settles.
       transitionsBuilder: (_, a, __, child) => FadeTransition(
         opacity: CurvedAnimation(parent: a, curve: SubMotion.settle, reverseCurve: SubMotion.leave),
         child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(CurvedAnimation(parent: a, curve: SubMotion.settle)), child: child),
@@ -41,7 +41,7 @@ Future<void> openLive(BuildContext context, {String mode = ''}) async {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(Cloud.calls.value.out
             ? Cloud.calls.value.usedUpMessage
-            : 'Voice isn\'t available right now. You can still type to SubMac.')));
+            : 'Voice isn\'t available right now. You can still type to Telesia.')));
     return;
   }
   if (!context.mounted) return;
@@ -110,7 +110,7 @@ class _LiveScreenState extends State<LiveScreen> {
         context: context,
         builder: (c) => AlertDialog(
           title: const Text('Keep Live on top'),
-          content: const Text('To talk with SubMac while you use other apps, allow "Display over other apps" for SubMac.'),
+          content: const Text('To talk with Telesia while you use other apps, allow "Display over other apps" for Telesia.'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Not now'))),
             TextButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Allow'))),
@@ -202,8 +202,8 @@ class _LiveScreenState extends State<LiveScreen> {
 enum CallPhase { thinking, listening, speaking, muted, ended }
 
 /// The call, drawn from plain values so it can be shown and tested on its own (owner, 2026-10-23):
-/// no boxes, no rings, no glow, SubMac's own icons, few words, SubMac's motion. Two styles:
-/// * SubMac call ([bot] null): the SubMac mark alone on the paper, calm, breathing a touch with the voice.
+/// no boxes, no rings, no glow, Telesia's own icons, few words, Telesia's motion. Two styles:
+/// * Telesia call ([bot] null): the Telesia mark alone on the paper, calm, breathing a touch with the voice.
 /// * Bot call: that bot's face (reacting to the call), its name and its role.
 class CallView extends StatelessWidget {
   const CallView({
@@ -272,7 +272,7 @@ class CallView extends StatelessWidget {
     final quiet = phase == CallPhase.muted || phase == CallPhase.ended;
     final ended = phase == CallPhase.ended;
     final Widget centre = b == null
-        ? Column(key: const ValueKey('submac-call'), mainAxisSize: MainAxisSize.min, children: [
+        ? Column(key: const ValueKey('telesia-call'), mainAxisSize: MainAxisSize.min, children: [
             RepaintBoundary(
               child: AnimatedScale(
                 duration: SubMotion.quick,
@@ -282,7 +282,7 @@ class CallView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Space.x6),
-            Text('SubMac', style: Brand.display(size: 40, color: p.text)),
+            Text('Telesia', style: Brand.display(size: 40, color: p.text)),
           ])
         : Column(key: const ValueKey('bot-call'), mainAxisSize: MainAxisSize.min, children: [
             RepaintBoundary(
@@ -377,7 +377,7 @@ class CallView extends StatelessWidget {
               ],
             ),
           ...extras,
-          // Controls: SubMac's own icons over one short word each. No buttons, no fills, no outlines.
+          // Controls: Telesia's own icons over one short word each. No buttons, no fills, no outlines.
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(Space.x6, Space.x2, Space.x6, Space.x6),
             child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
@@ -413,7 +413,7 @@ class _CallText extends StatelessWidget {
       );
 }
 
-/// A call control: SubMac's own icon over one short word. No circle, no fill, no outline.
+/// A call control: Telesia's own icon over one short word. No circle, no fill, no outline.
 class _CallControl extends StatelessWidget {
   const _CallControl({super.key, required this.icon, required this.label, required this.onTap, this.color, this.dim = false});
   final String icon;

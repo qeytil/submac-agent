@@ -9,7 +9,7 @@ class LaunchFlags {
   /// Publishing your own bot to the Bot Store.
   static const bool storePublishing = false;
 
-  /// SubMac's own Bot Store bots kept out for launch: Health and Coder are hidden (PLAN.md 3.3), and Nova, Amal, Rank
+  /// Telesia's own Bot Store bots kept out for launch: Health and Coder are hidden (PLAN.md 3.3), and Nova, Amal, Rank
   /// and Ustad already come from the roles on the Hire screen, so the Store does not list them twice.
   static const Set<String> hiddenStoreBots = {'health', 'coder', 'researcher', 'legal', 'seo', 'teacher'};
 }

@@ -3,10 +3,10 @@ import 'system_bridge.dart';
 /// Outbound messages and the approvals around them (chat fix plan PR-3, CB-42 and CB-44).
 ///
 /// CB-42: with no mail account connected, an email "send" opened Gmail, then tapped and typed in it. The approval for
-/// that tap was raised inside SubMac while Gmail was in front, so nobody saw it and the run hung. Now:
+/// that tap was raised inside Telesia while Gmail was in front, so nobody saw it and the run hung. Now:
 /// 1. outbound email with no connector is an `email_draft`: a draft card in the chat whose Send button opens the
 ///    phone's mail app (a mailto: compose intent, ACTION_SENDTO) with everything filled in; the user sends it there;
-/// 2. an approval raised while SubMac is in the background posts a high-priority notification (the router does this);
+/// 2. an approval raised while Telesia is in the background posts a high-priority notification (the router does this);
 /// 3. for a send goal, taps and typing in another app wait until the draft was approved in this chat;
 /// 4. an unanswered approval times out, and the task ends with what it has (sooner for read-only tasks).
 class OutboundGuard {
@@ -18,7 +18,7 @@ class OutboundGuard {
 
   static const _send = r'send|reply|respond to|forward|post|tweet|publish|dm|u dir|soo dir|ii dir|dir u|jawaab';
 
-  /// The user's words ask SubMac to send something to someone (an email, a text, a post), not just to read or look.
+  /// The user's words ask Telesia to send something to someone (an email, a text, a post), not just to read or look.
   static final _sendGoal = RegExp(
       '\\b($_send)\\b|\\be-?mail (to|him|her|them|my|the|back|everyone|all)\\b|\\b(text|message|whatsapp|telegram) (him|her|them|my|back|to)\\b|'
       '\\bwrite (an? )?(e-?mail|message|text|reply) to\\b|\\be-?mail\\s+\\S+@\\S+|\\be-?mail \\w+ (that|saying|about|to say|and (tell|ask))\\b',
@@ -42,7 +42,7 @@ class OutboundGuard {
   static Duration waitFor({required bool readOnly}) => readOnly ? readOnlyTimeout : approvalTimeout;
 
   /// Posts the "needs your OK" notification (kind "approval": the high-priority channel that pops up over other apps;
-  /// a tap opens SubMac on the chat whose sheet is waiting). Tests swap these to see what was posted.
+  /// a tap opens Telesia on the chat whose sheet is waiting). Tests swap these to see what was posted.
   static Future<void> Function({required int id, required String title, required String body, required String payload}) notify =
       _post;
   static Future<void> Function(int id) cancelNotice = _cancel;

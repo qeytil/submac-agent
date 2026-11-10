@@ -1,4 +1,4 @@
-# SubMac Agent: what's broken, unfinished or bloated
+# Telesia: what's broken, unfinished or bloated
 
 Read-only audit of the copy in /workspace/work/repo, dated 2026-10-23. Nothing in the repo was changed.
 
@@ -25,19 +25,19 @@ Read-only audit of the copy in /workspace/work/repo, dated 2026-10-23. Nothing i
 
 **Keep** means it's on the main path at launch. **Hide** means it stays built but moves behind "More", Advanced, or a setup step. **Cut** means it's switched off or removed for launch and can come back later.
 
-### Talking to SubMac
+### Talking to Telesia
 | Area | What it is | Call |
 |---|---|---|
 | Chat with cards | Main chat, rich answer cards (tables, lists, diagrams, graphs, files), attachments, camera, scan text | **Keep**, as the core |
 | Web search and reading pages | Search with source chips, reading web pages and PDFs | **Keep** |
-| Memory ("What SubMac knows about you") | Facts it remembers across chats | **Keep**, but move it out of Settings as planned |
-| Live voice calls | Real-time voice with SubMac, Somali captions fix, minutes per day | **Keep**: a headline feature for this audience |
+| Memory ("What Telesia knows about you") | Facts it remembers across chats | **Keep**, but move it out of Settings as planned |
+| Live voice calls | Real-time voice with Telesia, Somali captions fix, minutes per day | **Keep**: a headline feature for this audience |
 | Dictation and read aloud | Phone speech-to-text and text-to-speech | **Keep** |
 | Somali knowledge library | 124 entries on language and culture, used by the agent, bots and calls | **Keep**. It needs a review by a native speaker first. |
 | Thinking modes (Quick / Think / Auto) | Choice of model depth | **Hide**: keep Auto and make the rest Advanced |
-| "Hello SubMac" wake word | Always-on offline listener | **Cut**. It uses an English-only voice pack downloaded from a third-party site, drains battery, and doesn't fit a Somali-first audience. |
-| Telegram bridge | Talk to SubMac through your own Telegram bot (paste a BotFather token) | **Cut** for launch. It's developer setup, and it keeps the app alive in the background. |
-| Floating task bubble | Small chat over other apps while SubMac drives the phone | **Keep**, but only for phone-control tasks |
+| "Hello Telesia" wake word | Always-on offline listener | **Cut**. It uses an English-only voice pack downloaded from a third-party site, drains battery, and doesn't fit a Somali-first audience. |
+| Telegram bridge | Talk to Telesia through your own Telegram bot (paste a BotFather token) | **Cut** for launch. It's developer setup, and it keeps the app alive in the background. |
+| Floating task bubble | Small chat over other apps while Telesia drives the phone | **Keep**, but only for phone-control tasks |
 
 ### Getting things done
 | Area | What it is | Call |
@@ -85,12 +85,12 @@ Read-only audit of the copy in /workspace/work/repo, dated 2026-10-23. Nothing i
 ### Account, files and system
 | Area | What it is | Call |
 |---|---|---|
-| Today | Needs your OK, done while you were away, From SubMac, routines | **Keep**: make it the single place for updates (section 3) |
-| Files | SubMac files plus phone files | **Keep**, and absorb Library, Sites and Trash |
-| Library | Images SubMac made (just a view of one folder inside Files) | **Cut** as a separate screen |
+| Today | Needs your OK, done while you were away, From Telesia, routines | **Keep**: make it the single place for updates (section 3) |
+| Files | Telesia files plus phone files | **Keep**, and absorb Library, Sites and Trash |
+| Library | Images Telesia made (just a view of one folder inside Files) | **Cut** as a separate screen |
 | Trash | Restore deleted files (shown both in Settings and in Files) | **Keep**, but only inside Files |
 | Archived chats | Separate screen in Settings | **Hide**: make it a search filter as planned (not done) |
-| "From SubMac" inbox | Messages and gifts from the SubMac team | **Keep**, but as a section of Today, not a fourth bell |
+| "From Telesia" inbox | Messages and gifts from the Telesia team | **Keep**, but as a section of Today, not a fourth bell |
 | Settings, Privacy, Delete account, Help | | **Keep** |
 | In-app updates | Direct-APK updater from Cloudflare R2 | **Keep**. This is how a direct APK gets updated. |
 | Wallet, coins, passes (billing) | Sifalo payments, coins, store screens | **Hide** behind the existing switch until Sifalo live keys exist and payments have been tested end to end |
@@ -142,8 +142,8 @@ Read-only audit of the copy in /workspace/work/repo, dated 2026-10-23. Nothing i
      - Archived chats can't be found by search, and the planned filter isn't there.
      - Library is still a separate screen.
      - Trash is in both Settings and Files.
-     - "From SubMac" has four entry points.
-     - Settings still holds Skills, Archived, Trash, Apps, Invite code and From SubMac, beyond the planned eight.
+     - "From Telesia" has four entry points.
+     - Settings still holds Skills, Archived, Trash, Apps, Invite code and From Telesia, beyond the planned eight.
    - **What the user hits:** the same thing in several places, and things they can't find (old chats).
 
 7. **Removed settings still apply.**
@@ -165,7 +165,7 @@ Read-only audit of the copy in /workspace/work/repo, dated 2026-10-23. Nothing i
 
 10. **Release plumbing is unsettled.**
     - Push notifications were never tested on a phone. The docs contradict each other on the app's package id: one section says it went back to the old id, while the code and push setup use the new one. A mismatch means no push.
-    - The public bot pages ("Hire in SubMac" links) sit on an unmerged website branch.
+    - The public bot pages ("Hire in Telesia" links) sit on an unmerged website branch.
     - The Somali captions fix and the Somali knowledge library sit on unmerged branches with no APK.
     - Server-side database changes for releases, site previews and billing have no migration files in the repo.
     - **What the user hits:** notifications that never arrive (bot results, approvals), "Hire" links that don't open the app, and Somali call captions that still come out in the wrong language on the released build.
@@ -222,7 +222,7 @@ Read-only audit of the copy in /workspace/work/repo, dated 2026-10-23. Nothing i
   - rewards
   - Telegram
   - wake word
-  - "From SubMac" inbox
+  - "From Telesia" inbox
   - projects
   - built-in skills catalog
   - updater service
@@ -251,9 +251,9 @@ Read-only audit of the copy in /workspace/work/repo, dated 2026-10-23. Nothing i
 
 1. **Skills, Skill library, quick chips and bot skills.** There are two different things called "skills": 39 built-in one-tap actions and 417 downloadable playbooks. They're reached from the red dot, the chips, Settings, and bot setup. **Merge:** keep the chips on an empty chat. The agent loads playbooks by itself. Put one "Skills" list under More.
 
-2. **Files, Library, Sites, Trash, project files and team folders.** Library is just one folder of Files. Sites, project folders and team folders are also folders in Files, but projects are named by id and teams by name. Trash appears twice. **Merge:** one Files screen with filters (Made by SubMac, Sites, Projects, Teams, Trash). Name every folder by its human name.
+2. **Files, Library, Sites, Trash, project files and team folders.** Library is just one folder of Files. Sites, project folders and team folders are also folders in Files, but projects are named by id and teams by name. Trash appears twice. **Merge:** one Files screen with filters (Made by Telesia, Sites, Projects, Teams, Trash). Name every folder by its human name.
 
-3. **Today, Needs your OK, From SubMac, bot activity, the job page's "Needs you", and team-chat approval cards.** That's six places to see "what happened and what needs me", and four doors to the From SubMac inbox. **Merge:** Today is the single feed: Needs your OK, done while you were away, From SubMac, and Coming up. Activity traces go only behind "How did you do it?".
+3. **Today, Needs your OK, From Telesia, bot activity, the job page's "Needs you", and team-chat approval cards.** That's six places to see "what happened and what needs me", and four doors to the From Telesia inbox. **Merge:** Today is the single feed: Needs your OK, done while you were away, From Telesia, and Coming up. Activity traces go only behind "How did you do it?".
 
 4. **Teams (formerly Offices) and Projects.** Both are a folder, a shared context or instructions, chats and tasks. **Merge:** one "Project", which can have teammates (bots) and a lead. Or hide Teams at launch and keep Projects.
 
@@ -263,9 +263,9 @@ Read-only audit of the copy in /workspace/work/repo, dated 2026-10-23. Nothing i
 
 7. **Connecting things.** 108 sign-in presets, 52 key-paste apps, the old GitHub/Notion token tools, old search keys, custom tool servers, "Any API", saved website logins, plus Telegram and WhatsApp rows. **Merge:** an Apps row with tested sign-in apps and phone apps, and one Advanced row (keys, tool servers, API, logins). Delete the old token tools that duplicate catalog entries.
 
-8. **Permissions and trust.** SubMac's trust level, each bot's trust level, WhatsApp trust per bot, team trust, bot power switches, read-only apps, and "Let it take action". That's seven controls for "may it act without asking?". **Merge:** trust level per assistant (New / Trusted), plus one Phone access page. WhatsApp and team trust become part of the bot's trust level.
+8. **Permissions and trust.** Telesia's trust level, each bot's trust level, WhatsApp trust per bot, team trust, bot power switches, read-only apps, and "Let it take action". That's seven controls for "may it act without asking?". **Merge:** trust level per assistant (New / Trusted), plus one Phone access page. WhatsApp and team trust become part of the bot's trust level.
 
-9. **Voice and talk channels.** Live with SubMac, calling a bot, a bot calling you, the "lead calls me" daily report, the wake word, Telegram, and the WhatsApp bubble. **Merge:** Live and bot calls as one calling feature. Cut the wake word and Telegram for launch.
+9. **Voice and talk channels.** Live with Telesia, calling a bot, a bot calling you, the "lead calls me" daily report, the wake word, Telegram, and the WhatsApp bubble. **Merge:** Live and bot calls as one calling feature. Cut the wake word and Telegram for launch.
 
 10. **Chat progress UI.** The current working line, an old unused "Thinking" line, an unused thinking dot, "How I did it" next to the "Worked for … · N steps" fold (only one shows in practice), and two "tell me when done" switches. **Merge:** keep the working line and the "Worked for" fold. Delete the rest.
 

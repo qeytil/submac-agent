@@ -1,4 +1,4 @@
--- v1.4: things the user asked SubMac to remember (synced across devices).
+-- v1.4: things the user asked Telesia to remember (synced across devices).
 create table if not exists public.memories (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),

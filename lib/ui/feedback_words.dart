@@ -31,7 +31,7 @@ class FeedbackWords {
     'Saving your feedback',
     'Try again',
     'Thank you',
-    'Your feedback reached the SubMac team.',
+    'Your feedback reached the Telesia team.',
     'Done',
     'You are offline. Your feedback is kept here; send it when you are back online.',
     'Sign in to send feedback.',

@@ -242,7 +242,7 @@ void main() {
       AppState.debugRunAgent = (app, run) async {
         await Future<void>.delayed(const Duration(milliseconds: 80));
         await app.repo.insertMessage(run.convId, ChatMessage(id: 'late', role: 'assistant', content: 'Day 1: arrive and'));
-        await app.repo.updateConversation(run.convId, {'model': 'submac'});
+        await app.repo.updateConversation(run.convId, {'model': 'telesia'});
       };
       final running = s.regenerate();
       for (var i = 0; i < 50 && s.runs.isEmpty; i++) {

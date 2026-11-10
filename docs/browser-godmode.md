@@ -1,4 +1,4 @@
-# Browser god-mode: how SubMac's agent gets better at the web than any human
+# Browser god-mode: how Telesia's agent gets better at the web than any human
 
 *Research pass, 2026-10-31. Question from the owner: "how can we make the browser use god level power and the agent/bot use browser natively better than even human?"*
 
@@ -25,7 +25,7 @@ are the **data layer** and **site skills**. That is where "god level" actually l
 
 ---
 
-## 2. Where SubMac v2 already stands (honest audit)
+## 2. Where Telesia v2 already stands (honest audit)
 
 From `docs/browser-use-v2.md` and the code (`browser_agent.dart`, `browser_jobs.dart`,
 `browser/page_script.dart`, `browser/shots.dart`, `browser/loop_guard.dart`):
@@ -34,10 +34,10 @@ Already at or beyond SOTA:
 - **Dual-channel perception**: numbered interactive elements (≤140) + visible text + a set-of-marks
   screenshot with the *same* numbers. This is the browser-use hybrid — strictly stronger than OpenAI's
   CUA/Operator pure-vision loop (58.1% WebArena) and stronger than Playwright MCP's a11y-only view
-  (which is blind to canvases and maps — SubMac keeps `browser_tap_at` for those).
+  (which is blind to canvases and maps — Telesia keeps `browser_tap_at` for those).
 - **Real touch injection** (`WebHands.kt`): genuine `MotionEvent`s into a real Android WebView on a real
   phone. Desktop agents run headless Chromium with synthetic CDP input — a *worse* stealth position than
-  "it literally is a phone". This is SubMac's unfair advantage; keep investing in it.
+  "it literally is a phone". This is Telesia's unfair advantage; keep investing in it.
 - **Batched actions** (1–6 per step) with post-action skip, **Effect line** per step ("NOTHING changed"
   self-check), **ShotGate** (no re-send of unchanged screenshots), **LoopGuard + StepBudget**
   (120 steps / 25 min), **3 parallel jobs with owned tabs**, take-over/hand-back, inline approvals,
@@ -55,18 +55,18 @@ Honest gaps vs. the frontier:
 
 ## 3. What the frontier does (and what to steal from each)
 
-| System | Core idea | Verdict for SubMac |
+| System | Core idea | Verdict for Telesia |
 |---|---|---|
 | **browser-use** (~120k★) | DOM tree → indexed clickable elements + optional vision; plan/act loop; history record → `detect_variables()` → `load_and_rerun()` replays recorded flows **without model calls per step**; cloud stealth browsers; BU2 model tuned for browsing | The replay-with-variables idea is the single best steal → becomes **site skills** (§4, P3). Their cloud is not needed — the phone *is* the stealth browser |
 | **Playwright MCP** | Accessibility-tree snapshots with stable **refs**; "deterministic tool application, no vision needed"; `browser_find` to search the snapshot cheaply instead of re-snapshotting; explicit network/console observability tools | Steal: refs over re-numbering (stability across steps), `browser_find` (search, don't re-send), and the **network tools** as first-class |
 | **Stagehand** | `act` / `extract` / `observe` primitives; **action caching** (replay verified paths, self-heal on site change by re-planning the broken step) | Steal: extract-as-primitive and cache-and-self-heal — folded into site skills + `browser_extract` |
 | **Skyvern** | Vision+DOM hybrid, workflow caching for repeated enterprise flows, strong on complex forms | Confirms workflow caching; nothing new beyond §4 |
-| **OpenAI CUA / Operator** | Pure vision loop, RL-trained, high-res screenshots; 87% WebVoyager / 58.1% WebArena | Do **not** imitate: slower, costlier, less precise than DOM-first. Keep vision as the *verification* channel (SubMac already does) |
+| **OpenAI CUA / Operator** | Pure vision loop, RL-trained, high-res screenshots; 87% WebVoyager / 58.1% WebArena | Do **not** imitate: slower, costlier, less precise than DOM-first. Keep vision as the *verification* channel (Telesia already does) |
 | **Claude computer use** | 17 actions incl. `enable_zoom`; richer action vocabulary | Minor: the action vocabulary is already comparable in v2 |
 
 **The meta-lesson:** every frontier system converges on (a) structured page state over pixels,
 (b) fewer model round-trips per unit of work, (c) memory that turns the 50th run into a replay.
-SubMac has (a) already. The doc's roadmap is (b) and (c) built on the WebView's own superpowers.
+Telesia has (a) already. The doc's roadmap is (b) and (c) built on the WebView's own superpowers.
 
 ---
 
@@ -86,7 +86,7 @@ The page's own structured data, free for the taking, and every matching item pul
 - The page script (v9) collects the free wins once per document: JSON-LD blocks (`@type` + size, ≤12), app state scripts (`__NEXT_DATA__`, `__INITIAL_STATE__`, `__APOLLO_STATE__`, `__NUXT__`, `__PRELOADED_STATE__`, ≤4), OpenGraph/Twitter meta count. The snapshot carries a one-line summary; the observe payload gains `Schema: JSON-LD Product, state 84.3KB, og:8 — browser_schema opens one; browser_extract walks the page.`
 - `browser_schema` — lists the blocks; with an index, reads one in full (JSON pretty-printed, 20 KB cap).
 - `browser_extract` — the walker: `rows` = a CSS selector matching each item, `fields` = what to take from each row (a selector for text, or `{"sel":"a","attr":"href"}`); returns JSON for ALL matching rows in one call (≤200 rows, values ≤300 chars) — no read-page → reason → retype loop.
-- The ```data``` output card: extracted rows (a JSON array of objects, a table-shaped map, or plain CSV) render as the SubMac table card, folded like every long output.
+- The ```data``` output card: extracted rows (a JSON array of objects, a table-shaped map, or plain CSV) render as the Telesia table card, folded like every long output.
 - Code: page script schema ear + `S.schema/S.schemaOpen/S.extract` (`tools/browser_page.js` v9), `lib/services/browser/extract.dart` (formatters), `page_model.dart` (`schema` field), `browser_agent.dart` (`_schema`/`_extract`, observe Schema line), `output_cards.dart` (`dataCardFrom`, kicker), sub-agent prompt. Tests: `tools/browser_page_test.js` §9 (jsdom), `test/browser_extract_test.dart`, `test/output_visual_test.dart` (data card).
 
 ### P2 — Data-layer reading + schema extraction (original plan)
@@ -97,7 +97,7 @@ The page's own structured data, free for the taking, and every matching item pul
   `__INITIAL_STATE__` (sizes only; the model opens what it needs). One line: `Data: JSON-LD Product ×1, state 84KB`.
 - Promote `browser_js` for **reads**: "for reading/extracting, write one small JS function — it is the
   first choice, not the last resort." Keep it last-resort for *writes* (approval-gated as today).
-- A new ```data``` output card: extracted tables/JSON rendered as a SubMac table card (fits the
+- A new ```data``` output card: extracted tables/JSON rendered as a Telesia table card (fits the
   existing output-card stack; long output folds like SummaryCard).
 
 ### P3 — Site skills (memory: the 50th visit is free) 🔑 — SHIPPED 2026-10-31
@@ -112,7 +112,7 @@ A flow that worked once replays with **zero model calls per step**; the first mi
 - Boundary (honest): v1 has no cross-visit step *repair* — a mismatch stops and hands over (the agent then saves the new path); values are substituted, not inferred; playbooks were per phone at first — the account sync landed as P7.
 
 ### P3 — Site skills (memory: the 50th visit is free) 🔑 (original plan)
-The highest-leverage feature, and SubMac already owns the perfect container (`skill_save` + skill library):
+The highest-leverage feature, and Telesia already owns the perfect container (`skill_save` + skill library):
 - After a browser task succeeds, the job's step history is compressed into a **playbook**:
   `{site pattern, steps: [{act, target signature, optional var}], variables the user supplied}`.
   Target signature = robust match tuple (role + name + placeholder + nth-of-type + text), not coordinates.
@@ -168,7 +168,7 @@ A scheduled task used to be able to *ask* for a browser task, but the browser jo
 - Planner/worker split stays as-is (the chat agent delegates to browser jobs) — do not add a second
   planning layer.
 
-### P6 — Polish the superpowers already unique to SubMac — SHIPPED 2026-10-31
+### P6 — Polish the superpowers already unique to Telesia — SHIPPED 2026-10-31
 - **Human-real hands** (`lib/services/browser/human_input.dart`, pure and seeded so tests pin it):
   - **Typing rhythm**: the real-keyboard path no longer pastes in one commit — text goes in as bursts of 1–3 keys with a pause between them, a longer pause after a space or comma, longer still after a full stop, and one in twelve a mid-sentence "think". Above 60 characters the bursts get bigger and the pauses short (a 200-character address is not typed key by key), and a chunk never cuts a character in half (emoji stay whole).
   - **Gesture curves**: a swipe is now one real gesture through a path — the line bows to one side (2–6% of the distance), every point carries micro-jitter (~1.4 px) that fades to nothing at both ends, and a **long drag overshoots the target by 2–4% and comes back**, the human correction a script never makes. The start and end points stay exact, so the finger still lands where the hit test said. New native call `webStroke` (`android_native/Bridge.kt` → `WebHands.stroke`, one down/move…/up gesture).
@@ -178,7 +178,7 @@ A scheduled task used to be able to *ask* for a browser task, but the browser jo
 - **Login inside replays**: a replay that lands on a page with a password field offers the saved login **once, as one tap** (`browser_login` → the user's confirm), then carries on with the remaining steps; if the user declines, the replay stops and hands the page back with the reason instead of stalling on auth.
 - Code: `human_input.dart`, `heal.dart` (`HealedTarget`, `parseHeal`), page script v11 (`S.sig`, `S.heal`), `browser_agent.dart` (`_touch` path/hold, `_keys` bursts, `_heal` in `_click`/`_type`, `_play` login), `system_bridge.dart` (`webStroke`, `hold`), `android_native/Bridge.kt`. Tests: `test/browser_human_test.dart`, `tools/browser_page_test.js` §11.
 
-### P6 — Polish the superpowers already unique to SubMac (original plan)
+### P6 — Polish the superpowers already unique to Telesia (original plan)
 - **Human-real input**: randomized human-ish inter-key delays and gesture curves for WebHands
   (micro-jitter, occasional overshoot-and-correct on long drags). The phone is the best stealth
   browser on the market; make its hands indistinguishable.

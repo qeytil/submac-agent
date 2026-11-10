@@ -7,7 +7,7 @@ import 'no_reply.dart';
 
 /// Who a notification is from. Each has its own Android channel, so the owner can tune them apart.
 enum NotifFrom {
-  /// The owner's own SubMac (its main chat, its scheduled tasks): title "SubMac", SubMac red accent.
+  /// The owner's own Telesia (its main chat, its scheduled tasks): title "Telesia", Telesia red accent.
   agent,
 
   /// One of the owner's bots, in its private chat: titled with the bot's name, its avatar colour as the icon.
@@ -16,7 +16,7 @@ enum NotifFrom {
   /// A team chat: titled with the team's name, each line "<Bot name>: message", one conversation per team.
   team,
 
-  /// Work running with SubMac closed (the foreground line "Nova · Hourly news"): silent, low priority.
+  /// Work running with Telesia closed (the foreground line "Nova · Hourly news"): silent, low priority.
   work,
 }
 
@@ -25,13 +25,13 @@ enum NotifFrom {
 class NotifChannels {
   NotifChannels._();
 
-  static const agent = 'submac_agent_v2';
-  static const bots = 'submac_bots_v2';
-  static const teams = 'submac_teams_v2';
-  static const work = 'submac_work_v2';
+  static const agent = 'telesia_agent_v2';
+  static const bots = 'telesia_bots_v2';
+  static const teams = 'telesia_teams_v2';
+  static const work = 'telesia_work_v2';
 
   /// Channels from before the chime: removed so the phone's settings list only the ones in use.
-  static const retired = ['submac_tasks', 'submac_tasks_v2', 'submac_bot_msgs'];
+  static const retired = ['telesia_tasks', 'telesia_tasks_v2', 'telesia_bot_msgs'];
 
   static String of(NotifFrom from) => switch (from) {
         NotifFrom.agent => agent,
@@ -48,18 +48,18 @@ class NotifText {
   /// The longest summary a result notification carries.
   static const maxSummary = 240;
 
-  /// The title for [from]: "SubMac" for the agent, the bot's name, the team's name.
+  /// The title for [from]: "Telesia" for the agent, the bot's name, the team's name.
   static String title(NotifFrom from, {String bot = '', String team = ''}) {
     final b = bot.trim(), t = team.trim();
     return switch (from) {
-      NotifFrom.agent => 'SubMac',
-      NotifFrom.bot => b.isEmpty ? 'SubMac' : b,
+      NotifFrom.agent => 'Telesia',
+      NotifFrom.bot => b.isEmpty ? 'Telesia' : b,
       NotifFrom.team => t.isEmpty ? (b.isEmpty ? 'Team' : b) : t,
-      NotifFrom.work => b.isEmpty ? 'SubMac' : b,
+      NotifFrom.work => b.isEmpty ? 'Telesia' : b,
     };
   }
 
-  /// The line while work runs with SubMac closed: "Nova · Hourly news" (never "Running your scheduled task").
+  /// The line while work runs with Telesia closed: "Nova · Hourly news" (never "Running your scheduled task").
   static String running(String sender, String task) => BgRun.line(sender, BgRun.title(task, fallback: ''));
 
   /// One line of a team conversation: "Nova: the draft is ready".
@@ -151,7 +151,7 @@ class NotifText {
 }
 
 /// Where a reply typed in a notification goes. The payload is the one the notification opens: 'office/<id>' (a team
-/// chat), 'conv/<id>' (a bot's private chat or SubMac's own chat), 'botchat/<bot id>'.
+/// chat), 'conv/<id>' (a bot's private chat or Telesia's own chat), 'botchat/<bot id>'.
 class NotifRoute {
   const NotifRoute(this.from, this.id);
 
@@ -180,7 +180,7 @@ class NotifRoute {
 }
 
 /// A bot's notification icon: its first letter on its avatar colour (Notifier draws it). The agent has none (its
-/// own SubMac mark and red accent).
+/// own Telesia mark and red accent).
 class NotifFace {
   const NotifFace(this.initial, this.color);
 
@@ -201,7 +201,7 @@ class NotifFace {
     return of(name, AvatarSpec.colorOf(spec.color).toARGB32());
   }
 
-  /// SubMac red, for the agent's accent.
+  /// Telesia red, for the agent's accent.
   static const agentAccent = 0xFFC2361B;
 
   /// The calm ink every bot notification used before; kept for teams.

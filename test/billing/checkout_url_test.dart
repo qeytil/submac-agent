@@ -26,14 +26,14 @@ void main() {
     expect(d('https://$host/functions/v1/billing-return?purchase=$pid', main: false).kind, CheckoutNavKind.block);
   });
 
-  test('submac://pay finishes; other submac links are blocked', () {
-    final r = d('submac://pay?status=paid&purchase=$pid&reason=x');
+  test('telesia://pay finishes; other telesia links are blocked', () {
+    final r = d('telesia://pay?status=paid&purchase=$pid&reason=x');
     expect(r.kind, CheckoutNavKind.finish);
     expect(r.purchaseId, pid);
     expect(r.status, 'paid');
     expect(r.serverReturnUrl, isNull);
-    expect(d('submac://pay?status=failed&purchase=not-a-uuid').purchaseId, isNull);
-    expect(d('submac://hire?bot=abc').kind, CheckoutNavKind.block);
+    expect(d('telesia://pay?status=failed&purchase=not-a-uuid').purchaseId, isNull);
+    expect(d('telesia://hire?bot=abc').kind, CheckoutNavKind.block);
   });
 
   test('everything else opens outside the app', () {
@@ -60,8 +60,8 @@ void main() {
   });
 
   test('deep link parser', () {
-    expect(parsePayDeepLink(Uri.parse('submac://pay?purchase=$pid&status=pending'))!.purchaseId, pid);
-    expect(parsePayDeepLink(Uri.parse('submac://invite?ref=X')), isNull);
+    expect(parsePayDeepLink(Uri.parse('telesia://pay?purchase=$pid&status=pending'))!.purchaseId, pid);
+    expect(parsePayDeepLink(Uri.parse('telesia://invite?ref=X')), isNull);
     expect(isBillingReturnPath('/functions/v1/billing-return'), isTrue);
     expect(isBillingReturnPath('/functions/v1/billing-returned'), isFalse);
   });

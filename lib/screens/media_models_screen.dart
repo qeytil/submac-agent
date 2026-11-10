@@ -47,9 +47,9 @@ class MediaModelsScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2, Space.x5, 0),
               child: Text(
-                tr('Your own providers for pictures, video, speech and music. SubMac and your bots use them when you ask '
+                tr('Your own providers for pictures, video, speech and music. Telesia and your bots use them when you ask '
                     '(“make a picture”, “use my fal key”). Keys stay encrypted on this phone, calls go straight to the '
-                    'provider and are billed to your account there, not to your SubMac allowance.'),
+                    'provider and are billed to your account there, not to your Telesia allowance.'),
                 style: AppText.microStyle.copyWith(color: p.muted),
               ),
             ),

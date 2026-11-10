@@ -1,8 +1,8 @@
-# SubMac Plan — Clean Rebuild (Oct 2026)
+# Telesia Plan — Clean Rebuild (Oct 2026)
 
 Owner decisions (2026-10-23). This replaces earlier routing and monetization plans where they conflict.
 
-1. **One model.** Users get one thing: the *SubMac model*. No aliases (smart/fast/think/lite/vision/somali), no Auto/Quick/Think picker, and no model names anywhere in the app.
+1. **One model.** Users get one thing: the *Telesia model*. No aliases (smart/fast/think/lite/vision/somali), no Auto/Quick/Think picker, and no model names anywhere in the app.
 2. **Two routers only.**
    - **Chat router:** picks a model and keeps it until it fails, then moves to the next healthy one.
    - **Live router:** hands out Gemini Live API keys.
@@ -35,7 +35,7 @@ Background audits: `docs/audit/` (ui, agent, backend, unfinished, timing).
 - **Contracts between parts are fixed here.** Changing one needs all three to agree.
 
 ### Contract A — Server → app (Dev 1 ↔ Dev 2 ↔ Dev 3)
-- The app calls one model name: `submac`.
+- The app calls one model name: `telesia`.
 - The chat stream sends a heartbeat (`: ping`) at once, then every 10 s.
 - Errors arrive as an SSE `error` event with one of these codes:
   - `busy` (with `Retry-After`)
@@ -46,10 +46,10 @@ Background audits: `docs/audit/` (ui, agent, backend, unfinished, timing).
   - `blocked`
   - `server`
 - Every response carries the user's balance in headers:
-  - `x-submac-today-left`
-  - `x-submac-total-left`
-  - `x-submac-resets-at` (ISO, EAT midnight)
-  - `x-submac-plan` (`free|weekly|monthly|payg`)
+  - `x-telesia-today-left`
+  - `x-telesia-total-left`
+  - `x-telesia-resets-at` (ISO, EAT midnight)
+  - `x-telesia-plan` (`free|weekly|monthly|payg`)
 
 ### Contract B — Usage → billing (Dev 1 ↔ Dev 2)
 - **Before the call:** ai-chat calls one DB function, `usage_gate(user_id, source)`. It answers allow/deny, today-left, total-left, resets-at and reply cap.
@@ -92,7 +92,7 @@ Background audits: `docs/audit/` (ui, agent, backend, unfinished, timing).
   - history repair
 - **Write key and route state only when it changes**, never on every success.
 - **Over-limit grace** = same model with a `max_tokens` cap, never another model.
-- **Effort hint header** `x-submac-effort: low|normal|high`, mapped to the model's reasoning setting.
+- **Effort hint header** `x-telesia-effort: low|normal|high`, mapped to the model's reasoning setting.
   - `low` for greetings, short questions and step 1.
   - "Think harder" in the app, if kept, sends `high`.
 
@@ -108,7 +108,7 @@ Background audits: `docs/audit/` (ui, agent, backend, unfinished, timing).
 |---|---|
 | Server | gate 2 s; per attempt 6 s headers / 10 s first output; no new attempt after 18 s; hard stop 25 s; heartbeat every 10 s; mid-reply silence 45 s → `cutTail`; reply total under the platform wall clock (confirm Supabase plan: 140 s on Free); non-streamed calls 45 s; `busy` + `Retry-After` 15–30 s with jitter |
 | Server | stop everything when the phone hangs up (`req.signal`); don't charge for replies nobody received |
-| App | headers 10 s; stream silence 30 s; 1 auto-retry before any output; "continue" after a drop at most 2× per step; at 45 s with no word → "SubMac is busy. Tap to try again." (message kept) |
+| App | headers 10 s; stream silence 30 s; 1 auto-retry before any output; "continue" after a drop at most 2× per step; at 45 s with no word → "Telesia is busy. Tap to try again." (message kept) |
 | bot-run | per model call 40 s; per job 120 s; no new jobs after 60 s of a round |
 
 ### 1.4 First word faster
@@ -144,7 +144,7 @@ Background audits: `docs/audit/` (ui, agent, backend, unfinished, timing).
 
 ### 1.6 Stress and recovery
 - Per-batch budget for parallel tool results (24k chars shared).
-- Compaction never blocks a step. Read `x-submac-window`. Summary limit 45 s.
+- Compaction never blocks a step. Read `x-telesia-window`. Summary limit 45 s.
 - Cooldowns per lane (foreground vs background), so a busy bot never pauses the user's chat.
 - Moderation de-dupe in the DB. Only the user's real message is screened.
 - Keep-alive service starts when a task starts, with a partial wake lock (10 min safety release).
@@ -210,7 +210,7 @@ Background audits: `docs/audit/` (ui, agent, backend, unfinished, timing).
 
 ### 2.2 Products (prices are a starting point; owner confirms before launch)
 
-**Free:** a small daily amount (e.g. 60k tokens/day) and a monthly cap. Same SubMac model.
+**Free:** a small daily amount (e.g. 60k tokens/day) and a monthly cap. Same Telesia model.
 
 **A. Packages:** one payment buys a period with a daily amount and a total.
 
@@ -228,7 +228,7 @@ Background audits: `docs/audit/` (ui, agent, backend, unfinished, timing).
 - **Spending order:** free daily → package (within its daily amount) → PAYG tokens. Soonest-expiring first.
 - **Live voice** uses the same balance per minute (owner sets the rate; old plan was 40k/min).
 - **Bots/background** may use at most 50% of a package's daily amount.
-- **Day boundary:** midnight EAT (Africa/Mogadishu), sent to the app in `x-submac-resets-at`. The app never assumes UTC.
+- **Day boundary:** midnight EAT (Africa/Mogadishu), sent to the app in `x-telesia-resets-at`. The app never assumes UTC.
 - **How the UI counts:** "replies", never "unlimited" and never "tokens" on main screens. "About 270 replies" per 1M.
 
 ### 2.3 Server
@@ -337,7 +337,7 @@ Top level is a short list of sections, with no rows exposed. Tap a section to se
 | Language | App language (Auto · Soomaali · العربية · English), reply language |
 | Voice | Live voice, read aloud |
 | Phone access | Calendar, contacts, SMS, notifications, screen control (one place only) |
-| Privacy | What SubMac knows about you (memory), saved logins, trash, archived chats |
+| Privacy | What Telesia knows about you (memory), saved logins, trash, archived chats |
 | Notifications | One "Tell me when a task is done" switch |
 | Advanced | Trust level ("Ask me first" / "Do routine work alone"), API & tool servers, Think harder (optional) |
 | Help | Help, terms, privacy policy, about |
@@ -345,7 +345,7 @@ Top level is a short list of sections, with no rows exposed. Tap a section to se
 - Theme: Auto · Light · Dark.
 - Remove from Settings:
   - Skills
-  - the "From SubMac" row
+  - the "From Telesia" row
   - the invite card (one "Invite friends" row inside Account)
   - duplicate switches
 
@@ -357,7 +357,7 @@ Top level is a short list of sections, with no rows exposed. Tap a section to se
   - at most 4 language-aware shortcut chips + More
   - one Live button (in the composer)
   - remove the Live chip, the Auto/Quick/Think picker and the "Let it take action" switch from the + menu
-- **Today** is the single feed: Needs your OK, done while you were away, From SubMac, Coming up (real scheduled items).
+- **Today** is the single feed: Needs your OK, done while you were away, From Telesia, Coming up (real scheduled items).
   - Hidden until the user has a bot or routine.
   - No second ask box.
 - **Approvals:** one list (on Today) plus the pop-up card.
@@ -366,7 +366,7 @@ Top level is a short list of sections, with no rows exposed. Tap a section to se
   - one Hire screen (roles first, then More: Store, shared file, describe)
   - remove the duplicate Nova/Amal/Rank/Ustad definitions
   - one "Add from code or file" path
-  - fix the share text to "SubMac > Bots > Bot Store > Add from code"
+  - fix the share text to "Telesia > Bots > Bot Store > Add from code"
 - **Bot settings:** Trust, Voice, Off hours + "More settings". Same for team settings.
 - **Apps:** Connected and Apps tabs only. API and MCP go under Advanced. Feature about 20 tested apps.
 - **Hide for launch:**

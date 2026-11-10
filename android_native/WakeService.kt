@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.app.Notification
 import android.app.PendingIntent
@@ -24,14 +24,14 @@ import org.vosk.Recognizer
 import java.io.File
 
 /**
- * "Hello SubMac": listens offline (Vosk) in a foreground service and wakes Live.
+ * "Hello Telesia": listens offline (Vosk) in a foreground service and wakes Live.
  * Built not to go deaf: it lets go of the mic during calls, when another app records and
  * while Live talks, then takes it back, and restarts itself after any audio error.
  */
 class WakeService : Service() {
     companion object {
         private const val NOTE_ID = 7101
-        private const val PREFS = "submac_wake"
+        private const val PREFS = "telesia_wake"
         @Volatile var paused = false
         @Volatile var sensitivity = 0.6f
         @Volatile var state = "off"
@@ -40,7 +40,7 @@ class WakeService : Service() {
         @Volatile private var running = false
 
         // Vosk only knows dictionary words, so the name is matched as "sub mac". The look-alike words
-        // (submit, subway, big mac...) are there so they get recognised as themselves, not as SubMac:
+        // (submit, subway, big mac...) are there so they get recognised as themselves, not as Telesia:
         // tested offline on 112 clips, 42/42 wake phrases heard and 0/70 look-alikes triggered.
         private val PHRASES = listOf(
             "hey sub mac", "hello sub mac", "hi sub mac", "okay sub mac", "sub mac",
@@ -131,9 +131,9 @@ class WakeService : Service() {
             stopping = false
             if (prefs.getBoolean("screenOff", true)) {
                 val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "submac:wake").also { it.setReferenceCounted(false); it.acquire() }
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "telesia:wake").also { it.setReferenceCounted(false); it.acquire() }
             }
-            worker = Thread({ loop(prefs.getString("model", "") ?: "") }, "submac-wake").also { it.start() }
+            worker = Thread({ loop(prefs.getString("model", "") ?: "") }, "telesia-wake").also { it.start() }
         }
         updateNote()
         return START_STICKY
@@ -147,13 +147,13 @@ class WakeService : Service() {
             paused -> "Paused"
             state == "mic_busy" -> "Waiting for the microphone"
             state == "call" -> "Paused during your call"
-            else -> "Say \u201CHello SubMac\u201D"
+            else -> "Say \u201CHello Telesia\u201D"
         }
         if (liveHold) {
             val endI = Intent(this, WakeService::class.java).setAction("end_live")
             return Notifier.builder(this, Notifier.WAKE)
-                .setSmallIcon(R.drawable.ic_stat_submac).setColor(0xFFC2361B.toInt())
-                .setContentTitle("SubMac Live is on")
+                .setSmallIcon(R.drawable.ic_stat_telesia).setColor(0xFFC2361B.toInt())
+                .setContentTitle("Telesia Live is on")
                 .setContentText("Tap to open")
                 .setColor(0xFFC2361B.toInt())
                 .setOngoing(true)
@@ -163,8 +163,8 @@ class WakeService : Service() {
         }
         @Suppress("DEPRECATION")
         return Notifier.builder(this, Notifier.WAKE)
-            .setSmallIcon(R.drawable.ic_stat_submac).setColor(0xFFC2361B.toInt())
-            .setContentTitle("SubMac is listening")
+            .setSmallIcon(R.drawable.ic_stat_telesia).setColor(0xFFC2361B.toInt())
+            .setContentTitle("Telesia is listening")
             .setContentText(text)
             .setColor(0xFFC2361B.toInt())
             .setOngoing(true)
@@ -194,7 +194,7 @@ class WakeService : Service() {
         } catch (e: Exception) {
             // Android blocks starting the mic from the background (e.g. right after a restart).
             moveTo("needs_tap")
-            Notifier.task(this, 7105, "", "Listening is paused. Open SubMac to turn it back on.", "wake/restart", "paused")
+            Notifier.task(this, 7105, "", "Listening is paused. Open Telesia to turn it back on.", "wake/restart", "paused")
             false
         }
     }
@@ -306,7 +306,7 @@ class WakeService : Service() {
             Chime.play(this)
             Overlay.show(this, "popup")
             Overlay.update("Listening", 0f, "", "", false, false)
-            Bridge.send("wake", "hello submac")
+            Bridge.send("wake", "hello telesia")
             updateNote()
             // Safety: if Live never starts, take the mic back.
             main.postDelayed({

@@ -10,9 +10,9 @@ import '../widgets/brand_logo.dart';
 import '../widgets/logo.dart';
 import '../widgets/model_picker.dart';
 
-/// Settings → Models (BYOK, owner 2026-11-03, docs/byok.md): which model the chats use (SubMac or one of the user's
+/// Settings → Models (BYOK, owner 2026-11-03, docs/byok.md): which model the chats use (Telesia or one of the user's
 /// own providers), and the providers themselves. Keys stay encrypted on this phone; calls to a provider go straight
-/// from the phone and are never billed by SubMac.
+/// from the phone and are never billed by Telesia.
 class ModelsScreen extends StatelessWidget {
   const ModelsScreen({super.key, this.store});
 
@@ -71,8 +71,8 @@ class ModelsScreen extends StatelessWidget {
                 padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, Space.x2, Space.x5, 0),
                 child: Text(
                   tr('Bring your own key: use models from OpenAI, Anthropic, Google, OpenRouter and more with your own account. '
-                      'Keys stay encrypted on this phone and are never sent to SubMac. Calls go straight to the provider, '
-                      'so they do not use your SubMac allowance.'),
+                      'Keys stay encrypted on this phone and are never sent to Telesia. Calls go straight to the provider, '
+                      'so they do not use your Telesia allowance.'),
                   style: AppText.microStyle.copyWith(color: p.muted),
                 ),
               ),
@@ -344,7 +344,7 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
       context: context,
       builder: (d) => AlertDialog(
         title: Text('${tr('Remove')} ${pr.label}?'),
-        content: Text(tr('Its keys are deleted from this phone. Chats and bots using its models go back to SubMac.')),
+        content: Text(tr('Its keys are deleted from this phone. Chats and bots using its models go back to Telesia.')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
           TextButton(

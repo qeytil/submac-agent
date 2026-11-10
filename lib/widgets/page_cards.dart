@@ -19,7 +19,7 @@ import 'sub_icon.dart';
 /// ("writing", "done") with the elapsed time, the line count, the last lines of source in monochrome mono, and one
 /// faded status pill. When the file is written the card settles into its done state with "Page built" and an
 /// "Open page" button. The finished page itself is the [PageCard] (hark_cards.dart): thumbnail, title, "Page built by
-/// SubMac", Open page (in-app preview with Share and Publish).
+/// Telesia", Open page (in-app preview with Share and Publish).
 
 /// True when a tool call writes a web page (shown as a build card instead of a step line).
 bool isPageWrite(ToolCall c) {

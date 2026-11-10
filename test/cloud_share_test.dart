@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:agent/services/cloud.dart';
 
 /// The engine makes the model calls and consumes its replies, so the native proxy (android_native/LocalProxy.kt)
-/// reads `x-submac-bg` and sends it to Dart. These tests pin the Dart end of that path (bug audit 2026-11-07).
+/// reads `x-telesia-bg` and sends it to Dart. These tests pin the Dart end of that path (bug audit 2026-11-07).
 void main() {
   tearDown(() => Cloud.background.value = const BackgroundShare());
 
@@ -31,7 +31,7 @@ void main() {
   });
 
   test('a server reply read by Dart takes the same path', () {
-    Cloud.readHeaders(const {'x-submac-bg': '0.25'});
+    Cloud.readHeaders(const {'x-telesia-bg': '0.25'});
     expect(Cloud.background.value.ratio, closeTo(0.25, 0.0001));
     expect(Cloud.background.value.pausedNow, isFalse);
   });

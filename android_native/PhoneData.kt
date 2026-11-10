@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.content.ContentValues
 import android.content.Context

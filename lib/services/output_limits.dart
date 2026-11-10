@@ -2,8 +2,8 @@
 /// limits the maximum output tokens for the main agent and the bots — replies get cut short").
 ///
 /// What cut replies short before this (docs/max-output.md has the full list):
-///  - opencode asks for `min(limit.output, OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX or 32,000)` output tokens. SubMac's
-///    own models had no `limit`, so every SubMac turn asked for 32,000, and no model could go past 32,000 at all.
+///  - opencode asks for `min(limit.output, OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX or 32,000)` output tokens. Telesia's
+///    own models had no `limit`, so every Telesia turn asked for 32,000, and no model could go past 32,000 at all.
 ///  - The user's own providers (BYOK) without a listed output limit (OpenAI's list has none, most OpenAI-compatible
 ///    servers neither) were written with 8,192.
 ///  - opencode ends a turn quietly when the model stops for length (`finish: "length"`): the reply simply stopped
@@ -12,15 +12,15 @@
 ///    ignored a length stop.
 ///
 /// Now each model asks for its real maximum (the provider's own figure when it gave one, else the model family's
-/// known maximum, else [fallback]); SubMac's models ask for [submac] and the server clamps that to what the route it
+/// known maximum, else [fallback]); Telesia's models ask for [telesia] and the server clamps that to what the route it
 /// picks can really do (its alias maximum, the model's window, the reply cap). A reply that still stops for length is
 /// continued ([ReplyContinuation]) instead of left cut.
 class OutputLimits {
   OutputLimits._();
 
-  /// What an opencode turn on SubMac's own models asks for. ai-chat takes `min(asked, alias max_output_tokens)` and
+  /// What an opencode turn on Telesia's own models asks for. ai-chat takes `min(asked, alias max_output_tokens)` and
   /// clamps it further per route, so asking for more than a route can do is safe; asking for less was the cap.
-  static const submac = 65536;
+  static const telesia = 65536;
 
   /// An unknown model of the user's own provider: big enough for a long answer or a whole file, small enough that
   /// most servers accept it. (opencode's own default is 32,000, which some small servers refuse.)
@@ -71,7 +71,7 @@ class OutputLimits {
   /// model has, so no model's own limit is cut by opencode's default of 32,000. Every model gets an explicit limit,
   /// so the ceiling never reaches a model without one.
   static int engineMax(Iterable<int> limits) {
-    var m = submac;
+    var m = telesia;
     for (final l in limits) {
       if (l > m) m = l;
     }

@@ -5,7 +5,7 @@
 // -> { ok, sent, failed, removed }
 //
 // Messages are data-only (title/body ride in `data`) so the app's PushReceiver draws them with its own calm
-// notifications whether SubMac is open or closed. Tokens FCM reports as UNREGISTERED are deleted.
+// notifications whether Telesia is open or closed. Tokens FCM reports as UNREGISTERED are deleted.
 // Secret: FCM_SERVICE_ACCOUNT (the Firebase service account JSON). Never logged.
 import { createClient } from "npm:@supabase/supabase-js@2";
 

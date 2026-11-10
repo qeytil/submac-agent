@@ -90,7 +90,7 @@ void main() {
     }
 
     Finder composer() => find.byWidgetPredicate((w) => w is TextField && (w.decoration?.hintText ?? '').isNotEmpty &&
-        (w.decoration!.hintText!.contains('SubMac') || w.decoration!.hintText!.contains('ask')));
+        (w.decoration!.hintText!.contains('Telesia') || w.decoration!.hintText!.contains('ask')));
 
     /// Opens what the agent made, the way a person taps it: files, images, links. Each preview is shot and closed.
     Future<void> openOutputs(String name) async {
@@ -129,8 +129,8 @@ void main() {
         st().newChat();
         await wait(1500);
         // At rest the chat box is a slim pill; a person taps it to open the real field.
-        if (find.byType(TextField).evaluate().isEmpty && find.text('Ask SubMac anything').evaluate().isNotEmpty) {
-          await tester.tap(find.text('Ask SubMac anything').first, warnIfMissed: false);
+        if (find.byType(TextField).evaluate().isEmpty && find.text('Ask Telesia anything').evaluate().isNotEmpty) {
+          await tester.tap(find.text('Ask Telesia anything').first, warnIfMissed: false);
           await wait(1500);
         }
         var box = composer();
@@ -275,8 +275,8 @@ void main() {
       await backHome();
       st().newChat();
       await wait(1200);
-      if (find.byType(TextField).evaluate().isEmpty && find.text('Ask SubMac anything').evaluate().isNotEmpty) {
-        await tester.tap(find.text('Ask SubMac anything').first, warnIfMissed: false);
+      if (find.byType(TextField).evaluate().isEmpty && find.text('Ask Telesia anything').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Ask Telesia anything').first, warnIfMissed: false);
         await wait(1500);
       }
       final box = composer().evaluate().isEmpty ? find.byType(TextField) : composer();

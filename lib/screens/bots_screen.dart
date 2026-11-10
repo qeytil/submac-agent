@@ -41,7 +41,7 @@ class BotAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = bot.look ?? '';
-    // SubMac's avatar set: the one the owner chose, or the bot's own seeded one. An older animated look still shows.
+    // Telesia's avatar set: the one the owner chose, or the bot's own seeded one. An older animated look still shows.
     final spec = AvatarSpec.parse(look);
     final dim = !bot.active && !Bots.I.isChief(bot);
     final Widget face = spec != null || look.isEmpty
@@ -135,7 +135,7 @@ class IncomingCallLayer extends StatelessWidget {
   }
 }
 
-/// A call answer: SubMac's own icon over one short word. No filled circle, no ring.
+/// A call answer: Telesia's own icon over one short word. No filled circle, no ring.
 class _CallWord extends StatelessWidget {
   const _CallWord({required this.icon, required this.label, required this.color, required this.onTap, this.small = false});
   final String icon;

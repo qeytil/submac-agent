@@ -55,7 +55,7 @@ void main() {
       expect(line, contains('secret phrase'));
       expect(line.length, lessThanOrEqualTo(82));
       expect(line.startsWith('…'), isTrue);
-      final quoted = '[Reply to SubMac · #m1]\n> zebra stripes\n\nthanks';
+      final quoted = '[Reply to Telesia · #m1]\n> zebra stripes\n\nthanks';
       expect(ChatSearch.matchLine([_row('user', quoted)], 'zebra'), isNull);
       expect(ChatSearch.matchLine([_row('user', quoted)], 'thanks'), 'thanks');
     });

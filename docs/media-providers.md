@@ -23,8 +23,8 @@ Each provider has a name, base URL, model, optional voice/size, its key, and can
 
 - `lib/services/media_providers.dart`: `MediaKind`, `MediaWire` (the wire protocol per vendor), `MediaPresets`, `MediaProvider`, `MediaProviderStore` (config in prefs, ids `media-<4..24 [a-z0-9]>`).
 - Keys: the phone's encrypted storage, one entry per key, apart from the config. A provider may borrow the key of a BYOK chat provider (`MediaPresets.byokPresetsFor`) or of another media provider of the same vendor.
-- `lib/services/media_gen.dart`: builds each request, polls long jobs (Veo, Sora, fal queue, Replicate, Runway, xAI), downloads results and saves them. Calls go straight from the phone to the provider: nothing passes SubMac's servers and nothing is billed by SubMac.
-- Tool: `media_generate` (definitions from `MediaGen.definitions`), offered to the agent and to bots only when the user has a provider for that capability. `generate_image` falls back to the user's image provider when the server has no picture model (no `submac-image` route).
+- `lib/services/media_gen.dart`: builds each request, polls long jobs (Veo, Sora, fal queue, Replicate, Runway, xAI), downloads results and saves them. Calls go straight from the phone to the provider: nothing passes Telesia's servers and nothing is billed by Telesia.
+- Tool: `media_generate` (definitions from `MediaGen.definitions`), offered to the agent and to bots only when the user has a provider for that capability. `generate_image` falls back to the user's image provider when the server has no picture model (no `telesia-image` route).
 - Output folder: owner chats → `media/`; a bot's private chat → its own folder; team work → the team's folder (`_mediaFolder` in tool_router.dart). Results come back as cards in the calling chat (`media_cards.dart`).
 - A stopped turn (Stop, or team work ended) ends long jobs (`_callerStopped`); progress shows on the chat's working line.
 
@@ -36,4 +36,4 @@ id pattern, error lines without the key, shape/ratio helpers (the `WxH` / `W:H` 
 ## Not done
 
 - No device check yet: add one provider per capability on the phone and ask the agent and a bot to "use" it.
-- Server-side picture route (`submac-image`) still off; needs the owner's OK (DB rows only).
+- Server-side picture route (`telesia-image`) still off; needs the owner's OK (DB rows only).

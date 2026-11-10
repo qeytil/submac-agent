@@ -61,7 +61,7 @@ class _MissionSectionState extends State<MissionSection> {
               ),
               const SizedBox(height: Space.x4),
               Text(
-                  '${widget.ownerName} plans, works and wakes by itself, also with SubMac closed. It asks you before money, approvals or anything '
+                  '${widget.ownerName} plans, works and wakes by itself, also with Telesia closed. It asks you before money, approvals or anything '
                   'that cannot be undone.',
                   style: TextStyle(color: Palette.of(context).muted, fontSize: AppText.meta)),
               const SizedBox(height: Space.x3),
@@ -193,7 +193,7 @@ class _MissionSectionState extends State<MissionSection> {
                     if (m.summary.isNotEmpty) Text(m.summary, style: TextStyle(color: p.muted, height: 1.4)),
                     TextButton(onPressed: () => _log(context, m), child: const Text('See its log')),
                   ] else
-                    Text('Autonomy is off. Give ${widget.ownerName} a goal and it works toward it on its own, also with SubMac closed.',
+                    Text('Autonomy is off. Give ${widget.ownerName} a goal and it works toward it on its own, also with Telesia closed.',
                         style: TextStyle(color: p.muted, height: 1.4)),
                   const SizedBox(height: Space.x2),
                   FilledButton.tonal(

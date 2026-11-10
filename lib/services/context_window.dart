@@ -1,15 +1,15 @@
-/// How much SubMac can read at once (its context window), in tokens. Backend only: used to fold the older part
+/// How much Telesia can read at once (its context window), in tokens. Backend only: used to fold the older part
 /// of a long chat into a summary before it stops fitting.
 ///
-/// One model (`submac`), so there is no per-model table any more. The server says how big the window is on every
-/// reply (`x-submac-window`, the smallest healthy route's window, PLAN 1.6); until it has, the app assumes the
+/// One model (`telesia`), so there is no per-model table any more. The server says how big the window is on every
+/// reply (`x-telesia-window`, the smallest healthy route's window, PLAN 1.6); until it has, the app assumes the
 /// 128k every route must have (PLAN 1.1 model checks).
 ///
 /// CB-23: a request that carried pictures or tools is answered by fewer routes, so its header can name a bigger window
 /// than plain text has (a photo turn reported 1M). Such a reading may lower the window but never raise it, and the
 /// window is the smallest reading of the last [keep], so one odd reply cannot make every request overflow.
 class ContextWindow {
-  /// Every route behind `submac` has at least this much (PLAN 1.1).
+  /// Every route behind `telesia` has at least this much (PLAN 1.1).
   static const int fallback = 128000;
 
   /// Never trust a reading outside this range (a broken header must not make every request compact or overflow).
@@ -24,7 +24,7 @@ class ContextWindow {
   /// The current window in tokens.
   static int get tokens => _tokens;
 
-  /// Reads `x-submac-window` from a server reply. Returns true when the window changed.
+  /// Reads `x-telesia-window` from a server reply. Returns true when the window changed.
   /// [filtered]: the request carried pictures or tools, so the server chose among fewer routes (CB-23).
   static bool note(String? header, {bool filtered = false, DateTime? now}) {
     final n = int.tryParse((header ?? '').trim());

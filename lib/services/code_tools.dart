@@ -10,7 +10,7 @@ import 'code_runner.dart';
 import 'site_check.dart';
 import 'tools.dart';
 
-/// The Coder bot's toolbox (and the main chat's, for coding work). Everything runs free for SubMac: on the phone,
+/// The Coder bot's toolbox (and the main chat's, for coding work). Everything runs free for Telesia: on the phone,
 /// on a free public compiler, or on the user's own GitHub. The files themselves are the workspace file tools
 /// (read_file, write_file, append_file, edit_file, list_dir, delete_file, run_shell); these add what a developer needs
 /// on top: run and test code, search, diffs and patches, undo points, git and GitHub, builds (APK, web, tests), an
@@ -50,7 +50,7 @@ class CodeTools {
         'C#, F#, Dart, Swift, Zig, Ruby, Haskell, Lua, Julia, OCaml, Pascal, Fortran, D and Crystal run on an online compiler. '
         'Give code, or path to a file (dir mounts that folder for Python, so it can read and write files there; new files come back). '
         'Python packages: pure-Python and the common science ones (numpy, pandas, matplotlib...). No Java, Kotlin, PHP or Node APIs. '
-        'Web from Python/JS: `import submac` (Python) or the submac object (JS): await submac.get(url), post, search(q), '
+        'Web from Python/JS: `import telesia` (Python) or the telesia object (JS): await telesia.get(url), post, search(q), '
         'research(q), read(url). Always run what you write before saying it works.', {
       'language': {'type': 'string', 'description': 'python, javascript, typescript, sql, c, cpp, rust, go, csharp, fsharp, dart, swift, zig, ruby, haskell, lua, julia, ocaml, pascal, fortran, d, crystal'},
       'code': {'type': 'string', 'description': 'The program (or SQL). Leave empty to run path.'},
@@ -948,7 +948,7 @@ class CodeTools {
   // ---------------------------------------------------------------- package docs
 
   static Future<dynamic> _getJson(String url) async {
-    final r = await http.get(Uri.parse(url), headers: {'Accept': 'application/json', 'User-Agent': 'SubMac (https://submac.site)'}).timeout(const Duration(seconds: 30));
+    final r = await http.get(Uri.parse(url), headers: {'Accept': 'application/json', 'User-Agent': 'Telesia (https://telesia.site)'}).timeout(const Duration(seconds: 30));
     if (r.statusCode == 404) throw Exception('Error: not found in the registry. Check the exact package name (action search).');
     if (r.statusCode != 200) throw Exception('Error: the registry answered ${r.statusCode}.');
     return jsonDecode(utf8.decode(r.bodyBytes, allowMalformed: true));

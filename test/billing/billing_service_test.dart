@@ -265,11 +265,11 @@ void main() {
 
     test('Contract A headers: today/total left, resets at, plan', () {
       final b = make();
-      b.noteHeaders({'x-submac-usage': '0.1'});
+      b.noteHeaders({'x-telesia-usage': '0.1'});
       expect(b.balance.value, isNull);
       expect(b.enabled.value, isFalse);
       b.noteHeaders({
-        'x-submac-today-left': '120000', 'x-submac-total-left': '2500000', 'x-submac-resets-at': '2026-10-21T21:00:00Z', 'x-submac-plan': 'monthly',
+        'x-telesia-today-left': '120000', 'x-telesia-total-left': '2500000', 'x-telesia-resets-at': '2026-10-21T21:00:00Z', 'x-telesia-plan': 'monthly',
       });
       expect(b.enabled.value, isTrue);
       expect(b.balance.value, 120000);
@@ -279,11 +279,11 @@ void main() {
       expect(u.plan, 'monthly');
       expect(u.planLabel, 'Monthly');
       expect(u.resetsAt, DateTime.utc(2026, 10, 21, 21));
-      b.noteHeaders({'x-submac-today-left': '100'});
+      b.noteHeaders({'x-telesia-today-left': '100'});
       expect(b.usage.value!.totalLeft, 2500000); // kept
       expect(b.balance.value, 100);
       final c = make();
-      c.noteHeaders({'x-submac-balance': '4200'}); // coin-era header: ignored
+      c.noteHeaders({'x-telesia-balance': '4200'}); // coin-era header: ignored
       expect(c.balance.value, isNull);
     });
 
@@ -369,17 +369,17 @@ void main() {
       expect(b2.unsettled, isEmpty);
     });
 
-    test('submac://pay link: checks that purchase, announces an unknown success', () async {
+    test('telesia://pay link: checks that purchase, announces an unknown success', () async {
       final b = make();
       final toasts = <String>[];
       b.onToast = toasts.add;
       api.statusAnswers.add(paid('11111111-2222-3333-4444-555555555555', tokens: 700000));
       final tick = b.resumeTick.value;
-      await b.handlePayLink(Uri.parse('submac://pay?status=paid&purchase=11111111-2222-3333-4444-555555555555'));
+      await b.handlePayLink(Uri.parse('telesia://pay?status=paid&purchase=11111111-2222-3333-4444-555555555555'));
       expect(b.resumeTick.value, tick + 1);
       expect(api.statusCalls.single, '11111111-2222-3333-4444-555555555555');
       expect(toasts.single, 'Done. 700k added.');
-      await b.handlePayLink(Uri.parse('submac://hire?bot=x'));
+      await b.handlePayLink(Uri.parse('telesia://hire?bot=x'));
       expect(api.statusCalls.length, 1);
     });
   });

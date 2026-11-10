@@ -1,4 +1,4 @@
-// Deletes the signed-in user's account and everything SubMac keeps for it (Play Store requirement).
+// Deletes the signed-in user's account and everything Telesia keeps for it (Play Store requirement).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });

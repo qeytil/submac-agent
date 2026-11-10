@@ -8,8 +8,8 @@ import 'package:flutter/foundation.dart';
 import 'billing/billing_service.dart';
 import 'rewards.dart';
 
-/// A "Hire in SubMac" link from a public bot page (submac.site/b/<code>):
-///   submac://hire?bot=<code>&ref=<ref>   or   https://submac.site/b/<code>?ref=<ref>
+/// A "Hire in Telesia" link from a public bot page (telesia.site/b/<code>):
+///   telesia://hire?bot=<code>&ref=<ref>   or   https://telesia.site/b/<code>?ref=<ref>
 /// <code> is a share code (ABCD-2345), a Bot Store listing id (uuid) or a bot name slug.
 @immutable
 class HireLink {
@@ -20,10 +20,10 @@ class HireLink {
   static final _ref = RegExp(r'^[A-Za-z0-9_-]{1,40}$');
   static final _code = RegExp(r'^[A-Za-z0-9-]{1,80}$');
 
-  /// The invite code of an invite link (submac://invite?ref=CODE or https://submac.site/download?ref=CODE), else null.
+  /// The invite code of an invite link (telesia://invite?ref=CODE or https://telesia.site/download?ref=CODE), else null.
   static String? inviteRef(Uri u) {
-    final isInvite = (u.scheme == 'submac' && u.host == 'invite') ||
-        ((u.scheme == 'https' || u.scheme == 'http') && (u.host == 'submac.site' || u.host == 'www.submac.site') &&
+    final isInvite = (u.scheme == 'telesia' && u.host == 'invite') ||
+        ((u.scheme == 'https' || u.scheme == 'http') && (u.host == 'telesia.site' || u.host == 'www.telesia.site') &&
             u.pathSegments.isNotEmpty && u.pathSegments.first == 'download');
     final ref = u.queryParameters['ref']?.trim();
     return isInvite && ref != null && _ref.hasMatch(ref) ? ref : null;
@@ -32,10 +32,10 @@ class HireLink {
   /// null when [u] is not a hire link.
   static HireLink? parse(Uri u) {
     String? code;
-    if (u.scheme == 'submac' && u.host == 'hire') {
+    if (u.scheme == 'telesia' && u.host == 'hire') {
       // bot= (not code=: Supabase treats code= as a login callback); code= kept for old links.
       code = u.queryParameters['bot'] ?? u.queryParameters['code'];
-    } else if ((u.scheme == 'https' || u.scheme == 'http') && (u.host == 'submac.site' || u.host == 'www.submac.site') &&
+    } else if ((u.scheme == 'https' || u.scheme == 'http') && (u.host == 'telesia.site' || u.host == 'www.telesia.site') &&
         u.pathSegments.length >= 2 && u.pathSegments.first == 'b') {
       code = u.pathSegments[1];
     }
@@ -66,7 +66,7 @@ class HireLinks {
     try {
       _sub = AppLinks().uriLinkStream.listen((u) {
         // Back from a payment page opened outside the app (fallback; normally it opens in-app): check that purchase.
-        if (u.scheme == 'submac' && u.host == 'pay') {
+        if (u.scheme == 'telesia' && u.host == 'pay') {
           unawaited(Billing.I.handlePayLink(u));
           return;
         }

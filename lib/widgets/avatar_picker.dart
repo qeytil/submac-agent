@@ -9,7 +9,7 @@ import '../ui/tokens.dart';
 import 'sub_avatar.dart';
 import 'sub_icon.dart';
 
-/// Choose how a bot looks: shape, colour and eyes from SubMac's avatar set, with a live preview.
+/// Choose how a bot looks: shape, colour and eyes from Telesia's avatar set, with a live preview.
 /// Opened from the bot's profile (tap its face) and from the hold sheet ("Look").
 Future<void> pickAvatar(BuildContext context, Bot bot) async {
   final start = AvatarSpec.parse(bot.look) ?? AvatarSpec.seeded(bot.id);

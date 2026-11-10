@@ -7,7 +7,7 @@ import 'data_sheet.dart';
 import 'doc_maker.dart';
 import 'tools.dart';
 
-/// SubMac's business toolkit: real books kept on the phone (Business/books.json in the workspace) and the tools that
+/// Telesia's business toolkit: real books kept on the phone (Business/books.json in the workspace) and the tools that
 /// work on them: sales, expenses and purchases, payments and the cashbook, stock, customers and suppliers, debts,
 /// tasks, invoices, quotes, receipts and other documents as PDFs, reports with charts (chat, PDF, Excel), business maths,
 /// and a data analyst for any CSV or Excel file. The Business adviser bot always has them; the main agent gets them

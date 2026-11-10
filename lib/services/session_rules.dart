@@ -30,7 +30,7 @@ class SessionRules {
   ///   started this very moment) a bot's work and a task with no title of its own report busy; a task with a title
   ///   gets its own chat. It never lands in whatever chat happens to be on screen.
   /// * Otherwise it goes into the chat on screen only when that is the user's own, free chat; a bot's chat that is
-  ///   merely open on screen is never borrowed for SubMac's work.
+  ///   merely open on screen is never borrowed for Telesia's work.
   static BgTarget backgroundTarget({
     String? reuseConvId,
     bool reuseLoaded = false,
@@ -52,8 +52,8 @@ class SessionRules {
     return BgTarget.current;
   }
 
-  /// Where a SubMac Live call is saved when it has no chat yet: the chat on screen, unless that is a bot's chat
-  /// (a SubMac call never writes into a bot's history). Returns null for "a new Live chat".
+  /// Where a Telesia Live call is saved when it has no chat yet: the chat on screen, unless that is a bot's chat
+  /// (a Telesia call never writes into a bot's history). Returns null for "a new Live chat".
   static String? liveSaveTarget({String? currentId, bool currentIsBot = false}) =>
       (currentId == null || currentIsBot) ? null : currentId;
 

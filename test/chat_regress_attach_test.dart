@@ -107,10 +107,10 @@ void main() {
 
     test('through the client: a photo request\'s 1M header is ignored, a plain one is taken', () async {
       LlmClient.testHeaders = (source) async => {'Content-Type': 'application/json'};
-      LlmClient.testClient = sse(headers: {'x-submac-window': '1000000'});
+      LlmClient.testClient = sse(headers: {'x-telesia-window': '1000000'});
       await LlmClient().streamChat(
         provider: Cloud.provider,
-        model: Cloud.submac,
+        model: Cloud.telesia,
         messages: [
           {
             'role': 'user',
@@ -126,10 +126,10 @@ void main() {
         onDelta: (_) {},
       );
       expect(ContextWindow.tokens, 128000, reason: 'a vision turn reported 1M (CB-23)');
-      LlmClient.testClient = sse(headers: {'x-submac-window': '200000'});
+      LlmClient.testClient = sse(headers: {'x-telesia-window': '200000'});
       await LlmClient().streamChat(
         provider: Cloud.provider,
-        model: Cloud.submac,
+        model: Cloud.telesia,
         messages: const [
           {'role': 'user', 'content': 'hi'}
         ],

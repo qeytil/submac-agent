@@ -19,13 +19,13 @@ void main() {
       final now = DateTime.now().toUtc();
       final rs = {
         'handoff': {
-          'f1': {'do': 'Audit submac.site and send a short brief', 'kind': 'message', 'needs': 'browser', 'at': now.toIso8601String()},
+          'f1': {'do': 'Audit telesia.site and send a short brief', 'kind': 'message', 'needs': 'browser', 'at': now.toIso8601String()},
           'f0': {'do': 'old', 'kind': 'work', 'at': now.subtract(const Duration(days: 2)).toIso8601String()},
         },
       };
       final first = BotSync.I.takeHandoffs('bh_test_bot', rs);
       expect(first.map((e) => e.id), ['f1']);
-      expect(first.single.instruction, contains('submac.site'));
+      expect(first.single.instruction, contains('telesia.site'));
       expect(first.single.kind, 'message');
       expect(BotSync.I.takeHandoffs('bh_test_bot', rs), isEmpty, reason: 'a second pull never runs it again');
     });
@@ -37,10 +37,10 @@ void main() {
 
   group('a bot\'s scheduled task belongs to the bot', () {
     test('the bot id survives saving', () {
-      final t = ScheduledTask('s1', 'Check submac.site', DateTime(2026, 11, 2, 9), 'daily', bot: 'u17934');
+      final t = ScheduledTask('s1', 'Check telesia.site', DateTime(2026, 11, 2, 9), 'daily', bot: 'u17934');
       final back = ScheduledTask.fromJson(t.toJson());
       expect(back.bot, 'u17934');
-      expect(ScheduledTask.fromJson(ScheduledTask('s2', 'x', DateTime(2026), 'none').toJson()).bot, '', reason: 'SubMac\'s own task');
+      expect(ScheduledTask.fromJson(ScheduledTask('s2', 'x', DateTime(2026), 'none').toJson()).bot, '', reason: 'Telesia\'s own task');
     });
   });
 

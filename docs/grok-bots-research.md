@@ -1,7 +1,7 @@
 # How Grok's bots work with people (research, 2026-10-24)
 
-Why: the owner asked (2026-10-24) to make SubMac's bots and teams "professional like Grok bot", then to "focus on grok first"
-and follow Grok's real behaviour. This note is what we found and what SubMac now does because of it.
+Why: the owner asked (2026-10-24) to make Telesia's bots and teams "professional like Grok bot", then to "focus on grok first"
+and follow Grok's real behaviour. This note is what we found and what Telesia now does because of it.
 
 ## Sources (read 2026-10-24)
 
@@ -47,18 +47,18 @@ and follow Grok's real behaviour. This note is what we found and what SubMac now
 - **Multi-agent answers (grok-4.20).** A leader agent splits the task, sub-agents work in parallel, the leader resolves
   conflicts and presents one final answer; the app shows live progress notes per agent.
 
-## What SubMac does now (and why)
+## What Telesia does now (and why)
 
-| Area | SubMac now | Grok basis |
+| Area | Telesia now | Grok basis |
 |---|---|---|
 | New bot | One page on the sky: face with colour and shape rows, then Name, Role, What it does, Instructions on one surface, *Can use* switches, one ink pill button; role *Suggestions* fill the form. | Create screen, Suggestions, "give it its job and boundaries" |
 | First message | The bot greets in a line, says what it can take on and suggests one or two first tasks as tap replies. That turn has no tools (engine guard, `BotAsk`). | New Bot waits for a task; Primary Bot offers |
 | Greetings, small talk | No tools; a short reply with suggestions. | Same as above |
 | A real request | Runs end to end without check-ins; comes back only for a judgment call or an approval. | "Finish jobs end to end" |
 | Teams | The lead posts who does what and the team starts at once; it waits only when it must ask the owner something. Members report in the chat; the lead gives one combined answer; "stop" stops. | Group chats pull you in "only for judgment calls"; leader synthesises |
-| Approvals | Settings > Advanced > **Full access** (off by default): on = no approval cards, except payments and purchases. Off = small changes in SubMac's own space no longer ask. Every card has **Allow always (Full access)** (never on a payment). | Allow once / Always allow / Ask first rules |
+| Approvals | Settings > Advanced > **Full access** (off by default): on = no approval cards, except payments and purchases. Off = small changes in Telesia's own space no longer ask. Every card has **Allow always (Full access)** (never on a payment). | Allow once / Always allow / Ask first rules |
 | Look | Approval cards, profile tabs, team screens, call screen and chat cards on the shared sky surface: no borders, no dots, pills for actions. | Calm, minimal UI; avatar carries status |
 
 Owner's earlier rules (bots never act; teams wait for Go) were dropped on the owner's instruction of 2026-10-24 10:15
-+0330 ("ignore my rules … focus on grok first"). Where Grok has no equivalent (Somali/Arabic, phone tools) SubMac keeps its
++0330 ("ignore my rules … focus on grok first"). Where Grok has no equivalent (Somali/Arabic, phone tools) Telesia keeps its
 own behaviour.

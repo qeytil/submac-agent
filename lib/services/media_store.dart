@@ -86,7 +86,7 @@ class MediaStore {
     return p;
   }
 
-  /// The part of [path] inside SubMac's workspace (`media/x.png`), the same on every phone; null when the file
+  /// The part of [path] inside Telesia's workspace (`media/x.png`), the same on every phone; null when the file
   /// lives elsewhere on the phone. A relative path is already inside the workspace.
   static String? workspaceRel(String path) {
     final p = normalize(path);

@@ -1,4 +1,4 @@
-// Teams on SubMac's bot engine (owner 2026-11-07; opencode before): the lead works in its own engine turn and hands
+// Teams on Telesia's bot engine (owner 2026-11-07; opencode before): the lead works in its own engine turn and hands
 // parts off with team_assign; each member's part is its own engine turn with its own brief; every member works at once
 // (no cap, owner 2026-11-04); a lead's routine starts a team job with team_task.
 
@@ -78,7 +78,7 @@ void main() {
     expect(turns.first.system, contains('teams/${o.id}/'));
     expect(turns.first.system, contains('# Your tools'), reason: 'the lead gets its own-engine brief');
     expect(turns.first.system, contains('Call one directly by its name'));
-    expect(turns.first.system, isNot(contains('submac_run_tool')), reason: 'team tools are called by name now');
+    expect(turns.first.system, isNot(contains('telesia_run_tool')), reason: 'team tools are called by name now');
     final members = turns.skip(1).toList();
     expect(members.map((t) => t.bot).toSet(), {'Nova', 'Amal', 'Omar'});
     for (final t in members) {

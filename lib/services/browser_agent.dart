@@ -48,7 +48,7 @@ class BrowserTab {
   /// The browser task (subagent) that owns this tab, so parallel tasks never touch each other's pages.
   String? owner;
 
-  /// Its off-screen web view (a HeadlessInAppWebView) when the tab was opened with no screen to draw it on (SubMac
+  /// Its off-screen web view (a HeadlessInAppWebView) when the tab was opened with no screen to draw it on (Telesia
   /// started by an alarm, owner 2026-11-07); null for a normal tab drawn by the browser layer.
   HeadlessInAppWebView? headlessView;
   bool get headless => headlessView != null;
@@ -406,7 +406,7 @@ class BrowserAgent extends ChangeNotifier {
   }
 
   // ---- with no screen (owner 2026-11-07: browser use with the app closed) ----
-  /// True when nothing can draw the browser now: SubMac was started by an alarm, or it is in the background. Set by
+  /// True when nothing can draw the browser now: Telesia was started by an alarm, or it is in the background. Set by
   /// the app. A tab opened then is an off-screen web view instead of a widget in the browser layer, whose platform
   /// view is only created when a frame is drawn (with no screen it never was, so every step failed on "not ready").
   static bool Function()? noScreen;
@@ -2152,7 +2152,7 @@ class BrowserAgent extends ChangeNotifier {
       if (_autoLoginTried.contains(k)) return null;
       _autoLoginTried.add(k);
       final res = await _login(c, '');
-      if (res.startsWith('ok')) return 'This is a sign-in page, so SubMac started the sign-in: ${res.substring(3)}';
+      if (res.startsWith('ok')) return 'This is a sign-in page, so Telesia started the sign-in: ${res.substring(3)}';
       return 'This is a sign-in page. $res';
     } catch (_) {
       return null;

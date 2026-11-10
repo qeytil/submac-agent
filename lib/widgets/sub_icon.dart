@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-/// SubMac's own icon set (assets/icons): fine ink strokes and softly squared corners, no dots. Takes its colour and size from the
+/// Telesia's own icon set (assets/icons): fine ink strokes and softly squared corners, no dots. Takes its colour and size from the
 /// surrounding IconTheme (IconButton, ListTile...) unless given.
 class SubIcon extends StatelessWidget {
   final String name;

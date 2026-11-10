@@ -1,7 +1,7 @@
 # Run: python3 tools/intro_sound.py, measure intro_raw.wav integrated loudness (ffmpeg -af ebur128), then
 #      ffmpeg -i intro_raw.wav -af "volume=<-17.5 - measured>dB" -ac 1 -c:a aac -b:a 64k assets/intro/intro_sound.m4a
 #      (linear gain only; plain loudnorm overshoots on this sparse a file). Pluck times: ticks.py mirrors IntroMotion.ticks().
-# Synthesizes the SubMac intro sound (original, no samples): one soft rounded glass/marimba pluck per letter of the
+# Synthesizes the Telesia intro sound (original, no samples): one soft rounded glass/marimba pluck per letter of the
 # wordmark, on the haptic ticks (IntroMotion.ticks(): 0.302 0.520 0.677 0.823 0.980 1.198 s), rising through
 # A-major pentatonic (A4 B4 C#5 E5 F#5 A5), then the warm two-note bloom when the logo resolves (1.75 s) and the dot
 # lands (2.30 s). No noise and no pitch sweeps anywhere in the dry signal.

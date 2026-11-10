@@ -3,18 +3,18 @@
 part of '../app_state.dart';
 
 extension AppStateSettings on AppState {
-  // Models: everything runs on SubMac Cloud. There is nothing for the user to set up, and there
-  // is one model: `submac`. It is bound when the conversation starts and never re-picked.
+  // Models: everything runs on Telesia Cloud. There is nothing for the user to set up, and there
+  // is one model: `telesia`. It is bound when the conversation starts and never re-picked.
   List<ProviderConfig> get providers => [Cloud.provider];
 
   ProviderConfig? get activeProvider => Cloud.provider;
 
-  String get model => Cloud.submac;
+  String get model => Cloud.telesia;
 
   /// The one model every call uses (chat, bots, titles, summaries, calls' wrap-up). The server picks the real
-  /// model behind `submac` and swaps only when one fails (PLAN 1.1). What a message is about changes the prompt
+  /// model behind `telesia` and swaps only when one fails (PLAN 1.1). What a message is about changes the prompt
   /// and the tools, never the model.
-  ModelRef get submacRef => ModelRef(Cloud.provider, Cloud.submac);
+  ModelRef get telesiaRef => ModelRef(Cloud.provider, Cloud.telesia);
 
   /// "Think harder" from the composer, for this app session only ('auto', 'quick' or 'think'). It never changes the
   /// model: 'think' sends the effort hint `high` and gives every step the full prompt. Not saved (PLAN 1.7).
@@ -25,7 +25,7 @@ extension AppStateSettings on AppState {
     _notify();
   }
 
-  /// The chat stays quiet: one working line while SubMac works, and the turn's work (thinking, tools, notes) folded
+  /// The chat stays quiet: one working line while Telesia works, and the turn's work (thinking, tools, notes) folded
   /// into categorized sections the user opens (owner, 2026-11-03, replacing "show every step" from earlier that day).
   /// Saying "show steps" in a message still shows that turn's steps in full.
   bool get showSteps => false;
@@ -137,7 +137,7 @@ extension AppStateSettings on AppState {
           kind: 'login',
           convId: browserChat(),
           title: '$site needs your login',
-          prompt: 'SubMac will sign in for you. Your password goes straight into the page; the AI never sees it.',
+          prompt: 'Telesia will sign in for you. Your password goes straight into the page; the AI never sees it.',
           site: site,
         ));
     BrowserAgent.I.confirmLogin = (site, user) async {
@@ -145,7 +145,7 @@ extension AppStateSettings on AppState {
           kind: 'login_confirm',
           convId: browserChat(),
           title: 'Sign in to $site?',
-          prompt: user.isEmpty ? 'SubMac will use the login you saved on this phone.' : 'SubMac will use your saved login: $user',
+          prompt: user.isEmpty ? 'Telesia will use the login you saved on this phone.' : 'Telesia will use your saved login: $user',
           site: site,
           options: const ['Continue', 'Use another account'],
       ));
@@ -206,7 +206,7 @@ extension AppStateSettings on AppState {
       unawaited(_botWake(b, 'handed over from the cloud${needs.isEmpty ? '' : ' (it needs $needs)'}',
           instruction.isEmpty ? Bots.heartbeat : instruction, kind == 'call' ? 'call' : (kind == 'message' ? 'message' : 'work')));
     };
-    // "From SubMac": team messages sent "in chat" also appear in the SubMac team chat (edits and deletes follow).
+    // "From Telesia": team messages sent "in chat" also appear in the Telesia team chat (edits and deletes follow).
     Inbox.I.onChatItems = _mirrorTeamMessages;
     unawaited(Inbox.I.refresh());
     unawaited(BotSync.I.start().catchError((Object e) => debugPrint('bot sync start: $e')));
@@ -239,7 +239,7 @@ extension AppStateSettings on AppState {
       conversations = await repo.listConversations();
     } catch (e) {
       if (conversations.isEmpty) {
-        banner = Calm.offline('$e') ? 'You\'re offline. Your chats will appear when you\'re back online.' : 'Your chats didn\'t load. Pull down or reopen SubMac to try again.';
+        banner = Calm.offline('$e') ? 'You\'re offline. Your chats will appear when you\'re back online.' : 'Your chats didn\'t load. Pull down or reopen Telesia to try again.';
       }
     }
     loadingConversations = false;

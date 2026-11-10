@@ -1,4 +1,4 @@
-"""Builds assets/bots/business.json: the knowledge pack of SubMac's built-in Business adviser bot.
+"""Builds assets/bots/business.json: the knowledge pack of Telesia's built-in Business adviser bot.
 Facts were checked on official or company pages on 2026-10-21 (see the Sources piece). Re-check them before changing
 rates, fees or steps. Run: python3 tools/bots/business/build.py"""
 import json, os

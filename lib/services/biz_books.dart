@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
-/// The business books behind SubMac's business tools: the profile, money accounts, stock items, customers and
+/// The business books behind Telesia's business tools: the profile, money accounts, stock items, customers and
 /// suppliers, every transaction, business documents (invoices, quotes, receipts) and tasks. Pure Dart (no files, no
 /// Flutter) so it can be tested; [BizTools] loads and saves it as Business/books.json in the workspace.
 ///

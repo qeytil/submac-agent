@@ -1,4 +1,4 @@
-// Browser use with SubMac closed (owner 2026-11-07, docs/bot-autonomy.md): the browser agent's InAppWebView widgets
+// Browser use with Telesia closed (owner 2026-11-07, docs/bot-autonomy.md): the browser agent's InAppWebView widgets
 // need a drawn frame, so with no screen every step failed on "the browser view is not ready". Now: tabs opened with no
 // screen are off-screen web views (HeadlessInAppWebView), and when those cannot start the task continues in read-only
 // mode (FetchBrowser). A bot's browser task thinks on the bot's own model (BotBrowserModel).
@@ -70,10 +70,10 @@ void main() {
       expect(await FetchBrowser.I.execute('j1', 'browser_click', {'id': 99}), startsWith('Error: no link [99]'));
     });
 
-    test('typing, sign-in and forms answer that they need SubMac open', () async {
+    test('typing, sign-in and forms answer that they need Telesia open', () async {
       await FetchBrowser.I.execute('j1', 'browser_open', {'url': 'https://shop.example/'});
       for (final t in ['browser_type', 'browser_login', 'browser_select', 'browser_js', 'browser_upload']) {
-        expect(await FetchBrowser.I.execute('j1', t, {}), contains('needs SubMac open'), reason: t);
+        expect(await FetchBrowser.I.execute('j1', t, {}), contains('needs Telesia open'), reason: t);
       }
       final batch = await FetchBrowser.I.execute('j1', 'browser_act', {
         'actions': [
@@ -154,7 +154,7 @@ void main() {
 
   group('BotBrowserModel: a bot\'s browser task on its own model', () {
     late ByokStore store;
-    final submac = ModelRef(ProviderConfig(id: 'submac', name: 'SubMac', baseUrl: 'https://x', defaultModel: 'submac'), 'submac');
+    final telesia = ModelRef(ProviderConfig(id: 'telesia', name: 'Telesia', baseUrl: 'https://x', defaultModel: 'telesia'), 'telesia');
     setUp(() {
       ByokStore.I.resetForTests(
           ByokConfig(providers: [
@@ -173,27 +173,27 @@ void main() {
     Bot bot(String model) => Bot(id: 'b', name: 'Nova', role: '', persona: '', model: model);
 
     test('OpenAI-compatible key: the bot\'s own provider; a text-only model gets no screenshots', () {
-      final a = BotBrowserModel.of(bot('byok-aaaa1111|m-vision'), submac, store: store);
+      final a = BotBrowserModel.of(bot('byok-aaaa1111|m-vision'), telesia, store: store);
       expect(a.onOwnModel, isTrue);
       expect(a.byok!.model.id, 'm-vision');
       expect(a.sees, isTrue);
-      final t = BotBrowserModel.of(bot('byok-aaaa1111|m-text'), submac, store: store);
+      final t = BotBrowserModel.of(bot('byok-aaaa1111|m-text'), telesia, store: store);
       expect(t.onOwnModel, isTrue);
       expect(t.sees, isFalse);
     });
 
     test('Anthropic key runs on its own model; a model without tools falls back with the reason', () {
-      final a = BotBrowserModel.of(bot('byok-bbbb2222|c1'), submac, store: store);
+      final a = BotBrowserModel.of(bot('byok-bbbb2222|c1'), telesia, store: store);
       expect(a.onOwnModel, isTrue, reason: 'Anthropic keys take tools now (owner 2026-11-08)');
       expect(a.byok!.model.id, 'c1');
-      final n = BotBrowserModel.of(bot('byok-aaaa1111|m-notools'), submac, store: store);
+      final n = BotBrowserModel.of(bot('byok-aaaa1111|m-notools'), telesia, store: store);
       expect(n.onOwnModel, isFalse);
       expect(n.note, contains('no tool calling'));
     });
 
-    test('no bot: SubMac\'s route as before', () {
-      final a = BotBrowserModel.of(null, submac, store: store);
-      expect(a.submac, same(submac));
+    test('no bot: Telesia\'s route as before', () {
+      final a = BotBrowserModel.of(null, telesia, store: store);
+      expect(a.telesia, same(telesia));
       expect(a.note, isEmpty);
     });
 
@@ -249,7 +249,7 @@ void main() {
     test('byokStep turns the answer into the agent core\'s LlmResult (override seam)', () async {
       BotBrowserModel.stepOverride = (pick, msgs, tools) async => LlmResult('ok', [ToolCall(id: 'x', name: 'finish', arguments: '{}')], 'tool_calls', 9);
       addTearDown(() => BotBrowserModel.stepOverride = null);
-      final pick = BotBrowserModel.of(bot('byok-aaaa1111|m-vision'), submac, store: store).byok!;
+      final pick = BotBrowserModel.of(bot('byok-aaaa1111|m-vision'), telesia, store: store).byok!;
       final r = await BotBrowserModel.byokStep(pick, const [], const []);
       expect(r.toolCalls.single.name, 'finish');
       expect(r.tokens, 9);

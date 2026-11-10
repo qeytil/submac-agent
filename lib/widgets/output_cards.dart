@@ -302,7 +302,7 @@ Widget? buildOutputCard(String language, String body, {String? owner}) {
   return null;
 }
 
-/// A ```data fence: extracted rows as the SubMac table card. Accepts what browser_extract returns
+/// A ```data fence: extracted rows as the Telesia table card. Accepts what browser_extract returns
 /// (a JSON array of objects — columns from the first row's keys), a table-shaped map
 /// ({"columns": [...], "rows": [[...]]}), or plain CSV. Null falls back to a code block.
 TableCard? dataCardFrom(String body) {
@@ -913,8 +913,8 @@ String mediaMime(String name) {
   return m[ext] ?? 'application/octet-stream';
 }
 
-/// Saves a picture, video, sound or file to the phone (Pictures / Movies / Music / Download › SubMac).
-/// Works for files SubMac made and for pictures on the web.
+/// Saves a picture, video, sound or file to the phone (Pictures / Movies / Music / Download › Telesia).
+/// Works for files Telesia made and for pictures on the web.
 Future<void> saveToPhone(BuildContext context, String src) async {
   final messenger = ScaffoldMessenger.of(context);
   messenger.showSnackBar(const SnackBar(content: Text('Saving…'), duration: Duration(seconds: 1)));
@@ -930,7 +930,7 @@ Future<void> saveToPhone(BuildContext context, String src) async {
             : type.startsWith('video/') ? 'mp4'
             : type.startsWith('audio/') ? 'mp3'
             : 'jpg';
-        name = 'submac_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        name = 'telesia_${DateTime.now().millisecondsSinceEpoch}.$ext';
       }
       final dir = await getTemporaryDirectory();
       final f = File('${dir.path}/$name');
@@ -1200,7 +1200,7 @@ class _ImageStackCardState extends State<ImageStackCard> {
   }
 }
 
-/// "Done" note for an action SubMac took, with Undo.
+/// "Done" note for an action Telesia took, with Undo.
 class ReceiptCard extends StatefulWidget {
   final String title;
   final String detail;
@@ -1256,7 +1256,7 @@ class _ReceiptCardState extends State<ReceiptCard> {
   }
 }
 
-/// Asks the user to approve a step before SubMac does it (used in Ask mode).
+/// Asks the user to approve a step before Telesia does it (used in Ask mode).
 class ConfirmCard extends StatefulWidget {
   final String title;
   final String body;

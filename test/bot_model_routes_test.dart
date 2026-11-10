@@ -1,6 +1,6 @@
 // Every path a bot's model call takes uses the model in its profile (owner 2026-11-06: "bots do not use the model set
 // in their profile"). opencode turns already named it per prompt; the plain one-answer calls (the team's "who speaks",
-// the lead's plan and combined answer, instant team replies, bot_ask, the check-in gate) went to SubMac's model.
+// the lead's plan and combined answer, instant team replies, bot_ask, the check-in gate) went to Telesia's model.
 //
 // ignore_for_file: invalid_use_of_visible_for_testing_member, depend_on_referenced_packages
 import 'dart:convert';
@@ -46,7 +46,7 @@ ByokProvider _prov({ByokKind kind = ByokKind.openaiCompatible, String id = _pid,
       models: [ByokModel(id: 'gpt-x'), ByokModel(id: 'gpt-x-mini'), ByokModel(id: 'claude-x')],
     );
 
-void _store({String chat = ByokRef.submac}) => ByokStore.I.resetForTests(ByokConfig(providers: [_prov()], chat: chat), {'k-$_pid': 'sk-secret-123456'});
+void _store({String chat = ByokRef.telesia}) => ByokStore.I.resetForTests(ByokConfig(providers: [_prov()], chat: chat), {'k-$_pid': 'sk-secret-123456'});
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -63,18 +63,18 @@ void main() {
     };
     BotLlm.cloudCall = (model, messages, {int? maxTokens, int continues = 0, String source = 'bot', bool background = false, ProviderConfig? provider}) async {
       cloudCalls.add('$model|$source|${background ? 'bg' : 'fg'}');
-      return 'from submac';
+      return 'from telesia';
     };
   });
   tearDown(() => ByokStore.I.resetForTests());
 
   group('BotModelRoute: the one decision, the same as opencode\'s', () {
-    test('own model, default (follows the owner\'s chat model), SubMac, unusable', () {
+    test('own model, default (follows the owner\'s chat model), Telesia, unusable', () {
       _store(chat: '$_pid|claude-x');
       expect(BotModelRoute.ofSetting('$_pid|gpt-x').toString(), '$_pid|gpt-x');
       expect(BotModelRoute.ofSetting('auto').toString(), '$_pid|claude-x', reason: 'Default = the owner\'s chat model');
       expect(BotModelRoute.ofSetting('').toString(), '$_pid|claude-x');
-      expect(BotModelRoute.ofSetting('submac').toString(), 'submac|${Cloud.submac}');
+      expect(BotModelRoute.ofSetting('telesia').toString(), 'telesia|${Cloud.telesia}');
       expect(BotModelRoute.ofSetting('byok-00000000|gpt-x').toString(), '$_pid|claude-x', reason: 'gone provider: the default');
       _store();
       expect(BotModelRoute.ofSetting('auto').isByok, isFalse);
@@ -82,9 +82,9 @@ void main() {
     });
 
     test('agrees with OcLane.pick on every lane', () {
-      for (final chat in [ByokRef.submac, '$_pid|claude-x']) {
+      for (final chat in [ByokRef.telesia, '$_pid|claude-x']) {
         _store(chat: chat);
-        for (final s in ['auto', 'submac', '$_pid|gpt-x', 'byok-00000000|gpt-x', 'submac|submac-fast']) {
+        for (final s in ['auto', 'telesia', '$_pid|gpt-x', 'byok-00000000|gpt-x', 'telesia|telesia-fast']) {
           for (final bg in [true, false]) {
             for (final office in [true, false]) {
               expect(BotModelRoute.ofSetting(s).asOcModel(background: bg, officeWork: office), OcLane.pick(background: bg, officeWork: office, botModel: s),
@@ -97,7 +97,7 @@ void main() {
   });
 
   group('BotLlm: plain calls go to the bot\'s model', () {
-    test('own model: that provider, never SubMac', () async {
+    test('own model: that provider, never Telesia', () async {
       _store();
       final b = Bot(id: 'm1', name: 'Nova', role: 'Researcher', persona: '', model: '$_pid|gpt-x');
       expect(await BotLlm.complete(b, [{'role': 'user', 'content': 'hi'}]), 'from gpt-x');
@@ -105,10 +105,10 @@ void main() {
       expect(cloudCalls, isEmpty);
     });
 
-    test('SubMac or default: SubMac, on the lane asked for', () async {
+    test('Telesia or default: Telesia, on the lane asked for', () async {
       _store();
       await BotLlm.complete(Bot(id: 'm2', name: 'A', role: '', persona: ''), [{'role': 'user', 'content': 'hi'}], source: 'office', background: true);
-      expect(cloudCalls, ['${Cloud.submac}|office|bg']);
+      expect(cloudCalls, ['${Cloud.telesia}|office|bg']);
       expect(byokCalls, isEmpty);
     });
   });
@@ -218,7 +218,7 @@ void main() {
         ..addAll([
           Bot(id: 'bmlead', name: 'Hodan', role: 'Manager', persona: '', model: '$_pid|gpt-x'),
           Bot(id: 'bmnova', name: 'Nova', role: 'Researcher', persona: '', model: '$_pid|gpt-x-mini'),
-          Bot(id: 'bmamal', name: 'Amal', role: 'Analyst', persona: '', model: 'submac'),
+          Bot(id: 'bmamal', name: 'Amal', role: 'Analyst', persona: '', model: 'telesia'),
         ]);
       Bots.I.bots.addAll(bots);
     });
@@ -235,8 +235,8 @@ void main() {
     test('a team\'s one-answer calls (who speaks, plan, combine) use the lead\'s model', () async {
       expect(await s.teamAskForTest(bots[0], '# Who speaks', 'hi'), 'from gpt-x');
       expect(byokCalls, ['$_pid|gpt-x']);
-      expect(await s.teamAskForTest(bots[2], '# Who speaks', 'hi'), 'from submac');
-      expect(cloudCalls.single, startsWith('${Cloud.submac}|office|bg'));
+      expect(await s.teamAskForTest(bots[2], '# Who speaks', 'hi'), 'from telesia');
+      expect(cloudCalls.single, startsWith('${Cloud.telesia}|office|bg'));
     });
 
     test('an instant reply in the team chat uses the bot\'s model', () async {
@@ -286,13 +286,13 @@ void main() {
       expect(next.single.depth, 1);
       Offices.I.queue.remove(next.single);
       await s.officeRunForTest(o, bots[2], next.single);
-      expect(seen['bmamal'], {'providerID': OcLane.office, 'modelID': Cloud.submac}, reason: 'Amal is on SubMac: background office lane');
+      expect(seen['bmamal'], {'providerID': OcLane.office, 'modelID': Cloud.telesia}, reason: 'Amal is on Telesia: background office lane');
       expect(o.posts.last.text, contains('Acme is the best value'));
       expect(o.posts.last.replyTo, next.single.post, reason: 'the answer links to the post it reacts to');
       Offices.I.queue.removeWhere((j) => j.officeId == o.id);
     });
 
-    test('source: no plain bot call is pinned to SubMac\'s model any more', () {
+    test('source: no plain bot call is pinned to Telesia\'s model any more', () {
       final ctl = File('lib/state/bots_controller.dart').readAsStringSync();
       for (final f in ['Future<String> _teamAsk(', 'Future<String> _botConsult(', 'Future<String> _officeQuick(', 'Future<bool> _worthWaking(']) {
         final i = ctl.indexOf(f);

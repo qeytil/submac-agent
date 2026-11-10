@@ -1,4 +1,4 @@
--- SubMac Agent billing follow-up: payment gateway hardening (idempotency, double-tap, rate limit, expiry, reasons).
+-- Telesia billing follow-up: payment gateway hardening (idempotency, double-tap, rate limit, expiry, reasons).
 -- ADDITIVE ONLY. Requires 20261020_billing.sql + 20261021_billing_providers.sql. Safe to run twice (idempotent).
 -- No ai_settings rows are added: tunables are read with billing.num(key, default) and can be created later:
 --   billing_checkout_per_minute (10)  per-user checkout attempts per minute (on top of billing_max_pending_per_hour)

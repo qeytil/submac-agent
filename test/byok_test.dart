@@ -114,16 +114,16 @@ void main() {
     const secret = 'thk_live_SUPERSECRET_abcdef';
     String? secretOf(ByokProvider p) => secret;
 
-    test('uses {env:SUBMAC_BYOK_*} and never contains the key', () {
+    test('uses {env:TELESIA_BYOK_*} and never contains the key', () {
       final p = _prov();
       final cfg = ByokOpencode.providers([p], secretOf);
       final text = jsonEncode(cfg);
       expect(text.contains(secret), isFalse);
       final opts = (cfg[p.id] as Map)['options'] as Map;
-      expect(opts['apiKey'], '{env:SUBMAC_BYOK_1A2B3C4D}');
+      expect(opts['apiKey'], '{env:TELESIA_BYOK_1A2B3C4D}');
       expect(opts['baseURL'], 'https://tokenharbor.ai/v1');
       expect(((cfg[p.id] as Map)['models'] as Map).keys, ['gpt-x']);
-      expect(ByokOpencode.env([p], secretOf), {'SUBMAC_BYOK_1A2B3C4D': secret});
+      expect(ByokOpencode.env([p], secretOf), {'TELESIA_BYOK_1A2B3C4D': secret});
       expect(ByokOpencode.signature([p], secretOf).contains(secret), isFalse);
     });
 
@@ -150,12 +150,12 @@ void main() {
       expect(OcLane.isByok(m), isTrue);
     });
 
-    test('falls back to SubMac for unusable choices', () {
+    test('falls back to Telesia for unusable choices', () {
       ByokStore.I.resetForTests(ByokConfig(providers: [_prov()]), {'k1': 'secret'});
-      for (final s in ['byok-1a2b3c4d|off-model', 'byok-1a2b3c4d|missing', 'byok-ffffffff|gpt-x', 'submac', 'garbage']) {
+      for (final s in ['byok-1a2b3c4d|off-model', 'byok-1a2b3c4d|missing', 'byok-ffffffff|gpt-x', 'telesia', 'garbage']) {
         final m = OcLane.pick(background: false, userModel: s);
         expect(OcLane.isByok(m), isFalse, reason: s);
-        expect(m['modelID'], Cloud.submac, reason: s);
+        expect(m['modelID'], Cloud.telesia, reason: s);
       }
       // No key stored.
       ByokStore.I.resetForTests(ByokConfig(providers: [_prov()]), {});

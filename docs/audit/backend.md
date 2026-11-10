@@ -1,4 +1,4 @@
-# SubMac Agent: backend and reliability audit
+# Telesia: backend and reliability audit
 
 Date: 23 Oct 2026. I only read the repository copy at /workspace/work/repo. I changed nothing and called no live service. Where the live server might differ from the repo, I say so.
 
@@ -26,7 +26,7 @@ What drags it down:
 ## 2. Top 8 issues, ranked by risk and user impact
 
 ### 1. Somali tasks likely drop to weak models, or time out (High)
-**What the user experiences:** A Somali speaker asks SubMac to do something that uses tools, such as search, files or a reminder. The first reply may be fine. After the first tool step, the answer either arrives in noticeably worse Somali or the app shows "The connection dropped" after about 90 seconds.
+**What the user experiences:** A Somali speaker asks Telesia to do something that uses tools, such as search, files or a reminder. The first reply may be fine. After the first tool step, the answer either arrives in noticeably worse Somali or the app shows "The connection dropped" after about 90 seconds.
 
 **Why:** Somali chats are sent to the Gemini routes. Gemini 3 models need a hidden "thought signature" passed back with each tool call in later turns. Neither the proxy nor the app keeps it, and the route-change notes from 21 Oct already record Gemini failing with "missing thought_signature" on tool calls. When Gemini refuses, the proxy tries the other Somali routes and then falls back to the general open models, which are the ones you found weak at Somali. Each Somali route also gets up to 30 seconds to start. Two or three slow Somali routes can use up the app's 90-second limit before any fallback answers.
 
@@ -44,7 +44,7 @@ What drags it down:
 
 **Why:** On the chat path, the proxy puts the raw error text into the message it sends back. The app shows any message the server sends. Its scrubber only removes provider and model names.
 
-**Plain fix:** Have the server always send a fixed friendly sentence for these cases ("SubMac couldn't get an answer just now…") and write the technical detail only to the server log. As a second guard, the app should ignore server messages for the "config" error type.
+**Plain fix:** Have the server always send a fixed friendly sentence for these cases ("Telesia couldn't get an answer just now…") and write the technical detail only to the server log. As a second guard, the app should ignore server messages for the "config" error type.
 
 ### 4. The repo no longer matches what is live, and deploy settings aren't written down (Medium-High)
 **Risk:** One routine redeploy could roll back live fixes, switch on unfinished code, or change who is allowed to call a function.

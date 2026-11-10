@@ -48,7 +48,7 @@ typedef CheckoutWebBuilder = Widget Function(BuildContext context, CheckoutWebHo
 /// Hosted card checkout INSIDE the app (owner rule 2026-10-21): app bar "Secure payment" with a lock, progress bar,
 /// close asks "Cancel payment?" then checks the purchase before leaving, back goes back in the page first.
 /// Only Sifalo's pay hosts and our functions host load here; anything else opens outside the app. When the page reaches
-/// the billing-return URL or submac://pay, it stops, lets the server see the return request, and closes. The caller
+/// the billing-return URL or telesia://pay, it stops, lets the server see the return request, and closes. The caller
 /// then asks the server about the purchase: the redirect itself is never trusted.
 class CheckoutWebViewScreen extends StatefulWidget {
   const CheckoutWebViewScreen({
@@ -348,7 +348,7 @@ Widget _inAppWebView(BuildContext context, CheckoutWebHooks h) {
       if (req.isForMainFrame == false) return;
       if (err.type == WebResourceErrorType.CANCELLED || err.type == WebResourceErrorType.UNSUPPORTED_SCHEME) return;
       final u = Uri.tryParse(req.url.toString());
-      if (u != null && u.scheme == 'submac') return;
+      if (u != null && u.scheme == 'telesia') return;
       h.onMainFrameError(err.description);
     },
   );

@@ -247,7 +247,7 @@ class _ComposerState extends State<Composer> {
       if (!mic.isGranted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text('SubMac needs the microphone to hear you.'),
+            content: const Text('Telesia needs the microphone to hear you.'),
             action: mic.isPermanentlyDenied ? SnackBarAction(label: 'Allow', onPressed: openAppSettings) : null,
           ));
         }
@@ -411,7 +411,7 @@ class _ComposerState extends State<Composer> {
             ),
             ListTile(
               title: const Text('Talk live'),
-              subtitle: const Text('A voice conversation with SubMac'),
+              subtitle: const Text('A voice conversation with Telesia'),
               onTap: () {
                 Navigator.pop(ctx);
                 openLive(context);
@@ -444,7 +444,7 @@ class _ComposerState extends State<Composer> {
     );
   }
 
-  /// Stops every task working in this chat (the send button is Stop while SubMac works).
+  /// Stops every task working in this chat (the send button is Stop while Telesia works).
   void _stop() {
     for (final r in _state.runsHere.where((r) => !r.side).toList()) {
       _state.stopRun(r);
@@ -453,7 +453,7 @@ class _ComposerState extends State<Composer> {
 
   void _send() {
     final state = context.read<AppState>();
-    // BYOK only: with no model of the owner's own there is nothing to send to (SubMac's own model is going away).
+    // BYOK only: with no model of the owner's own there is nothing to send to (Telesia's own model is going away).
     if (ByokStore.I.loaded && !ByokStore.I.hasChoices) {
       _openModels();
       return;
@@ -484,7 +484,7 @@ class _ComposerState extends State<Composer> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final state = context.watch<AppState>();
-    // BYOK only: no usable model of the owner's own yet, so the box leads to model setup (SubMac's model is going away).
+    // BYOK only: no usable model of the owner's own yet, so the box leads to model setup (Telesia's model is going away).
     final needsModel = ByokStore.I.loaded && !ByokStore.I.hasChoices;
     // A chat that changed while another screen covered this one (a sheet, the Bots workspace): swap once it is in front.
     if (widget.perChatDrafts && (state.currentId ?? '') != _draftFor && (ModalRoute.of(context)?.isCurrent ?? true)) _swapDraft();
@@ -492,7 +492,7 @@ class _ComposerState extends State<Composer> {
     final canSend = !needsModel && (_ctrl.text.trim().isNotEmpty || _attachments.isNotEmpty || skill != null);
     // One quiet field: "+" on the start side, the words, and one round button on the end side that is
     // the mic while the box is empty (tap to speak; calls live in the top bar), Send once there is something to send, and Stop
-    // while SubMac works with nothing typed. Typing turns Stop back into Send, so a message can steer a task.
+    // while Telesia works with nothing typed. Typing turns Stop back into Send, so a message can steer a task.
     final Widget trailing = needsModel
         ? _BareIcon(key: const ValueKey('connect-model'), icon: 'plus', tip: tr('Connect a model'), onTap: _openModels)
         : canSend
@@ -606,7 +606,7 @@ class _ComposerState extends State<Composer> {
                       style: TextStyle(fontSize: Lux.read, height: 1.4, color: p.text),
                       decoration: InputDecoration(
                         // While a task works, the box says plainly that a message can steer it.
-                        hintText: needsModel ? tr('Connect a model to start') : _listening ? 'Speak now…' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask SubMac anything')),
+                        hintText: needsModel ? tr('Connect a model to start') : _listening ? 'Speak now…' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask Telesia anything')),
                         hintMaxLines: 1,
                         hintStyle: TextStyle(color: p.faint),
                         filled: false,
@@ -638,7 +638,7 @@ class _ComposerState extends State<Composer> {
                 ],
               ),
               // Ask or Autopilot (owner, 2026-11-03): a tiny switch under the field. Autopilot answers approval cards
-              // and opencode's permission asks by itself; money and SubMac's own settings still ask.
+              // and opencode's permission asks by itself; money and Telesia's own settings still ask.
               // The chat's model (BYOK, owner 2026-11-03) sits beside it, only when the user has models of their own.
               // These two are the OWNER's chat controls and never follow into a digital person's own chat: a bot has
               // its own permission and model in its profile, not under this composer (owner 2026-11-10).
@@ -759,7 +759,7 @@ class _QuietChip extends StatelessWidget {
   }
 }
 
-/// Ink circle with a paper square: stops what SubMac is doing in this chat.
+/// Ink circle with a paper square: stops what Telesia is doing in this chat.
 class _StopButton extends StatelessWidget {
   const _StopButton({super.key, required this.onTap});
   final VoidCallback onTap;
@@ -819,7 +819,7 @@ class _SendButton extends StatelessWidget {
 
 
 /// Only shows when tasks are working in OTHER chats; this chat's task line sits in the
-/// conversation itself, on SubMac's side (see WorkingLine).
+/// conversation itself, on Telesia's side (see WorkingLine).
 class TaskBar extends StatelessWidget {
   const TaskBar({super.key});
 
@@ -850,7 +850,7 @@ const turnHeadPad = EdgeInsetsDirectional.fromSTEB(18, 4, 14, 4);
 const turnHeadHeight = 30.0;
 const turnMarkSize = 22.0;
 
-/// The live line at the top of SubMac's reply, in the chat right under your message (like ChatGPT, Kimi, Hark):
+/// The live line at the top of Telesia's reply, in the chat right under your message (like ChatGPT, Kimi, Hark):
 /// the living mark, the status with a soft shimmer, steps so far and the time it has been working. Tap it for
 /// the step list. It scrolls with the chat; Stop lives in the composer (the send button turns into Stop).
 /// [run] is null for the moment between sending and the task starting (saving the chat, uploading files).
@@ -1017,7 +1017,7 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
         final row = SizedBox(
           height: turnHeadHeight,
           child: Row(children: [
-            // Plain text only (owner rule): the status word, breathing calmly while SubMac works. No mark,
+            // Plain text only (owner rule): the status word, breathing calmly while Telesia works. No mark,
             // no dots, no glyph before it; tap it to see the steps.
             Expanded(
               child: GestureDetector(

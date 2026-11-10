@@ -1,7 +1,7 @@
 # Agent flexibility: why the agent broke on new tasks, and the Claude Code fix
 
 Owner request (2026-10-31): "the agent/bot can do only what we trained with, but struggles or breaks if
-user asks different tasks that we didn't tested... our app should be Claude Code but in SubMac skin and
+user asks different tasks that we didn't tested... our app should be Claude Code but in Telesia skin and
 mobile." This document is the research and the fix.
 
 ## Second pass: what the open-source Codex CLI taught us (cloned openai/codex, codex-rs)
@@ -14,7 +14,7 @@ ambition with honesty — there is no "don't lie" lecture; there are four precis
 1. **Prove by trying, not by asserting.** "Do NOT guess or make up an answer... Autonomously resolve the
    query to the best of your ability, using the tools available to you." Capability is never claimed in
    the abstract — the agent runs the command and the tool result answers the "can you" question. (Codex's
-   sandbox makes this cheap to do; SubMac's trust gates play the same role.)
+   sandbox makes this cheap to do; Telesia's trust gates play the same role.)
 2. **Never plan a step you cannot take.** "The content of your plan should not involve doing anything
    that you aren't capable of doing (i.e. don't try to test things that you can't test)." Overclaiming is
    blocked at the plan, before it becomes a broken promise.
@@ -47,7 +47,7 @@ Claude Code handles tasks nobody trained it for because of harness design, not m
 5. **The prompt tells the model how to behave, not what shapes to emit.** Few output mandates; format
    rules never override solving the task.
 
-## What SubMac did instead (the audit)
+## What Telesia did instead (the audit)
 
 - **Regex lanes and hints decided everything before the model saw the message.** `QuickLane.laneFor`
   sent any message under 160 chars with no action keyword to the *light* lane (stripped prompt, ~17 core
@@ -81,7 +81,7 @@ Claude Code handles tasks nobody trained it for because of harness design, not m
 
 ## The agent can now forge its own tools (`skill_save`, implemented 2026-10-31)
 
-SubMac already had every raw piece of runtime tool creation except the last wire: `write_file` writes
+Telesia already had every raw piece of runtime tool creation except the last wire: `write_file` writes
 into a persistent workspace, `code_run path` executes a written script and files persist between steps,
 `run_shell` reaches the same workspace. What it lacked was a registry — a way for a proven script to
 *become* a tool. Now:
@@ -95,13 +95,13 @@ into a persistent workspace, `code_run path` executes a written script and files
 - **Every bot has it too** (added to the core power set in `lib/services/bot_powers.dart`), so a bot that
   learns a method teaches itself permanently — the closest thing to Claude Code's growing skills folder.
 - The prompt convention ties the loop: build → test → save → reuse. This is Codex's Code Mode idea in
-  SubMac's skin: the toolset is a floor, and the agent writes the missing tools onto it.
+  Telesia's skin: the toolset is a floor, and the agent writes the missing tools onto it.
 
 ## What stays honest (the one gap)
 
-- **The cloud computer.** SubMac's `run_shell` is Android toybox (no Python, no root), and heavy builds
+- **The cloud computer.** Telesia's `run_shell` is Android toybox (no Python, no root), and heavy builds
   run through GitHub Actions. A task needing a real Linux box (long compiles, arbitrary packages) is the
-  one capability Claude Code has that SubMac cannot give it on the phone — the owner already marked this
+  one capability Claude Code has that Telesia cannot give it on the phone — the owner already marked this
   as the allowed gap.
-- The vertical tools (business books, health book, prayers) stay: they are SubMac's skin. Generalization
+- The vertical tools (business books, health book, prayers) stay: they are Telesia's skin. Generalization
   comes from the floor under them, not from removing them.

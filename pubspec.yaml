@@ -1,5 +1,5 @@
 name: agent
-description: SubMac Agent - an agentic chat app.
+description: Telesia - an agentic chat app.
 publish_to: 'none'
 version: 1.13.140+210
 
@@ -42,7 +42,7 @@ dependencies:
   # v1.6: email over IMAP/SMTP with app passwords
   enough_mail: ^2.1.7
   crypto: ^3.0.3
-  # v1.7: SubMac's own icon set (assets/icons)
+  # v1.7: Telesia's own icon set (assets/icons)
   flutter_svg: ^2.3.0
   qr_flutter: ^4.1.0
   flutter_math_fork: ^0.7.4
@@ -109,7 +109,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
-  # New logo (submac.site). Master: docs/brand/submac_logo_master.svg; PNGs rendered from it.
+  # New logo (telesia.site). Master: docs/brand/telesia_logo_master.svg; PNGs rendered from it.
   image_path: assets/icon.png
   image_path_ios: assets/icon_ios.png
   adaptive_icon_background: assets/icon_bg.png

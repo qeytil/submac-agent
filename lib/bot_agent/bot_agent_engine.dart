@@ -1,10 +1,10 @@
-// SubMac's own bot turn loop (owner 2026-11-07).
+// Telesia's own bot turn loop (owner 2026-11-07).
 //
 // One turn is: model step -> the tools it asked for -> model step ... until the bot answers without a tool, its own
 // allowance stops it, the turn is cancelled, or [BotAgentConfig.maxSteps] is reached. A reply that ran out of room is
 // continued where it stopped, so a bot never sends half a sentence.
 //
-// The loop deliberately has no opinion about who supplies the model (SubMac's lane or one of the owner's BYOK keys) or
+// The loop deliberately has no opinion about who supplies the model (Telesia's lane or one of the owner's BYOK keys) or
 // how a tool is run: the app passes [step] and [runTool] in. That keeps opencode out of a bot's path and makes the loop
 // testable on its own (test/bot_agent_engine_test.dart).
 

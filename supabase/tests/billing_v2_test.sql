@@ -1,4 +1,4 @@
--- SubMac billing v2 tests (plain PostgreSQL): usage_gate / usage_charge (daily caps, spending order, expiry, idempotency,
+-- Telesia billing v2 tests (plain PostgreSQL): usage_gate / usage_charge (daily caps, spending order, expiry, idempotency,
 -- EAT reset, bots, Live), payments RPCs and the ledger. Run after tests/billing_stubs.sql + the billing migrations
 -- (tests/run_billing_tests.sh). Each block raises on the first failed assertion. NEVER run against the real project.
 --

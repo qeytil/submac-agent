@@ -37,11 +37,11 @@ functions only after `20261023_billing_v2.sql` is applied (they no longer call t
 - `supabase/config.toml` pins verify_jwt for every function (PLAN 1.8).
 
 ## 2026-10-23 owner fixes (ai-chat v38, bot-run v12)
-- DB: `20261023_submac_gemini_first.sql` (applied 11:10 UTC as `submac_gemini_first_20261023`): alias `submac` routes renumbered with
+- DB: `20261023_telesia_gemini_first.sql` (applied 11:10 UTC as `telesia_gemini_first_20261023`): alias `telesia` routes renumbered with
   the Gemini routes first (rest in their old order) and `max_output_tokens` 64000 -> 32768. `20261023_eat_day.sql` (applied 11:10 UTC
   as `eat_day_20261023`): the legacy daily counters (`ai_user_daily`, `live_call_daily`) are keyed by the EAT date, so the allowance
   resets at 00:00 EAT. Rows before: schema `backup_20261023`, tables `*_pre_fix` (routes, aliases, settings, old function bodies).
-- ai-chat v38 (verify_jwt true, esbuild bundle as before): `x-submac-resets-at` = next 00:00 EAT with billing on or off; per-provider
+- ai-chat v38 (verify_jwt true, esbuild bundle as before): `x-telesia-resets-at` = next 00:00 EAT with billing on or off; per-provider
   output clamp (`router.ts providerOutCap`, Poolside 32768, `ai_settings.provider_max_output_tokens` overrides); Live charges parked
   with `usage_charge_enqueue` after two failures; coin leftovers removed. Rollback source: ai-chat = commit c845d9b (v37).
 - bot-run v12 (single file): allowance day = EAT date. Rollback source: commit c845d9b (v11).
@@ -53,7 +53,7 @@ functions only after `20261023_billing_v2.sql` is applied (they no longer call t
 
 ## 2026-11-07 max output (ai-chat v46, bot-run v16; owner OK)
 - DB: `20261107_max_output.sql` applied 14:43 UTC: `billing_reply_cap_tokens` 8192 -> 65536 (the `usage_gate` reply cap that
-  clamped every reply's `max_tokens`), alias `submac` `max_output_tokens` 32768 -> 65536, and `ai_models.max_output_tokens`
+  clamped every reply's `max_tokens`), alias `telesia` `max_output_tokens` 32768 -> 65536, and `ai_models.max_output_tokens`
   (gemini routes 65536) exposed through `ai_config_lite()`. Tracking row `max_output_20261107`.
 - ai-chat v46 deployed 14:47 UTC (verify_jwt true) from main `e2ef59b` (esbuild bundle; blob `5458eaa9...`); ezbr_sha256
   `954e826fec4eb73accb41cea4e04ed075d7bb90e1da782d72fb3d75664be6f7d`. Change: `providerOutCap` also honours the route's own

@@ -15,7 +15,7 @@ import 'byok.dart';
 /// sound), each with its own base URL, key, model and a default per capability. Keys live in the phone's encrypted
 /// storage, one entry per key, apart from the config, or are borrowed from a chat provider (BYOK) or another media
 /// provider of the same vendor. Calls go straight from the phone to the provider (media_gen.dart); nothing passes
-/// SubMac's servers and nothing is billed by SubMac.
+/// Telesia's servers and nothing is billed by Telesia.
 
 /// What a provider makes.
 enum MediaKind { image, video, speech, audio }

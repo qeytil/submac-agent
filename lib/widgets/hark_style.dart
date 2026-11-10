@@ -497,8 +497,8 @@ class CalendarEvent {
     String f(DateTime d) => d.toUtc().toIso8601String().replaceAll(RegExp(r'[-:]'), '').split('.').first + 'Z';
     String esc(String s) => s.replaceAll('\\', '\\\\').replaceAll(',', '\\,').replaceAll(';', '\\;').replaceAll('\n', '\\n');
     return [
-      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SubMac//Agent//EN', 'BEGIN:VEVENT',
-      'UID:${start.millisecondsSinceEpoch}-${title.hashCode.toUnsigned(32)}@submac',
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Telesia//Agent//EN', 'BEGIN:VEVENT',
+      'UID:${start.millisecondsSinceEpoch}-${title.hashCode.toUnsigned(32)}@telesia',
       'DTSTAMP:${f(DateTime.now())}', 'DTSTART:${f(start)}', 'DTEND:${f(endOr)}', 'SUMMARY:${esc(title)}',
       if (place.isNotEmpty) 'LOCATION:${esc(place)}', if (notes.isNotEmpty) 'DESCRIPTION:${esc(notes)}',
       'END:VEVENT', 'END:VCALENDAR',

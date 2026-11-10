@@ -1,4 +1,4 @@
-// Mission mode in the app (owner 2026-11-07, docs/bot-autonomy.md): a mission alarm with SubMac closed wakes the bot
+// Mission mode in the app (owner 2026-11-07, docs/bot-autonomy.md): a mission alarm with Telesia closed wakes the bot
 // in the background lane with the mission's instruction; a team mission wakes its lead with a 'mission' office job;
 // the tools start a mission when the owner is present, and a bot or a team lead may propose one while nobody is
 // watching (the owner's yes in that chat starts it); the stop switch reaches a running wake. Engine mocked.
@@ -87,7 +87,7 @@ void main() {
     if (await tmp.exists()) await tmp.delete(recursive: true);
   });
 
-  test('a mission alarm with SubMac closed wakes the bot unattended, with the mission instruction and a "<Bot> · Mission" line', () async {
+  test('a mission alarm with Telesia closed wakes the bot unattended, with the mission instruction and a "<Bot> · Mission" line', () async {
     final m = await Missions.I.start('bot', b.id, 'Find 20 wholesale suppliers');
     await Missions.I.execute('mission_plan', {'steps': ['List candidates', 'Ask for quotes']}, m: m);
     await s.onAlarmForTest(Missions.alarmId(m));

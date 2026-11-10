@@ -5,7 +5,7 @@ enum CheckoutNavKind {
   /// Load it in the payment page.
   allow,
 
-  /// The payment page is done (billing-return URL or submac://pay): stop loading, close, and check the purchase.
+  /// The payment page is done (billing-return URL or telesia://pay): stop loading, close, and check the purchase.
   finish,
 
   /// Not a payment page: open it outside the app (browser, phone, mail).
@@ -48,7 +48,7 @@ const Set<String> kCheckoutExtraHosts = {};
 CheckoutNavDecision decideCheckoutNav(Uri u, {required String functionsHost, bool mainFrame = true}) {
   final scheme = u.scheme.toLowerCase();
   final host = u.host.toLowerCase();
-  if (scheme == 'submac') {
+  if (scheme == 'telesia') {
     if (host == 'pay') return _finish(u);
     return const CheckoutNavDecision(CheckoutNavKind.block);
   }
@@ -98,8 +98,8 @@ CheckoutNavDecision _finish(Uri u, {Uri? server}) {
 
 final _uuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 
-/// A submac://pay deep link (fallback when the page was opened outside the app): the purchase it is about.
+/// A telesia://pay deep link (fallback when the page was opened outside the app): the purchase it is about.
 CheckoutNavDecision? parsePayDeepLink(Uri u) {
-  if (u.scheme.toLowerCase() != 'submac' || u.host.toLowerCase() != 'pay') return null;
+  if (u.scheme.toLowerCase() != 'telesia' || u.host.toLowerCase() != 'pay') return null;
   return _finish(u);
 }

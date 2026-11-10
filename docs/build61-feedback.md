@@ -5,7 +5,7 @@ root causes below are in the older code; the fixes are on top of current main (b
 pricing, plan or schema change.
 
 ## 1. "The sky bg is short, it should be zoomed in"
-**Root cause (native, since the shared engine).** The app runs one long-lived Flutter engine (`SubMacApp`). Dart's
+**Root cause (native, since the shared engine).** The app runs one long-lived Flutter engine (`TelesiaApp`). Dart's
 `main()` calls `SystemChrome.setEnabledSystemUIMode(edgeToEdge)` once, and it only reaches the first screen the engine is
 attached to (and none at all when a background service started the engine first). Every later `MainActivity` (after
 Back, a recreate, a start from a service or notification) gets a new `PlatformPlugin` with Flutter's default flags:
@@ -41,7 +41,7 @@ read lists of up to five. Tests: `test/build61_feedback_test.dart`.
 
 ## 3. "The usage limit count is too small and it runs out after little messages"
 **Diagnosis (production numbers, read only, `ai_usage`, last 6 days).**
-- One agent model call (source `agent`, alias `submac`): **avg 10,145 prompt tokens (median 8,066), 6,706 of them
+- One agent model call (source `agent`, alias `telesia`): **avg 10,145 prompt tokens (median 8,066), 6,706 of them
   cached (66%), 239 output tokens.**
 - Steps per user message: about 2.3 (10-24: 205 agent calls for 88 user messages) to 6.2 (10-23).
 - Per user message: **~27,500 raw tokens** (10-24: 2.42M raw / 88 messages), but only **~4,800 weighted tokens** with the

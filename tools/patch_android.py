@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turns the folder `flutter create` makes into SubMac's Android app.
+"""Turns the folder `flutter create` makes into Telesia's Android app.
 Run from the repo root after `flutter create`. Used by every workflow, so release and dev builds match."""
 import glob
 import os
@@ -34,7 +34,7 @@ perms = '''<uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
-    <!-- In-app updates (feature/app-update): open Android's installer for a downloaded SubMac update. -->
+    <!-- In-app updates (feature/app-update): open Android's installer for a downloaded Telesia update. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <queries>
         <intent><action android:name="android.speech.RecognitionService"/></intent>
@@ -60,10 +60,10 @@ perms = '''<uses-permission android:name="android.permission.INTERNET"/>
 s = s.replace("<application", perms, 1)
 s = s.replace('xmlns:android="http://schemas.android.com/apk/res/android"',
               'xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"', 1)
-s = s.replace('android:label="agent"', 'android:label="SubMac Agent"')
+s = s.replace('android:label="agent"', 'android:label="Telesia"')
 assert 'android:name="${applicationName}"' in s, "applicationName placeholder missing"
-s = s.replace('android:name="${applicationName}"', 'android:name=".SubMacApp"', 1)
-# "Share to SubMac": accept text and files from other apps.
+s = s.replace('android:name="${applicationName}"', 'android:name=".TelesiaApp"', 1)
+# "Share to Telesia": accept text and files from other apps.
 share = '''</intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>
@@ -79,35 +79,35 @@ share = '''</intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="com.submac.agent" android:host="login-callback"/>
+                <data android:scheme="com.telesia.app" android:host="login-callback"/>
             </intent-filter>
-            <!-- "Hire in SubMac" from a public bot page: submac://hire?bot=<code>&ref=<ref> -->
+            <!-- "Hire in Telesia" from a public bot page: telesia://hire?bot=<code>&ref=<ref> -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="submac" android:host="hire"/>
+                <data android:scheme="telesia" android:host="hire"/>
             </intent-filter>
-            <!-- Invite link inside the app: submac://invite?ref=<code> (plan 2.4) -->
+            <!-- Invite link inside the app: telesia://invite?ref=<code> (plan 2.4) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="submac" android:host="invite"/>
+                <data android:scheme="telesia" android:host="invite"/>
             </intent-filter>
-            <!-- Back from the hosted payment page (billing-return 303): submac://pay?status=..&purchase=<id>[&reason=..] -->
+            <!-- Back from the hosted payment page (billing-return 303): telesia://pay?status=..&purchase=<id>[&reason=..] -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="submac" android:host="pay"/>
+                <data android:scheme="telesia" android:host="pay"/>
             </intent-filter>
-            <!-- https://submac.site/b/<code>: opens the app directly once submac.site/.well-known/assetlinks.json lists our key -->
+            <!-- https://telesia.site/b/<code>: opens the app directly once telesia.site/.well-known/assetlinks.json lists our key -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="https" android:host="submac.site" android:pathPrefix="/b/"/>
+                <data android:scheme="https" android:host="telesia.site" android:pathPrefix="/b/"/>
             </intent-filter>
             <!-- Links go to app_links (HireLinks, Supabase), not to Flutter's router. -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>'''
@@ -119,11 +119,11 @@ components = '''
              opt-out), so it is not the safer choice. -->
         <meta-data android:name="io.flutter.embedding.android.EnableImpeller" android:value="true"/>
         <service android:name=".WakeService" android:exported="false" android:foregroundServiceType="microphone"/>
-        <service android:name=".SubMacA11y" android:exported="false"
-            android:label="@string/submac_a11y_label"
+        <service android:name=".TelesiaA11y" android:exported="false"
+            android:label="@string/telesia_a11y_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter>
-            <meta-data android:name="android.accessibilityservice" android:resource="@xml/submac_a11y"/>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/telesia_a11y"/>
         </service>
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
@@ -134,7 +134,7 @@ components = '''
         <service android:name=".TaskService" android:exported="false" android:foregroundServiceType="dataSync"/>
         <receiver android:name=".AlarmReceiver" android:exported="false"/>
         <service android:name=".NotifListener" android:exported="true"
-            android:label="SubMac"
+            android:label="Telesia"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter>
         </service>
@@ -143,19 +143,19 @@ components = '''
             android:permission="com.google.android.c2dm.permission.SEND">
             <intent-filter><action android:name="com.google.android.c2dm.intent.RECEIVE"/></intent-filter>
         </receiver>
-        <!-- Files SubMac shares into WhatsApp: read-only, one-time grants, never exported. -->
-        <provider android:name=".WaFiles" android:authorities="com.submac.agent.wafiles"
+        <!-- Files Telesia shares into WhatsApp: read-only, one-time grants, never exported. -->
+        <provider android:name=".WaFiles" android:authorities="com.telesia.app.wafiles"
             android:exported="false" android:grantUriPermissions="true"/>
         <!-- In-app updates: the joined update file for the installer (read-only, one-time grants, never exported),
              and DownloadManager's "download finished" broadcast (sent from the system, so exported). -->
-        <provider android:name=".UpdateFiles" android:authorities="com.submac.agent.updates"
+        <provider android:name=".UpdateFiles" android:authorities="com.telesia.app.updates"
             android:exported="false" android:grantUriPermissions="true"/>
         <receiver android:name=".UpdateDone" android:exported="true">
             <intent-filter><action android:name="android.intent.action.DOWNLOAD_COMPLETE"/></intent-filter>
         </receiver>
-        <receiver android:name=".QuickWidget" android:exported="true" android:label="SubMac">
+        <receiver android:name=".QuickWidget" android:exported="true" android:label="Telesia">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/submac_widget"/>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/telesia_widget"/>
         </receiver>
     </application>'''
 assert "</application>" in s
@@ -165,7 +165,7 @@ open(M, "w").write(s)
 # ---------------- native code + resources ----------------
 for f in glob.glob("android/app/src/main/**/MainActivity.*", recursive=True):
     os.remove(f)
-kdir = "android/app/src/main/kotlin/com/submac/agent"
+kdir = "android/app/src/main/kotlin/com/telesia/agent"
 os.makedirs(kdir, exist_ok=True)
 for f in glob.glob("android_native/*.kt"):
     shutil.copy(f, os.path.join(kdir, os.path.basename(f)))
@@ -192,7 +192,7 @@ for a, b in [
     g = g.replace(a, b)
 if KTS:
     sign = """    signingConfigs {
-        create("submac") {
+        create("telesia") {
             storeFile = file("${rootProject.projectDir}/../keys/debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
@@ -212,13 +212,13 @@ if KTS:
     assert "    buildTypes {" in g
     g = g.replace("    buildTypes {", sign, 1)
     assert 'signingConfig = signingConfigs.getByName("debug")' in g
-    g = g.replace('signingConfig = signingConfigs.getByName("debug")', 'signingConfig = signingConfigs.getByName("submac")')
+    g = g.replace('signingConfig = signingConfigs.getByName("debug")', 'signingConfig = signingConfigs.getByName("telesia")')
     assert "        versionName = flutter.versionName" in g
     g = g.replace("        versionName = flutter.versionName",
                   "        versionName = flutter.versionName\n        ndk { abiFilters += listOf(\"armeabi-v7a\", \"arm64-v8a\", \"x86_64\") }", 1)
     g += """
 dependencies {
-    // Offline wake word ("Hello SubMac"). Its native libs are 16 KB-page aligned.
+    // Offline wake word ("Hello Telesia"). Its native libs are 16 KB-page aligned.
     implementation("com.alphacephei:vosk-android:0.3.75") { exclude(group = "net.java.dev.jna") }
     implementation("net.java.dev.jna:jna:5.18.1@aar")
 }
@@ -226,7 +226,7 @@ dependencies {
 else:
     g = g.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 35")
     sign = """    signingConfigs {
-        submac {
+        telesia {
             storeFile = file("${rootProject.projectDir}/../keys/debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
@@ -245,12 +245,12 @@ else:
     assert "    buildTypes {" in g
     g = g.replace("    buildTypes {", sign, 1)
     assert "signingConfig = signingConfigs.debug" in g
-    g = g.replace("signingConfig = signingConfigs.debug", "signingConfig = signingConfigs.submac")
+    g = g.replace("signingConfig = signingConfigs.debug", "signingConfig = signingConfigs.telesia")
     g = g.replace("        versionName = flutter.versionName",
                   "        versionName = flutter.versionName\n        ndk { abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64' }", 1)
     g += """
 dependencies {
-    // Offline wake word ("Hello SubMac"). Its native libs are 16 KB-page aligned.
+    // Offline wake word ("Hello Telesia"). Its native libs are 16 KB-page aligned.
     implementation('com.alphacephei:vosk-android:0.3.75') { exclude group: 'net.java.dev.jna' }
     implementation 'net.java.dev.jna:jna:5.18.1@aar'
 }
@@ -290,7 +290,7 @@ if os.path.exists(S):
     R = "android/build.gradle.kts"
     r = open(R).read()
     hook = """
-// SubMac (tools/patch_android.py): every Android library module compiles against at least SDK 36 (raised, never
+// Telesia (tools/patch_android.py): every Android library module compiles against at least SDK 36 (raised, never
 // lowered: permission_handler_android 14 needs its own 37).
 subprojects {
     val forceSdk: Project.() -> Unit = {

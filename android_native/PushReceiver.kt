@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -6,11 +6,11 @@ import android.content.Intent
 
 /**
  * Plan 2.1 push: every FCM message for this app also arrives here (the same broadcast the Firebase SDK and
- * firebase_messaging listen to), even when SubMac is closed. It shows the push through [Notifier], the same
+ * firebase_messaging listen to), even when Telesia is closed. It shows the push through [Notifier], the same
  * calm notifications bot results use, so no Flutter background isolate is needed.
  *
  * Data keys (all strings): title, body, bot_id, chat_id, kind (done|scheduled|attention|info), message_id.
- * A tap opens inbox/<inbox_id> (a SubMac team message, "From SubMac"), else conv/<chat_id>, else botchat/<bot_id>, else the app.
+ * A tap opens inbox/<inbox_id> (a Telesia team message, "From Telesia"), else conv/<chat_id>, else botchat/<bot_id>, else the app.
  */
 class PushReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
@@ -23,7 +23,7 @@ class PushReceiver : BroadcastReceiver() {
             val notifBody = x.getString("gcm.notification.body") ?: x.getString("gcm.n.body")
             val hasNotificationBlock = notifTitle != null || notifBody != null || x.getString("gcm.n.e") != null
             // A message with a notification block is drawn by Firebase itself while the app is in the
-            // background; only draw it here when SubMac is on screen (Firebase draws nothing then).
+            // background; only draw it here when Telesia is on screen (Firebase draws nothing then).
             if (hasNotificationBlock && !Bridge.foreground) return
             val title = (x.getString("title") ?: notifTitle ?: "").trim()
             val body = (x.getString("body") ?: notifBody ?: "").trim()
@@ -42,13 +42,13 @@ class PushReceiver : BroadcastReceiver() {
             val key = x.getString("message_id") ?: x.getString("google.message_id") ?: (title + body)
             val id = 9600 + Math.floorMod(key.hashCode(), 300)
             if (botId.isNotEmpty()) {
-                Notifier.bot(ctx, id, if (title.isEmpty()) "SubMac" else title, body, payload, reply = chatId.isNotEmpty())
+                Notifier.bot(ctx, id, if (title.isEmpty()) "Telesia" else title, body, payload, reply = chatId.isNotEmpty())
             } else {
                 val kind = when (x.getString("kind")) {
                     "done", "scheduled", "attention", "info" -> x.getString("kind")!!
                     else -> "attention"
                 }
-                Notifier.task(ctx, id, if (title.isEmpty()) "SubMac" else title, body, payload, kind)
+                Notifier.task(ctx, id, if (title.isEmpty()) "Telesia" else title, body, payload, kind)
             }
         } catch (_: Throwable) {
             // A bad push must never crash the app.

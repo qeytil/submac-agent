@@ -30,7 +30,7 @@ class _SecureSecrets implements TelegramSecrets {
   Future<void> delete(String key) => _secure.delete(key: key);
 }
 
-/// Talk to SubMac from Telegram: the user makes a bot with @BotFather, pastes its token,
+/// Talk to Telesia from Telegram: the user makes a bot with @BotFather, pastes its token,
 /// and sends the pairing code to the bot. Only that chat is answered. The token stays on the phone.
 class TelegramBridge extends ChangeNotifier {
   TelegramBridge._({TelegramSecrets? secrets, http.Client Function()? client, Future<void> Function(Duration)? wait})
@@ -252,7 +252,7 @@ class TelegramBridge extends ChangeNotifier {
     }
     unawaited(_typing());
     try {
-      final reply = await (onMessage?.call(text, from) ?? Future.value('SubMac is not ready yet.'));
+      final reply = await (onMessage?.call(text, from) ?? Future.value('Telesia is not ready yet.'));
       await deliver(reply);
     } catch (e) {
       await send('Sorry, that did not work: $e');
@@ -287,7 +287,7 @@ class TelegramBridge extends ChangeNotifier {
         .replaceAll('**', '')
         .replaceAll(RegExp(r'\n{3,}'), '\n\n')
         .trim();
-    if (t.isEmpty && files.isEmpty) t = 'Done. The details are in the SubMac app.';
+    if (t.isEmpty && files.isEmpty) t = 'Done. The details are in the Telesia app.';
     if (t.isNotEmpty) await send(t);
     for (final f in files) {
       await _sendFile(f);

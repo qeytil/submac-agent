@@ -88,7 +88,7 @@ Duration pollDelay(int n, {int? hintSeconds}) {
   return Duration(milliseconds: (s * 1000).round());
 }
 
-/// Plan & usage: usage cache (billing_usage + the x-submac-* headers), payments with idempotency, polling and recovery.
+/// Plan & usage: usage cache (billing_usage + the x-telesia-* headers), payments with idempotency, polling and recovery.
 /// Everything is inert until the server says billing is on (/status billing block, a usage header, or billing_usage.enabled).
 class Billing with WidgetsBindingObserver {
   Billing({BillingApi? api, Future<void> Function(Duration)? sleep, DateTime Function()? now})
@@ -114,13 +114,13 @@ class Billing with WidgetsBindingObserver {
   final enabled = ValueNotifier<bool>(false);
   final usage = ValueNotifier<UsageSummary?>(null);
 
-  /// Tokens the user can still use today, from the last x-submac-today-left header or usage read (null until seen).
+  /// Tokens the user can still use today, from the last x-telesia-today-left header or usage read (null until seen).
   final balance = ValueNotifier<int?>(null);
 
   /// Unsettled payments kept on this phone for the signed-in user.
   final pending = ValueNotifier<List<PendingPurchase>>(const []);
 
-  /// Bumps when the app comes back to the foreground or a submac://pay link arrives: payment screens re-check.
+  /// Bumps when the app comes back to the foreground or a telesia://pay link arrives: payment screens re-check.
   final resumeTick = ValueNotifier<int>(0);
 
   /// A short message for a snackbar (payment recovered after a restart...). Set by main.dart.
@@ -170,7 +170,7 @@ class Billing with WidgetsBindingObserver {
     }
   }
 
-  /// Contract A: every ai-chat answer carries x-submac-today-left / total-left / resets-at / plan.
+  /// Contract A: every ai-chat answer carries x-telesia-today-left / total-left / resets-at / plan.
   void noteHeaders(Map<String, String> h) {
     final v = UsageSummary.headerValues(h);
     if (v == null) return;
@@ -366,7 +366,7 @@ class Billing with WidgetsBindingObserver {
 
   String get functionsHost => api.functionsHost;
 
-  /// A submac://pay link (the payment page was opened outside the app, or the in-app page missed the redirect).
+  /// A telesia://pay link (the payment page was opened outside the app, or the in-app page missed the redirect).
   /// Never trusted: it only makes the app check that purchase now.
   Future<void> handlePayLink(Uri u) async {
     final d = parsePayDeepLink(u);

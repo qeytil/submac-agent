@@ -5,7 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme.dart';
 
-/// SubMac logo (the new mark from submac.site): a blue "S" and a white dot on a light-blue rounded tile.
+/// Telesia logo (the new mark from telesia.site): a blue "S" and a white dot on a light-blue rounded tile.
 /// Drawn from the vector master in assets/brand, so it stays sharp at every size.
 /// [tile] false draws only the S and the dot, for places that already sit on their own surface.
 class AppLogo extends StatelessWidget {
@@ -13,13 +13,13 @@ class AppLogo extends StatelessWidget {
   final bool tile;
   const AppLogo({super.key, this.size = 32, this.tile = true});
 
-  static const tileAsset = 'assets/brand/submac_mark.svg';
-  static const plainAsset = 'assets/brand/submac_mark_plain.svg';
+  static const tileAsset = 'assets/brand/telesia_mark.svg';
+  static const plainAsset = 'assets/brand/telesia_mark_plain.svg';
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'SubMac',
+      label: 'Telesia',
       image: true,
       child: SvgPicture.asset(
         tile ? tileAsset : plainAsset,
@@ -59,7 +59,7 @@ class RedDot extends StatelessWidget {
 /// What the agent is doing, shown through the brand mark.
 enum MarkMode { idle, thinking, working, roaming }
 
-/// The SubMac mark (the serif "S") as a living indicator. No dots (owner rule): motion is carried by the letter
+/// The Telesia mark (the serif "S") as a living indicator. No dots (owner rule): motion is carried by the letter
 /// and one fine line.
 /// - idle: the S breathes slowly;
 /// - thinking: the S glows softly while a fine ring opens out around it;

@@ -1,15 +1,15 @@
-# Bots working with SubMac closed
+# Bots working with Telesia closed
 
 Owner bug (2026-11-05): a bot asked to "use your research tools and send me local and international news every
 hour in Telegram" did nothing until the app was opened. The notification said a scheduled task was running, but
-the work only started once SubMac was on screen. Fixed in 1.13.125+195 (branch `fix/bots-background`).
+the work only started once Telesia was on screen. Fixed in 1.13.125+195 (branch `fix/bots-background`).
 
 ## Root causes
 
-1. **opencode had no channel without the screen.** The `submac/native` handlers that start and query the engine
+1. **opencode had no channel without the screen.** The `telesia/native` handlers that start and query the engine
    (`ocStart`, `ocToken`, `ocStop`, `ocStatus`) were registered only in `MainActivity.configureFlutterEngine`
-   (MainActivity.kt:130 before the fix). An alarm starts the engine headless through `SubMacApp.engine()`
-   (SubMacApp.kt:27), which attached only `Bridge` and `AppUpdater`. With SubMac closed (a cold process), the first
+   (MainActivity.kt:130 before the fix). An alarm starts the engine headless through `TelesiaApp.engine()`
+   (TelesiaApp.kt:27), which attached only `Bridge` and `AppUpdater`. With Telesia closed (a cold process), the first
    `OpenCodeEngine.ensure()` → `_start()` call `invokeMethod('ocStop')` (lib/services/opencode.dart:113) threw
    `MissingPluginException`, so the bot's turn failed before it started. Once the screen opened, the handler existed
    and the next run worked: hence "only when I open the app".
@@ -19,7 +19,7 @@ the work only started once SubMac was on screen. Fixed in 1.13.125+195 (branch `
    (`SystemBridge.init()`, lib/state/system_phone.dart, before the fix line 155). `Scheduler` and `Bots` were loaded
    *after* that, so `Scheduler.fire()` found no task (uid not loaded yet), dropped it and turned the service off.
 4. **Waiting on cards nobody can see.** opencode asks before `bash`; in a bot's chat that became an in-app card
-   with no timeout. SubMac's own approvals for a bot waited up to 3 hours behind a notification.
+   with no timeout. Telesia's own approvals for a bot waited up to 3 hours behind a notification.
 5. **Held wakes only ran from the home screen.** A wake that came before the account was restored was held and
    replayed only by `onSignedIn()`, which runs from `HomeScreen`'s first frame (never, headless).
 6. **Boot re-arm could freeze.** `BootReceiver` started the engine directly; the receiver's process is frozen
@@ -32,7 +32,7 @@ the work only started once SubMac was on screen. Fixed in 1.13.125+195 (branch `
 AlarmManager.setExactAndAllowWhileIdle (USE_EXACT_ALARM)            Alarms.set(id, at, label)
   └─ AlarmReceiver.onReceive (exact alarm: allowed to start a foreground service)
        ├─ TaskService.start(label)  → foreground (dataSync) + PARTIAL_WAKE_LOCK (30 min, renewed on every update)
-       ├─ SubMacApp.engine()        → headless FlutterEngine, main() runs; Bridge + AppUpdater + OcChannel attached
+       ├─ TelesiaApp.engine()        → headless FlutterEngine, main() runs; Bridge + AppUpdater + OcChannel attached
        └─ Bridge.send("alarm", id)  → queued until Dart says ready
 Dart main() → AppState.initLocal() → _initSystem()
   ├─ SystemBridge.init() → "ready" → onAlarm(id) → AlarmGate (waits for start-up, max 45 s)
@@ -47,12 +47,12 @@ _botWake
   ├─ ready? budget (bot's own daily budget, bots' share) → else hold / note / skip
   ├─ keepAlive(true, "<Bot name> · <task title>")       (BgRun.line)
   └─ startBackgroundTask → _runAgent (opencode)
-        ├─ OpenCodeEngine.ensure() → submac/native → OcChannel (works with no Activity) → OpenCode.kt + LocalProxy
-        ├─ lane: bots' share (submac-bg), OcBgGuard stops it when the share or the bot's budget runs out
-        ├─ tools: opencode's own (webfetch allowed), SubMac MCP (web_search, bot_*, bot_telegram, …)
+        ├─ OpenCodeEngine.ensure() → telesia/native → OcChannel (works with no Activity) → OpenCode.kt + LocalProxy
+        ├─ lane: bots' share (telesia-bg), OcBgGuard stops it when the share or the bot's budget runs out
+        ├─ tools: opencode's own (webfetch allowed), Telesia MCP (web_search, bot_*, bot_telegram, …)
         ├─ permission asks: unattended → BgRun.permission (Full access or "On its own" bot: once; else reject +
         │   one "Needs your OK" notification). Questions are skipped.
-        ├─ SubMac approvals: unattended → notification, wait BgRun.approvalWait (3 min), then refuse + "Needs your OK"
+        ├─ Telesia approvals: unattended → notification, wait BgRun.approvalWait (3 min), then refuse + "Needs your OK"
         └─ end → _ocRunEnded → _botOutcome: result saved in the bot's chat; @message → notification; keepAlive(false)
 ```
 
@@ -65,9 +65,9 @@ bot routines. Every fire arms the next one before the run starts; a restart re-a
 
 ## Kotlin changed
 
-- `OcChannel.kt` (new): the four opencode calls, app context only; attached to every engine `SubMacApp` makes.
+- `OcChannel.kt` (new): the four opencode calls, app context only; attached to every engine `TelesiaApp` makes.
 - `MainActivity.kt`: forwards `ocStart|ocToken|ocStop|ocStatus` to `OcChannel` (was inline).
-- `SubMacApp.kt`: `OcChannel.attach(...)` on engine creation.
+- `TelesiaApp.kt`: `OcChannel.attach(...)` on engine creation.
 - `TaskService.kt`: wake lock; a second start while running only updates the line; alarm `label` extra.
 - `Bridge.kt`: `scheduleAlarm` passes `label`.
 - `BootReceiver.kt`: sets a `rearm` exact alarm 5 s out (also when only scheduled tasks exist) instead of starting
@@ -78,18 +78,18 @@ No kotlinc in the sandbox: the Kotlin was checked by reading only. The APK build
 ## Device checks (after the next APK)
 
 1. Make a bot, ask it: "send me local and international news every hour in Telegram" (Telegram paired). Swipe
-   SubMac away from recents, turn the screen off.
+   Telesia away from recents, turn the screen off.
 2. At the hour: notification "<Bot name> · Send me local and international news…" appears, a Telegram message
    arrives within a few minutes, the notification goes away, the bot's chat has the run.
 3. Doze: `adb shell dumpsys deviceidle force-idle`, then `adb shell cmd alarm` / wait for the alarm (or set the
    task "in 2 minutes"). The run must still finish with the screen off.
-4. Restart the phone, do not open SubMac: within ~10 s a short "Getting your bots ready" notification, then the
-   next hour still fires (`adb shell dumpsys alarm | grep com.submac.agent` lists the alarms).
+4. Restart the phone, do not open Telesia: within ~10 s a short "Getting your bots ready" notification, then the
+   next hour still fires (`adb shell dumpsys alarm | grep com.telesia.app` lists the alarms).
 5. A "New" (Asks first) bot whose task needs a shell command: the run ends and a "Needs your OK: Run this command?"
    notification appears; nothing hangs, no stuck "running" notification.
-6. Battery: Settings > Apps > SubMac > Battery "Unrestricted" helps on Xiaomi/Samsung/Huawei, whose own killers
+6. Battery: Settings > Apps > Telesia > Battery "Unrestricted" helps on Xiaomi/Samsung/Huawei, whose own killers
    ignore exact alarms for "restricted" apps.
-7. `adb logcat | grep -i -E "submac|opencode|flutter"` during a run: no `MissingPluginException`.
+7. `adb logcat | grep -i -E "telesia|opencode|flutter"` during a run: no `MissingPluginException`.
 
 ## Tests
 

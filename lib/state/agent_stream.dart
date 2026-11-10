@@ -38,7 +38,7 @@ extension AppStateAgentStream on AppState {
       ];
 
 
-  /// CB-45: the `x-submac-source` of a run's model call. A bot's own wake (or an office job) is bot work; what the
+  /// CB-45: the `x-telesia-source` of a run's model call. A bot's own wake (or an office job) is bot work; what the
   /// owner types to a bot is `bot-chat`, billed to the owner's chat bucket, never the bots' share.
   String _usageSource(String convId, {bool side = false}) => UsageSource.pick(
       officeJob: _officeCtx.containsKey(convId),
@@ -54,7 +54,7 @@ extension AppStateAgentStream on AppState {
   Map<String, String> get botWakeConvsForTest => _botWakeConvs;
 
   /// One model call with the app's time limits (PLAN 1.3): 10 s for headers and 30 s of silence (in [LlmClient]),
-  /// one quiet retry before any output, and at 45 s with no word a clear "SubMac is busy. Tap to try again." (the
+  /// one quiet retry before any output, and at 45 s with no word a clear "Telesia is busy. Tap to try again." (the
   /// user's message stays). The server already moves to another model or key when one fails, so the phone never
   /// sends a second copy to anything else.
   Future<LlmResult> _streamResilient({
@@ -70,7 +70,7 @@ extension AppStateAgentStream on AppState {
     bool Function()? cancelled,
     /// A caller's own lane (a team turn always bills as office work), else this chat's.
     bool? backgroundOverride,
-    /// The `x-submac-source` to send instead of this chat's (team work is `office`).
+    /// The `x-telesia-source` to send instead of this chat's (team work is `office`).
     String? sourceOverride,
   }) async {
     // R2 item 1: the request is going out now; the line says what it is for (a plain step, a new message to read, a

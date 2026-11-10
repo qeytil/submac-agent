@@ -90,7 +90,7 @@ class OpenCodeReply {
 }
 
 class _OpenCodeLabScreenState extends State<OpenCodeLabScreen> {
-  static const _ch = MethodChannel('submac/native');
+  static const _ch = MethodChannel('telesia/native');
   final _prompt = TextEditingController(text: 'In two sentences: who are you, and what tools do you have?');
   final _client = http.Client();
   String _status = 'Not started';

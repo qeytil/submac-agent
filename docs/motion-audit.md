@@ -17,7 +17,7 @@ also reached through `LuxMotion` in lib/ui/tokens.dart). `test/motion_guard_test
 | 6 | Turn head switcher, choice tick, composer send/mic, avatar previews | Mixed curves, no out curve, tick scaled from 0 (popped from a dot), ignored Remove animations | Shared curves, small 0.85→1 settle, `SubMotion.of` |
 | 7 | Jump-to-newest button | Fade 180 ms linear vs slide 220 ms eased | One duration and curve |
 | 8 | Answered cards sliding away (`Leaving`) | Fold, slide and fade on three different curves (faded before it moved) | One `leave` curve, shared `leaveCard` duration |
-| 9 | Bottom sheets (45 of 50) | Default sheet motion; only 5 used SubMac's | All non-billing sheets use `SubMotion.sheet` |
+| 9 | Bottom sheets (45 of 50) | Default sheet motion; only 5 used Telesia's | All non-billing sheets use `SubMotion.sheet` |
 | 10 | List reveals: rich cards (up to 26 rows × 70 ms), quick replies, choices, projects, files, sidebar projects | Uncapped staggers (the last row arrived ~1.8 s late) | `SubMotion.staggerFor` (capped at 360 ms) |
 | 11 | Two entrance animations | `FadeSlideIn` was a second copy of `Entrance` with its own scale and an uncancelled delay timer | `FadeSlideIn` now uses `Entrance` (timer cancelled on dispose, RepaintBoundary) |
 | 12 | Diagrams | Draw time grew with item count (a long timeline took ~2.8 s) | `SubMotion.drawIn` keeps it between 480 ms and 1.1 s |

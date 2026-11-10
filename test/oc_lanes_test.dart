@@ -12,42 +12,42 @@ Map<String, dynamic> ev(String type, Map<String, dynamic> props) => {'type': typ
 void main() {
   group('lanes', () {
     test('the owner\'s chat is foreground; a bot\'s wake and team work are background, each with its own source', () {
-      expect(OcLane.pick(background: false), {'providerID': 'submac', 'modelID': 'submac'});
-      expect(OcLane.pick(background: true, botModel: 'auto'), {'providerID': 'submac-bg', 'modelID': 'submac'});
-      expect(OcLane.pick(background: true, officeWork: true, botModel: 'auto'), {'providerID': 'submac-office', 'modelID': 'submac'});
-      expect(OcLane.pick(background: false, officeWork: true, botModel: 'auto')['providerID'], 'submac');
+      expect(OcLane.pick(background: false), {'providerID': 'telesia', 'modelID': 'telesia'});
+      expect(OcLane.pick(background: true, botModel: 'auto'), {'providerID': 'telesia-bg', 'modelID': 'telesia'});
+      expect(OcLane.pick(background: true, officeWork: true, botModel: 'auto'), {'providerID': 'telesia-office', 'modelID': 'telesia'});
+      expect(OcLane.pick(background: false, officeWork: true, botModel: 'auto')['providerID'], 'telesia');
       expect(OcLane.isBackground(OcLane.pick(background: true)), isTrue);
       expect(OcLane.isBackground(OcLane.pick(background: true, officeWork: true)), isTrue);
       expect(OcLane.isBackground(OcLane.pick(background: false)), isFalse);
       expect(OcLane.bgSources.values.toSet(), {'bot', 'office'}, reason: 'both bill to the bots\' share');
     });
 
-    test('BYOK only: opencode is given the owner\'s providers, never SubMac', () {
-      expect(OcLane.providers(), isEmpty, reason: 'SubMac Cloud is removed');
-      expect(OcLane.models, isEmpty, reason: 'no SubMac chat-model aliases');
+    test('BYOK only: opencode is given the owner\'s providers, never Telesia', () {
+      expect(OcLane.providers(), isEmpty, reason: 'Telesia Cloud is removed');
+      expect(OcLane.models, isEmpty, reason: 'no Telesia chat-model aliases');
     });
 
-    test('a bot runs on its own model setting; unset, unknown or another provider falls back to submac', () {
-      expect(OcLane.modelFor(null), 'submac');
-      expect(OcLane.modelFor('auto'), 'submac');
-      expect(OcLane.modelFor(''), 'submac');
-      expect(OcLane.modelFor('submac|submac-think'), 'submac');
-      expect(OcLane.modelFor('submac-fast'), 'submac');
-      expect(OcLane.modelFor('submac|submac-image'), 'submac');
-      expect(OcLane.modelFor('openai|gpt-4o'), 'submac');
-      expect(OcLane.modelFor('submac|nonsense'), 'submac');
-      expect(OcLane.pick(background: true, botModel: 'submac|submac-smart')['modelID'], 'submac');
-      expect(OcLane.pick(background: false, botModel: 'submac|submac-smart'),
-          {'providerID': 'submac', 'modelID': 'submac'});
+    test('a bot runs on its own model setting; unset, unknown or another provider falls back to telesia', () {
+      expect(OcLane.modelFor(null), 'telesia');
+      expect(OcLane.modelFor('auto'), 'telesia');
+      expect(OcLane.modelFor(''), 'telesia');
+      expect(OcLane.modelFor('telesia|telesia-think'), 'telesia');
+      expect(OcLane.modelFor('telesia-fast'), 'telesia');
+      expect(OcLane.modelFor('telesia|telesia-image'), 'telesia');
+      expect(OcLane.modelFor('openai|gpt-4o'), 'telesia');
+      expect(OcLane.modelFor('telesia|nonsense'), 'telesia');
+      expect(OcLane.pick(background: true, botModel: 'telesia|telesia-smart')['modelID'], 'telesia');
+      expect(OcLane.pick(background: false, botModel: 'telesia|telesia-smart'),
+          {'providerID': 'telesia', 'modelID': 'telesia'});
     });
 
     test('every prompt names its model, so a bot\'s chat never stays on the lane of an earlier wake', () {
       final parts = [
         {'type': 'text', 'text': 'hi'}
       ];
-      expect(OpenCodeEngine.promptBody(parts)['model'], {'providerID': 'submac', 'modelID': 'submac'});
+      expect(OpenCodeEngine.promptBody(parts)['model'], {'providerID': 'telesia', 'modelID': 'telesia'});
       final bg = OpenCodeEngine.promptBody(parts, system: 'You are Hodan', model: OcLane.pick(background: true));
-      expect(bg['model'], {'providerID': 'submac-bg', 'modelID': 'submac'});
+      expect(bg['model'], {'providerID': 'telesia-bg', 'modelID': 'telesia'});
       expect(bg['system'], 'You are Hodan');
       expect(OpenCodeEngine.promptBody(parts, system: '').containsKey('system'), isFalse);
     });

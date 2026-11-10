@@ -1,6 +1,6 @@
-// SubMac chat router (PLAN.md 1.1 + 1.3, rebuild 2026-10-23).
+// Telesia chat router (PLAN.md 1.1 + 1.3, rebuild 2026-10-23).
 //
-// One public model ("submac"), one route list, one shared "current route" pointer in the database
+// One public model ("telesia"), one route list, one shared "current route" pointer in the database
 // (ai_router_state, returned inside ai_gate). Every request tries the current route first with its per-chat sticky
 // key; when that fails the same request moves on to the next healthy route. The shared pointer only moves on clear
 // evidence (3 hard failures or 2 first-byte timeouts within 60 s, counted and swapped by ai_router_report with a
@@ -41,7 +41,7 @@ export function snapFrom(v: any): RouterSnap {
 // ---------------------------------------------------------------- error codes (Contract A)
 export type ErrCode = "busy" | "too_long" | "limit_daily" | "limit_total" | "no_plan" | "blocked" | "server";
 export const FRIENDLY: Record<ErrCode, string> = {
-  busy: "SubMac is busy right now. Please try again in a moment.",
+  busy: "Telesia is busy right now. Please try again in a moment.",
   too_long: "This is too long to send in one go. Start a new chat or send less at once.",
   limit_daily: "You've used today's replies. They reset at midnight.",
   limit_total: "You've used all the replies in your plan.",
@@ -214,7 +214,7 @@ export function clampOut(room: number, provCap: number, learned?: number): numbe
 export function effortBody(r: Route, e: Effort | null): Record<string, unknown> {
   if (!e || !takesEffort(r)) return {};
   // Core loop v3 (2026-11-01): "normal" is an explicit medium. It used to send nothing, so the route's own
-  // extra_body (reasoning_effort: low on every submac route) made every agent step think at low.
+  // extra_body (reasoning_effort: low on every telesia route) made every agent step think at low.
   return { reasoning_effort: e === "normal" ? "medium" : e };
 }
 
@@ -353,7 +353,7 @@ export async function runChat(o: ChatRun): Promise<Response> {
     try {
       res = await raceSignal(deps.fetch(r.base_url.replace(/\/$/, "") + "/chat/completions", {
         method: "POST", signal: ctl.signal,
-        headers: { "content-type": "application/json", authorization: `Bearer ${k.key}`, "user-agent": "submac-proxy/1" },
+        headers: { "content-type": "application/json", authorization: `Bearer ${k.key}`, "user-agent": "telesia-proxy/1" },
         body: JSON.stringify(o.payloadFor(r)),
       }), ctl.signal);
     } catch (e) { clearTimeout(tHdr); return failOf(e); }

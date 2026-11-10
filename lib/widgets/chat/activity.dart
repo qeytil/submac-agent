@@ -4,7 +4,7 @@ import '../../theme.dart';
 import '../../ui/i18n.dart';
 import '../../ui/tokens.dart';
 
-/// What SubMac is doing. The words say it; the kind only sets how calmly the word breathes.
+/// What Telesia is doing. The words say it; the kind only sets how calmly the word breathes.
 enum ActivityKind { thinking, working, roaming }
 
 /// The agent's activity indicator (owner rule, 2026-10-31): one honest word for what the agent is

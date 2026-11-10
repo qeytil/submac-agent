@@ -7,7 +7,7 @@ import 'dart:async';
 ///  silence         30 s  with no byte at all (the server pings every 10 s, so this is a dropped line)
 ///  auto-retry       1    one quiet retry, only before any output was shown
 ///  continue         2    "continue" after a drop, at most twice per step
-///  first word      45 s  with no word: stop and show "SubMac is busy. Tap to try again." (the message is kept)
+///  first word      45 s  with no word: stop and show "Telesia is busy. Tap to try again." (the message is kept)
 class StreamPolicy {
   static Duration headers = const Duration(seconds: 10);
   static Duration silence = const Duration(seconds: 30);
@@ -16,7 +16,7 @@ class StreamPolicy {
   static const dropContinues = 2;
 
   /// Shown on the reply when nothing came back in time. The user's message stays; tapping retries.
-  static const busyText = 'SubMac is busy. Tap to try again.';
+  static const busyText = 'Telesia is busy. Tap to try again.';
 
   /// The longest the app waits before its one retry (the server's Retry-After is 15–30 s, but the 45 s first-word
   /// limit is the real bound: a retry that cannot start in time is pointless).
@@ -55,7 +55,7 @@ class StreamPolicy {
 
   /// Fixed, friendly words per code, used when the server sends none (never raw provider text).
   static String textFor(String code) => switch (code) {
-        'busy' => 'SubMac is busy right now. Please try again in a moment.',
+        'busy' => 'Telesia is busy right now. Please try again in a moment.',
         'too_long' => 'This is too long to send in one go. Start a new chat or send less at once.',
         'limit_daily' => 'You\'ve used today\'s replies. They reset at midnight.',
         'limit_total' => 'You\'ve used all the replies in your plan.',

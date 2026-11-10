@@ -5,7 +5,7 @@ Only permissive licenses (MIT, BSD, Apache-2.0, ISC, CC0). Each entry: name, ver
 ## Agent loop (branch feature/agent-loop, 2026-10-20)
 No code was copied; `lib/services/agent_loop.dart` is our own Dart. These projects and write-ups shaped the design:
 
-| Idea | From | License | Source | Where in SubMac |
+| Idea | From | License | Source | Where in Telesia |
 |---|---|---|---|---|
 | Stuck patterns (same action+observation, same action+error 3x, alternating A-B 6 steps) and their thresholds | OpenHands Software Agent SDK `StuckDetector` (2025-2026) | MIT | https://github.com/OpenHands/software-agent-sdk/blob/main/openhands-sdk/openhands/sdk/conversation/stuck_detector.py , https://docs.openhands.dev/sdk/guides/agent-stuck-detector | `LoopGuard` |
 | Canonical (key-sorted) serialization to compare tool calls; identical-call limit 3 | Roo Code `ToolRepetitionDetector` | Apache-2.0 | https://github.com/RooCodeInc/Roo-Code/blob/main/src/core/tools/ToolRepetitionDetector.ts | `LoopGuard.canonicalArgs` |
@@ -18,7 +18,7 @@ No code was copied; `lib/services/agent_loop.dart` is our own Dart. These projec
 ## Chat feel (branch feature/agent-loop, UX, 2026-10-20)
 No new packages and no copied code. Ideas only:
 
-| Idea | From | License | Source | Where in SubMac |
+| Idea | From | License | Source | Where in Telesia |
 |---|---|---|---|---|
 | Render a streaming markdown reply as memoized blocks so only the last block re-renders | Vercel AI SDK cookbook "Memoize markdown blocks" | Apache-2.0 (repo) | https://github.com/vercel/ai | `StreamingMarkdown`, `splitMarkdownChunks` |
 
@@ -35,10 +35,10 @@ No new packages and no copied code. Ideas only:
 
 Pure Dart, no native code, no network calls of their own. Resolves with Flutter 3.24.5 (Dart 3.5).
 
-Considered and not added: `google_mlkit_barcode_scanning` 0.12.1 (reading QR codes from photos; MIT, matches our ML Kit commons 0.8.1) because it adds a native model to the APK and the release check enforces 16 KB page alignment, which we could not verify without a device build; `math_expressions`, `excel`, `csv`, `intl` date parsing: SubMac's own `math_expr.dart`, `doc_maker.dart` and the new `calc.dart` already cover these without another package.
+Considered and not added: `google_mlkit_barcode_scanning` 0.12.1 (reading QR codes from photos; MIT, matches our ML Kit commons 0.8.1) because it adds a native model to the APK and the release check enforces 16 KB page alignment, which we could not verify without a device build; `math_expressions`, `excel`, `csv`, `intl` date parsing: Telesia's own `math_expr.dart`, `doc_maker.dart` and the new `calc.dart` already cover these without another package.
 
 ### Skills in the public library (index v3, 433 skills; sources in `tools/skills/thirdparty/build.py`)
-Each skill was rewritten for SubMac's tools and everyday users and keeps a credit line in its body plus `source`, `license`, `author` fields in its file.
+Each skill was rewritten for Telesia's tools and everyday users and keeps a credit line in its body plus `source`, `license`, `author` fields in its file.
 
 | Library id | Adapted from | License | Source (commit) |
 |---|---|---|---|

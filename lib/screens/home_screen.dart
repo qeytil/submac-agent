@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   AppState? _state;
 
-  /// A "Hire in SubMac" link (submac.site/b/<code>) opened the app.
+  /// A "Hire in Telesia" link (telesia.site/b/<code>) opened the app.
   Future<void> _openHireLink() async {
     if (!mounted || HireLinks.I.pending.value == null) return;
     final l = HireLinks.I.take();
@@ -113,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Something was shared into SubMac from another app ("Share to SubMac").
+  /// Something was shared into Telesia from another app ("Share to Telesia").
   Future<void> _pullShare() async {
     final m = await NativeBridge.takeShared();
     if (m == null || !mounted) return;
@@ -255,7 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
             menuLabel: bot != null ? '${bot.name}. Menu. Hold for the profile' : 'Menu. Hold for this chat',
-            callLabel: bot != null ? 'Call ${bot.name}' : 'Call SubMac',
+            callLabel: bot != null ? 'Call ${bot.name}' : 'Call Telesia',
             onCall: () => bot != null ? state.callBot(bot) : openLive(context),
             onNew: state.newChat,
             middle: const SizedBox.shrink(),
@@ -284,7 +284,7 @@ class ChatFloatBar extends StatelessWidget {
     this.onMenuHold,
     this.menuLabel = 'Menu',
     required this.onCall,
-    this.callLabel = 'Call SubMac',
+    this.callLabel = 'Call Telesia',
     required this.onNew,
     this.middle,
   });
@@ -366,8 +366,8 @@ class FloatIcon extends StatelessWidget {
       on ? BackdropFilter.grouped(filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: child) : child;
 }
 
-/// The "SubMac" wordmark, free on the paper. A gentle note follows it only when today's allowance needs a
-/// word, and a small dot when something from SubMac is unread. Tap: the menu. Hold: this chat's options
+/// The "Telesia" wordmark, free on the paper. A gentle note follows it only when today's allowance needs a
+/// word, and a small dot when something from Telesia is unread. Tap: the menu. Hold: this chat's options
 /// (rename, pin, archive, delete) and today's allowance.
 class ChatWordmark extends StatelessWidget {
   const ChatWordmark({super.key, required this.onTap});
@@ -747,7 +747,7 @@ class _ChatListState extends State<ChatList> {
       for (final m in all)
         if (m.role == 'tool' && m.toolCallId != null) m.toolCallId!: m,
     };
-    // Messages SubMac wrote to wake a bot never show.
+    // Messages Telesia wrote to wake a bot never show.
     final visible = all
         .where((m) => (m.role == 'user' && !m.content.startsWith(botWakeMark)) || m.role == 'assistant')
         .toList();
@@ -759,8 +759,8 @@ class _ChatListState extends State<ChatList> {
       return null;
     }
     final lastIndex = visible.length - 1;
-    // The current turn: your newest message and everything SubMac has said since. It is one block at the
-    // bottom of the chat, with the task line at the top of SubMac's reply (right under your message), so the
+    // The current turn: your newest message and everything Telesia has said since. It is one block at the
+    // bottom of the chat, with the task line at the top of Telesia's reply (right under your message), so the
     // line scrolls with the chat and turns into the reply in place, like ChatGPT, Kimi and Hark.
     // A wake (a hidden message that starts a bot's work) also starts a turn, so a bot's new work never puts
     // the line above what it said before.
@@ -898,7 +898,7 @@ class _ChatListState extends State<ChatList> {
 
     Widget assistant(int idx, {bool inTurn = false}) {
       final m = visible[idx];
-      if (m.name == 'submac_team') return TeamMessageCard(key: ValueKey(m.id), message: m);
+      if (m.name == 'telesia_team') return TeamMessageCard(key: ValueKey(m.id), message: m);
       final quiet = !state.showSteps && !stepsAsked.contains(m.id);
       // The finished turn's work, as one line where it began (the live turn has the working line instead).
       final fold = quiet && !(inTurn && live) ? foldAt[m.id] : null;

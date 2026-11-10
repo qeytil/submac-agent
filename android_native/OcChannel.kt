@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.content.Context
 import android.os.Handler
@@ -8,16 +8,16 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * The opencode calls of "submac/native" (ocStart, ocToken, ocStop, ocStatus). They need only the app context, so they
- * work with no screen: a bot's scheduled task starts the engine from an alarm while SubMac is closed (2026-11-05).
+ * The opencode calls of "telesia/native" (ocStart, ocToken, ocStop, ocStatus). They need only the app context, so they
+ * work with no screen: a bot's scheduled task starts the engine from an alarm while Telesia is closed (2026-11-05).
  * They used to live only in MainActivity.configureFlutterEngine, so an engine started headless by an alarm had no
  * handler: the first opencode call failed and the bot's task never ran until the app was opened.
  *
- * SubMacApp.engine() attaches this handler to every engine it creates. MainActivity replaces it with its own handler
+ * TelesiaApp.engine() attaches this handler to every engine it creates. MainActivity replaces it with its own handler
  * (for screen actions) and sends these four calls here.
  */
 object OcChannel {
-    private const val NAME = "submac/native"
+    private const val NAME = "telesia/native"
 
     fun attach(ctx: Context, engine: FlutterEngine) {
         val app = ctx.applicationContext
@@ -51,7 +51,7 @@ object OcChannel {
                 val byok = call.argument<String>("byokProviders") ?: ""
                 val byokEnv = (call.argument<Map<String, Any?>>("byokEnv") ?: emptyMap())
                     .mapNotNull { (k, v) -> (v as? String)?.let { k to it } }.toMap()
-                // How long a reply may be (owner 2026-11-06, OutputLimits in the app): SubMac's models' output limit and
+                // How long a reply may be (owner 2026-11-06, OutputLimits in the app): Telesia's models' output limit and
                 // opencode's own ceiling (OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX). 0 = not given (older app code).
                 val modelOutput = num(call.argument<Any>("modelOutput"), 0).toInt()
                 val outputTokenMax = num(call.argument<Any>("outputTokenMax"), 0).toInt()

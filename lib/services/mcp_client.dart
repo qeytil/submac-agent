@@ -16,7 +16,7 @@ class McpServerConfig {
   bool enabled;
   /// Sign-in tokens for apps connected by signing in (refresh token, token endpoint, client id).
   Map<String, String> oauth;
-  /// Access level (plan 4): true = SubMac may only look things up in this app, never change anything.
+  /// Access level (plan 4): true = Telesia may only look things up in this app, never change anything.
   bool readOnly;
 
   McpServerConfig({required this.id, required this.name, required this.url, Map<String, String>? headers, this.enabled = true, Map<String, String>? oauth, this.readOnly = false})
@@ -186,7 +186,7 @@ class McpClient {
     await _rpc('initialize', {
       'protocolVersion': '2025-03-26',
       'capabilities': {},
-      'clientInfo': {'name': 'SubMac Agent', 'version': '1.4.0'},
+      'clientInfo': {'name': 'Telesia', 'version': '1.4.0'},
     });
     try {
       await _rpc('notifications/initialized', null, true);

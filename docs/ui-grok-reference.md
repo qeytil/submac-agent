@@ -1,7 +1,7 @@
-# Grok UI reference (for the SubMac bots area)
+# Grok UI reference (for the Telesia bots area)
 
 Written 2026-10-23 for branch `feature/luxury-ui`. Purpose: borrow Grok's *structure and calm*, not its marks.
-Nothing from Grok/xAI (logo, icons, wordmark, colours, fonts, images) is copied into SubMac. SubMac keeps its own
+Nothing from Grok/xAI (logo, icons, wordmark, colours, fonts, images) is copied into Telesia. Telesia keeps its own
 name, logo (the red dot / AgentMark), Paper and Ink palettes, Instrument Serif + Geist type.
 
 ## Sources (opened 2026-10-23)
@@ -46,17 +46,17 @@ name, logo (the red dot / AgentMark), Paper and Ink palettes, Instrument Serif +
 - Reading column, answer text without bubbles, a light action row and follow-ups kept visually subordinate.
 - "Thinking" streams in a semi-collapsed box.
 
-## What SubMac takes (and how it is SubMac, not Grok)
-| Grok idea | SubMac version |
+## What Telesia takes (and how it is Telesia, not Grok)
+| Grok idea | Telesia version |
 |---|---|
-| Quiet drawer, search on top | `BotsDrawer`: search field, then sections, Paper/Ink surfaces, Geist rows, serif "SubMac" mark at the top. |
+| Quiet drawer, search on top | `BotsDrawer`: search field, then sections, Paper/Ink surfaces, Geist rows, serif "Telesia" mark at the top. |
 | Bots as a sidebar section, collapsible | Sections **Bots** (every bot profile with its presence dot), **Teams** (each team with "Led by <lead>", the Chief), each collapsible with a soft size animation. |
 | Row menus behind long-press | Long-press a bot row: Message, Call, Profile. Long-press a team: Open, Tasks. |
 | Account at the bottom | "New bot" + Settings row at the bottom. |
 | Calm `+` composer, send appears only with text | The same Phase-1 composer in every bot chat. |
-| Model tier on the bar | Not copied: SubMac has one model for every job (server picks), so no picker is shown. |
-| Orange accent | SubMac's own brand red, used only for the activity dot and destructive actions. |
-| Hairlines, no shadows | Already SubMac's rule (no dividers, spacing separates). |
+| Model tier on the bar | Not copied: Telesia has one model for every job (server picks), so no picker is shown. |
+| Orange accent | Telesia's own brand red, used only for the activity dot and destructive actions. |
+| Hairlines, no shadows | Already Telesia's rule (no dividers, spacing separates). |
 
 ## Not taken
 - Grok's logo, black-hole mark, icon set, orange, promo/upgrade pills, Imagine/Private toggles, persona picker.
@@ -70,6 +70,6 @@ sections), docs.x.ai/grok-bot/bots. What the screenshots show:
   last result. An unread dot sits on the end. No cards, no borders.
 - The foot of the sidebar holds Marketplace and the account row. iOS: profile at top left, search and + at top right.
 - One **Primary Bot** has a small badge and can be replaced ("Replace with different Bot"); it does everyday work and routes.
-SubMac version: Bots screen = this roster. Sections Chief (SubMac's crown icon, `assets/icons/crown.svg`, "Change"),
+Telesia version: Bots screen = this roster. Sections Chief (Telesia's crown icon, `assets/icons/crown.svg`, "Change"),
 Bots (working first, then latest activity) and Teams (lead's face, last post, "New"). Foot: New bot, Bot Store. Wide
 screens keep the roster at 340 px with the bot or team beside it. Teams are on (`LaunchFlags.teams = true`).

@@ -1,8 +1,8 @@
-// SubMac's agent core on Genkit Dart (stable API only: generate, tools, interrupts, middleware, cancellation).
+// Telesia's agent core on Genkit Dart (stable API only: generate, tools, interrupts, middleware, cancellation).
 //
 // One loop for every agent in the app (main chat, bots, team members, the browser sub-agent). Genkit runs the turns:
 // model call → tool calls → model call … until the model answers without tools, an interrupt (an approval) stops it, or
-// it is cancelled. SubMac's product rules ride on top as Genkit middleware:
+// it is cancelled. Telesia's product rules ride on top as Genkit middleware:
 //   * the request of every turn is rebuilt from the chat by the app ([CoreHooks.buildTurn]) so prompt caching, compaction,
 //     screenshots and one-time images work exactly as the app designs them;
 //   * guards (step caps, token budgets, loop/stuck detection, checklist nudges, the proof check, the page check, the
@@ -144,7 +144,7 @@ class CheckpointClock {
 
 /// Carries the app's turn and transport into the Genkit model for one call.
 class TurnBox {
-  static const key = 'submac.turn';
+  static const key = 'telesia.turn';
   TurnBox(this.transport);
   final Transport transport;
   Turn? next;
@@ -233,19 +233,19 @@ class ToolNames {
       'Error: there is no tool named "${'$name'.trim().isEmpty ? '?' : name}". Use one of the tools you were given.';
 
   /// Why a run that kept calling tools that do not exist was stopped (shown to the user).
-  static const stopText = 'Stopped: the AI kept asking for a tool SubMac doesn\'t have. Send your message again or put it another way.';
+  static const stopText = 'Stopped: the AI kept asking for a tool Telesia doesn\'t have. Send your message again or put it another way.';
 
   /// The short reply the chat keeps when that stop ended a run that wrote nothing (CB-42): never an empty answer.
-  static const stopReply = 'I couldn\'t finish this: I kept reaching for a tool SubMac doesn\'t have. Please send it again or put it '
+  static const stopReply = 'I couldn\'t finish this: I kept reaching for a tool Telesia doesn\'t have. Please send it again or put it '
       'another way.';
 
   /// Genkit's own "Tool … not found": a backstop in case a name ever slips past [resolve]. Never a dropped line.
   static bool isMissingTool(Object? e) => e is GenkitException && e.status == StatusCode.notFound;
 }
 
-/// The model every SubMac agent uses: a Genkit model whose wire is the app's own transport (ai-chat, or a test fake).
+/// The model every Telesia agent uses: a Genkit model whose wire is the app's own transport (ai-chat, or a test fake).
 /// Gemini thought signatures arrive on [ToolCall.extra] and go out on the tool request part's metadata, and back.
-Model<Map<String, dynamic>> submacModel({String name = 'submac', Transport? transport}) {
+Model<Map<String, dynamic>> telesiaModel({String name = 'telesia', Transport? transport}) {
   return Model<Map<String, dynamic>>(
     name: name,
     fn: (req, ctx) async {
@@ -253,7 +253,7 @@ Model<Map<String, dynamic>> submacModel({String name = 'submac', Transport? tran
       final t = box is TurnBox ? box.next : null;
       if (box is TurnBox) box.next = null;
       final send = box is TurnBox ? box.transport : transport;
-      if (send == null) throw StateError('submacModel: no transport');
+      if (send == null) throw StateError('telesiaModel: no transport');
       final turn = t ??
           Turn(
             step: -1,
@@ -744,7 +744,7 @@ class AgentCore {
     this.log = const RunLog(),
     this.maxSteps = 50,
     RunState? state,
-    this.modelName = 'submac',
+    this.modelName = 'telesia',
   }) : state = state ?? RunState();
 
   final CoreHooks hooks;
@@ -785,7 +785,7 @@ class AgentCore {
 
   Future<RunResult> run() async {
     final box = TurnBox(_send);
-    final model = submacModel(name: modelName);
+    final model = telesiaModel(name: modelName);
     final gTools = genkitTools(tools, (c, a, p) => hooks.runTool(c, a));
     final known = {for (final t in gTools) t.name};
     final mw = <GenerateMiddleware>[

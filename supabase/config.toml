@@ -1,6 +1,6 @@
-# Supabase CLI config for project "submac-agent" (ref moeemacbvsueekuvfjbo). PLAN.md 1.8: verify_jwt pinned per function
+# Supabase CLI config for project "telesia-agent" (ref moeemacbvsueekuvfjbo). PLAN.md 1.8: verify_jwt pinned per function
 # so a deploy never flips it. Matches the live settings on 2026-10-23.
-project_id = "submac-agent"
+project_id = "telesia-agent"
 
 [functions.ai-chat]
 verify_jwt = true # the gateway checks the token, and ai-chat checks it again itself (ai-chat/jwt_verify.ts)

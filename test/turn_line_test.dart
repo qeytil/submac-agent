@@ -6,7 +6,7 @@ import 'package:agent/widgets/chat/activity.dart';
 import 'package:agent/widgets/composer.dart';
 import 'package:agent/widgets/message_view.dart';
 
-/// The task line lives in the chat at the top of SubMac's reply and settles into "Worked for ..." in place.
+/// The task line lives in the chat at the top of Telesia's reply and settles into "Worked for ..." in place.
 void main() {
   test('a plain reply takes over from the line only after it has streamed a moment with no step', () {
     final t0 = DateTime(2026, 10, 21, 12);

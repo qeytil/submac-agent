@@ -65,18 +65,18 @@ void main() {
       expect(ByokOpencode.defaultOutput, OutputLimits.fallback);
     });
 
-    test('opencode\'s ceiling covers every configured model and SubMac\'s own', () {
-      expect(OutputLimits.engineMax([]), OutputLimits.submac);
-      expect(OutputLimits.engineMax([8192]), OutputLimits.submac);
+    test('opencode\'s ceiling covers every configured model and Telesia\'s own', () {
+      expect(OutputLimits.engineMax([]), OutputLimits.telesia);
+      expect(OutputLimits.engineMax([8192]), OutputLimits.telesia);
       expect(OutputLimits.engineMax([128000]), 128000);
       expect(OutputLimits.engineMax([999999]), OutputLimits.ceiling);
-      expect(OutputLimits.submac, greaterThan(32000), reason: 'opencode\'s default ceiling was the cap');
+      expect(OutputLimits.telesia, greaterThan(32000), reason: 'opencode\'s default ceiling was the cap');
     });
 
-    test('ocStart carries SubMac\'s model limit and opencode\'s ceiling', () {
+    test('ocStart carries Telesia\'s model limit and opencode\'s ceiling', () {
       final a = OpenCodeEngine.startLimits(0);
-      expect(a['modelOutput'], OutputLimits.submac);
-      expect(a['outputTokenMax'], OutputLimits.submac);
+      expect(a['modelOutput'], OutputLimits.telesia);
+      expect(a['outputTokenMax'], OutputLimits.telesia);
       expect(OpenCodeEngine.startLimits(128000)['outputTokenMax'], 128000);
     });
   });
@@ -288,7 +288,7 @@ void main() {
   });
 
   group('wiring', () {
-    test('the engine config gives SubMac\'s models a limit and raises opencode\'s ceiling', () {
+    test('the engine config gives Telesia\'s models a limit and raises opencode\'s ceiling', () {
       final kt = File('android_native/OpenCode.kt').readAsStringSync();
       expect(kt, contains('env["OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX"] = "\$outputTokenMax"'));
       expect(kt, contains('model.put("limit", org.json.JSONObject().put("context", 0).put("output", modelOutput))'));

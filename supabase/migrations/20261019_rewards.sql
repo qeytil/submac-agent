@@ -1,4 +1,4 @@
--- Plan 2.4: referral and creator rewards (+ the "From SubMac" inbox the rewards write into).
+-- Plan 2.4: referral and creator rewards (+ the "From Telesia" inbox the rewards write into).
 -- Agent project moeemacbvsueekuvfjbo. Recorded in schema_migrations as 20261019220000.
 --
 -- Plain words: every user has a daily AI allowance (ai_settings.daily_cap_tokens). Rewards add a temporary bonus:
@@ -113,7 +113,7 @@ create index if not exists reward_ledger_created_idx on public.reward_ledger (cr
 alter table public.reward_ledger enable row level security;
 revoke all on public.reward_ledger from anon, authenticated;
 
--- ---------- "From SubMac" inbox ----------
+-- ---------- "From Telesia" inbox ----------
 -- Everything the owner sends a user (admin messages, reward grants) and earned-reward notices. Users read their own rows
 -- and mark them read through inbox_mark(); nothing else.
 create table if not exists public.user_inbox (
@@ -261,7 +261,7 @@ begin
       select rc.code into c from referral_codes rc where rc.user_id = auth.uid();   -- a race on our own row, or a code clash (retry)
     end;
   end loop;
-  return jsonb_build_object('code', c, 'link', 'https://submac.site/download?ref=' || c,
+  return jsonb_build_object('code', c, 'link', 'https://telesia.site/download?ref=' || c,
     'tokens', reward_num('reward_referral_tokens', 30000), 'days', reward_num('reward_referral_days', 7));
 end $$;
 revoke all on function public.my_invite() from public, anon;
@@ -302,7 +302,7 @@ begin
   if why is not null then return jsonb_build_object('ok', false, 'reason', why); end if;
   amt := reward_num('reward_referral_tokens', 30000)::int; d := reward_num('reward_referral_days', 7)::int;
   lid := reward_grant(inviter, 'referral', amt, d, rid, null, 'system', 'Someone joined with your invite',
-           '+' || reward_fmt(amt) || ' extra a day for ' || d || ' days, on top of your daily allowance. Thanks for sharing SubMac!');
+           '+' || reward_fmt(amt) || ' extra a day for ' || d || ' days, on top of your daily allowance. Thanks for sharing Telesia!');
   if lid is null then
     update referrals set status = 'refused', reason = 'cap' where id = rid;
     return jsonb_build_object('ok', true, 'reason', 'counted');   -- the newcomer is fine; the inviter hit a cap
@@ -404,7 +404,7 @@ begin
   cap := ai_user_cap(me);
   select code into inv from referral_codes where user_id = me;
   return cap || jsonb_build_object(
-    'invite_code', inv, 'invite_link', case when inv is null then null else 'https://submac.site/download?ref=' || inv end,
+    'invite_code', inv, 'invite_link', case when inv is null then null else 'https://telesia.site/download?ref=' || inv end,
     'enabled', coalesce((select value from ai_settings where key = 'reward_enabled'), 'true'::jsonb) <> 'false'::jsonb,
     'referral_tokens', reward_num('reward_referral_tokens', 30000), 'referral_days', reward_num('reward_referral_days', 7),
     'creator_tokens', reward_num('reward_creator_tokens', 30000), 'creator_days', reward_num('reward_creator_days', 7),

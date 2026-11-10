@@ -31,7 +31,7 @@ extension AppStateSystem on AppState {
     Bots.I.working = (bot) => _officeBusy.contains(bot.id) || (bot.convId.isNotEmpty && runs.any((r) => r.convId == bot.convId && !r.side));
     Bots.I.waitingFor = (bot) => Offices.I.pending.where((a) => a.botId == bot.id).length;
     b.onApproval = (id, ok) => unawaited(Offices.I.answer(id, ok));
-    // A reply typed in a notification can be what started SubMac (closed): it waits, like an alarm, until the bots,
+    // A reply typed in a notification can be what started Telesia (closed): it waits, like an alarm, until the bots,
     // teams and chats are loaded (it used to find no team or bot yet and was dropped).
     b.onNotifReply = (to, text) => unawaited(_alarmGate.run(() => _notificationReply(to, text)));
     Offices.I.pump = _officePump;
@@ -87,7 +87,7 @@ extension AppStateSystem on AppState {
       return 'Removed.';
     };
     // A removed bot takes its work with it (bug audit 2026-11-07). A scheduled task left behind still fires, and
-    // with the bot gone it runs as SubMac's own task; its team jobs kept its membership alive; its mission kept
+    // with the bot gone it runs as Telesia's own task; its team jobs kept its membership alive; its mission kept
     // waking it. All of it stops here, while the bot can still be named in the team's lines.
     Bots.I.onRemoved = (b) async {
       for (final t in List.of(Scheduler.I.tasks.where((t) => t.bot == b.id))) {
@@ -109,7 +109,7 @@ extension AppStateSystem on AppState {
             else if (o.members.contains(b.id))
               '- You are in "${o.name}", led by ${Bots.I.byId(o.chiefId)?.name ?? 'its lead'}. Team folder: ${TeamRun.folderOf(o)}/.',
         ].join('\n');
-    // Teams run on SubMac's own bot engine (owner 2026-11-07; opencode before): every member's part and the lead's
+    // Teams run on Telesia's own bot engine (owner 2026-11-07; opencode before): every member's part and the lead's
     // work are engine turns with the bot's own brief and tools; one-answer calls (who speaks, the plan, the combined
     // answer) are one plain model call.
     TeamRun.I
@@ -201,7 +201,7 @@ extension AppStateSystem on AppState {
     ]);
     try {
       await Bots.I.init();
-      // Plan 5.2: bots from before trust levels take the level that matches how SubMac was set ("full" = Trusted).
+      // Plan 5.2: bots from before trust levels take the level that matches how Telesia was set ("full" = Trusted).
       var moved = false;
       for (final x in Bots.I.bots.where((x) => x.trust.isEmpty)) {
         x.trust = local.approvalMode == 'full' ? BotTrust.levelTrusted : BotTrust.levelNew;
@@ -211,12 +211,12 @@ extension AppStateSystem on AppState {
       await WhatsAppTools.init();
       await BotTraces.I.init();
       await SkillLibrary.I.init();
-      // CB-46: wakes that came while SubMac could not run them yet.
+      // CB-46: wakes that came while Telesia could not run them yet.
       unawaited(_runHeldWakes());
     } catch (_) {}
     try {
       await Offices.I.init();
-      // CB-64: a team job that was running when SubMac closed says so once ("go" restarts it).
+      // CB-64: a team job that was running when Telesia closed says so once ("go" restarts it).
       await TeamRun.I.restore();
       _officePump();
     } catch (_) {}
@@ -231,14 +231,14 @@ extension AppStateSystem on AppState {
     // Awaited (it only reads the saved token; polling runs on its own) so a bot's first background task can already
     // message the owner on Telegram (bot_telegram).
     await TelegramBridge.I.init().timeout(const Duration(seconds: 10)).catchError((_) {});
-    // CB-46 + 2026-11-05: a wake held because SubMac was not ready (account not restored yet, offline at a cold
+    // CB-46 + 2026-11-05: a wake held because Telesia was not ready (account not restored yet, offline at a cold
     // start) is tried again a few times. It used to run only when the home screen opened.
     unawaited(_retryHeldWakes());
     final p = await b.takeLaunchPayload();
     if (p != null) _onNotificationTap(p);
   }
 
-  /// True when no screen started this engine: Flutter has no lifecycle state yet and Android says SubMac is not in
+  /// True when no screen started this engine: Flutter has no lifecycle state yet and Android says Telesia is not in
   /// front (an alarm, a restart or a push started it).
   Future<bool> _startedHeadless() async {
     if (!SystemBridge.I.supported) return false;
@@ -251,7 +251,7 @@ extension AppStateSystem on AppState {
     }
   }
 
-  /// Runs held wakes again after a while, a few times, while SubMac may still be getting ready. When nothing ran,
+  /// Runs held wakes again after a while, a few times, while Telesia may still be getting ready. When nothing ran,
   /// the foreground service an alarm started is let go after the last try.
   Future<void> _retryHeldWakes() async {
     for (final d in BgRun.heldRetries) {
@@ -267,10 +267,10 @@ extension AppStateSystem on AppState {
   @visibleForTesting
   Future<void> retryHeldWakesForTest() => _retryHeldWakes();
 
-  /// One alarm, once SubMac is ready (see AlarmGate).
+  /// One alarm, once Telesia is ready (see AlarmGate).
   Future<void> _onAlarm(String id) async {
     if (id == 'rearm') {
-      // The phone restarted: starting up has already re-armed every alarm (BootReceiver starts SubMac through this
+      // The phone restarted: starting up has already re-armed every alarm (BootReceiver starts Telesia through this
       // alarm so its foreground service keeps it alive while it does).
       if (!runs.any((r) => !r.side)) await SystemBridge.I.keepAlive(false);
       return;

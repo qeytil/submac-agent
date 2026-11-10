@@ -34,7 +34,7 @@ void main() {
       expect(c, contains('/proc/self/exe'));
       expect(c, contains('libocld.so'));
       expect(c, contains('libopencode.so'));
-      expect(c, contains('SUBMAC_OC_LIB'));
+      expect(c, contains('TELESIA_OC_LIB'));
       expect(c, contains('--library-path'));
       expect(c, contains('execv('));
     });
@@ -53,7 +53,7 @@ void main() {
     test('PATH starts with the bin dir and keeps the system dirs; launcher gets the lib dir', () {
       expect(kt, contains('env["PATH"] = binDir.path + ":" + sysPath'));
       expect(kt, contains('/system/bin'));
-      expect(kt, contains('env["SUBMAC_OC_LIB"] = links.path'));
+      expect(kt, contains('env["TELESIA_OC_LIB"] = links.path'));
       // The links are made before the process starts.
       expect(kt.indexOf('link(target, File(binDir, name))'), lessThan(kt.indexOf('pb.start()')));
       expect(kt.indexOf('env["PATH"] = binDir.path'), lessThan(kt.indexOf('pb.start()')));

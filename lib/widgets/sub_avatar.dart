@@ -3,11 +3,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 part 'sub_avatar_data.dart';
 
-/// SubMac's own bot avatars (owner, 2026-10-23: "like Grok bot but our own brand").
+/// Telesia's own bot avatars (owner, 2026-10-23: "like Grok bot but our own brand").
 ///
-/// Grok gives each bot a coloured blob with two small eyes. SubMac's set is drawn in-house: twelve shapes
+/// Grok gives each bot a coloured blob with two small eyes. Telesia's set is drawn in-house: twelve shapes
 /// (pebble, arch, squircle, spark, bean, bloom, dome, kite, ghost, capsule, cushion, leaf), twelve colours from the
-/// SubMac palette (ink and SubMac red first), and six kinds of eyes, one of them the SubMac spark. An avatar is
+/// Telesia palette (ink and Telesia red first), and six kinds of eyes, one of them the Telesia spark. An avatar is
 /// stored on the bot as `look = 'av:<shape>.<colour>.<eyes>'` (presentation only: it never travels in a shared
 /// bot package and a cloud push never overwrites it). Every bot without a chosen look gets a stable one from its id.
 /// The shapes come from tools/avatars/gen.py, which also renders the contact sheet.
@@ -23,7 +23,7 @@ class AvatarSpec {
 
   /// Names a person reads in the picker.
   static const colorNames = {
-    'ink': 'Ink', 'red': 'SubMac red', 'ember': 'Ember', 'saffron': 'Saffron', 'sage': 'Sage', 'moss': 'Moss',
+    'ink': 'Ink', 'red': 'Telesia red', 'ember': 'Ember', 'saffron': 'Saffron', 'sage': 'Sage', 'moss': 'Moss',
     'sea': 'Sea', 'indigo': 'Indigo', 'plum': 'Plum', 'rose': 'Rose', 'sand': 'Sand', 'stone': 'Stone',
   };
 

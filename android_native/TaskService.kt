@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.app.AlarmManager
 import android.app.Notification
@@ -13,7 +13,7 @@ import android.os.IBinder
 import android.os.PowerManager
 
 /**
- * Keeps SubMac alive while a task runs with the app closed, showing one calm line.
+ * Keeps Telesia alive while a task runs with the app closed, showing one calm line.
  * It also holds a partial wake lock while it runs (2026-11-05): a foreground service alone keeps the process, not the
  * CPU, so with the screen off (Doze) a bot's scheduled task used to stall until the phone woke up or the app opened.
  */
@@ -22,7 +22,7 @@ class TaskService : Service() {
         private const val NOTE_ID = 7201
         /** The longest a single hold lasts; every new start or update renews it. */
         private const val HOLD_MS = 30L * 60L * 1000L
-        @Volatile var text = "SubMac is active"
+        @Volatile var text = "Telesia is active"
         @Volatile private var running = false
 
         fun start(ctx: Context, line: String) {
@@ -57,19 +57,19 @@ class TaskService : Service() {
 
     private fun note(): Notification {
         Notifier.ensureChannels(this)
-        // Always "SubMac is active" (owner 2026-11-07); the bot and its task are the second line, "Nova · Hourly news".
+        // Always "Telesia is active" (owner 2026-11-07); the bot and its task are the second line, "Nova · Hourly news".
         // The result comes as its own notification when the work ends.
         val line = text.trim()
         val b = Notifier.builder(this, Notifier.WORK)
-            .setSmallIcon(R.drawable.ic_stat_submac)
+            .setSmallIcon(R.drawable.ic_stat_telesia)
             .setColor(0xFF17150F.toInt())
-            .setContentTitle("SubMac is active")
+            .setContentTitle("Telesia is active")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .setCategory(Notification.CATEGORY_PROGRESS)
             .setContentIntent(Notifier.openIntent(this, "tasks", 7202))
-        if (line.isNotEmpty() && !line.equals("SubMac is active", ignoreCase = true)) b.setContentText(line)
+        if (line.isNotEmpty() && !line.equals("Telesia is active", ignoreCase = true)) b.setContentText(line)
         return b.build()
     }
 
@@ -86,7 +86,7 @@ class TaskService : Service() {
     private fun hold() {
         try {
             val w = wakeLock ?: (getSystemService(Context.POWER_SERVICE) as PowerManager)
-                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "submac:task").also { it.setReferenceCounted(false) }
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "telesia:task").also { it.setReferenceCounted(false) }
             wakeLock = w
             w.acquire(HOLD_MS)
         } catch (_: Exception) {
@@ -119,14 +119,14 @@ class TaskService : Service() {
     }
 }
 
-/** Fires a scheduled task: wakes SubMac (even if closed) and hands the task id to Dart. */
+/** Fires a scheduled task: wakes Telesia (even if closed) and hands the task id to Dart. */
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         // "Decline" on a bot's ringing call: stop ringing and tell the bot (it sends a text instead).
         val declined = intent.getStringExtra("decline")
         if (declined != null) {
             Notifier.ringCancel(ctx, intent.getIntExtra("note", 0))
-            SubMacApp.engine(ctx)
+            TelesiaApp.engine(ctx)
             Bridge.send("botDecline", declined)
             return
         }
@@ -134,15 +134,15 @@ class AlarmReceiver : BroadcastReceiver() {
         val missed = intent.getStringExtra("missed")
         if (missed != null) {
             val note = intent.getIntExtra("note", 0)
-            Notifier.missed(ctx, note, missed, intent.getStringExtra("name") ?: "SubMac", intent.getStringExtra("reason") ?: "")
-            if (SubMacApp.engineIfRunning() != null) Bridge.send("botMissed", missed)
+            Notifier.missed(ctx, note, missed, intent.getStringExtra("name") ?: "Telesia", intent.getStringExtra("reason") ?: "")
+            if (TelesiaApp.engineIfRunning() != null) Bridge.send("botMissed", missed)
             return
         }
         // Approve / Deny on a bot's request.
         val approval = intent.getStringExtra("approval")
         if (approval != null) {
             Notifier.ringCancel(ctx, intent.getIntExtra("note", 0))
-            SubMacApp.engine(ctx)
+            TelesiaApp.engine(ctx)
             Bridge.send("approval", mapOf("id" to approval, "ok" to intent.getBooleanExtra("ok", false)))
             return
         }
@@ -150,12 +150,12 @@ class AlarmReceiver : BroadcastReceiver() {
         val replyTo = intent.getStringExtra("reply_to")
         if (replyTo != null) {
             val text = android.app.RemoteInput.getResultsFromIntent(intent)?.getCharSequence("reply_text")?.toString()?.trim() ?: ""
-            val name = intent.getStringExtra("name") ?: "SubMac"
+            val name = intent.getStringExtra("name") ?: "Telesia"
             Notifier.replied(ctx, intent.getIntExtra("note", 0), name, text, replyTo)
             if (text.isNotEmpty()) {
                 // The app may be closed: the foreground service and its wake lock carry the answer (headless engine).
                 TaskService.start(ctx, "$name · Your reply")
-                SubMacApp.engine(ctx)
+                TelesiaApp.engine(ctx)
                 Bridge.send("notifReply", mapOf("to" to replyTo, "text" to text))
             }
             return
@@ -163,8 +163,8 @@ class AlarmReceiver : BroadcastReceiver() {
         val id = intent.getStringExtra("id") ?: return
         // The line Dart gave when it set the alarm ("<Bot name> · <task title>"); Dart updates it once it runs.
         val label = intent.getStringExtra("label") ?: ""
-        TaskService.start(ctx, if (label.isEmpty()) "SubMac · Getting ready" else label)
-        SubMacApp.engine(ctx)
+        TaskService.start(ctx, if (label.isEmpty()) "Telesia · Getting ready" else label)
+        TelesiaApp.engine(ctx)
         Bridge.send("alarm", id)
     }
 }

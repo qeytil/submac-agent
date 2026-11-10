@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 import 'tools.dart' show AgentTools;
 import 'web_tools.dart';
 
-/// Runs code for the Coder bot, at no cost to SubMac:
+/// Runs code for the Coder bot, at no cost to Telesia:
 ///  - Python, JavaScript, TypeScript and SQL run on the phone, in a hidden web view (Python and SQL engines are
 ///    downloaded once from a public CDN and then cached by the web view);
 ///  - compiled languages (C, C++, Rust, Go, C#, F#, Dart, Swift, Zig, Ruby, Haskell, Lua, Julia, OCaml, Pascal,
@@ -189,12 +189,12 @@ class CodeRunner {
     final ready = _ready = Completer<void>();
     _view = HeadlessInAppWebView(
       initialSize: const Size(400, 400),
-      initialData: InAppWebViewInitialData(data: _harness, baseUrl: WebUri('https://submac.local/'), mimeType: 'text/html', encoding: 'utf-8'),
+      initialData: InAppWebViewInitialData(data: _harness, baseUrl: WebUri('https://telesia.local/'), mimeType: 'text/html', encoding: 'utf-8'),
       initialSettings: InAppWebViewSettings(javaScriptEnabled: true, cacheEnabled: true, allowFileAccessFromFileURLs: false),
       onWebViewCreated: (ctl) {
-        // `submac` inside Python and JavaScript: the web without the page's CORS wall, search and research (core loop
+        // `telesia` inside Python and JavaScript: the web without the page's CORS wall, search and research (core loop
         // v3). Code can now fetch an API, scrape a page or look something up, so a program can do real work.
-        ctl.addJavaScriptHandler(handlerName: 'submac', callback: (a) async {
+        ctl.addJavaScriptHandler(handlerName: 'telesia', callback: (a) async {
           try {
             final op = a.isNotEmpty ? '${a[0]}' : '';
             final p = a.length > 1 ? Map<String, dynamic>.from(jsonDecode('${a[1]}') as Map) : <String, dynamic>{};
@@ -216,7 +216,7 @@ class CodeRunner {
     return ready.future.timeout(const Duration(seconds: 30));
   }
 
-  /// What `submac.*` does inside code_run (and the agent's own tools). Web reads only: nothing here sends a message,
+  /// What `telesia.*` does inside code_run (and the agent's own tools). Web reads only: nothing here sends a message,
   /// pays, or touches the phone, so it needs no approval beyond the code run itself.
   static Future<Map<String, dynamic>> bridge(String op, Map<String, dynamic> p) async {
     switch (op) {
@@ -257,7 +257,7 @@ class CodeRunner {
         final r = await AgentTools.fetchUrl('${p['url'] ?? ''}', (AgentTools.intArg(p['offset']) ?? 0));
         return {'text': r};
     }
-    return {'error': 'unknown submac call "$op" (get, post, search, research, read)'};
+    return {'error': 'unknown telesia call "$op" (get, post, search, research, read)'};
   }
 
   Future<void> _stop() async {
@@ -342,14 +342,14 @@ async function pyInit() {
   if (py) return py;
   if (!window.loadPyodide) await load('$_pyodide' + 'pyodide.js');
   py = await loadPyodide({ indexURL: '$_pyodide' });
-  await py.runPythonAsync(SUBMAC_PY);
+  await py.runPythonAsync(TELESIA_PY);
   return py;
 }
-const SUBMAC_PY = [
+const TELESIA_PY = [
   'import sys, types, json as _json, js',
-  '_m = types.ModuleType("submac")',
+  '_m = types.ModuleType("telesia")',
   'async def _call(op, **kw):',
-  '    r = await js.window.flutter_inappwebview.callHandler("submac", op, _json.dumps(kw))',
+  '    r = await js.window.flutter_inappwebview.callHandler("telesia", op, _json.dumps(kw))',
   '    return _json.loads(r)',
   'class Response:',
   '    def __init__(self, d):',
@@ -368,11 +368,11 @@ const SUBMAC_PY = [
   'async def research(q): return await _call("research", q=q)',
   'async def read(url, offset=0): return (await _call("read", url=url, offset=offset)).get("text", "")',
   'for _k in ("get", "post", "request", "search", "research", "read", "Response"): setattr(_m, _k, globals()[_k])',
-  'sys.modules["submac"] = _m',
+  'sys.modules["telesia"] = _m',
   'del get, post, request, search, research, read',
 ].join(String.fromCharCode(10));
-const submacJs = (() => {
-  const call = async (op, kw) => JSON.parse(await window.flutter_inappwebview.callHandler('submac', op, JSON.stringify(kw)));
+const telesiaJs = (() => {
+  const call = async (op, kw) => JSON.parse(await window.flutter_inappwebview.callHandler('telesia', op, JSON.stringify(kw)));
   const res = (d) => ({ status: d.status, ok: d.status >= 200 && d.status < 400, text: d.text || '', headers: d.headers || {},
     error: d.error, json() { return JSON.parse(this.text); } });
   return {
@@ -446,7 +446,7 @@ window.__js = async (a) => {
     const lines = String(a.stdin || '').split('\\n'); let li = 0;
     const input = () => (li < lines.length ? lines[li++] : null);
     const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
-    const r = await new AsyncFn('console', 'input', 'readline', 'submac', code)(con, input, input, submacJs);
+    const r = await new AsyncFn('console', 'input', 'readline', 'telesia', code)(con, input, input, telesiaJs);
     return { ok: true, stdout: out, stderr: err, result: r === undefined ? null : fmt(r) };
   } catch (e) {
     return { ok: false, stdout: out, stderr: err, error: String(e && (e.stack || e.message) || e) };

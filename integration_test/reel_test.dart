@@ -161,7 +161,7 @@ void main() {
         st().setThemeMode(t == 'ink' ? ThemeMode.dark : ThemeMode.light);
         st().newChat();
         await wait(1800);
-        final hint = find.text('Ask SubMac anything');
+        final hint = find.text('Ask Telesia anything');
         if (hint.evaluate().isNotEmpty) {
           await tester.tap(hint.first);
           await wait(900);

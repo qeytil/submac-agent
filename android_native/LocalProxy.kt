@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.util.Log
 import java.io.InputStream
@@ -17,16 +17,16 @@ import java.net.Socket
  * bytes. HTTPS goes through CONNECT, so TLS stays end to end between opencode and the real host.
  */
 object LocalProxy {
-    private const val TAG = "SubMacProxy"
+    private const val TAG = "TelesiaProxy"
     @Volatile private var server: ServerSocket? = null
     val port: Int get() = server?.localPort ?: 0
 
     /** Where the engine's model calls go (the ai-chat function) and the signed-in user's access token. The engine
-     *  calls http://127.0.0.1:<port>/__submac/... ; this proxy sends it on over TLS with a fresh token, so an hour-old
+     *  calls http://127.0.0.1:<port>/__telesia/... ; this proxy sends it on over TLS with a fresh token, so an hour-old
      *  token in the engine's config never matters (the app pushes a new one before each prompt). */
     @Volatile var upstream: String = ""
     @Volatile var token: String = ""
-    const val PREFIX = "/__submac"
+    const val PREFIX = "/__telesia"
 
     @Synchronized
     fun start(): Int {
@@ -40,7 +40,7 @@ object LocalProxy {
                 val c = try { s.accept() } catch (_: Throwable) { break }
                 Thread { handle(c) }.apply { isDaemon = true }.start()
             }
-        }.apply { isDaemon = true; name = "submac-proxy" }.start()
+        }.apply { isDaemon = true; name = "telesia-proxy" }.start()
         return s.localPort
     }
 
@@ -110,8 +110,8 @@ object LocalProxy {
         val u = java.net.URI(upstream)
         val host = u.host ?: return null
         val port = if (u.port > 0) u.port else 443
-        // The allowance lane rides in the path (owner 2026-11-03): /__submac/lane/<source>/... is a bot's or a team's
-        // background work, sent with x-submac-lane: background and that source. Any other call has the lane header
+        // The allowance lane rides in the path (owner 2026-11-03): /__telesia/lane/<source>/... is a bot's or a team's
+        // background work, sent with x-telesia-lane: background and that source. Any other call has the lane header
         // removed, so a foreground (owner) call can never bill to the bots' share and a background one always does.
         val (rest, laneSource) = laneOf(rest0)
         val path = (u.rawPath ?: "").trimEnd('/') + rest
@@ -140,12 +140,12 @@ object LocalProxy {
         return s
     }
 
-    const val LANE_HEADER = "x-submac-lane"
-    const val SOURCE_HEADER = "x-submac-source"
+    const val LANE_HEADER = "x-telesia-lane"
+    const val SOURCE_HEADER = "x-telesia-source"
 
     /** The bots' share of the day's allowance, on every ai-chat reply. The engine consumes its replies, so Dart never
      *  sees this header; the proxy reads it and passes it on (bug audit 2026-11-07: Settings showed a stale share). */
-    const val BG_HEADER = "x-submac-bg"
+    const val BG_HEADER = "x-telesia-bg"
     private val laneRe = Regex("^/lane/([a-z-]{1,20})(/.*)?$")
 
     /** `/lane/<source>/rest` -> (`/rest`, source); anything else is (path, null): the foreground lane. */

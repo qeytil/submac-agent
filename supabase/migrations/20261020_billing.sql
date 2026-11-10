@@ -1,4 +1,4 @@
--- SubMac Agent billing: SubMac Coins, token packs, passes (LOCKED PLAN, docs/monetization/MONETIZATION.md section 4).
+-- Telesia billing: Telesia Coins, token packs, passes (LOCKED PLAN, docs/monetization/MONETIZATION.md section 4).
 -- Agent project moeemacbvsueekuvfjbo.
 --
 -- ADDITIVE ONLY. New schema `billing`, new public.billing_* RPCs and new ai_settings keys (inserted with ON CONFLICT DO
@@ -6,7 +6,7 @@
 -- (ai_settings, ai_user_limits, reward_ledger, referrals, user_devices); the only writes outside `billing` are
 --   * finance.ledger rows through finance.ledger_add_row() (the finance dashboard's own API), with a billing outbox
 --     as fallback when that call fails, and
---   * a "From SubMac" inbox note (public.user_inbox) when an inviter earns a referral reward.
+--   * a "From Telesia" inbox note (public.user_inbox) when an inviter earns a referral reward.
 --
 -- Everything is inert until ai_settings.billing_enabled = true: user RPCs refuse, service RPCs return
 -- {"enabled": false}, and ai-chat keeps the old daily allowance.
@@ -750,7 +750,7 @@ begin
           'source_ref', 'billing:referral:' || pu.user_id, 'note', 'Referral reward in coins (invitee first purchase)'));
         begin
           insert into public.user_inbox(user_id, kind, title, body)
-          values (inv, 'reward_earned', 'Your invite paid off', '+' || ref_coins || ' SubMac Coins: someone you invited made their first purchase. Thanks for sharing SubMac!');
+          values (inv, 'reward_earned', 'Your invite paid off', '+' || ref_coins || ' Telesia Coins: someone you invited made their first purchase. Thanks for sharing Telesia!');
         exception when others then null;
         end;
       end if;

@@ -1,8 +1,8 @@
--- Rebuild week 1 (Dev 1, 2026-10-23): one public model (`submac`) and a sticky chat router. PLAN.md 1.1, timing.md 5.4.
+-- Rebuild week 1 (Dev 1, 2026-10-23): one public model (`telesia`) and a sticky chat router. PLAN.md 1.1, timing.md 5.4.
 --
--- 1. Alias `submac`: the one route list. Seeded from the current submac-smart routes (same order) plus every Gemini
---    route of the other chat aliases (submac-somali first), appended after them. Old alias rows are NOT deleted yet
---    (older ai-chat versions and the dashboard still read them); edit the order of `submac` from the dashboard.
+-- 1. Alias `telesia`: the one route list. Seeded from the current telesia-smart routes (same order) plus every Gemini
+--    route of the other chat aliases (telesia-somali first), appended after them. Old alias rows are NOT deleted yet
+--    (older ai-chat versions and the dashboard still read them); edit the order of `telesia` from the dashboard.
 -- 2. ai_router_state: the shared "current route" pointer (one row). ai_route_rest: per-route rest with backoff.
 -- 3. ai_router_snapshot(): pointer + active rests, returned inside ai_gate (no extra round trip).
 -- 4. ai_router_report(route, kind, next): counts a failure of the current route inside a 60 s window and swaps the
@@ -12,37 +12,37 @@
 --    current route's provider.
 -- All functions are service-role only. Safe to re-run.
 
--- ---------------------------------------------------------------- 1. alias `submac`
+-- ---------------------------------------------------------------- 1. alias `telesia`
 insert into public.ai_aliases (alias, description, max_output_tokens, system_hint, enabled)
-select 'submac', 'SubMac: the one public model (sticky router)', coalesce((select max_output_tokens from public.ai_aliases where alias = 'submac-smart'), 8192), null, true
+select 'telesia', 'Telesia: the one public model (sticky router)', coalesce((select max_output_tokens from public.ai_aliases where alias = 'telesia-smart'), 8192), null, true
 on conflict (alias) do nothing;
 
--- submac-smart routes, same priorities.
+-- telesia-smart routes, same priorities.
 insert into public.ai_routes (alias, model_ref, priority, enabled)
-select 'submac', r.model_ref, r.priority, r.enabled
-  from public.ai_routes r where r.alias = 'submac-smart'
+select 'telesia', r.model_ref, r.priority, r.enabled
+  from public.ai_routes r where r.alias = 'telesia-smart'
 on conflict (alias, model_ref) do nothing;
 
 -- Gemini routes from the other chat aliases (Somali first), after the smart ones. Gemini models see pictures, so this
 -- also gives the one list its vision routes.
 insert into public.ai_routes (alias, model_ref, priority, enabled)
-select 'submac', x.model_ref, 1000 + row_number() over (order by x.rank, x.priority, x.model_ref) * 10, true
+select 'telesia', x.model_ref, 1000 + row_number() over (order by x.rank, x.priority, x.model_ref) * 10, true
   from (
     select distinct on (r.model_ref) r.model_ref, r.priority,
-           case r.alias when 'submac-somali' then 0 when 'submac-think' then 1 when 'submac-vision' then 2 else 3 end as rank
+           case r.alias when 'telesia-somali' then 0 when 'telesia-think' then 1 when 'telesia-vision' then 2 else 3 end as rank
       from public.ai_routes r
       join public.ai_models m on m.id = r.model_ref
       join public.ai_providers p on p.id = m.provider_id
-     where r.alias in ('submac-somali', 'submac-think', 'submac-vision', 'submac-fast', 'submac-lite')
+     where r.alias in ('telesia-somali', 'telesia-think', 'telesia-vision', 'telesia-fast', 'telesia-lite')
        and r.enabled and (p.name ilike '%gemini%' or m.model_id ilike 'gemini%')
-     order by r.model_ref, case r.alias when 'submac-somali' then 0 when 'submac-think' then 1 when 'submac-vision' then 2 else 3 end, r.priority
+     order by r.model_ref, case r.alias when 'telesia-somali' then 0 when 'telesia-think' then 1 when 'telesia-vision' then 2 else 3 end, r.priority
   ) x
 on conflict (alias, model_ref) do nothing;
 
 -- ---------------------------------------------------------------- 2. router state
 create table if not exists public.ai_router_state (
   id int primary key default 1 check (id = 1),
-  alias text not null default 'submac',
+  alias text not null default 'telesia',
   current_route_id uuid references public.ai_routes(id) on delete set null,
   since timestamptz not null default now(),
   fail_count int not null default 0,      -- hard failures of the current route in this window
@@ -75,7 +75,7 @@ create or replace function public.ai_router_snapshot()
  set search_path to 'public'
 as $function$
   select jsonb_build_object(
-    -- Only a pointer to an enabled `submac` route counts; anything else reads as "no pointer" (first healthy route).
+    -- Only a pointer to an enabled `telesia` route counts; anything else reads as "no pointer" (first healthy route).
     'current_route_id', (select s.current_route_id from ai_router_state s join ai_routes r on r.id = s.current_route_id
                           where s.id = 1 and r.enabled and r.alias = s.alias),
     'since', (select since from ai_router_state where id = 1),

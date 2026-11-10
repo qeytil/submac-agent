@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Marketing capture on the emulator: clean status bar, film the whole run, a screencap on every SHOT.
 set -u
-PKG=com.submac.agent
+PKG=com.telesia.app
 mkdir -p out/shots out/rec
 adb shell settings put global sysui_demo_allowed 1
 adb shell am broadcast -a com.android.systemui.demo -e command enter >/dev/null

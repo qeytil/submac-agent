@@ -10,7 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-// SubMac's avatar set. `flutter test --update-goldens test/avatars_test.dart` also saves the whole set and the
+// Telesia's avatar set. `flutter test --update-goldens test/avatars_test.dart` also saves the whole set and the
 // picker to test/goldens/avatars_*.png (not compared in CI).
 
 Future<void> _loadFonts() async {

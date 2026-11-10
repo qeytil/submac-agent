@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// SubMac's signature motion (owner, 2026-10-23). Every animation in the app picks a curve and a
-/// duration from here, so SubMac moves the same way everywhere. Rules:
+/// Telesia's signature motion (owner, 2026-10-23). Every animation in the app picks a curve and a
+/// duration from here, so Telesia moves the same way everywhere. Rules:
 ///
 /// * **Settle, never bounce.** Things arrive fast and then slow right down, like ink coming to rest on
 ///   paper ([settle]). Nothing overshoots, springs or wobbles.
@@ -20,14 +20,14 @@ import 'package:flutter/material.dart';
 ///   settle on [settle], staggered by [stagger] and never more than [maxStagger].
 /// * [Breath]: the calm breathing of the plain-text status word ("Thinking", "Working"), opacity only.
 /// * [sheet]: the quiet reveal of the tap/hold action sheets.
-/// * [MessageArrive]: every new chat message (yours, SubMac's, a bot's) arrives over [arrive] (1 s): a fade with a
+/// * [MessageArrive]: every new chat message (yours, Telesia's, a bot's) arrives over [arrive] (1 s): a fade with a
 ///   slight rise and scale, ease-out ([arriveEase]). Once per message, only for messages new this session.
 /// * [SubPageTransitions]: screens arrive with a fade and a small rise, and leave with a fade.
 class SubMotion {
   const SubMotion._();
 
   // Curves.
-  /// The SubMac curve: a quick start that comes softly to rest.
+  /// The Telesia curve: a quick start that comes softly to rest.
   static const Curve settle = Cubic(0.16, 1.0, 0.3, 1.0);
 
   /// For words: a slightly slower start, so the eye catches the letters closing in.

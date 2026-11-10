@@ -1,5 +1,5 @@
--- Free 7-day preview links for sites SubMac builds (edge function `site-preview`, Cloudflare Pages project
--- `submac-sites`, one branch per site: https://<slug>.submac-sites.pages.dev).
+-- Free 7-day preview links for sites Telesia builds (edge function `site-preview`, Cloudflare Pages project
+-- `telesia-sites`, one branch per site: https://<slug>.telesia-sites.pages.dev).
 -- Additive only: two new tables and one daily cron job. Reuses the existing bot_run_secret / bot_run_anon_key
 -- Vault secrets (see 20261019_bot_run.sql) so the sweep passes the gateway and the function's secret check.
 

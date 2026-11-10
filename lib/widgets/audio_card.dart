@@ -79,7 +79,7 @@ class _Player {
   static _AudioCardState? current;
 }
 
-/// A sound SubMac made: a red-dot play button, a waveform that fills as it plays, Save and Share.
+/// A sound Telesia made: a red-dot play button, a waveform that fills as it plays, Save and Share.
 class AudioCard extends StatefulWidget {
   const AudioCard(this.path, {super.key});
   final String path;

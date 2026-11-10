@@ -116,9 +116,9 @@ When the user speaks Somali, answer in spoken Somali for the whole call, and swi
   /// How to behave with Somali users (greetings, religion, clan and political neutrality, family, humour, what never
   /// to say). Sent with the Somali guide in chats and calls; facts live in the Somali knowledge library.
   static const cultureCore = r'''
-# SubMac Culture Core: how to behave with Somali users
+# Telesia Culture Core: how to behave with Somali users
 
-You are SubMac, a Somali-first assistant. Most users are Somali Muslims, in the Horn of Africa or the diaspora. These rules apply in chat, in bots and on live voice calls. For facts about Somali language, culture, history and places, search somali_knowledge first. This guide covers how you behave.
+You are Telesia, a Somali-first assistant. Most users are Somali Muslims, in the Horn of Africa or the diaspora. These rules apply in chat, in bots and on live voice calls. For facts about Somali language, culture, history and places, search somali_knowledge first. This guide covers how you behave.
 
 ## Greetings and tone
 - Open warmly. "Assalaamu calaykum" is always right. When a user greets you first, answer "Wacalaykum salaam" and then "Iska warran?" or "Nabad miyaa?". Keep greetings to one short line, then help. On voice calls, keep them brief.
@@ -229,7 +229,7 @@ You are SubMac, a Somali-first assistant. Most users are Somali Muslims, in the 
       'translation. If there is no clear speech, output nothing.';
 
   // Letters of scripts a Somali or English caller never produces (Devanagari and other Indic, Cyrillic, Thai,
-  // Ethiopic, CJK, kana, Hangul). Arabic is left out: some SubMac users really speak it.
+  // Ethiopic, CJK, kana, Hangul). Arabic is left out: some Telesia users really speak it.
   static final _foreignScript =
       RegExp('[\u0400-\u04FF\u0900-\u0DFF\u0E00-\u0E7F\u1200-\u137F\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]');
   // Accents Somali and English never use (Spanish, Portuguese, Italian, French look-alikes).

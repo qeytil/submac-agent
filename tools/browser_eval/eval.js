@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // browser_eval: the browser god-mode eval on REAL sites (docs/browser-godmode.md §6).
 //
-// What it measures: the part of SubMac's browser that does not need the model — the page script the phone injects
+// What it measures: the part of Telesia's browser that does not need the model — the page script the phone injects
 // into every page (tools/browser_page.js, copied into lib/services/browser/page_script.dart). Each task drives a real
 // site exactly the way the agent's tools do: it reads S.snapshot() (the numbered elements and visible text the model
 // sees), finds its target in that snapshot by visible words only (never by a selector the model could not know),
@@ -183,7 +183,7 @@ const TASKS = [
     await T.goto('https://quotes.toscrape.com/login');
     const who = await T.S('isLogin');
     ok(who, 'the sign-in page was not recognised as one');
-    const filled = await T.S('login', 'submac', 'secret');
+    const filled = await T.S('login', 'telesia', 'secret');
     ok(filled === 'both', 'login fill: ' + filled);
     await T.tap(await T.need(/^login$/i, 'button'));
     await T.waitText('Logout', 10000).catch(async (e) => { throw new Error(e.message + ' at ' + page.url() + ' fields=' + await page.evaluate(() => [...document.querySelectorAll('input')].map((i) => i.name + '=' + i.value).join(','))); });
@@ -243,7 +243,7 @@ const TASKS = [
     const s = await T.snap();
     const f = s.els.find((e) => /file/i.test(e.k || '')) || T.find(s, /choose|browse|file/i);
     ok(f, 'no file field in the snapshot');
-    const r = await T.S('upload', f.i, 'note.txt', 'text/plain', Buffer.from('hello from submac').toString('base64'));
+    const r = await T.S('upload', f.i, 'note.txt', 'text/plain', Buffer.from('hello from telesia').toString('base64'));
     ok(r.ok, 'upload: ' + r.err);
     await T.tap(await T.need(/^upload$/i));
     await T.waitText('File Uploaded', 15000);

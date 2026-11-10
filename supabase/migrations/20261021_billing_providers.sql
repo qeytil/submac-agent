@@ -1,4 +1,4 @@
--- SubMac Agent billing follow-up: provider-neutral payments (swappable payment provider).
+-- Telesia billing follow-up: provider-neutral payments (swappable payment provider).
 -- ADDITIVE ONLY. Requires 20261020_billing.sql. Safe to run twice (idempotent).
 --
 -- * billing.purchases gets `provider` (default 'sifalo', so every existing row and every caller of the v1 RPCs keeps

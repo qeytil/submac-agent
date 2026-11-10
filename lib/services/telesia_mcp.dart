@@ -3,16 +3,16 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-/// SubMac's own MCP server, on the phone (owner, 2026-11-02: "opencode is a complete agent, we just give it our
-/// SubMac MCP").
+/// Telesia's own MCP server, on the phone (owner, 2026-11-02: "opencode is a complete agent, we just give it our
+/// Telesia MCP").
 ///
 /// opencode connects to it as a remote MCP server (Streamable HTTP, JSON responses) on 127.0.0.1 behind a bearer
-/// token, and SubMac's tools sit behind it: the server only lists them and hands each call to [call], which runs it
-/// through SubMac's own gate, so a risky call shows SubMac's approval card before it runs.
+/// token, and Telesia's tools sit behind it: the server only lists them and hands each call to [call], which runs it
+/// through Telesia's own gate, so a risky call shows Telesia's approval card before it runs.
 ///
 /// Pure dart:io (no Flutter), so it is tested end to end without the app.
-class SubMacMcp {
-  SubMacMcp({required this.tools, required this.call, this.name = 'submac', this.version = '1'});
+class TelesiaMcp {
+  TelesiaMcp({required this.tools, required this.call, this.name = 'telesia', this.version = '1'});
 
   /// The tools to offer, in OpenAI function form (`{type: function, function: {name, description, parameters}}`)
   /// or plain `{name, description, parameters}`. Read on every `tools/list`, so a change shows on the next listing.
@@ -92,8 +92,8 @@ class SubMacMcp {
             'tools': {'listChanged': false},
           },
           'serverInfo': {'name': name, 'version': version},
-          'instructions': 'SubMac: tools that act on this phone and the user\'s SubMac account. The chat shows pictures, '
-              '.svg/.html/.png/.mp4 files you make when you name their path (see the submac skill).',
+          'instructions': 'Telesia: tools that act on this phone and the user\'s Telesia account. The chat shows pictures, '
+              '.svg/.html/.png/.mp4 files you make when you name their path (see the telesia skill).',
         });
       case 'ping':
         return _ok(id, {});

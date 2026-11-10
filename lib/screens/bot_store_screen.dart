@@ -20,7 +20,7 @@ import '../ui/tokens.dart';
 import '../ui/launch_flags.dart';
 import '../ui/i18n.dart';
 
-/// The Bot Store: ready-made colleagues to hire. SubMac's own bots first, then bots people published.
+/// The Bot Store: ready-made colleagues to hire. Telesia's own bots first, then bots people published.
 class BotStoreScreen extends StatefulWidget {
   const BotStoreScreen({super.key});
 
@@ -79,7 +79,7 @@ class _BotStoreScreenState extends State<BotStoreScreen> {
               ),
               const SizedBox(height: 16),
               if (own.isNotEmpty) ...[
-                _Head('Made by SubMac'),
+                _Head('Made by Telesia'),
                 for (final s in own) StoreCard(item: s),
                 const SizedBox(height: 14),
               ],
@@ -158,7 +158,7 @@ class StoreCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     [
-                      'by ${s.author.isEmpty ? 'a SubMac user' : s.author}${s.mine ? ' (you)' : ''}',
+                      'by ${s.author.isEmpty ? 'a Telesia user' : s.author}${s.mine ? ' (you)' : ''}',
                       if (!s.builtIn && s.hires > 0) '${s.hires} added',
                     ].join(' · '),
                     maxLines: 1,
@@ -275,7 +275,7 @@ Future<void> hireFromStore(BuildContext context, StoreBot s) async {
   await afterJoin(context, b, '${b.name} is ready.');
 }
 
-/// A "Hire in SubMac" link from a public bot page (submac.site/b/<code>): ask once, then hire like the Store does.
+/// A "Hire in Telesia" link from a public bot page (telesia.site/b/<code>): ask once, then hire like the Store does.
 Future<void> hireFromLink(BuildContext context, String code) async {
   final messenger = ScaffoldMessenger.of(context);
   final (listing, shareCode, err) = await BotStore.I.resolveLink(code);
@@ -470,7 +470,7 @@ Future<void> shareBotSheet(BuildContext context, Bot b) async {
   }
   final messenger = ScaffoldMessenger.of(context);
   if (how == 'link') {
-    // Published bots have a page by listing id; others get a share code, whose page works too (submac.site/b/<code>).
+    // Published bots have a page by listing id; others get a share code, whose page works too (telesia.site/b/<code>).
     // The link carries the sharer's invite code (?ref=), so a new person who joins through it counts for them.
     if (Rewards.I.myCode == null) await Rewards.I.refresh();
     var key = b.storeId;
@@ -482,7 +482,7 @@ Future<void> shareBotSheet(BuildContext context, Bot b) async {
       }
       key = code.replaceAll('-', '');
     }
-    await SharePlus.instance.share(ShareParams(text: 'Meet ${b.name}, my ${b.role.isEmpty ? 'bot' : b.role} on SubMac. Get your own copy: ${Rewards.I.botLink(key)}', subject: b.name));
+    await SharePlus.instance.share(ShareParams(text: 'Meet ${b.name}, my ${b.role.isEmpty ? 'bot' : b.role} on Telesia. Get your own copy: ${Rewards.I.botLink(key)}', subject: b.name));
     return;
   }
   final (code, err) = await BotStore.I.shareCode(b);
@@ -490,7 +490,7 @@ Future<void> shareBotSheet(BuildContext context, Bot b) async {
     messenger.showSnackBar(SnackBar(content: Text(err ?? 'Not ready yet.')));
     return;
   }
-  await SharePlus.instance.share(ShareParams(text: 'Get my digital person ${b.name} (${b.role}) in SubMac: open SubMac > Digital people > People store > Add from code: $code', subject: b.name));
+  await SharePlus.instance.share(ShareParams(text: 'Get my digital person ${b.name} (${b.role}) in Telesia: open Telesia > Digital people > People store > Add from code: $code', subject: b.name));
 }
 
 /// Publish (or update) your bot in the Bot Store.

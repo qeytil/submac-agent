@@ -1,5 +1,5 @@
 // Notifications that say who it is from and what came of the work (owner 2026-11-05, docs/notifications.md).
-// Agent (SubMac's own chats and scheduled tasks), Bots (a bot's private chat) and Teams (a team chat) each have their
+// Agent (Telesia's own chats and scheduled tasks), Bots (a bot's private chat) and Teams (a team chat) each have their
 // own channel, title and look; the line while work runs is on the silent Background work channel (TaskService).
 part of '../app_state.dart';
 
@@ -10,7 +10,7 @@ extension AppStateNotifications on AppState {
   /// The slot of a team's conversation (one per team).
   static int teamNoteId(Office o) => 9700 + (o.id.hashCode % 200).abs();
 
-  /// The slot of SubMac's own result for a chat.
+  /// The slot of Telesia's own result for a chat.
   static int agentNoteId(String convId) => 9400 + (convId.hashCode % 190).abs();
 
   /// A bot's message: its name, its face, a 1-3 line summary of [text] and an inline Reply into its private chat.
@@ -31,10 +31,10 @@ extension AppStateNotifications on AppState {
         high: high);
   }
 
-  /// SubMac's own result for [convId] ("SubMac", red), with a Reply into that chat. Nothing when the reply says
+  /// Telesia's own result for [convId] ("Telesia", red), with a Reply into that chat. Nothing when the reply says
   /// nothing (a watcher's NO_CHANGE, an empty run).
   Future<void> _notifyAgent(String convId, String reply, {String task = '', bool failed = false}) async {
-    final body = failed ? 'Couldn’t finish${task.isEmpty ? ' your task' : ' “${BgRun.title(task, fallback: '')}”'}. Open SubMac to see why.' : NotifText.result(reply, task: task);
+    final body = failed ? 'Couldn’t finish${task.isEmpty ? ' your task' : ' “${BgRun.title(task, fallback: '')}”'}. Open Telesia to see why.' : NotifText.result(reply, task: task);
     if (body.isEmpty) return;
     await SystemBridge.I.notifyFrom(
         id: agentNoteId(convId),
@@ -65,8 +65,8 @@ extension AppStateNotifications on AppState {
         needs: needs);
   }
 
-  /// A run ended that someone away from the screen is waiting on: SubMac's own scheduled task, or an answer to a
-  /// reply typed in a notification (to SubMac or to a bot). Bot wakes report through their own outcome.
+  /// A run ended that someone away from the screen is waiting on: Telesia's own scheduled task, or an answer to a
+  /// reply typed in a notification (to Telesia or to a bot). Bot wakes report through their own outcome.
   void _notifyRunEnd(String convId, List<ChatMessage> list, AgentRun run, {required bool scheduled, required bool fromNote}) {
     if (run.cancelled) return;
     // A task the user started also says it is done, when "Notify when done" is on (owner 2026-11-09: long tasks

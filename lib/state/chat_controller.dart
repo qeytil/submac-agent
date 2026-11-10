@@ -171,7 +171,7 @@ extension AppStateChat on AppState {
     await repo.deleteAllConversations(keepWritable: botConvIds);
   }
 
-  /// Deletes the account on the server and everything SubMac kept on this phone. Returns an error, or null when done.
+  /// Deletes the account on the server and everything Telesia kept on this phone. Returns an error, or null when done.
   Future<String?> deleteAccount() async {
     try {
       final r = await http
@@ -186,7 +186,7 @@ extension AppStateChat on AppState {
         }
       }
     } catch (_) {
-      return 'SubMac couldn\'t reach the server. Check your connection and try again.';
+      return 'Telesia couldn\'t reach the server. Check your connection and try again.';
     }
     for (final r in List.of(runs)) {
       r.stop();
@@ -285,7 +285,7 @@ extension AppStateChat on AppState {
     _notify();
   }
 
-  /// "Open" in the bubble: SubMac comes up on the chat that is working.
+  /// "Open" in the bubble: Telesia comes up on the chat that is working.
   Future<void> openFromBubble(String convId) async {
     await SystemBridge.I.bringToFront();
     if (convId.isNotEmpty && convId != 'live' && conversations.any((c) => c.id == convId)) {
@@ -656,7 +656,7 @@ extension AppStateChat on AppState {
   Future<void> _generateTitle(String convId, String firstText) async {
     final p0 = activeProvider;
     if (p0 == null || firstText.trim().isEmpty) return;
-    final ref = submacRef;
+    final ref = telesiaRef;
     final p = ref.provider;
     try {
       await RateLimiter.acquire(p, 300, local, onWait: (_) {}, cancelled: () => false);

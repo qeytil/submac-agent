@@ -8,7 +8,7 @@ import '../ui/tokens.dart';
 
 part 'data_viz.dart';
 
-/// ```diagram  Small, calm explainer graphics drawn on the phone in the SubMac style:
+/// ```diagram  Small, calm explainer graphics drawn on the phone in the Telesia style:
 /// roadmap/timeline, steps/flow, cycle, bars, donut, line, tree, quadrant, stats, funnel/pyramid, versus.
 /// JSON: {"type":"roadmap","title":"Launch plan","items":[...]} — see each builder for its fields.
 Widget? diagramCardFrom(dynamic j) {
@@ -769,7 +769,7 @@ class _LinePainter extends CustomPainter {
 }
 
 // ───────────────────────────────── Tree / hierarchy / mind map
-// root: {"title":"SubMac","children":[{"title":"Chat","children":[{"title":"Cards"}]}]}
+// root: {"title":"Telesia","children":[{"title":"Chat","children":[{"title":"Cards"}]}]}
 class _Tree extends StatelessWidget {
   const _Tree(this.root);
   final Map<String, dynamic> root;

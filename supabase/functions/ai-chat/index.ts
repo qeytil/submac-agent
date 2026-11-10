@@ -1,9 +1,9 @@
-// SubMac cloud model proxy. The app sends OpenAI-style chat requests for the one public model, `submac`. Routing,
+// Telesia cloud model proxy. The app sends OpenAI-style chat requests for the one public model, `telesia`. Routing,
 // keys, quotas and metrics are all server-side and edited from the admin dashboard.
 //
 // Rebuild (2026-10-23, PLAN.md Part 1 / Contract A): one model and a sticky router (router.ts). Any model name starting
-// with "submac" (older apps send submac-smart/fast/think/lite/vision/somali) is served by the one route list (alias
-// `submac`; until migration 20261023_router_single_model is applied, the submac-smart routes). Removed: the Somali
+// with "telesia" (older apps send telesia-smart/fast/think/lite/vision/somali) is served by the one route list (alias
+// `telesia`; until migration 20261023_router_single_model is applied, the telesia-smart routes). Removed: the Somali
 // swap/detector/hint, vision forcing (now a capability filter), the grace/lite alias (now the same routes with a
 // max_tokens cap), think aliases, spare routes from other aliases, and the early "spec" call. The shared current-route
 // pointer comes back inside ai_gate; timeouts follow the PLAN 1.3 budget (heartbeat, 25 s hard stop, SSE `error`
@@ -52,15 +52,15 @@ let isoHits = 0;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, x-submac-source, x-submac-chat, x-submac-lane, x-submac-effort, x-region",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, x-telesia-source, x-telesia-chat, x-telesia-lane, x-telesia-effort, x-region",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Expose-Headers": "x-submac-usage, x-submac-state, x-submac-window, x-submac-bg, x-submac-today-left, x-submac-total-left, x-submac-resets-at, x-submac-plan, x-submac-error, retry-after, server-timing",
+  "Access-Control-Expose-Headers": "x-telesia-usage, x-telesia-state, x-telesia-window, x-telesia-bg, x-telesia-today-left, x-telesia-total-left, x-telesia-resets-at, x-telesia-plan, x-telesia-error, retry-after, server-timing",
 };
 
-/** The one public model and its route list (ai_routes alias `submac`). */
-const CHAT_ALIAS = "submac";
-/** Used only until the migration has added the `submac` alias, so a deploy before the migration keeps working. */
-const LEGACY_ALIAS = "submac-smart";
+/** The one public model and its route list (ai_routes alias `telesia`). */
+const CHAT_ALIAS = "telesia";
+/** Used only until the migration has added the `telesia` alias, so a deploy before the migration keeps working. */
+const LEGACY_ALIAS = "telesia-smart";
 type Alias = { alias: string; max_output_tokens: number; system_hint: string | null; routes: Route[] };
 type KeyMeta = { id: string; cooldown_until: string | null };
 type Config = { settings: Record<string, any>; aliases: Alias[]; key_meta: Record<string, KeyMeta[]> };
@@ -142,12 +142,12 @@ async function gate(uid: string, wantConfig: boolean, needTools: boolean): Promi
 function json(body: unknown, status = 200, extra: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "content-type": "application/json", ...extra } });
 }
-/** Every refusal has the same shape: {error: {code: <legacy code the current app reads>, submac_code: <Contract A code>,
- *  message: <fixed friendly text>}} plus x-submac-error; `busy` carries Retry-After 15–30 s with jitter. */
+/** Every refusal has the same shape: {error: {code: <legacy code the current app reads>, telesia_code: <Contract A code>,
+ *  message: <fixed friendly text>}} plus x-telesia-error; `busy` carries Retry-After 15–30 s with jitter. */
 function errJson(status: number, code: ErrCode, legacy: string, message?: string, retry = false, extra: Record<string, string> = {}) {
   const ra = retry ? retryAfterSecs() : 0;
-  return json({ error: { code: legacy, submac_code: code, message: message ?? FRIENDLY[code], ...(ra ? { retry_after: ra } : {}) } }, status,
-    { "x-submac-error": code, ...(ra ? { "Retry-After": String(ra) } : {}), ...extra });
+  return json({ error: { code: legacy, telesia_code: code, message: message ?? FRIENDLY[code], ...(ra ? { retry_after: ra } : {}) } }, status,
+    { "x-telesia-error": code, ...(ra ? { "Retry-After": String(ra) } : {}), ...extra });
 }
 
 // PLAN 1.8: the token is checked here too (ES256 signature + expiry against the project's JWKS), not only by the
@@ -161,12 +161,12 @@ async function userFromJwt(req: Request): Promise<string | null> {
 }
 
 // Plan 2.1 part B: bot-run calls this proxy on a user's behalf (their allowance, source 'bot-cloud'). It must carry
-// the service-role JWT (checked by the gateway) and the runner's Vault secret (x-submac-internal), plus x-submac-user.
+// the service-role JWT (checked by the gateway) and the runner's Vault secret (x-telesia-internal), plus x-telesia-user.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const internalOk = new Map<string, number>(); // secret -> checked until (ms)
 async function internalUser(req: Request): Promise<string | null> {
-  const sec = req.headers.get("x-submac-internal") ?? "";
-  const u = req.headers.get("x-submac-user") ?? "";
+  const sec = req.headers.get("x-telesia-internal") ?? "";
+  const u = req.headers.get("x-telesia-user") ?? "";
   if (!sec || !UUID_RE.test(u)) return null;
   const t = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   // The caller holds this project's service key (same env in every function), or a service-role JWT.
@@ -417,7 +417,7 @@ function balanceHeaders(ent: Ent | null, st: { cap: number; used: number }): Rec
     const spent = Math.max(0, num(ent.allowance, 0) - today);
     total = Math.max(today, Math.floor(num(ent.total_left, today) - spent));
     const reset = resetsAtHeader(ent.resets_at);
-    return { "x-submac-today-left": String(today), "x-submac-total-left": String(total), "x-submac-resets-at": reset, "x-submac-plan": String(ent.plan ?? "free") };
+    return { "x-telesia-today-left": String(today), "x-telesia-total-left": String(total), "x-telesia-resets-at": reset, "x-telesia-plan": String(ent.plan ?? "free") };
   }
   if (ent) {
     const parts = [ent.pass_left, ent.pack_left, ent.free?.left].filter((v) => v !== undefined && v !== null).map(Number).filter(Number.isFinite);
@@ -425,11 +425,11 @@ function balanceHeaders(ent: Ent | null, st: { cap: number; used: number }): Rec
     if (ent.pass) plan = /week/i.test(String(ent.pass.product ?? ent.pass.name ?? "")) ? "weekly" : "monthly";
     else if (Number(ent.pack_left ?? 0) > 0) plan = "payg";
   }
-  return { "x-submac-today-left": String(today), "x-submac-total-left": String(total), "x-submac-resets-at": resetsAtHeader(), "x-submac-plan": plan };
+  return { "x-telesia-today-left": String(today), "x-telesia-total-left": String(total), "x-telesia-resets-at": resetsAtHeader(), "x-telesia-plan": plan };
 }
-const BAL_EXPOSE = CORS["Access-Control-Expose-Headers"] + ", x-submac-balance";
+const BAL_EXPOSE = CORS["Access-Control-Expose-Headers"] + ", x-telesia-balance";
 function balHdr(n: number): Record<string, string> {
-  return { "x-submac-balance": String(Math.max(0, Math.floor(n))), "Access-Control-Expose-Headers": BAL_EXPOSE };
+  return { "x-telesia-balance": String(Math.max(0, Math.floor(n))), "Access-Control-Expose-Headers": BAL_EXPOSE };
 }
 // What the app can offer on a limit screen: the billing v2 plans (billing.plans; prices come from the app's catalog).
 const BUY_OPTIONS = [
@@ -460,7 +460,7 @@ function limitReply(e: Ent, s: Record<string, any>, hdrs: Record<string, string>
     let msg = FRIENDLY[code];
     if (e.degraded === "free_fallback") msg += " (We couldn't confirm your plan just now. If you have one, try again in a minute.)";
     if (typeof s.billing_limit_message === "string" && s.billing_limit_message) msg = s.billing_limit_message;
-    return billErr(429, code, msg, e, s, String(e.reason ?? code), {}, { ...hdrs, "x-submac-error": code });
+    return billErr(429, code, msg, e, s, String(e.reason ?? code), {}, { ...hdrs, "x-telesia-error": code });
   }
   const out = billingOut(e, s);
   let reason: string, msg: string;
@@ -510,7 +510,7 @@ function replyCap(balance: number, mult: number, promptTokens: number, s: Record
   return Math.max(Math.max(1, num(s.billing_min_reply_tokens, 512)), capped);
 }
 const NO_BALANCE = "You've used your allowance for now. Get a pass or a token pack to keep going, or wait for tomorrow's free allowance.";
-const CALL_BALANCE = "Your call time is used up. Get a pass or a token pack to keep calling. You can still type to SubMac.";
+const CALL_BALANCE = "Your call time is used up. Get a pass or a token pack to keep calling. You can still type to Telesia.";
 const BG_PAUSED = "Background tasks are paused until midnight (00:00 EAT) to save your allowance. Your own chats still work.";
 // Live: seconds remembered from the last successful charge, used only when usage_charge is down (never cut a call).
 const liveLeftCache = new Map<string, { left: number; at: number }>();
@@ -598,7 +598,7 @@ async function classify(text: string, cfg: Config): Promise<{ category: string; 
       try {
         const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 10_000);
         const res = await fetch(r.base_url.replace(/\/$/, "") + "/chat/completions", { method: "POST", signal: ctl.signal,
-          headers: { "content-type": "application/json", authorization: `Bearer ${k.key}`, "user-agent": "submac-proxy/1" },
+          headers: { "content-type": "application/json", authorization: `Bearer ${k.key}`, "user-agent": "telesia-proxy/1" },
           body: JSON.stringify({ ...(r.extra_body ?? {}), model: r.model, max_tokens: 120, temperature: 0,
             messages: [{ role: "system", content: sys }, { role: "user", content: text.slice(0, 1500) }] }) });
         clearTimeout(t);
@@ -731,7 +731,7 @@ function features(cfg: Config) {
   return {
     live: s.live_enabled !== false && !!s.live_provider,
     transcribe: s.transcribe_enabled !== false && !!s.live_provider,
-    image: has("submac-image"),
+    image: has("telesia-image"),
     video: false,
     live_voices: ["Kore", "Puck", "Charon", "Aoede", "Fenrir", "Leda", "Orus", "Zephyr"],
   };
@@ -781,7 +781,7 @@ type Mins = { ok?: boolean; reason?: string; call_id?: string; enabled?: boolean
   seconds_left?: number; minutes_left?: number; resets_at?: string; stop?: boolean; call_seconds?: number; added_seconds?: number };
 const HEARTBEAT_S = 30;
 function numOrNull(v: unknown): number | null { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.floor(Math.min(n, 86400)) : null; }
-function minutesUsedMessage() { return "Today's call minutes are used up. They come back at midnight UTC. You can still type to SubMac."; }
+function minutesUsedMessage() { return "Today's call minutes are used up. They come back at midnight UTC. You can still type to Telesia."; }
 /** The minute fields every Live answer carries. */
 function minsOut(m: Mins) {
   return { minutes_left: Number(m.minutes_left ?? 0), seconds_left: Number(m.seconds_left ?? 0), limit_minutes: Number(m.limit_minutes ?? 0),
@@ -868,7 +868,7 @@ function liveMinsOut(m: Mins, left: number) {
 
 async function mediaRoute(req: Request, url: URL, uid: string, cfg: Config): Promise<Response> {
   const s = cfg.settings;
-  if (s.kill_switch === true) return json({ error: { code: "paused", message: "SubMac is taking a short break. Please try again in a few minutes." } }, 503);
+  if (s.kill_switch === true) return json({ error: { code: "paused", message: "Telesia is taking a short break. Please try again in a few minutes." } }, 503);
   const blocked = (await rows(`ai_blocked_users?select=user_id&user_id=eq.${uid}&limit=1`)).length > 0;
   if (blocked) return json({ error: { code: "blocked", message: "Your account needs attention. Please contact support." } }, 403);
   const feat = features(cfg);
@@ -917,7 +917,7 @@ async function mediaRoute(req: Request, url: URL, uid: string, cfg: Config): Pro
         }
       }
     }
-    if (mins.enabled === false) return json({ error: { code: "live_off", message: "Calls are switched off for your account. You can still type to SubMac." }, ...minsOut(mins), minutes_left: 0, seconds_left: 0 }, 429);
+    if (mins.enabled === false) return json({ error: { code: "live_off", message: "Calls are switched off for your account. You can still type to Telesia." }, ...minsOut(mins), minutes_left: 0, seconds_left: 0 }, 429);
     if (billLeft !== null) {
       if (billLeft <= 0) {
         // A new call opened by live_call_start that the balance can't pay for is closed with nothing counted.
@@ -1026,7 +1026,7 @@ async function mediaRoute(req: Request, url: URL, uid: string, cfg: Config): Pro
   }
 
   // image
-  const alias = cfg.aliases.find((a) => a.alias === "submac-image");
+  const alias = cfg.aliases.find((a) => a.alias === "telesia-image");
   if (!alias?.routes.length) return json({ error: { code: "unavailable", message: "Image creation isn't available yet." } }, 503);
   const imgRoutes = alias.routes;
   for (const r of imgRoutes) {
@@ -1038,7 +1038,7 @@ async function mediaRoute(req: Request, url: URL, uid: string, cfg: Config): Pro
       }).catch(() => null);
       if (!res || !res.ok) { markKey(k.id, false, `image ${res?.status ?? 0}`, cooldownFor(res?.status ?? 0)); break; }
       const j = await res.json();
-      record({ user_id: uid, source: "image", alias: "submac-image", provider: r.provider, model: r.model, key_id: k.id, status: 200, prompt_tokens: Number(s.image_tokens ?? 4000), completion_tokens: 0, total_ms: Date.now() - t0 });
+      record({ user_id: uid, source: "image", alias: "telesia-image", provider: r.provider, model: r.model, key_id: k.id, status: 200, prompt_tokens: Number(s.image_tokens ?? 4000), completion_tokens: 0, total_ms: Date.now() - t0 });
       if (rid) {
         const icost = Math.ceil(Number(s.image_tokens ?? 4000) * tierOf(r.model, mrows).multiplier);
         billingCharge(uid, rid, Number(s.image_tokens ?? 4000), 0, "image", false, s);
@@ -1082,12 +1082,12 @@ function billCtx(ent: Ent, mrows: Mult[], background: boolean) {
   const st = billState(ent);
   const bgLeft = Math.max(0, Number(ent.bg_allowance ?? 0));
   const balance = background ? Math.min(bgLeft, st.cap - st.used) : st.cap - st.used;
-  const bx: BillPlan = { ent, mrows, balance, hdrs: { "x-submac-usage": st.ratio.toFixed(3), "x-submac-state": st.state } };
+  const bx: BillPlan = { ent, mrows, balance, hdrs: { "x-telesia-usage": st.ratio.toFixed(3), "x-telesia-state": st.state } };
   return { st, bgLeft, balance, bx };
 }
 const TOO_LONG_MSG = "Request too large to send in one go. Start a new chat or send less at once."; // the app compacts on this wording
 /** Everything about the model call that depends only on the request, the config and the allowance state. One route
- *  list (alias `submac`); the request's needs are capability filters on it: tools, vision when there are pictures,
+ *  list (alias `telesia`); the request's needs are capability filters on it: tools, vision when there are pictures,
  *  context fit. The over-limit grace ("light") is the same route list with a short max_tokens, never another model. */
 function makePlan(cfg: Config, body: any, state: string, bx?: BillPlan, effort: Effort | null = null): Plan {
   const s = cfg.settings;
@@ -1131,7 +1131,7 @@ function makePlan(cfg: Config, body: any, state: string, bx?: BillPlan, effort: 
   const smallestWindow = String(Math.min(...(healthyWindows.length ? healthyWindows : alias.routes.map(windowOf)), 1_000_000));
   const fitting = routes.filter((r) => need <= windowOf(r));
   if (routes.length && !fitting.length) {
-    return { ...empty, error: errJson(413, "too_long", "too_long", TOO_LONG_MSG, false, { "x-submac-window": smallestWindow }) };
+    return { ...empty, error: errJson(413, "too_long", "too_long", TOO_LONG_MSG, false, { "x-telesia-window": smallestWindow }) };
   }
   if (bx) {
     const minMult = fitting.length ? Math.min(...fitting.map((r) => tierOf(r.model, bx.mrows).multiplier)) : 1;
@@ -1139,7 +1139,7 @@ function makePlan(cfg: Config, body: any, state: string, bx?: BillPlan, effort: 
     if (needIn > bx.balance + Math.max(0, num(s.billing_overrun_tokens, 8000))) {
       return { ...empty, error: billErr(429, "limit_daily", `This message is too big for what's left of your allowance (it needs about ${needIn.toLocaleString("en-US")} tokens, ` +
         `${Math.max(0, Math.floor(bx.balance)).toLocaleString("en-US")} left). Start a new chat or send less at once.`,
-        bx.ent, s, "too_big_for_balance", { needed: needIn }, { ...bx.hdrs, "x-submac-error": "limit_daily" }, bx.balance) };
+        bx.ent, s, "too_big_for_balance", { needed: needIn }, { ...bx.hdrs, "x-telesia-error": "limit_daily" }, bx.balance) };
     }
   }
   const passthrough: Record<string, unknown> = {};
@@ -1200,7 +1200,7 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
   const tReq = Date.now();
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const url = new URL(req.url);
-  const internal = req.headers.has("x-submac-internal") ? await internalUser(req) : null;
+  const internal = req.headers.has("x-telesia-internal") ? await internalUser(req) : null;
   const uid = internal ?? await userFromJwt(req);
   if (!uid) return json({ error: { code: "auth", message: "Please sign in again." } }, 401);
 
@@ -1245,7 +1245,7 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
     tm.cfg = performance.now() - tCfg;
     if (url.pathname.endsWith("/models")) {
       // One public model. (Image creation keeps its own endpoint.)
-      return json({ object: "list", data: [{ id: CHAT_ALIAS, object: "model", owned_by: "submac" }] });
+      return json({ object: "list", data: [{ id: CHAT_ALIAS, object: "model", owned_by: "telesia" }] });
     }
     if (media) return await mediaRoute(req, url, uid, cfg);
     return json({ error: { message: "POST only" } }, 405);
@@ -1256,16 +1256,16 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
   const BAD = Symbol("bad json");
   const parsed = await req.json().catch(() => BAD);
   const body: any = parsed === BAD || !parsed || typeof parsed !== "object" ? {} : parsed;
-  const source = internal ? "bot-cloud" : (req.headers.get("x-submac-source") ?? "agent").slice(0, 20);
+  const source = internal ? "bot-cloud" : (req.headers.get("x-telesia-source") ?? "agent").slice(0, 20);
   // Background lane (Plan 2.2): the cloud runner, or app work nobody is watching (bot wakes, office work).
   // CB-45: an owner-typed bot chat ('bot-chat') is always the user's lane, never the bot/background share.
-  const background = !!internal || ((req.headers.get("x-submac-lane") ?? "").toLowerCase() === "background" && !chatLane(source));
+  const background = !!internal || ((req.headers.get("x-telesia-lane") ?? "").toLowerCase() === "background" && !chatLane(source));
   const lane = background ? "background" : "user";
   // Sticky chats: scoped to the user so two users' ids can never collide.
-  const chatHdr = (req.headers.get("x-submac-chat") ?? "").slice(0, 64);
+  const chatHdr = (req.headers.get("x-telesia-chat") ?? "").slice(0, 64);
   const chat = chatHdr ? uid + ":" + chatHdr : "";
-  // Any "submac*" model name (submac, submac-smart/fast/think/lite/vision/somali from older apps) is the one model.
-  const effort = effortOf(req.headers.get("x-submac-effort"));
+  // Any "telesia*" model name (telesia, telesia-smart/fast/think/lite/vision/somali from older apps) is the one model.
+  const effort = effortOf(req.headers.get("x-telesia-effort"));
   const needTools0 = Array.isArray(body.tools) && body.tools.length > 0;
 
   const warm = warmCfg();
@@ -1287,7 +1287,7 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
   if (!cfg) return errJson(503, "busy", "busy", undefined, true);
   const s = cfg.settings;
   // Checks in the same order as before: paused, blocked, bad JSON, burst, allowance, background share.
-  if (s.kill_switch === true) return errJson(503, "busy", "paused", "SubMac is taking a short break. Please try again in a few minutes.", true);
+  if (s.kill_switch === true) return errJson(503, "busy", "paused", "Telesia is taking a short break. Please try again in a few minutes.", true);
   if (g.blocked) return errJson(403, "blocked", "blocked");
   if (parsed === BAD) return errJson(400, "server", "bad_request", "Invalid JSON");
   const rpm = Number(s.user_rpm ?? 40);
@@ -1310,22 +1310,22 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
   const bgLeft = ctx ? ctx.bgLeft : 0;
   const balance = ctx ? ctx.balance : 0;
   const balHdrs = balanceHeaders(ent, st);
-  const stHdrs = { "x-submac-usage": st.ratio.toFixed(3), "x-submac-state": st.state };
+  const stHdrs = { "x-telesia-usage": st.ratio.toFixed(3), "x-telesia-state": st.state };
   const withBal = (r: Response) => { for (const [k, v] of Object.entries(balHdrs)) { try { r.headers.set(k, v); } catch { /* immutable */ } } return r; };
   if (ctx && st.state === "limit") {
     const r = withBal(await emptyReply(uid, ent!, s, stHdrs));
-    try { if (!r.headers.get("x-submac-error")) r.headers.set("x-submac-error", r.status === 503 ? "busy" : "limit_daily"); } catch { /* immutable */ }
+    try { if (!r.headers.get("x-telesia-error")) r.headers.set("x-telesia-error", r.status === 503 ? "busy" : "limit_daily"); } catch { /* immutable */ }
     return r;
   }
   if (st.state === "limit") return withBal(errJson(429, "limit_daily", "daily_limit", s.limit_message ?? FRIENDLY.limit_daily, false, stHdrs));
   const bgs = backgroundFor(used.tokens, used.bg, s2);
   if (ctx && background && bgLeft <= 0) {
     return withBal(billErr(429, "background_paused", BG_PAUSED, ent!, s, "background_share_used", { background_left: 0, resets_at: eatReset() },
-      { ...stHdrs, "x-submac-bg": "1.000", "x-submac-error": "limit_daily" }));
+      { ...stHdrs, "x-telesia-bg": "1.000", "x-telesia-error": "limit_daily" }));
   }
   if (!ctx && background && (bgs.paused || st.state === "light")) {
-    return withBal(json({ error: { code: "background_paused", submac_code: "limit_daily", message: "Paused until tomorrow to save your daily allowance." },
-      background_left: 0, resets_at: eatReset() }, 429, { ...stHdrs, "x-submac-bg": bgs.ratio.toFixed(3), "x-submac-error": "limit_daily" }));
+    return withBal(json({ error: { code: "background_paused", telesia_code: "limit_daily", message: "Paused until tomorrow to save your daily allowance." },
+      background_left: 0, resets_at: eatReset() }, 429, { ...stHdrs, "x-telesia-bg": bgs.ratio.toFixed(3), "x-telesia-error": "limit_daily" }));
   }
   if (!background && !internal) screenLater(uid, Array.isArray(body.messages) ? body.messages : [], cfg);
 
@@ -1339,7 +1339,7 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
   // One id per request: a retried charge for this reply is a no-op in usage_charge.
   const rid = bill ? "chat:" + crypto.randomUUID() : "";
   const bilHdrs = (cost: number): Record<string, string> => ent ? balHdr(balance - cost) : {};
-  const baseHeaders: Record<string, string> = { ...CORS, ...stHdrs, "x-submac-window": smallestWindow, "x-submac-bg": bgs.ratio.toFixed(3), ...bilHdrs(0), ...balHdrs };
+  const baseHeaders: Record<string, string> = { ...CORS, ...stHdrs, "x-telesia-window": smallestWindow, "x-telesia-bg": bgs.ratio.toFixed(3), ...bilHdrs(0), ...balHdrs };
 
   const costOf = (d: Done) => {
     // Nothing reached the client (hang-up before the first word): no charge, no allowance used.
@@ -1376,12 +1376,12 @@ async function handle(req: Request, tm: Record<string, number>): Promise<Respons
       if (ent) {
         const cost = c.delivered ? c.pt + c.ct : 0; // Contract B: raw tokens, one price
         const after = billState(ent, cost);
-        return json(data, 200, { ...balHdrs, "x-submac-usage": after.ratio.toFixed(3), "x-submac-state": after.state, "x-submac-window": smallestWindow,
-          "x-submac-bg": (background && bgLeft - cost <= 0 ? 1 : bgs.ratio).toFixed(3), ...bilHdrs(cost), ...balanceHeaders(ent, after) });
+        return json(data, 200, { ...balHdrs, "x-telesia-usage": after.ratio.toFixed(3), "x-telesia-state": after.state, "x-telesia-window": smallestWindow,
+          "x-telesia-bg": (background && bgLeft - cost <= 0 ? 1 : bgs.ratio).toFixed(3), ...bilHdrs(cost), ...balanceHeaders(ent, after) });
       }
       const after = stateFor(used.tokens + c.w, s2);
-      return json(data, 200, { ...balanceHeaders(null, after), "x-submac-usage": after.ratio.toFixed(3), "x-submac-state": after.state, "x-submac-window": smallestWindow,
-        "x-submac-bg": backgroundFor(after.used, used.bg + (background ? c.w : 0), s2).ratio.toFixed(3) });
+      return json(data, 200, { ...balanceHeaders(null, after), "x-telesia-usage": after.ratio.toFixed(3), "x-telesia-state": after.state, "x-telesia-window": smallestWindow,
+        "x-telesia-bg": backgroundFor(after.used, used.bg + (background ? c.w : 0), s2).ratio.toFixed(3) });
     },
   });
 }

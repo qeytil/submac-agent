@@ -1,4 +1,4 @@
-# SubMac Agent: audit of the agent workflows
+# Telesia: audit of the agent workflows
 
 Read-only review of the app as it stands in the working copy (version 1.13.62+95), dated 23 October 2026. Nothing was changed. Where a finding comes from reading the code and not from running it, it says so.
 
@@ -27,21 +27,21 @@ The weak spots are at the edges, where the phone, the cloud and the user meet:
 - **Fix:** Send a job to the cloud only when it needs nothing but memory and notes. Otherwise keep it on the phone, and treat web, email, apps and Somali wording as needing the phone. Make the phone pick up "waiting for the phone" notes and run them the next time it wakes. Longer term, give the cloud runner web search and page reading.
 
 ### 2. Tasks cut off by Android or a restart vanish without a word
-- **What the user sees:** They start a long job, switch apps, and Android closes SubMac (common on low-memory phones). When they come back, the chat stops half-way: no answer, no "this was interrupted", no way to pick up. In-app browser jobs, tasks started from a Live call and the step-by-step checklist are all gone. Bot approval requests left open are marked expired, and the bot's action is silently dropped.
+- **What the user sees:** They start a long job, switch apps, and Android closes Telesia (common on low-memory phones). When they come back, the chat stops half-way: no answer, no "this was interrupted", no way to pick up. In-app browser jobs, tasks started from a Live call and the step-by-step checklist are all gone. Bot approval requests left open are marked expired, and the bot's action is silently dropped.
 - **Why:** Running tasks, browser jobs and Live tasks are kept only in memory. The checklist is saved only when a task ends normally, so a killed task never saves it. Unanswered bot approvals are expired on start-up.
 - **Fix:** Write a small "task in progress" record (the request, the checklist, the step reached) as the task goes. On start-up, show "This task was interrupted. Continue?" in the chat. Keep unanswered approvals open after a restart and let the bot redo the action once they are approved.
 
 ### 3. Questions and approvals asked in the background can wait forever
 - **What the user sees:**
   - A scheduled task, a Telegram request or a background job hits a question or needs an app connected. Nothing happens. The "working" notification stays up and the result never comes.
-  - A scheduled 7 a.m. task that needs approval can pull SubMac on top of whatever the user is doing and show a sheet that cannot be dismissed.
+  - A scheduled 7 a.m. task that needs approval can pull Telesia on top of whatever the user is doing and show a sheet that cannot be dismissed.
   - On Telegram the user gets "Still working on it" after 20 minutes and never hears more.
 - **Why:** Questions to the user ("ask user", "connect app", sign-in) have no time limit and send no notification when the app is not open. The approval sheet in the owner's own chats also has no time limit.
 - **Fix:** For any question or approval raised while the app is in the background, send a notification the user can answer from. Give each one a time limit (for example 30 minutes for questions). When it runs out, the task should end politely ("Skipped because you weren't around: …") instead of hanging. Scheduled runs should never bring the app to the front; they should ask by notification, like bots do.
 
 ### 4. Approval cards can be skipped, or work after the user pressed Stop
 - **What the user sees:**
-  - A Somali or Arabic site or app has a button such as "Dir", "Bixi", "إرسال" or "ادفع". SubMac taps it with no approval card, because only English words like "send", "pay" and "post" are recognised.
+  - A Somali or Arabic site or app has a button such as "Dir", "Bixi", "إرسال" or "ادفع". Telesia taps it with no approval card, because only English words like "send", "pay" and "post" are recognised.
   - The model can tap by screen position, press Enter on a form or run page scripts with no card unless it chooses to describe the action itself.
   - Some connected-app actions with "list" or "get" in their name are treated as read-only even when they change things (for example "delete list item").
   - Writes made through plain web addresses, such as a Telegram bot "send message" link or a command-line post without an explicit method, are treated as reads.
@@ -54,9 +54,9 @@ The weak spots are at the edges, where the phone, the cloud and the user meet:
   - When a task is stopped, cancel its open approval cards.
 
 ### 5. Scheduled tasks stop after a phone restart; overdue one-off tasks disappear
-- **What the user sees:** They set "remind me every morning at 7" and later restart the phone. Unless they also have an active bot or team, nothing fires until they open SubMac again. A one-off reminder that was missed by more than 30 minutes (phone off, battery saver) is deleted without any note.
-- **Why:** After a restart, the phone only wakes SubMac to set its alarms again if bots or teams are active; plain scheduled tasks are not checked. Overdue one-off tasks are removed on start-up.
-- **Fix:** Also wake SubMac after a restart when the user has any scheduled task. For a missed one-off task, either run it late with a "(late)" label or send "Missed: … (your phone was off)".
+- **What the user sees:** They set "remind me every morning at 7" and later restart the phone. Unless they also have an active bot or team, nothing fires until they open Telesia again. A one-off reminder that was missed by more than 30 minutes (phone off, battery saver) is deleted without any note.
+- **Why:** After a restart, the phone only wakes Telesia to set its alarms again if bots or teams are active; plain scheduled tasks are not checked. Overdue one-off tasks are removed on start-up.
+- **Fix:** Also wake Telesia after a restart when the user has any scheduled task. For a missed one-off task, either run it late with a "(late)" label or send "Missed: … (your phone was off)".
 
 ### 6. Too many tools that overlap, which confuses the model
 - **What the user sees:** Results are inconsistent. A sale is recorded in the personal money notebook one day and the business books the next. A document might be made with any of three different tools. A reminder becomes a phone alarm, a calendar entry, a scheduled task or a bot routine depending on the wording. A page is fetched, opened in the browser, or opened on the phone. Answers are slower, and the daily allowance runs out sooner.
@@ -66,7 +66,7 @@ The weak spots are at the edges, where the phone, the cloud and the user meet:
     - three ways to make a document, plus plain file writing
     - three ways to read a document
     - five ways to "do it later"
-    - three kinds of memory (SubMac's, a bot's, and knowledge)
+    - three kinds of memory (Telesia's, a bot's, and knowledge)
     - two kinds of picture making
     - three ways to reach a website
   - The words that switch tool groups on are very broad ("open", "app", "account", "page", "plan", "report", "order", "job", "code"…), and once switched on they stay on for the rest of the chat. Long chats end up carrying almost everything.
@@ -87,12 +87,12 @@ The weak spots are at the edges, where the phone, the cloud and the user meet:
 
   Short Somali questions get padded answers, and the first word takes longer to appear.
 - **Why:**
-  - The main instructions are about 4,000 tokens before tools. On top of that come the safety block, a tour of SubMac's menus sent with every request, the full card catalogue when a message looks visual, and a growing set of notes added to every step: the request repeated word for word, the list of must-haves, the checklist, the final self-check, skill hints and frustration hints.
+  - The main instructions are about 4,000 tokens before tools. On top of that come the safety block, a tour of Telesia's menus sent with every request, the full card catalogue when a message looks visual, and a growing set of notes added to every step: the request repeated word for word, the list of must-haves, the checklist, the final self-check, skill hints and frustration hints.
   - Several rules pull against each other. "Ask at most one question" sits next to "ask up to 3 questions before a build". "Start every task with a line" sits next to "say one line before you start the browser".
   - The full tool descriptions are an estimated 10–15k tokens on top of all this.
 - **Fix:**
   - Cut the main instructions roughly in half.
-  - Send the SubMac menu tour only when the user asks how the app works.
+  - Send the Telesia menu tour only when the user asks how the app works.
   - Drop the forced six-step check-in (the live task line already shows progress).
   - Make the opening line and the closing offer optional ("only if the task will take more than a few seconds"; "only when there is an obvious next step").
   - Settle on one rule for questions.
@@ -171,6 +171,6 @@ The weak spots are at the edges, where the phone, the cloud and the user meet:
 - Browser: `lib/services/browser_agent.dart`, `browser_jobs.dart`
 - Bots, teams, cloud: `lib/services/bots.dart`, `bot_sync.dart`, `offices.dart`, `supabase/functions/bot-run/index.ts`
 - Live: `lib/services/live_tasks.dart`
-- Android side: `android_native/BootReceiver.kt`, `TaskService.kt`, `SubMacApp.kt`, `tools/patch_android.py`
+- Android side: `android_native/BootReceiver.kt`, `TaskService.kt`, `TelesiaApp.kt`, `tools/patch_android.py`
 - Screens: `lib/screens/home_screen.dart`
 - Docs: `docs/agent-loop.md`, `docs/project-state.md`, `ROADMAP.md`

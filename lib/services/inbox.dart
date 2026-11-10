@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// One item in "From SubMac": a message from the SubMac team, a reward grant, or an earned-reward notice.
+/// One item in "From Telesia": a message from the Telesia team, a reward grant, or an earned-reward notice.
 class InboxItem {
   final String id;
   final String kind; // admin_message | reward_grant | reward_earned
@@ -56,9 +56,9 @@ class InboxItem {
       };
 }
 
-/// "From SubMac": everything the SubMac team sends this account (Supabase `user_inbox`, read-only for the user;
+/// "From Telesia": everything the Telesia team sends this account (Supabase `user_inbox`, read-only for the user;
 /// read/unread through `inbox_mark`). Cached on the phone so it opens offline. Messages sent "in chat" are also
-/// posted into the SubMac team chat by [onChatItems] (set by AppState), and edits/deletes made by the team follow.
+/// posted into the Telesia team chat by [onChatItems] (set by AppState), and edits/deletes made by the team follow.
 class Inbox extends ChangeNotifier {
   Inbox._();
   static final I = Inbox._();
@@ -77,7 +77,7 @@ class Inbox extends ChangeNotifier {
   /// Visible items, newest first.
   List<InboxItem> get items => [for (final i in _all) if (!i.deleted) i];
 
-  /// AppState mirrors in-chat items into the SubMac team chat (all items, including deleted ones, so it can remove them).
+  /// AppState mirrors in-chat items into the Telesia team chat (all items, including deleted ones, so it can remove them).
   Future<void> Function(List<InboxItem> all)? onChatItems;
 
   SupabaseClient? get _c {

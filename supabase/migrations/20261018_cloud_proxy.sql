@@ -1,6 +1,6 @@
--- SubMac Cloud: model proxy config, Vault-backed provider keys, per-user daily allowance, usage and benchmarks.
+-- Telesia Cloud: model proxy config, Vault-backed provider keys, per-user daily allowance, usage and benchmarks.
 -- Applied live 2026-10-18. Only the service role (edge functions) can read or write these tables.
--- SubMac cloud model proxy: config, keys (Vault), usage, quotas
+-- Telesia cloud model proxy: config, keys (Vault), usage, quotas
 create table if not exists public.ai_providers (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
@@ -137,7 +137,7 @@ create or replace function public.ai_add_key(p_provider uuid, p_label text, p_ke
 language plpgsql security definer set search_path = public, vault as $$
 declare sid uuid; kid uuid;
 begin
-  sid := vault.create_secret(p_key, 'ai_key_' || gen_random_uuid()::text, 'SubMac proxy provider key');
+  sid := vault.create_secret(p_key, 'ai_key_' || gen_random_uuid()::text, 'Telesia proxy provider key');
   insert into ai_keys(provider_id, label, secret_id, key_preview)
   values (p_provider, coalesce(nullif(p_label,''),'key'), sid, left(p_key, 6) || '…' || right(p_key, 4))
   returning id into kid;
@@ -229,12 +229,12 @@ do $$ declare f text; begin
   end loop;
 end $$;
 
-insert into public.ai_admins(email) values ('submac.owner@gmail.com') on conflict do nothing;
+insert into public.ai_admins(email) values ('telesia.owner@gmail.com') on conflict do nothing;
 insert into public.ai_settings(key, value) values
   ('daily_cap_tokens', '200000'),
   ('soft_notice_ratio', '0.8'),
   ('grace_tokens', '40000'),
-  ('grace_alias', '"submac-lite"'),
+  ('grace_alias', '"telesia-lite"'),
   ('grace_max_output_tokens', '400'),
   ('kill_switch', 'false'),
   ('first_byte_timeout_ms', '20000'),

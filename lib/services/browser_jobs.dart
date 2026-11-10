@@ -34,7 +34,7 @@ class BrowserJob {
   /// (FetchBrowser: open, follow links, find, read on). Set at the start or by the first step that could not start.
   bool fetchMode = false;
 
-  /// The bot whose task this is ('' = SubMac's own), so the browser agent thinks on that bot's own model.
+  /// The bot whose task this is ('' = Telesia's own), so the browser agent thinks on that bot's own model.
   String botId = '';
 
   /// running | needs (waiting for an answer) | checkin (time box reached) | done | failed | stopped
@@ -588,8 +588,8 @@ class BrowserJobs extends ChangeNotifier {
 
   String _system(BrowserJob j) {
     final rules = userRules?.call() ?? '';
-    return '''You are SubMac's browser agent: you use websites on a phone for the user, quickly and carefully, like an expert.
-You drive SubMac's built-in browser (Chromium, mobile layout).
+    return '''You are Telesia's browser agent: you use websites on a phone for the user, quickly and carefully, like an expert.
+You drive Telesia's built-in browser (Chromium, mobile layout).
 ${rules.isEmpty ? '' : '\nThe user\'s own rules (they come first):\n$rules\n'}
 WHAT YOU SEE EVERY STEP
 - The page: title and URL, the numbered interactive elements ("[12] button "Add to cart" @64,71": number, kind, label, where on the screenshot in %; * marks elements that are new since your last step; "(below, scrolls in)" means the action scrolls it in for you), the text in view, notices (pop-ups, sign-in, payment page).
@@ -624,9 +624,9 @@ WHEN STUCK (never the same failing action twice in a row)
 - If a whole approach fails twice, change the approach (re-plan), not the click.
 
 ${j.fetchMode ? '''
-READ-ONLY MODE (SubMac is closed and no browser view can run): browser_open (url), browser_click (a link NUMBER from the page's
+READ-ONLY MODE (Telesia is closed and no browser view can run): browser_open (url), browser_click (a link NUMBER from the page's
 link list), browser_find, browser_scroll / browser_read work on plain page reads with numbered links. Typing, sign-in, forms,
-scripts and payments do not work: if the goal needs them, finish with success:false saying it needs SubMac open.
+scripts and payments do not work: if the goal needs them, finish with success:false saying it needs Telesia open.
 ''' : ''}${j.unattended ? '''
 THIS RUN IS IN THE BACKGROUND (a scheduled task; the user is not watching):
 - Never wait for an answer and never ask (no ask_user, no "about" question). If a step needs the user's OK — money, posting, sending, a password — stop and finish with success:false and one line saying exactly what needs approving.
@@ -789,7 +789,7 @@ ${j.details.isEmpty ? '' : 'Details: ${j.details}\n'}''';
       hooks: hooks,
       transport: hooks.transport,
       tools: tools,
-      modelName: 'submac-browser',
+      modelName: 'telesia-browser',
       maxSteps: 100000,
       before: [
         (s) {
@@ -927,7 +927,7 @@ ${j.details.isEmpty ? '' : 'Details: ${j.details}\n'}''';
   static bool noBrowserView(String out) =>
       out.startsWith('Error:') && RegExp(r'not ready|TimeoutException|no screen|off-screen browser could not start', caseSensitive: false).hasMatch(out);
 
-  static const fetchModeNote = 'SubMac is closed and the real browser could not start, so this task continues in READ-ONLY mode: '
+  static const fetchModeNote = 'Telesia is closed and the real browser could not start, so this task continues in READ-ONLY mode: '
       'browser_open (a url), browser_click (a link number), browser_find, browser_scroll/browser_read work on plain page reads; '
       'typing, signing in, forms and payments do not. For searches open a search URL directly.';
 

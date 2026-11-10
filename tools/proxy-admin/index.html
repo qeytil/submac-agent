@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SubMac Proxy Admin</title>
+<title>Telesia Proxy Admin</title>
 <meta name="robots" content="noindex" />
 <style>
   :root { --bg:#0d1016; --panel:#151a23; --line:#232b38; --text:#e6e9ef; --mute:#8b95a7; --acc:#6ea8fe; --ok:#3ecf8e; --warn:#f5b84b; --bad:#f2555a; }
@@ -59,7 +59,7 @@
 </head>
 <body>
 <div id="login" class="login card hide">
-  <h2>SubMac Proxy Admin</h2>
+  <h2>Telesia Proxy Admin</h2>
   <p class="mute">Sign in with your admin email and password.</p>
   <form onsubmit="event.preventDefault(); signIn();">
     <div class="row"><input id="email" type="email" autocomplete="username" placeholder="you@example.com" style="flex:1" required /></div>
@@ -70,7 +70,7 @@
 
 <div id="app" class="hide">
   <header>
-    <h1>SubMac Proxy</h1>
+    <h1>Telesia Proxy</h1>
     <nav id="tabs"></nav>
     <span class="sp"></span>
     <span id="who" class="mute"></span>
@@ -240,14 +240,14 @@ function aliases() {
         <textarea id="hn_${esc(a.alias)}">${esc(a.system_hint || "")}</textarea>
         <div class="row" style="margin-top:8px"><button class="b p" onclick="saveAlias('${esc(a.alias)}')">Save</button></div>
       </details></div>`;
-  }).join("") + `<div class="card"><h2>Add a name</h2><div class="row"><input id="newAlias" placeholder="submac-something"><input id="newAliasDesc" placeholder="What it's for" style="flex:1"><button class="b" onclick="newAlias()">Add</button></div>
+  }).join("") + `<div class="card"><h2>Add a name</h2><div class="row"><input id="newAlias" placeholder="telesia-something"><input id="newAliasDesc" placeholder="What it's for" style="flex:1"><button class="b" onclick="newAlias()">Add</button></div>
     <p class="mute">The app must ask for a name to use it. The four built-in names are what the app uses today.</p></div>`;
 }
-// The app plans every request against a fixed 48k window (ContextWindow). A model in submac-smart or
-// submac-vision with a smaller window than that budget plus the reply would make swaps fail, so flag it.
+// The app plans every request against a fixed 48k window (ContextWindow). A model in telesia-smart or
+// telesia-vision with a smaller window than that budget plus the reply would make swaps fail, so flag it.
 const APP_BUDGET = 48000;
 function windowWarn(a, m) {
-  if (!["submac-smart", "submac-vision"].includes(a.alias) || !m.context_window) return "";
+  if (!["telesia-smart", "telesia-vision"].includes(a.alias) || !m.context_window) return "";
   const need = APP_BUDGET + (a.max_output_tokens || 0);
   return m.context_window < need ? `<span class="pill bad" title="Needs at least ${need} tokens">window too small (${Math.round(m.context_window / 1000)}k)</span>` : "";
 }
@@ -561,7 +561,7 @@ function userPanel() {
 window.userSuspend = async () => { const reason = prompt("Suspend this account? The AI will refuse every request. Reason (internal):", ""); if (reason === null) return; await userDo("user_suspend", { user_id: S.uid, reason }, "Suspended"); };
 window.userUnsuspend = async () => { await userDo("user_unsuspend", { user_id: S.uid }, "Unsuspended"); };
 window.userCap = async () => { const v = prompt("Daily cap in tokens for this user (empty = default " + setting("daily_cap_tokens", 200000) + ")", S.udata?.cap?.override ?? ""); if (v === null) return; await userDo("user_set_cap", { user_id: S.uid, cap: v.trim() === "" ? null : +v }, "Cap saved"); };
-window.userGrant = async () => { await userDo("reward_grant", { user_id: S.uid, amount_per_day: +$("#ugAmt").value, days: +$("#ugDays").value, note: $("#ugNote").value.trim(), show_note: $("#ugShow").checked }, "Reward granted. The user sees it in From SubMac."); };
+window.userGrant = async () => { await userDo("reward_grant", { user_id: S.uid, amount_per_day: +$("#ugAmt").value, days: +$("#ugDays").value, note: $("#ugNote").value.trim(), show_note: $("#ugShow").checked }, "Reward granted. The user sees it in From Telesia."); };
 window.rewardRevoke = async (id) => { const reason = prompt("Revoke this reward? Reason (internal):", ""); if (reason === null) return; if (S.tab === "rewards") return rewardsDo("reward_revoke", { id, reason }, "Revoked"); await userDo("reward_revoke", { id, reason }, "Revoked"); };
 window.rewardRestore = async (id) => { if (S.tab === "rewards") return rewardsDo("reward_restore", { id }, "Restored"); await userDo("reward_restore", { id }, "Restored"); };
 window.flagResolve = async (id, resolved) => { if (S.tab === "safety") return safetyDo("flag_resolve", { id, resolved }); await userDo("flag_resolve", { id, resolved }, resolved ? "Resolved" : "Reopened"); };
@@ -600,7 +600,7 @@ function rewards() {
       <td style="width:80px"><button class="b" onclick="rewardSetting('${k}')">Save</button></td></tr>`).join("")}</table></div>
   <div class="card"><h2>Grant a reward</h2><div class="row"><input id="rgEmail" type="email" placeholder="user email" style="width:260px"><label>Tokens per day <input id="rgAmt" type="number" value="50000" style="width:110px"></label>
       <label>Days <input id="rgDays" type="number" value="7" style="width:70px"></label><input id="rgNote" placeholder="Reason / note" style="flex:1"><label class="row mute"><input type="checkbox" id="rgShow"> show note to user</label><button class="b p" onclick="rewardGrant()">Grant</button></div>
-    <p class="mute" style="margin:8px 0 0">Shows in the user's From SubMac inbox and adds to their daily allowance right away. Not limited by the caps above.</p></div>
+    <p class="mute" style="margin:8px 0 0">Shows in the user's From Telesia inbox and adds to their daily allowance right away. Not limited by the caps above.</p></div>
   <div class="card"><div class="row"><h2 style="margin:0;flex:1">Ledger <span class="mute" style="font-weight:400">${totals.active} active · +${kfmt(totals.tokens)}/day in total</span></h2>
       <select onchange="S.rstate=this.value;S.rew=null;render()">${["all", "active", "expired", "revoked"].map((x) => `<option ${x === (S.rstate || "all") ? "selected" : ""}>${x}</option>`).join("")}</select></div>
     <table style="margin-top:8px"><tr><th>User</th><th>Kind</th><th>Amount</th><th>From</th><th>Given</th><th>Ends</th><th>State</th><th></th></tr>${rows}</table></div>`;
@@ -608,14 +608,14 @@ function rewards() {
 window.rewardSetting = async (k) => { let v; try { v = JSON.parse(document.getElementById("rw_" + k).value); } catch { return toast("Not valid JSON", true); } await api("set_setting", { key: k, value: v }); await load(); await rewardsDo("rewards_settings", {}, "Saved. Live within a minute."); };
 window.rewardGrant = async () => { const email = $("#rgEmail").value.trim(); if (!email) return toast("Type the user's email", true); await rewardsDo("reward_grant", { email, amount_per_day: +$("#rgAmt").value, days: +$("#rgDays").value, note: $("#rgNote").value.trim(), show_note: $("#rgShow").checked }, "Reward granted"); };
 
-// ---------- Messages to users ("From SubMac") ----------
+// ---------- Messages to users ("From Telesia") ----------
 async function loadMessages() { S.msgs = await api("messages_list"); }
 function messages() {
   if (!S.msgs) { loadMessages().then(render).catch((e) => toast(e.message, true)); return "Loading…"; }
   const C = S.compose = S.compose || { audience: "one", delivery: "both", title: "", body: "", ids: [] };
   const who = C.audience === "all" ? "Everyone" : C.audience === "selected" ? `${(C.ids || []).length} selected user${(C.ids || []).length === 1 ? "" : "s"}` : "One user (by email)";
   const sent = S.msgs.map((m) => S.editMsg === m.id ? `<tr><td colspan="7"><div class="row"><input id="em_t" value="${esc(m.title)}" style="flex:1"></div><textarea id="em_b" style="margin-top:6px">${esc(m.body)}</textarea>
-      <div class="row" style="margin-top:6px"><button class="b p" onclick="msgSaveEdit('${m.id}')">Save edit</button><button class="b" onclick="S.editMsg=null;render()">Cancel</button><span class="mute">Edits show in the app's From SubMac and chat. A push already shown on a phone can't change.</span></div></td></tr>`
+      <div class="row" style="margin-top:6px"><button class="b p" onclick="msgSaveEdit('${m.id}')">Save edit</button><button class="b" onclick="S.editMsg=null;render()">Cancel</button><span class="mute">Edits show in the app's From Telesia and chat. A push already shown on a phone can't change.</span></div></td></tr>`
     : `<tr><td>${when(m.created_at)}${m.edited_at ? ' <span class="mute">(edited)</span>' : ""}</td><td><b>${esc(m.title)}</b><div class="mute" style="font-size:12px;max-width:420px;white-space:pre-wrap">${esc(m.body.slice(0, 240))}</div></td>
       <td>${esc(m.delivery)}</td><td>${m.audience === "all" ? "everyone" : esc((m.to || []).join(", "))}${m.recipients > 5 && m.audience !== "all" ? " …" : ""} <span class="mute">(${m.recipients})</span></td>
       <td>${m.delivery !== "chat" ? `${m.push_sent} sent · ${m.push_no_device} no device · ${m.push_failed} failed` : "–"}</td><td>${fmt(m.read)} / ${fmt(m.recipients)}</td>
@@ -627,7 +627,7 @@ function messages() {
       <label>Where <select id="mDel" onchange="cmp('delivery',this.value)">${[["both", "Phone notification + in chat"], ["push", "Phone notification only"], ["chat", "In chat only"]].map(([k, l]) => `<option value="${k}" ${C.delivery === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
     <div class="row" style="margin-top:8px"><input id="mTitle" placeholder="Title" value="${esc(C.title)}" oninput="cmpLive('title',this.value)" style="flex:1" maxlength="200"></div>
     <textarea id="mBody" placeholder="Message" oninput="cmpLive('body',this.value)" maxlength="4000" style="margin-top:8px;min-height:110px">${esc(C.body)}</textarea>
-    <p class="mute" style="margin:6px 0">Every message also lands in the user's From SubMac inbox. In chat it shows as a "SubMac team" card. You can edit or delete it after sending.</p>
+    <p class="mute" style="margin:6px 0">Every message also lands in the user's From Telesia inbox. In chat it shows as a "Telesia team" card. You can edit or delete it after sending.</p>
     <h3 style="font-size:13px;margin:12px 0 6px">Preview</h3><div id="mPrev">${msgPreview(C)}</div>
     <div class="row" style="margin-top:12px"><button class="b p" onclick="msgSend(this)">Send to ${esc(who)}</button><button class="b" onclick="S.compose={audience:'one',delivery:'both',title:'',body:'',ids:[]};render()">Clear</button></div></div>
   <div class="card"><div class="row"><h2 style="margin:0;flex:1">Sent</h2><button class="b" onclick="S.msgs=null;render()">Refresh</button></div>
@@ -637,8 +637,8 @@ function msgPreview(C) {
   const t = esc(C.title || "Title"), b = esc(C.body || "Your message").replace(/\n/g, "<br>");
   return `<div class="row" style="align-items:flex-start;gap:16px">
     ${C.delivery !== "chat" ? `<div class="stat" style="width:320px"><span>Phone notification</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span style="color:var(--text);font-size:13px">${esc((C.body || "Your message").slice(0, 120))}</span></div></div>` : ""}
-    ${C.delivery !== "push" ? `<div class="stat" style="width:360px;border-color:var(--acc)"><span style="color:var(--acc);font-weight:600">✓ SubMac team</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span style="color:var(--text);font-size:13px">${b}</span></div></div>` : ""}
-    <div class="stat" style="width:300px"><span>From SubMac inbox</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span class="mute" style="font-size:12px">SubMac team · now</span></div></div></div>`;
+    ${C.delivery !== "push" ? `<div class="stat" style="width:360px;border-color:var(--acc)"><span style="color:var(--acc);font-weight:600">✓ Telesia team</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span style="color:var(--text);font-size:13px">${b}</span></div></div>` : ""}
+    <div class="stat" style="width:300px"><span>From Telesia inbox</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span class="mute" style="font-size:12px">Telesia team · now</span></div></div></div>`;
 }
 window.cmp = (k, v) => { S.compose[k] = v; render(); };
 window.cmpLive = (k, v) => { S.compose[k] = v; const p = $("#mPrev"); if (p) p.innerHTML = msgPreview(S.compose); };
@@ -833,7 +833,7 @@ function updates() {
   }).join("") || '<tr><td colspan="7" class="mute">No updates yet.</td></tr>';
   const dev = (U.devices || []).map((d) => `<tr><td class="mono">${esc(d.app_version)}</td><td>${fmt(d.devices)}</td><td>${fmt(d.seen_7d)}</td></tr>`).join("") || '<tr><td colspan="3" class="mute">No devices yet.</td></tr>';
   const warn = [];
-  if (F.info && F.info.package && F.info.package !== "com.submac.agent") warn.push("This file is not SubMac Agent (" + esc(F.info.package) + ").");
+  if (F.info && F.info.package && F.info.package !== "com.telesia.app") warn.push("This file is not Telesia (" + esc(F.info.package) + ").");
   if (F.info && top && Number(F.info.versionCode) <= top.version_code) warn.push(`Build ${esc(F.info.versionCode)} is not newer than the latest release (build ${top.version_code}). Phones only offer a higher build.`);
   return `<div class="card"><h2>Publish a new update</h2>
     <p class="mute" style="margin-top:0">Pick the signed app file (the <span class="mono">app-release.apk</span> from the build). Phones on an older version see an update window on every start until they update.</p>
@@ -1037,7 +1037,7 @@ const SETTINGS = [
   ["soft_notice_ratio", "Share of the allowance (0 to 1) where the app shows a gentle heads-up."],
   ["background_share", "Share of the daily allowance (0 to 1) bots and offices may use per day (default 0.3). When it is used they pause until tomorrow; the user's own chats keep the whole allowance."],
   ["grace_tokens", "Extra tokens after the cap, served by the light name below, before the friendly daily limit."],
-  ["grace_alias", "Name used after the cap (e.g. \"submac-lite\")."],
+  ["grace_alias", "Name used after the cap (e.g. \"telesia-lite\")."],
   ["grace_max_output_tokens", "Max reply length after the cap."],
   ["limit_message", "Text users see at the very end of the day's allowance."],
   ["first_byte_timeout_ms", "If a model hasn't started answering in this many ms, try the next one."],

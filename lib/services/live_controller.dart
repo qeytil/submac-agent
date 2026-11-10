@@ -47,7 +47,7 @@ class LiveController extends ChangeNotifier {
   };
 
   /// Starts a call. [floating] shows it over other apps (wake word, "Float").
-  /// The bot on this call (null for a normal SubMac call).
+  /// The bot on this call (null for a normal Telesia call).
   String? botId;
 
   Future<String?> start({bool floating = false, String mode = 'popup', String? persona, String? voice, String? opening, String? convId, String? bot}) async {
@@ -62,7 +62,7 @@ class LiveController extends ChangeNotifier {
       voice: (voice != null && voice.isNotEmpty) ? voice : app.liveVoice,
       systemPrompt: '${persona == null || persona.isEmpty ? '' : '$persona\n\n'}${app.liveSystemPrompt(convId: convId)}\n'
           '- When the user wants to end the call (end the call, hang up, bye, that is all), say a short goodbye and call end_call.\n'
-          '- You can change SubMac settings with app_settings when the user asks (theme, voice, wake word sensitivity, approval mode...).',
+          '- You can change Telesia settings with app_settings when the user asks (theme, voice, wake word sensitivity, approval mode...).',
       toolsEnabled: true,
       runTool: _runTool,
       tools: <Map<String, dynamic>>[endCallTool, ...app.liveTools()],
@@ -100,7 +100,7 @@ class LiveController extends ChangeNotifier {
   }
 
   /// Tools that act on the phone's real screen: Live steps aside (floating card) first, so they see and tap the
-  /// app the user means instead of SubMac's own Live screen.
+  /// app the user means instead of Telesia's own Live screen.
   static const screenTools = {
     'phone_screen', 'phone_tap', 'phone_type', 'phone_scroll', 'phone_gesture', 'phone_long_press', 'phone_wait', 'phone_nav',
     'open_app', 'whatsapp',
@@ -118,7 +118,7 @@ class LiveController extends ChangeNotifier {
     final bid = botId;
     if (name == 'recall') return app.recall('${args['query'] ?? ''}', botId: bid);
     if (screenTools.contains(name) && session != null && !floating) {
-      // Out of the way: float the call, or at least move SubMac to the back, so the real app is on screen.
+      // Out of the way: float the call, or at least move Telesia to the back, so the real app is on screen.
       if (!await float(mode: 'orb')) await SystemBridge.I.moveToBack();
       await Future<void>.delayed(const Duration(milliseconds: 350));
     }

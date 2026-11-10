@@ -9,7 +9,7 @@ import 'system_bridge.dart';
 import 'tools.dart' show AgentTools;
 
 /// Mission mode (owner 2026-11-07): a bot or a team, once the owner switches autonomy on and gives it a goal, works
-/// toward it on its own across many runs, also with SubMac closed. It plans, keeps a task list and a progress log on
+/// toward it on its own across many runs, also with Telesia closed. It plans, keeps a task list and a progress log on
 /// disk, wakes itself (its own exact alarm, the same AlarmManager → TaskService → AlarmGate path bot routines and
 /// scheduled tasks use), hands work to teammates, and reaches the owner only for approvals, money and irreversible
 /// steps ("[needs you]"). Guardrails: runs per day, tokens per day, a stop switch, and a log the owner sees.
@@ -218,7 +218,7 @@ class Missions extends ChangeNotifier {
   Missions._();
   static final Missions I = Missions._();
 
-  /// Tests: where the mission folders go (default: SubMac's workspace).
+  /// Tests: where the mission folders go (default: Telesia's workspace).
   static String? dirOverride;
 
   /// Tests: the clock.

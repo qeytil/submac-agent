@@ -10,7 +10,7 @@ import 'system_bridge.dart';
 
 enum WakeSetup { off, downloading, paused, unpacking, ready, error }
 
-/// "Hello SubMac": downloads the offline voice pack once (auto-start, pausable),
+/// "Hello Telesia": downloads the offline voice pack once (auto-start, pausable),
 /// then keeps the listener running in Android.
 class WakeWord extends ChangeNotifier {
   WakeWord._();
@@ -219,7 +219,7 @@ class WakeWord extends ChangeNotifier {
       if (enabled) await _startListening();
     } catch (e) {
       setup = WakeSetup.error;
-      error = 'The voice pack didn\'t unpack. Turn Hello SubMac off and on to try again.';
+      error = 'The voice pack didn\'t unpack. Turn Hello Telesia off and on to try again.';
       notifyListeners();
     }
   }
@@ -248,7 +248,7 @@ class WakeWord extends ChangeNotifier {
         if (!enabled) return 'Ready (off)';
         switch (listenState) {
           case 'listening':
-            return 'Listening for “Hello SubMac”';
+            return 'Listening for “Hello Telesia”';
           case 'paused':
             return 'Paused while Live is on';
           case 'call':

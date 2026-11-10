@@ -24,7 +24,7 @@ class FetchPage {
 /// The browser agent's read-only mode for runs with no screen (owner 2026-11-07: "browser use with the app closed").
 ///
 /// Why it exists: the browser agent drives `InAppWebView` widgets that live in the app's widget tree
-/// (lib/widgets/browser_layer.dart). With SubMac closed (an alarm started the engine headless) no frame is ever drawn,
+/// (lib/widgets/browser_layer.dart). With Telesia closed (an alarm started the engine headless) no frame is ever drawn,
 /// so the platform view is never created, `BrowserTab.ready` never completes and every browser tool failed after
 /// `loadLimit` ("the browser view is not ready"). BrowserAgent first tries an off-screen `HeadlessInAppWebView`
 /// (BrowserAgent.headless); when that cannot start either, the task carries on here: plain HTTP GETs, the page's
@@ -228,9 +228,9 @@ class FetchBrowser {
   }
 
   /// What a call that needs the real browser answers in this mode.
-  static String needsScreen(String tool) => 'Not available now: $tool needs the real browser, which cannot run with SubMac closed '
+  static String needsScreen(String tool) => 'Not available now: $tool needs the real browser, which cannot run with Telesia closed '
       '(read-only mode: open pages, follow links by number, find text, read on). If the task needs it (typing, signing in, a form, '
-      'a payment), finish with success:false and say in one line that it needs SubMac open. For a search, open the site\'s search '
+      'a payment), finish with success:false and say in one line that it needs Telesia open. For a search, open the site\'s search '
       'URL directly (e.g. https://duckduckgo.com/html/?q=...).';
 
   /// One browser tool call of job [job] in read-only mode.

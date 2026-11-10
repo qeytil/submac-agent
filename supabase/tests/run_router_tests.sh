@@ -21,11 +21,11 @@ insert into ai_models(provider_id, model_id, vision) select id, 'open-x', true f
 insert into ai_models(provider_id, model_id, vision) select id, 'gemini-smart', true from ai_providers where name='Google Gemini';
 insert into ai_models(provider_id, model_id, vision) select id, 'gemini-so', true from ai_providers where name='Google Gemini';
 insert into ai_models(provider_id, model_id, vision) select id, 'gemini-vis', true from ai_providers where name='Google Gemini';
-insert into ai_aliases(alias, max_output_tokens) values ('submac-smart', 8192), ('submac-somali', 8192), ('submac-vision', 4096), ('submac-fast', 2048);
-insert into ai_routes(alias, model_ref, priority) select 'submac-smart', id, case model_id when 'gemini-smart' then 5 when 'smart-a' then 10 else 20 end from ai_models where model_id in ('smart-a','smart-b','gemini-smart');
-insert into ai_routes(alias, model_ref, priority) select 'submac-somali', id, 10 from ai_models where model_id in ('gemini-so','gemini-smart');
-insert into ai_routes(alias, model_ref, priority) select 'submac-vision', id, 10 from ai_models where model_id in ('gemini-vis','open-x');
-insert into ai_routes(alias, model_ref, priority) select 'submac-fast', id, 10 from ai_models where model_id in ('open-x');
+insert into ai_aliases(alias, max_output_tokens) values ('telesia-smart', 8192), ('telesia-somali', 8192), ('telesia-vision', 4096), ('telesia-fast', 2048);
+insert into ai_routes(alias, model_ref, priority) select 'telesia-smart', id, case model_id when 'gemini-smart' then 5 when 'smart-a' then 10 else 20 end from ai_models where model_id in ('smart-a','smart-b','gemini-smart');
+insert into ai_routes(alias, model_ref, priority) select 'telesia-somali', id, 10 from ai_models where model_id in ('gemini-so','gemini-smart');
+insert into ai_routes(alias, model_ref, priority) select 'telesia-vision', id, 10 from ai_models where model_id in ('gemini-vis','open-x');
+insert into ai_routes(alias, model_ref, priority) select 'telesia-fast', id, 10 from ai_models where model_id in ('open-x');
 insert into ai_keys(provider_id, label, secret_id) select p.id, 'k', vault.create_secret('sk-'||p.name, 'n', 'd') from ai_providers p;
 SQL
 $PSQL -d "$DB" -f migrations/20261021_ai_gate.sql

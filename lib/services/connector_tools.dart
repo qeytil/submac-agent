@@ -77,7 +77,7 @@ class ConnectorTools {
           'Authorization': 'Bearer $githubToken',
           'Accept': 'application/vnd.github+json',
           'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'SubMacAgent',
+          'User-Agent': 'TelesiaAgent',
         };
       } else if (name == 'notion_api') {
         if (notionToken.isEmpty) return 'Error: Notion is not connected. Ask the user to add a token in Settings > Connectors.';

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Android 12+ draws its own splash from the theme: without these it shows the icon on plain white. The brand sky
-     behind the adaptive SubMac icon makes the first second of the app look like SubMac, in light and dark. -->
+     behind the adaptive Telesia icon makes the first second of the app look like Telesia, in light and dark. -->
 <resources>
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
-        <item name="android:windowSplashScreenBackground">@color/submac_launch_sky</item>
-        <item name="android:windowSplashScreenIconBackgroundColor">@color/submac_launch_sky</item>
+        <item name="android:windowSplashScreenBackground">@color/telesia_launch_sky</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/telesia_launch_sky</item>
     </style>
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>

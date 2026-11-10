@@ -17,7 +17,7 @@ class LocalStore {
     _prefs = await SharedPreferences.getInstance();
   }
 
-  /// Everything SubMac keeps on this phone, gone (account deleted).
+  /// Everything Telesia keeps on this phone, gone (account deleted).
   Future<void> wipeAll() async {
     try {
       await _secure.deleteAll();
@@ -109,7 +109,7 @@ class LocalStore {
   bool get memoryEnabled => _prefs.getBool('memoryEnabled') ?? true;
   set memoryEnabled(bool v) => _prefs.setBool('memoryEnabled', v);
 
-  /// The name the owner shows on bots they publish to the Bot Store ('' = "A SubMac user").
+  /// The name the owner shows on bots they publish to the Bot Store ('' = "A Telesia user").
   String get storeAuthorName => _prefs.getString('store_author') ?? '';
   set storeAuthorName(String v) => _prefs.setString('store_author', v);
 }

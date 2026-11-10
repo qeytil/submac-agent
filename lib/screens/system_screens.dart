@@ -96,7 +96,7 @@ class _SystemPermissionsScreenState extends State<SystemPermissionsScreen> with 
     if (stalled) {
       return ListTile(
         title: Text(title),
-        subtitle: const Text('Android paused it. Turn SubMac off and on once, and set battery use to Unrestricted so it stays on.'),
+        subtitle: const Text('Android paused it. Turn Telesia off and on once, and set battery use to Unrestricted so it stays on.'),
         trailing: TextButton(
             onPressed: () async {
               await SystemBridge.I.openPermission('accessibility');
@@ -122,11 +122,11 @@ class _SystemPermissionsScreenState extends State<SystemPermissionsScreen> with 
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Let SubMac use your phone?'),
+        title: const Text('Let Telesia use your phone?'),
         content: const Text(
-            'SubMac will be able to read the screen and tap, type and scroll for you, only when you ask. '
+            'Telesia will be able to read the screen and tap, type and scroll for you, only when you ask. '
             'It asks first before anything that sends, pays or deletes.\n\n'
-            'On the next screen open "Installed apps" (or "Downloaded apps"), pick "SubMac phone control" and switch it on.'),
+            'On the next screen open "Installed apps" (or "Downloaded apps"), pick "Telesia phone control" and switch it on.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Not now'))),
           TextButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Continue'))),
@@ -158,7 +158,7 @@ class _SystemPermissionsScreenState extends State<SystemPermissionsScreen> with 
               style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.45)),
         ),
         _Card(title: 'Phone', children: [
-          _row('accessibility', 'Phone control (Accessibility)', 'SubMac can use your apps for you: read the screen, tap, type, scroll', _a11y),
+          _row('accessibility', 'Phone control (Accessibility)', 'Telesia can use your apps for you: read the screen, tap, type, scroll', _a11y),
           _row('sms', 'Read SMS', 'Find codes, bank and delivery messages when you ask', () => _runtime(Permission.sms)),
           _row('calendar', 'Calendar', 'See your events and add new ones (every account on this phone)', () => _runtimeAll([Permission.calendarFullAccess])),
           _row('contacts', 'Contacts', 'Find the right person when you ask to call, text or email someone', () => _runtime(Permission.contacts)),

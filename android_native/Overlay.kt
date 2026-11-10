@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
@@ -41,11 +41,11 @@ import kotlin.math.sin
  *  orb    - the small mic, docked in the notch: a dot in the status-bar strip at the very top of the
  *           screen, out of the way of everything. Drag it along the top (it snaps back into the strip),
  *           tap it to open the card again.
- *  sheet  - the card plus a box to type to SubMac.
+ *  sheet  - the card plus a box to type to Telesia.
  */
 @SuppressLint("StaticFieldLeak", "ClickableViewAccessibility", "SetTextI18n")
 object Overlay {
-    // The app's real ink (theme.dart), not pure black, so the card reads as SubMac.
+    // The app's real ink (theme.dart), not pure black, so the card reads as Telesia.
     private val INK = 0xFF17150F.toInt()
     private val PAPER = 0xFFF4F0E7.toInt()
     private val RED = 0xFFF4F0E7.toInt() // the orb is paper-white on ink: calm, no red
@@ -360,7 +360,7 @@ object Overlay {
             row.orientation = LinearLayout.HORIZONTAL
             row.gravity = Gravity.CENTER_VERTICAL
             val et = EditText(c)
-            et.hint = "Message SubMac"
+            et.hint = "Message Telesia"
             et.setHintTextColor(MUTED)
             et.setTextColor(PAPER)
             et.typeface = sans(c)

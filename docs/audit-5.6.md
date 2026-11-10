@@ -1,4 +1,4 @@
-# SubMac Agent: screen audit (plan 5.6), dev v1.13.0+33
+# Telesia: screen audit (plan 5.6), dev v1.13.0+33
 
 Read-only audit. No files in the repo were changed. Every finding below was checked against the code in `/workspace/work/repo`. Line numbers are for that copy.
 
@@ -35,7 +35,7 @@ Read-only audit. No files in the repo were changed. Every finding below was chec
 - **Med**: L387-393: **Workspace folder** shows a raw file path in monospace. Plan 5.3 removes it.
 - **Med**: L316-321: **Easy mode** switch. Plan 5.3 removes it.
 - **Med**: L328-332: **Trash** is under "Your data". Plan 5.3 moves it into Files.
-- **Med**: L205-213: **Memory** is in Settings. Plan 5.4 moves it to the profile as "What SubMac knows about you".
+- **Med**: L205-213: **Memory** is in Settings. Plan 5.4 moves it to the profile as "What Telesia knows about you".
 - **Med**: L284-288: **Saved logins** is in Settings. Plan 5.4 moves it to Apps as "Websites I can sign in to".
 - **Med**: L289-295: **Telegram** is in Settings. Plan 5.4 moves it to Apps. Its screen asks the user to paste a "Bot token" from BotFather (extras_screens.dart:77-85).
 - **Med**: Plan 5.4 says these belong on one page each, but they are still separate tiles:
@@ -130,7 +130,7 @@ Read-only audit. No files in the repo were changed. Every finding below was chec
   - L96 `usableProvider`, L99 `_badModels`, L101 `autoProblem` (always null, read at L3821), L2507-2508 `resolveModelHint` (always 'auto').
   - L4333 `_backupFor` always returns null, so the backup loop at L4345-4359 is dead. That loop sets "Trying <provider> instead" and a banner naming models.
 - **Low**: app_state.dart:4529-4530: tool label `add_provider` → "Saving your provider".
-- **Low**: app_state.dart:1939-1944: the vision-model regex lists vendor model names. Only `submac-*` matters now.
+- **Low**: app_state.dart:1939-1944: the vision-model regex lists vendor model names. Only `telesia-*` matters now.
 - **Low**: system_tools.dart:33: the `app_settings` description still mentions "API keys". L351/356/357 still let the assistant change `easy_mode`, `show_steps` and `max_steps`; these should be removed together with the UI.
 
 ---

@@ -54,7 +54,7 @@ BlockKind blockKindOf(String? lang) {
   return BlockKind.code;
 }
 
-/// SubMac's prose: no bubble, no fill, just well-set type in the reading column.
+/// Telesia's prose: no bubble, no fill, just well-set type in the reading column.
 /// Arabic-script text flows right to left; Somali and English left to right.
 class MessageText extends StatelessWidget {
   const MessageText(this.text, {super.key, this.live = false});
@@ -69,7 +69,7 @@ class MessageText extends StatelessWidget {
   }
 }
 
-/// SubMac's words in a reply: a light card-colored bubble with a hairline edge on the start side, its corner
+/// Telesia's words in a reply: a light card-colored bubble with a hairline edge on the start side, its corner
 /// tucked at the bottom start. Yours are the filled bubble on the end side, so the two never look alike.
 class ReplyBubble extends StatelessWidget {
   const ReplyBubble({super.key, required this.child});

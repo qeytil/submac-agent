@@ -11,7 +11,7 @@ export const BOT_SOURCES = new Set(["bot", "bot-cloud", "bot_cloud", "background
  *  bot share; billing.is_bot('bot-chat') = false), but kept as its own value in ai_usage.source for analytics. */
 export const CHAT_LANE_SOURCES = new Set(["bot-chat"]);
 
-/** True for a source that always bills in the user's chat lane, even when the request says x-submac-lane: background. */
+/** True for a source that always bills in the user's chat lane, even when the request says x-telesia-lane: background. */
 export function chatLane(source: unknown): boolean { return CHAT_LANE_SOURCES.has(String(source ?? "").toLowerCase()); }
 
 /** The source usage_gate / usage_charge see: the bot lane gets its share of each daily amount (Contract B). */
@@ -45,7 +45,7 @@ export function entFromGate(data: any, s: Record<string, any> = {}): Record<stri
   };
 }
 
-// ---- Billing day = EAT (Africa/Mogadishu, UTC+3, no DST): Contract A `x-submac-resets-at` is the next EAT midnight,
+// ---- Billing day = EAT (Africa/Mogadishu, UTC+3, no DST): Contract A `x-telesia-resets-at` is the next EAT midnight,
 // with billing on or off, and the daily usage counter (ai_user_daily.day, written by ai_record_usage) is the EAT date.
 export const EAT_MS = 3 * 3600_000;
 /** The EAT calendar date (YYYY-MM-DD) at `now`: the key of today's ai_user_daily / live_call_daily row. */

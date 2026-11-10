@@ -9,7 +9,7 @@ import '../ui/tokens.dart';
 import '../widgets/surface.dart';
 import '../ui/i18n.dart';
 
-/// "From SubMac": messages from the SubMac team, reward gifts and reward notices, newest first.
+/// "From Telesia": messages from the Telesia team, reward gifts and reward notices, newest first.
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key, this.openId});
 
@@ -48,7 +48,7 @@ class _InboxScreenState extends State<InboxScreen> {
   static String labelFor(String kind) => switch (kind) {
         'reward_grant' => 'Gift',
         'reward_earned' => 'Reward',
-        _ => 'SubMac team',
+        _ => 'Telesia team',
       };
 
   void _open(InboxItem it) {
@@ -111,7 +111,7 @@ class _InboxScreenState extends State<InboxScreen> {
         final items = Inbox.I.items;
         return Scaffold(
           appBar: AppBar(
-            title: Text(tr('From SubMac'), style: Brand.serif(size: 28, color: p.text)),
+            title: Text(tr('From Telesia'), style: Brand.serif(size: 28, color: p.text)),
             actions: [
               if (items.any((i) => i.unread))
                 TextButton(onPressed: Inbox.I.markAllRead, child: const Text('Mark all read')),
@@ -127,7 +127,7 @@ class _InboxScreenState extends State<InboxScreen> {
                   child: Text(
                       Inbox.I.loading
                           ? 'Checking…'
-                          : 'Nothing yet. Messages from the SubMac team, gifts and rewards you earn show up here.',
+                          : 'Nothing yet. Messages from the Telesia team, gifts and rewards you earn show up here.',
                       style: TextStyle(color: p.muted, height: 1.4)),
                 )
               else
@@ -164,7 +164,7 @@ class InboxBell extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: Inbox.I.unread,
       builder: (context, n, _) => IconButton(
-        tooltip: 'From SubMac',
+        tooltip: 'From Telesia',
         icon: Badge(
           isLabelVisible: n > 0,
           label: Text(n > 9 ? '9+' : '$n'),
@@ -176,7 +176,7 @@ class InboxBell extends StatelessWidget {
   }
 }
 
-/// The user's bonus today and personal invite link with a share button (Today, Settings, From SubMac).
+/// The user's bonus today and personal invite link with a share button (Today, Settings, From Telesia).
 class InviteCard extends StatefulWidget {
   const InviteCard({super.key, this.compact = false});
   final bool compact;
@@ -200,7 +200,7 @@ class _InviteCardState extends State<InviteCard> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Your invite link needs the internet. Try again once you\'re online.')));
       return;
     }
-    await SharePlus.instance.share(ShareParams(text: Rewards.inviteText(link, code), subject: 'Join me on SubMac'));
+    await SharePlus.instance.share(ShareParams(text: Rewards.inviteText(link, code), subject: 'Join me on Telesia'));
   }
 
   @override

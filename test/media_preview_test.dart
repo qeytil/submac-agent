@@ -21,7 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 final _png = base64Decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
 
-const _otherPhone = '/data/user/0/com.submac.agent.dev/app_flutter/workspace';
+const _otherPhone = '/data/user/0/com.telesia.app.dev/app_flutter/workspace';
 
 Widget _host(Widget child) => MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -92,7 +92,7 @@ void main() {
 
     test('storage keys sit in the user folder (bucket RLS) and are the same on every phone', () {
       expect(MediaStore.keyFor('u1', '$_otherPhone/media/cat.png'), 'u1/workspace/media/cat.png');
-      expect(MediaStore.keyFor('u1', '/data/user/0/com.submac.agent/app_flutter/workspace/media/cat.png'),
+      expect(MediaStore.keyFor('u1', '/data/user/0/com.telesia.app/app_flutter/workspace/media/cat.png'),
           'u1/workspace/media/cat.png');
       expect(MediaStore.keyFor('u1', 'media/my cat (1).png'), 'u1/workspace/media/my_cat__1_.png');
       final outside = MediaStore.keyFor('u1', '/storage/emulated/0/Download/a.pdf');

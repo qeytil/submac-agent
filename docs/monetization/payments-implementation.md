@@ -8,7 +8,7 @@ Companion to `MONETIZATION.md` (that file is kept identical to the copy on `main
 
 ## 7. Implementation (payments)
 
-### Layout (submac-agent repo, `supabase/`)
+### Layout (telesia-agent repo, `supabase/`)
 - `migrations/20261020_billing.sql` — billing schema, products, wallets, `billing.mark_paid` (credit once, amount/currency binding, ledger outbox).
 - `migrations/20261021_billing_providers.sql` — ADDITIVE: `billing.purchases.provider` (default `'sifalo'`) + `provider_ref`;
   unique `(provider, provider_ref)`; service-role RPCs `billing_create_purchase_v2`, `billing_find_purchase_v2`,

@@ -6,11 +6,11 @@ import 'package:flutter/foundation.dart';
 
 import 'ai_keys.dart';
 
-/// Bring your own key (owner 2026-11-03, docs/byok.md): the user's own AI providers, next to SubMac's model.
+/// Bring your own key (owner 2026-11-03, docs/byok.md): the user's own AI providers, next to Telesia's model.
 ///
 /// What lives here: the provider presets, the saved config (providers, keys, models, the chat choice) and the store
 /// that keeps it in the phone's encrypted storage. Keys are kept apart from the config (one secure entry per key), so
-/// the config can be read, compared and passed around without ever carrying a secret. Nothing here talks to SubMac's
+/// the config can be read, compared and passed around without ever carrying a secret. Nothing here talks to Telesia's
 /// servers; calls to a provider go straight from the phone (byok_fetch.dart, and opencode through byok_opencode.dart).
 
 /// The wire protocol a provider speaks (decides the opencode SDK package, the model list call and the auth header).
@@ -390,18 +390,18 @@ class ByokProvider {
       );
 }
 
-/// A model choice: SubMac's own model, or one model of one of the user's providers.
+/// A model choice: Telesia's own model, or one model of one of the user's providers.
 ///
 /// Written like a bot's model setting (`providerId|modelId`), so bots and the chat share one format:
-/// `auto` / empty / `submac` / `submac|<alias>` = SubMac; `byok-1a2b3c4d|claude-sonnet-4-5` = BYOK.
+/// `auto` / empty / `telesia` / `telesia|<alias>` = Telesia; `byok-1a2b3c4d|claude-sonnet-4-5` = BYOK.
 class ByokRef {
   const ByokRef(this.provider, this.model);
   final String provider;
   final String model;
 
-  static const submac = 'submac';
+  static const telesia = 'telesia';
 
-  /// The ref of a BYOK model, or null when [setting] names SubMac (or nothing usable).
+  /// The ref of a BYOK model, or null when [setting] names Telesia (or nothing usable).
   static ByokRef? parse(String? setting) {
     final s = (setting ?? '').trim();
     final i = s.indexOf('|');
@@ -423,12 +423,12 @@ class ByokRef {
 
 /// Everything saved: the providers (no secrets) and the chat's model choice.
 class ByokConfig {
-  ByokConfig({List<ByokProvider>? providers, this.chat = ByokRef.submac}) : providers = providers ?? [];
+  ByokConfig({List<ByokProvider>? providers, this.chat = ByokRef.telesia}) : providers = providers ?? [];
   static const version = 1;
 
   final List<ByokProvider> providers;
 
-  /// The owner's chats: `submac` or `byok-…|model`.
+  /// The owner's chats: `telesia` or `byok-…|model`.
   String chat;
 
   Map<String, dynamic> toJson() => {'v': version, 'chat': chat, 'providers': [for (final p in providers) p.toJson()]};
@@ -454,7 +454,7 @@ class ByokConfig {
       list.add(pr);
     }
     final chat = '${j['chat'] ?? ''}'.trim();
-    return ByokConfig(providers: list, chat: chat.isEmpty ? ByokRef.submac : chat);
+    return ByokConfig(providers: list, chat: chat.isEmpty ? ByokRef.telesia : chat);
   }
 }
 
@@ -544,7 +544,7 @@ class ByokStore extends ChangeNotifier {
       await store.delete(keyEntry(k.id));
     }
     _cfg.providers.removeWhere((x) => x.id == providerId);
-    if (ByokRef.parse(_cfg.chat)?.provider == providerId) _cfg.chat = ByokRef.submac;
+    if (ByokRef.parse(_cfg.chat)?.provider == providerId) _cfg.chat = ByokRef.telesia;
     await _save();
   }
 
@@ -588,16 +588,16 @@ class ByokStore extends ChangeNotifier {
 
   // ------------------------------------------------------------------ choosing a model
 
-  /// The owner's chat model setting (`submac` or `byok-…|model`).
+  /// The owner's chat model setting (`telesia` or `byok-…|model`).
   String get chatModel => _cfg.chat;
 
   Future<void> setChatModel(String setting) async {
-    _cfg.chat = setting.trim().isEmpty ? ByokRef.submac : setting.trim();
+    _cfg.chat = setting.trim().isEmpty ? ByokRef.telesia : setting.trim();
     await _save();
   }
 
   /// A usable BYOK model for [setting]: the provider exists and is on, the model is on, and there is a key when the
-  /// provider needs one. Null means "use SubMac".
+  /// provider needs one. Null means "use Telesia".
   ByokPick? resolve(String? setting) {
     final ref = ByokRef.parse(setting);
     if (ref == null) return null;
@@ -619,7 +619,7 @@ class ByokStore extends ChangeNotifier {
 
   bool get hasChoices => choices.isNotEmpty;
 
-  /// The name of a model setting as shown in pickers ("SubMac", or "Claude Sonnet 4.5 · Anthropic").
+  /// The name of a model setting as shown in pickers ("Telesia", or "Claude Sonnet 4.5 · Anthropic").
   String labelOf(String? setting, {bool withProvider = false}) {
     final pick = resolve(setting);
     if (pick == null) return 'Default';

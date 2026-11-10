@@ -1,5 +1,5 @@
-"""Builds assets/bots/coder.json: the knowledge pack of SubMac's built-in Coder bot (Barnaamije).
-How a senior engineer works with SubMac's coding tools. Written 2026-10-21. Run: python3 tools/bots/coder/build.py"""
+"""Builds assets/bots/coder.json: the knowledge pack of Telesia's built-in Coder bot (Barnaamije).
+How a senior engineer works with Telesia's coding tools. Written 2026-10-21. Run: python3 tools/bots/coder/build.py"""
 import json, os
 
 K = []
@@ -8,7 +8,7 @@ def add(title, text):
 
 add("Your coding tools / Qalabkaaga koodhka", """
 Files (workspace): read_file, write_file (under ~150 lines a call; append_file for the rest), edit_file (exact find/replace), list_dir,
-delete_file (to SubMac Trash), run_shell (Android toybox sh: no python, node or git on the phone).
+delete_file (to Telesia Trash), run_shell (Android toybox sh: no python, node or git on the phone).
 code_run: runs code for real. On the phone: python (numpy, pandas, matplotlib and pure-Python packages via packages), javascript and
 typescript (browser-style: console, fetch, no require/fs), sql (SQLite; db = a file to keep). Online compiler: c, cpp, rust, go,
 csharp, fsharp, dart (no Flutter), swift, zig, ruby, haskell, lua, julia, ocaml, pascal, fortran, d, crystal. Not available: Java,
@@ -74,7 +74,7 @@ add("Websites and web apps / Mareegaha", """
 Small site (a business page, portfolio, menu, landing page): plain HTML, CSS and JavaScript in code/<name>/ (index.html, style.css,
 app.js). Mobile-first, system fonts, CSS variables, grid, no heavy frameworks. Real content from the user, never lorem ipsum or
 invented prices, phones or reviews. Show it with a ```file block holding the full path of index.html: its card has Publish
-(a free 7-day SubMac link, or the user's own Vercel). For a permanent free address: code_git publish (public repo) then code_build
+(a free 7-day Telesia link, or the user's own Vercel). For a permanent free address: code_git publish (public repo) then code_build
 web, or code_git pages.
 Web app (several screens, state, data): React + Vite (code_project new react) or plain JS modules. Data that must be saved for many
 users needs a backend: a free tier database the user owns (they connect it; never invent keys).
@@ -89,7 +89,7 @@ The way to a real APK from the phone is Flutter (one codebase for Android, web a
 2. code_git publish (private repo is fine for APKs) to put it on GitHub.
 3. code_build start target test first (flutter analyze + tests), fix errors, then target apk.
 4. code_build wait until it is done (6-10 minutes the first time). The APK is downloaded to builds/<repo>/app-release.apk.
-5. Show it with a ```file card. To install: open it, allow "install unknown apps" for SubMac once. The build is signed with a
+5. Show it with a ```file card. To install: open it, allow "install unknown apps" for Telesia once. The build is signed with a
    test key: fine to install and share, but for Google Play make a real upload key (keystore) kept secret in GitHub Secrets,
    then target aab.
 The android/ and web/ folders are made on GitHub by flutter create during the build, so the phone only keeps lib/, test/ and
@@ -98,7 +98,7 @@ android/app/src/main/AndroidManifest.xml: clone the repo after the first build t
 Native Kotlin/Java Android projects (with gradlew) build with code_build target apk too (a debug APK). React Native (release
 build, JavaScript bundled in) and Capacitor/Ionic (web build, cap sync, Gradle) projects too.
 Facts, never get them wrong: GitHub's ubuntu-latest runners already have the Android SDK, build-tools, platform-tools and Java
-(ANDROID_HOME is set). Android Studio is only an editor and is never needed; no computer is needed; SubMac itself is built this way.
+(ANDROID_HOME is set). Android Studio is only an editor and is never needed; no computer is needed; Telesia itself is built this way.
 Never tell the user a remote APK build is impossible. For other setups, release signing with their own keystore (repo secrets,
 base64) or a GitHub Release download link, read skill_use build-android-apk (Somali: so-build-android-apk).
 Build loop: start, wait, and on a failure read the log code_build returns (failed step, first error, "Likely cause"), fix the real
@@ -141,7 +141,7 @@ add("Git and GitHub / GitHub", """
   branch moved, pull first, merge any .theirs conflicts by hand, then push.
 - New project: code_git publish makes a private repo by default; public only when they want it public (needed for free Pages).
 - Issues: read them (issues, issue) to find work; comment only when the owner wants.
-- The token stays in SubMac: never print it, never put it in files. If GitHub answers 401, ask the user to connect GitHub again;
+- The token stays in Telesia: never print it, never put it in files. If GitHub answers 401, ask the user to connect GitHub again;
   403 on builds means the token lacks the "workflow" permission.
 - GitHub Actions minutes: free and unlimited on public repos; private repos get 2,000 minutes a month on the free plan (an APK build
   takes about 6-10 minutes). Pages on free accounts needs a public repo.

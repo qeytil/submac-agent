@@ -10,7 +10,7 @@ latest stable and satisfies it. No product behaviour changes are intended in thi
   (`proguard-android.txt` is refused), so `patch_android.py` pins the newest AGP 8 line instead:
   **AGP 8.13.0, Gradle 8.14.3, Kotlin 2.2.20** (was AGP 8.1). Move to AGP 9 once the WebView plugin ships a stable fix.
 - `tools/patch_android.py` patches `app/build.gradle.kts` (still handles the old Groovy file):
-  pinned SubMac signing key, minSdk 24, targetSdk 34 (unchanged), compileSdk = Flutter's default (was 35),
+  pinned Telesia signing key, minSdk 24, targetSdk 34 (unchanged), compileSdk = Flutter's default (was 35),
   ABI filters, vosk + jna, compressed native libs (`useLegacyPackaging`, same APK layout as before).
 - Gradle memory back to the old budget (`-Xmx4G`, Kotlin daemon 2 GB): the 3.47 template's 8 GB (inherited by the Kotlin
   daemon) swapped the 16 GB CI runner and the build hung. Build APK steps now have a 40 min timeout and log memory once a minute.

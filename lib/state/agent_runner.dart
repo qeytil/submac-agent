@@ -1,9 +1,9 @@
 // The chat's agent: opencode, on the phone (owner, 2026-11-02: "delete the old agent ... just use opencode and our
-// chat ui, not our submac instructions and system prompt and output style; we customize the behaviour later").
+// chat ui, not our telesia instructions and system prompt and output style; we customize the behaviour later").
 //
-// SubMac's own step loop, system prompt, reply format and guards are gone. A chat message goes to the chat's opencode
-// session as it is; opencode answers with its own prompts and tools, and the reply is shown in SubMac's chat:
-// text parts become SubMac's reply, tool parts become steps (a tool call and its result).
+// Telesia's own step loop, system prompt, reply format and guards are gone. A chat message goes to the chat's opencode
+// session as it is; opencode answers with its own prompts and tools, and the reply is shown in Telesia's chat:
+// text parts become Telesia's reply, tool parts become steps (a tool call and its result).
 part of '../app_state.dart';
 
 extension AppStateAgentRunner on AppState {
@@ -22,7 +22,7 @@ extension AppStateAgentRunner on AppState {
   static final Map<String, bool Function()> teamLive = {};
 
   /// The sessions of every opencode turn running now, by route key: the turn's own session and the subagent sessions
-  /// opencode starts under it. A SubMac call from a session in none of them comes from no running turn (see
+  /// opencode starts under it. A Telesia call from a session in none of them comes from no running turn (see
   /// McpRoutes.watchOrphans) and is refused, never run as another chat.
   static final Map<String, Set<String>> _ocFamilies = {};
   static bool _ocOwned(String session) => _ocFamilies.values.any((f) => f.contains(session));
@@ -32,7 +32,7 @@ extension AppStateAgentRunner on AppState {
   static final Map<String, String> ocOfficeJob = {};
 
   /// The opencode turns running now, by route key (a chat id, or `team:<team>:<bot>` for a team member's part). A
-  /// SubMac call with no matching part goes to the only one running, never to the chat on screen (bots leak audit,
+  /// Telesia call with no matching part goes to the only one running, never to the chat on screen (bots leak audit,
   /// 2026-11-03: a bot's call used to act on whatever chat was open).
   static final Set<String> _ocLive = {};
 
@@ -43,9 +43,9 @@ extension AppStateAgentRunner on AppState {
   /// The lead of a team job hands parts to members with team_assign: its handler, by the lead's route key.
   static final Map<String, Future<String> Function(String member, String ask)> _teamAssign = {};
 
-  /// SubMac's tools offered to opencode through SubMac's MCP server. Layer 1 (owner, 2026-11-02): memory and the
-  /// everyday helpers; the browser, the phone and Live come in the next layers. Each call runs through SubMac's own
-  /// gate, so a risky one shows SubMac's approval card first.
+  /// Telesia's tools offered to opencode through Telesia's MCP server. Layer 1 (owner, 2026-11-02): memory and the
+  /// everyday helpers; the browser, the phone and Live come in the next layers. Each call runs through Telesia's own
+  /// gate, so a risky one shows Telesia's approval card first.
   List<Map<String, dynamic>> _ocAppTools() => [
         if (memoryEnabled) ...MemoryStore.definitions,
         ...LifeTools.definitions,
@@ -82,7 +82,7 @@ extension AppStateAgentRunner on AppState {
         AppState.addMcpServerTool,
       ];
 
-  /// The SubMac tools the turn [conv] may find and run (bots leak audit, 2026-11-03; see OcToolScope). The owner's
+  /// The Telesia tools the turn [conv] may find and run (bots leak audit, 2026-11-03; see OcToolScope). The owner's
   /// chat: the app's tools only (bot and team tools are no longer offered to the main agent). A bot's chat: its own
   /// tools (bot_make only for the Chief), the office tools while it does office work, team_task, and the app's tools,
   /// cut by the powers the owner switched off for it. A team member's part (`team:<team>:<bot>`): its own tools,
@@ -115,7 +115,7 @@ extension AppStateAgentRunner on AppState {
     try {
       await SystemBridge.I.notify(
           id: 9800 + (convId.hashCode % 90).abs(),
-          title: bot?.name ?? 'SubMac',
+          title: bot?.name ?? 'Telesia',
           body: text,
           payload: bot != null ? 'botchat/${bot.id}' : 'conv/$convId',
           kind: 'attention');
@@ -139,22 +139,22 @@ extension AppStateAgentRunner on AppState {
     }
   }
 
-  /// Gives the engine SubMac's MCP server, and turns opencode's permission and question requests into the ask card.
+  /// Gives the engine Telesia's MCP server, and turns opencode's permission and question requests into the ask card.
   void _ocWire(OpenCodeEngine oc) {
     // An owner message the daily allowance blocked runs again once the allowance is back (PendingTurns, 2026-11-07).
     PendingTurns.I.run = runBlockedTurn;
     // New BYOK settings restart the engine only while no turn runs (owner 2026-11-03).
     oc.busy ??= () => _ocLive.isNotEmpty;
-    // Two MCP tools only (find, run); the full SubMac set is looked up when a task needs it (SubMacGateway).
+    // Two MCP tools only (find, run); the full Telesia set is looked up when a task needs it (TelesiaGateway).
     // Bots leak audit (2026-11-03): the caller is found first, for find_tools as well as run_tool, so each turn finds
     // and runs only its own tools (see _mcpTools), and a call with no route goes to the only turn running or is
     // refused; it no longer runs as the chat on screen (a bot's bot_remember used to land on the open bot's chat, and
     // its approval card in the owner's chat).
-    oc.mcp ??= SubMacMcp(
-      // find_tools and run_tool, plus generate_image by name while the server can make pictures (SubMacGateway.listing).
-      tools: () => SubMacGateway.listing([if (hasImageModel) AgentTools.imageTool]),
+    oc.mcp ??= TelesiaMcp(
+      // find_tools and run_tool, plus generate_image by name while the server can make pictures (TelesiaGateway.listing).
+      tools: () => TelesiaGateway.listing([if (hasImageModel) AgentTools.imageTool]),
       call: (name, args) async {
-        final (rn, ra) = name == SubMacGateway.runName ? SubMacGateway.inner(args) : (name, args);
+        final (rn, ra) = name == TelesiaGateway.runName ? TelesiaGateway.inner(args) : (name, args);
         // Several turns at once (the owner's chat, bots, team members side by side): only an exact match routes.
         // With several turns at once the call's own event can come late (busy event stream): wait longer before
         // giving up, since a call with no route is refused ("could not tell which chat", B 2026-11-06).
@@ -162,13 +162,13 @@ extension AppStateAgentRunner on AppState {
             fuzzy: _ocLive.length <= 1, wait: _ocLive.length > 1 ? const Duration(seconds: 5) : const Duration(milliseconds: 1500));
         // A call from a session no running turn owns is refused (McpRoutes.orphan), never run as the only live turn.
         final conv = routed == McpRoutes.orphan ? null : (routed ?? McpRoutes.soleLive(_ocLive));
-        final gate = SubMacGateway(
+        final gate = TelesiaGateway(
           tools: () => _mcpTools(conv),
           // A bot's `remember`, `forget`, `list_memories`: run as its own memory (see _runToolAfterChecksInner).
           redirect: (n) => Bots.I.byConv(conv) != null ? OcToolScope.botMemory(n, const {})?.$1 : null,
           run: (n, a) async {
             if (conv == null) {
-              return 'Error: SubMac could not tell which chat this call came from (several are working). Call it once more.';
+              return 'Error: Telesia could not tell which chat this call came from (several are working). Call it once more.';
             }
             if (n == 'add_mcp_server') return addMcpServerFromChat(a);
             return _runRouted(n, a, conv);
@@ -180,7 +180,7 @@ extension AppStateAgentRunner on AppState {
     if (_ocAskSub != null) return;
     final asks = OpenCodeAsks(
       ask: (conv, title, prompt, options) async {
-        // A request from a session of no SubMac chat is refused (Deny / skipped): it used to show in whatever chat
+        // A request from a session of no Telesia chat is refused (Deny / skipped): it used to show in whatever chat
         // was open, so a bot's or team member's "Run this command?" landed in the owner's chat (2026-11-03).
         if (conv.isEmpty) return null;
         // Team work asks in the team (its chat and the approvals inbox, with a notification), never in the member's
@@ -205,7 +205,7 @@ extension AppStateAgentRunner on AppState {
     );
     _ocAskSub = oc.events.listen((e) {
       // Runs before every turn's own listener: tool calls of sessions no running turn owns are marked, so their
-      // SubMac call is refused rather than run as another chat.
+      // Telesia call is refused rather than run as another chat.
       _routes.watchOrphans(e, _ocOwned);
       final props = e['properties'];
       if ((e['type'] == 'session.created' || e['type'] == 'session.updated') && props is Map) {
@@ -260,8 +260,8 @@ extension AppStateAgentRunner on AppState {
       sentId = lastUser.id;
       run.show(RunPhase.starting, RunStatus.starting);
       _notify();
-      // A bot's own turn runs on SubMac's bot engine, never opencode (owner 2026-11-07): opencode is reserved for
-      // the SubMac agent (the owner's chat). Everything below is the opencode path and does not apply to bots.
+      // A bot's own turn runs on Telesia's bot engine, never opencode (owner 2026-11-07): opencode is reserved for
+      // the Telesia agent (the owner's chat). Everything below is the opencode path and does not apply to bots.
       final turnBot = Bots.I.byConv(convId);
       if (turnBot != null) {
         await _runBotTurn(convId, run, list, turnBot);
@@ -318,12 +318,12 @@ extension AppStateAgentRunner on AppState {
             m.content = p.kind == 'text' ? turn.chainText(p) : p.text;
             if (p.finished) m.streaming = false;
           } else {
-            // SubMac's own tools come back from opencode as submac_<name>: shown under their own name.
-            var tool = p.tool.startsWith('submac_') ? p.tool.substring(7) : p.tool;
+            // Telesia's own tools come back from opencode as telesia_<name>: shown under their own name.
+            var tool = p.tool.startsWith('telesia_') ? p.tool.substring(7) : p.tool;
             var input = p.input;
-            // A SubMac tool run through the gateway shows (and routes) as the tool itself.
-            if (tool != p.tool && tool == SubMacGateway.runName) {
-              final (n, a) = SubMacGateway.inner(p.input);
+            // A Telesia tool run through the gateway shows (and routes) as the tool itself.
+            if (tool != p.tool && tool == TelesiaGateway.runName) {
+              final (n, a) = TelesiaGateway.inner(p.input);
               if (n.isNotEmpty) {
                 tool = n;
                 input = a;
@@ -362,7 +362,7 @@ extension AppStateAgentRunner on AppState {
         if (turn.retry != null && turn.retry!.isNotEmpty) {
           run.show(RunPhase.retrying, turn.retry!);
         } else if (last != null && last.kind == 'tool' && !last.finished) {
-          run.show(RunPhase.tool, last.title ?? stepLabel(last.tool.replaceFirst('submac_', ''), last.input));
+          run.show(RunPhase.tool, last.title ?? stepLabel(last.tool.replaceFirst('telesia_', ''), last.input));
         } else if (turn.reasoning) {
           run.show(RunPhase.thinking, RunStatus.thinking);
         } else if (last != null && last.kind == 'text') {
@@ -387,11 +387,11 @@ extension AppStateAgentRunner on AppState {
               bg && laneBot != null ? Missions.I.leftFor('bot', laneBot.id) : null),
           byok: OcLane.isByok(laneModel));
       String? stopped;
-      // SubMac's tools may have changed since opencode listed them (an app connected, its tools loaded). Re-listed
+      // Telesia's tools may have changed since opencode listed them (an app connected, its tools loaded). Re-listed
       // only while no other turn works (OpenCodeEngine.syncMcp).
       await ensureMcpTools().catchError((Object _) {});
       await oc.syncMcp().catchError((Object _) {});
-      // This turn's session and the subagent sessions opencode starts under it: their SubMac calls route here.
+      // This turn's session and the subagent sessions opencode starts under it: their Telesia calls route here.
       final family = {session};
       _ocLive.add(convId);
       _ocFamilies[convId] = family;
@@ -415,7 +415,7 @@ extension AppStateAgentRunner on AppState {
       try {
         run.show(RunPhase.waiting, RunStatus.waiting);
         _notify();
-        final layer = SubMacStyle.identity;
+        final layer = TelesiaStyle.identity;
         await oc.prompt(session, await _partsFor(lastUser), system: layer, model: laneModel);
         while (true) {
           final sent = DateTime.now();
@@ -454,7 +454,7 @@ extension AppStateAgentRunner on AppState {
         // A bot's opencode work counts toward its own daily budget.
         final bot = Bots.I.byConv(convId);
         if (bot != null && turn.tokens > 0) {
-          // The bot's SubMac allowance counts the SubMac lane only; on its own key it is not billed by SubMac.
+          // The bot's Telesia allowance counts the Telesia lane only; on its own key it is not billed by Telesia.
           if (!OcLane.isByok(laneModel)) bot.addTokens(turn.tokens);
           unawaited(Bots.I.save());
           // ...and toward its mission while a mission run goes on (the mission's own cap counts all its work).
@@ -526,9 +526,9 @@ extension AppStateAgentRunner on AppState {
     }
   }
 
-  /// A bot's own turn on SubMac's bot engine ([BotAgentEngine]), never opencode (owner 2026-11-07): a bot is a digital
+  /// A bot's own turn on Telesia's bot engine ([BotAgentEngine]), never opencode (owner 2026-11-07): a bot is a digital
   /// person that works on its own, on the phone, under its own profile (its model, its allowance, its notes folder).
-  /// Its own BYOK model answers when that provider can take tools; otherwise SubMac's lane does. Every tool is called
+  /// Its own BYOK model answers when that provider can take tools; otherwise Telesia's lane does. Every tool is called
   /// directly through the app's tool router — no MCP gateway, no opencode session.
   Future<void> _runBotTurn(String convId, AgentRun run, List<ChatMessage> list, Bot b) async {
     // Owner 2026-11-08 (self-direction): the owner just agreed to a mission this bot proposed — start it before the
@@ -545,15 +545,15 @@ extension AppStateAgentRunner on AppState {
       if (agreed != null) await Missions.I.start('bot', b.id, agreed.goal, by: b.name, steps: agreed.steps);
     }
     final cfg = BotAgents.I.forBot(b);
-    final model = BotBrowserModel.of(b, submacRef);
+    final model = BotBrowserModel.of(b, telesiaRef);
     final own = model.byok;
-    final submac = model.submac ?? submacRef;
+    final telesia = model.telesia ?? telesiaRef;
     final bg = _backgroundLane(convId);
-    // Never silently moved onto SubMac's model: say so once (owner 2026-11-08).
+    // Never silently moved onto Telesia's model: say so once (owner 2026-11-08).
     if (own == null && (OcLane.botModelUnavailable(b.model) || model.note.isNotEmpty)) {
-      Bots.I.noteModelUnavailable(b, 'I could not use your chosen model (${b.model}); this turn ran on SubMac\'s model. ${model.note}');
+      Bots.I.noteModelUnavailable(b, 'I could not use your chosen model (${b.model}); this turn ran on Telesia\'s model. ${model.note}');
     }
-    // SubMac's tools may have changed since the last turn (an app connected, its tools loaded).
+    // Telesia's tools may have changed since the last turn (an app connected, its tools loaded).
     await ensureMcpTools().catchError((Object _) {});
     final tools = AppState._capTools(_mcpTools(convId)) ?? const <Map<String, dynamic>>[];
     final brief = Bots.I.agentBriefOf(b);
@@ -565,11 +565,11 @@ extension AppStateAgentRunner on AppState {
       config: cfg,
       cancelled: () => run.cancelled,
       // Background work stops at the bot's own allowance (or its mission's). A bot on its own key is not billed by
-      // SubMac, so that allowance never cuts its own-model work (owner 2026-11-07: it must not fight BYOK).
+      // Telesia, so that allowance never cuts its own-model work (owner 2026-11-07: it must not fight BYOK).
       stop: () => bg && own == null && (b.overBudget || (Missions.I.leftFor('bot', b.id) ?? 1) == 0),
       onStep: (r) {
         if (r.tokens <= 0) return;
-        // Its SubMac allowance counts the SubMac lane only; on its own key it is not billed by SubMac.
+        // Its Telesia allowance counts the Telesia lane only; on its own key it is not billed by Telesia.
         if (own == null) b.addTokens(r.tokens);
         if (bg) Missions.I.addTokens('bot', b.id, r.tokens);
         unawaited(Bots.I.save());
@@ -589,8 +589,8 @@ extension AppStateAgentRunner on AppState {
             asst.content = r.content;
             if (r.content.trim().isNotEmpty) run.show(RunPhase.writing, RunStatus.writing);
           } else {
-            // SubMac's lane: the same resilient stream as the owner's chat (retries, limits, "SubMac is busy").
-            r = await _streamResilient(run: run, route: submac, payload: messages, tools: defs, asst: asst);
+            // Telesia's lane: the same resilient stream as the owner's chat (retries, limits, "Telesia is busy").
+            r = await _streamResilient(run: run, route: telesia, payload: messages, tools: defs, asst: asst);
           }
           asst.streaming = false;
           if (asst.content.trim().isEmpty) {
@@ -735,7 +735,7 @@ extension AppStateAgentRunner on AppState {
 
   /// The pictures, drawings, pages and videos the turn made with opencode's own tools (a written .svg, a script's
   /// .png, an .html page) or named in its answer, shown as cards under the answer (owner 2026-11-04: "no visual
-  /// output ability, why?"). opencode does not know SubMac's cards, so the chat finds its visuals itself.
+  /// output ability, why?"). opencode does not know Telesia's cards, so the chat finds its visuals itself.
   Future<void> _ocShowVisuals(String convId, OpenCodeTurn turn, List<ChatMessage> list, Map<String, ChatMessage> shown, AgentRun run, DateTime began) async {
     try {
       final ws = await AgentTools.workspaceDir();
@@ -776,7 +776,7 @@ extension AppStateAgentRunner on AppState {
     }
   }
 
-  /// Runs a SubMac tool for the chat [conv] its call came from. A team member's part runs under the route key
+  /// Runs a Telesia tool for the chat [conv] its call came from. A team member's part runs under the route key
   /// `team:<team>:<bot>`: its own bot tools act on that bot, and team_assign reaches the lead's job.
   Future<String> _runRouted(String name, Map<String, dynamic> args, String? conv) async {
     if (ScreenLease.drives(name)) {
@@ -806,7 +806,7 @@ extension AppStateAgentRunner on AppState {
 
   String _screenLabel(String who) {
     if (who.startsWith('team:')) return Bots.I.byId(who.split(':').last)?.name ?? 'a team member';
-    return Bots.I.byConv(who)?.name ?? 'SubMac';
+    return Bots.I.byConv(who)?.name ?? 'Telesia';
   }
 
   /// team_task: a team's lead gives its team a job (from a routine, a follow-up, or the owner asking in its chat).
@@ -827,7 +827,7 @@ extension AppStateAgentRunner on AppState {
 
   /// One opencode turn for a team member or lead, or one office job, in a fresh session that is deleted afterwards
   /// (nothing piles up, and no member sees another's session or its own private chat's). [key] ([TeamKey]) routes its
-  /// SubMac tool calls, approval cards and asks; [assign] is the lead's hand-off. Returns the answer text; throws when
+  /// Telesia tool calls, approval cards and asks; [assign] is the lead's hand-off. Returns the answer text; throws when
   /// the turn failed.
   ///
   /// Nothing of it is written to the bot's private chat: the caller posts the result in the team chat (owner
@@ -864,10 +864,10 @@ extension AppStateAgentRunner on AppState {
     }
   }
 
-/// One bot's part of a team's work, on SubMac's own bot engine (owner 2026-11-07): opencode is reserved for the
+/// One bot's part of a team's work, on Telesia's own bot engine (owner 2026-11-07): opencode is reserved for the
   /// owner's chat. The turn is the same loop as a bot's own chat ([BotAgentEngine]), but it writes no chat rows: its
   /// team key is no conversation, and only its answer is posted to the team chat by its caller. Its own BYOK model
-  /// answers when it can take tools; otherwise SubMac's office lane does. Every tool is called by name through the
+  /// answers when it can take tools; otherwise Telesia's office lane does. Every tool is called by name through the
   /// app's router under [key] (team_assign, team_task, the office tools and the bot's own).
   Future<String> _teamTurn(Bot b, String key, String system, String task,
       {bool Function()? stopped,
@@ -882,12 +882,12 @@ extension AppStateAgentRunner on AppState {
     final laneModel = OcLane.pick(background: background, officeWork: true, botModel: b.model);
     final dbg = AppState.debugTeamTurn;
     if (dbg != null) return dbg(b, key, system, task, model: laneModel, background: background, officeJob: officeJob);
-    final model = BotBrowserModel.of(b, submacRef);
+    final model = BotBrowserModel.of(b, telesiaRef);
     final own = model.byok;
-    final submac = model.submac ?? submacRef;
-    // Never silently moved onto SubMac's model: say so once (owner 2026-11-08).
+    final telesia = model.telesia ?? telesiaRef;
+    // Never silently moved onto Telesia's model: say so once (owner 2026-11-08).
     if (own == null && (OcLane.botModelUnavailable(b.model) || model.note.isNotEmpty)) {
-      Bots.I.noteModelUnavailable(b, 'I could not use your chosen model (${b.model}); this team turn ran on SubMac\'s model. ${model.note}');
+      Bots.I.noteModelUnavailable(b, 'I could not use your chosen model (${b.model}); this team turn ran on Telesia\'s model. ${model.note}');
     }
     // Answering the owner in the team chat is the owner's own conversation; the rest is office work on the bots'
     // share (the same lane opencode's office provider billed to).
@@ -928,13 +928,13 @@ extension AppStateAgentRunner on AppState {
         config: cfg,
         cancelled: dead,
         // Nobody is watching: the bot's own allowance (and its team mission's) stops office work between steps. A
-        // bot on its own key is not billed by SubMac, so that allowance never cuts its own-model work.
+        // bot on its own key is not billed by Telesia, so that allowance never cuts its own-model work.
         stop: () => background &&
             own == null &&
             (b.overBudget || (office != null && (Missions.I.leftFor('team', office) ?? 1) == 0)),
         onStep: (r) {
           if (r.tokens <= 0) return;
-          // Its SubMac allowance counts the SubMac lane only; on its own key it is not billed by SubMac.
+          // Its Telesia allowance counts the Telesia lane only; on its own key it is not billed by Telesia.
           if (own == null) b.addTokens(r.tokens);
           if (office != null) Missions.I.addTokens('team', office, r.tokens);
           unawaited(Bots.I.save());
@@ -951,7 +951,7 @@ extension AppStateAgentRunner on AppState {
           } else {
             r = await _streamResilient(
               run: run,
-              route: submac,
+              route: telesia,
               payload: messages,
               tools: defs,
               asst: asst,
@@ -1094,7 +1094,7 @@ extension AppStateAgentRunner on AppState {
     final scheduled = _scheduledConvs.remove(convId);
     final fromNote = _notifReplyConvs.remove(convId);
     _notifyConvs.remove(convId);
-    // The owner is away and waits on this: SubMac's own scheduled task, or an answer to a notification reply. It ends
+    // The owner is away and waits on this: Telesia's own scheduled task, or an answer to a notification reply. It ends
     // with its own notification: who it is from and a short summary of the result (owner 2026-11-05).
     try {
       _notifyRunEnd(convId, list, run, scheduled: scheduled && !Bots.I.isBotConv(convId), fromNote: fromNote);

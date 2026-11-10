@@ -1,4 +1,4 @@
-// Sifalo Pay adapter (https://developer.sifalopay.com). Ported from submac.site lib/sifalo.js + lib/fulfil.js.
+// Sifalo Pay adapter (https://developer.sifalopay.com). Ported from telesia.site lib/sifalo.js + lib/fulfil.js.
 //   start:   POST {gateway}/ (Basic user:key) {amount, gateway:"checkout", currency, return_url, webhook_url} -> {key, token}
 //   pay:     {checkout}/?key=&token=
 //   verify:  POST {gateway}/verify.php {sid} | {order_id}  (NO Basic auth) -> paid only if status=success && code=601

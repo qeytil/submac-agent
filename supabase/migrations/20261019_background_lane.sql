@@ -5,7 +5,7 @@
 -- ai_settings.background_share  share of daily_cap_tokens background work may use per day (0..1, default 0.3).
 --
 -- ai-chat marks a request background when it is an internal bot-run call (source 'bot-cloud') or the app sends
--- x-submac-lane: background, and passes p.lane = 'background' to ai_record_usage. A background request is refused
+-- x-telesia-lane: background, and passes p.lane = 'background' to ai_record_usage. A background request is refused
 -- with 429 background_paused once bg_tokens reaches the share or the total reaches the cap; the user's own chats
 -- can still use the whole cap (and the grace after it).
 

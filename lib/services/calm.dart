@@ -1,5 +1,5 @@
 /// Turns raw failures into calm, plain words, and notices when the user is getting frustrated,
-/// so SubMac can change approach instead of repeating itself.
+/// so Telesia can change approach instead of repeating itself.
 class CalmError {
   final String title;
   final String body;
@@ -34,16 +34,16 @@ class Calm {
     }
     // PLAN 1.3: nothing came back within 45 s. The message is kept; tapping tries again.
     if (has(r'tap to try again')) {
-      return CalmError('SubMac is busy', 'Tap to try again.', 'retry', raw, kind: 'busy_tap');
+      return CalmError('Telesia is busy', 'Tap to try again.', 'retry', raw, kind: 'busy_tap');
     }
     if (has(r'sign in again|\b401\b|unauthori[sz]ed|jwt')) {
       return CalmError('Please sign in again', 'Your session ended. Log out and back in from Settings, then try again.', 'settings', raw, kind: 'auth');
     }
     if (has(r'account needs attention|\bblocked\b')) {
-      return CalmError('Your account needs attention', 'Please contact SubMac support at submac.site.', 'none', raw, kind: 'blocked');
+      return CalmError('Your account needs attention', 'Please contact Telesia support at telesia.site.', 'none', raw, kind: 'blocked');
     }
     if (has(r'short break')) {
-      return CalmError('SubMac is taking a short break', 'Please try again in a few minutes.', 'retry', raw, kind: 'paused');
+      return CalmError('Telesia is taking a short break', 'Please try again in a few minutes.', 'retry', raw, kind: 'paused');
     }
     if (isContextTooLong(raw)) {
       return CalmError('This chat got too long',
@@ -57,7 +57,7 @@ class Calm {
       return CalmError('That took too long', 'Try again in a moment.', 'retry', raw, kind: 'timeout');
     }
     if (has(r'\b429\b|\b5\d\d\b|busy|rate limit|too many requests|overloaded|couldn.t reach its models|couldn.t get an answer just now|lost the connection')) {
-      return CalmError('SubMac is busy', 'Lots of people are using it right now. Try again in a moment.', 'retry', raw, kind: 'busy');
+      return CalmError('Telesia is busy', 'Lots of people are using it right now. Try again in a moment.', 'retry', raw, kind: 'busy');
     }
     if (has(r'safety|content policy|content_filter|refus')) {
       return CalmError('I couldn\'t answer that', 'Try rewording it.', 'retry', raw, kind: 'refused');

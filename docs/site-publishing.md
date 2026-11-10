@@ -1,12 +1,12 @@
 # Site publishing (v1.13.37+70, branch feature/site-publish)
 
-Owner request 2026-10-20: sites SubMac builds get an easy in-app preview and one-tap publishing, frictionless for non-technical users, no features that don't work.
+Owner request 2026-10-20: sites Telesia builds get an easy in-app preview and one-tap publishing, frictionless for non-technical users, no features that don't work.
 
 ## What the user sees
 - **Preview**: any .html opens in `SitePreviewScreen` (Phone / Tablet / Computer width, Reload, zoom) with a **Publish** button (Update once live) and the live link + days left.
 - **Page card** in chat: Open · **Publish** · Share.
 - **Publish sheet** (`showPublishSheet`): two choices, the choice is remembered per site.
-  - **Free SubMac link**: `https://<slug>.submac-sites.pages.dev`, no sign-up, 7 days from the first publish (re-publishing updates the same link and keeps the date; after it ends, Publish again starts a new 7 days). Branch previews carry `x-robots-tag: noindex`.
+  - **Free Telesia link**: `https://<slug>.telesia-sites.pages.dev`, no sign-up, 7 days from the first publish (re-publishing updates the same link and keeps the date; after it ends, Publish again starts a new 7 days). Branch previews carry `x-robots-tag: noindex`.
   - **Your Vercel**: one-tap Vercel sign-in (existing MCP preset `mcp.vercel.com`) if not connected, then the app reads the site files and calls the connection's `deploy_to_vercel` (target production, project name from the title) and waits for READY (get_deployment). Domain is managed in Vercel.
   - Ends on "Your site is online": Open, Copy link, Share.
 - **Your sites** (Files > globe icon): every site, status line ("Free link · 6 days left", "On your Vercel", "Free link ended"), Preview / Open / Share / Update / Make it a project / Take the free link down / Remove.
@@ -20,7 +20,7 @@ Owner request 2026-10-20: sites SubMac builds get an easy in-app preview and one
 - `supabase/migrations/20261020_site_previews.sql`: `site_previews` (own-row read RLS, no client writes), `site_preview_log`, cron `site-preview-sweep` 02:20 UTC (reuses bot_run_anon_key + bot_run_secret).
 
 ## Live infrastructure (done 2026-10-20)
-- Cloudflare Pages project `submac-sites` (account b98ff27c…, production branch main, unused).
+- Cloudflare Pages project `telesia-sites` (account b98ff27c…, production branch main, unused).
 - Supabase secrets `CF_PAGES_TOKEN`, `CF_ACCOUNT_ID` on moeemacbvsueekuvfjbo; function `site-preview` deployed (verify_jwt on); migration applied.
 - Server test: publish → 200 at the link with noindex, re-publish same link with new content, remove → 404, sweep auth OK. Test rows removed.
 
@@ -30,4 +30,4 @@ Owner request 2026-10-20: sites SubMac builds get an easy in-app preview and one
 
 ## Later
 - A `publish_site` agent tool (voice: "put it online").
-- Own domains on SubMac hosting (Cloudflare for SaaS on a separate domain), Cloudflare/Netlify as hosts once a reliable upload path exists.
+- Own domains on Telesia hosting (Cloudflare for SaaS on a separate domain), Cloudflare/Netlify as hosts once a reliable upload path exists.

@@ -1,4 +1,4 @@
-# Lints for SubMac Agent (bug hunt L3, 2026-10-24). flutter_lints was a dev dependency but never applied.
+# Lints for Telesia (bug hunt L3, 2026-10-24). flutter_lints was a dev dependency but never applied.
 # CI runs `flutter analyze --no-fatal-infos --no-fatal-warnings`; keep errors at 0 and fix new warnings.
 include: package:flutter_lints/flutter.yaml
 

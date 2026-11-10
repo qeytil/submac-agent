@@ -13,8 +13,8 @@ class ConnField {
   const ConnField(this.key, this.label, {this.secret = false, this.hint = ''});
 }
 
-/// A service SubMac can use with the user's own key or account: no app
-/// registration, no SubMac servers in between.
+/// A service Telesia can use with the user's own key or account: no app
+/// registration, no Telesia servers in between.
 class ConnDef {
   final String id;
   final String name;
@@ -86,7 +86,7 @@ class ConnectorCatalog {
       blurb: 'Read, search and send email',
       fields: [ConnField('email', 'Gmail address'), ConnField('password', 'App password', secret: true, hint: '16 letters')],
       helpUrl: 'https://myaccount.google.com/apppasswords',
-      help: 'Turn on 2-Step Verification, then create an "App password" for SubMac and paste it here.',
+      help: 'Turn on 2-Step Verification, then create an "App password" for Telesia and paste it here.',
     ),
     ConnDef(
       id: 'yahoo', name: 'Yahoo Mail', category: 'Email', kind: 'email',
@@ -276,7 +276,7 @@ class ConnectorCatalog {
     ConnDef(
       id: 'mailchimp', name: 'Mailchimp', category: 'Business and money', blurb: 'Audiences and campaigns',
       fields: [ConnField('key', 'API key', secret: true, hint: 'ends with -us21 etc.'), ConnField('dc', 'Server', hint: 'us21 (end of the key)')],
-      base: 'https://{dc}.api.mailchimp.com/3.0', basic: ['=submac', '{key}'],
+      base: 'https://{dc}.api.mailchimp.com/3.0', basic: ['=telesia', '{key}'],
       helpUrl: 'https://us1.admin.mailchimp.com/account/api/', help: 'Create an API key. The part after the dash is your server.',
       examples: 'GET /lists; GET /campaigns?count=10; POST /lists/{id}/members',
       test: ['GET', '/ping'],
@@ -372,7 +372,7 @@ class ConnectorCatalog {
       id: 'github', name: 'GitHub', category: 'Websites and code', blurb: 'Repos, issues, pull requests',
       fields: _token, base: 'https://api.github.com',
       headers: {'Authorization': 'Bearer {token}', 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'},
-      helpUrl: 'https://github.com/settings/tokens', help: 'Create a token (classic) with the repo and workflow scopes, so SubMac can save your code, build your app and host your site.',
+      helpUrl: 'https://github.com/settings/tokens', help: 'Create a token (classic) with the repo and workflow scopes, so Telesia can save your code, build your app and host your site.',
       examples: 'GET /user/repos?per_page=20; GET /repos/{o}/{r}/issues; POST /repos/{o}/{r}/issues {"title":"..."}',
       test: ['GET', '/user'],
     ),
@@ -733,7 +733,7 @@ class ConnectorCatalog {
     return '';
   }
 
-  /// Sends [text] to the owner through the Telegram bot they connected in Apps (a bot's bot_telegram when SubMac's
+  /// Sends [text] to the owner through the Telegram bot they connected in Apps (a bot's bot_telegram when Telesia's
   /// own Telegram is not set up). The chat is the newest private chat with that bot (the owner pressed Start).
   /// Returns null when sent, or an error line.
   static Future<String?> telegramToOwner(String text) async {
@@ -866,7 +866,7 @@ class ConnectorCatalog {
     final extra = a['query'];
     if (extra is Map) extra.forEach((k, val) => q['$k'] = '$val');
     uri = uri.replace(queryParameters: q.isEmpty ? null : q);
-    final headers = <String, String>{'User-Agent': 'SubMacAgent/1.6', 'Accept': 'application/json'};
+    final headers = <String, String>{'User-Agent': 'TelesiaAgent/1.6', 'Accept': 'application/json'};
     d.headers.forEach((k, t) => headers[k] = _fill(t, v));
     if (d.basic != null) {
       String part(String t) => t.startsWith('=') ? t.substring(1) : _fill(t, v);
@@ -902,7 +902,7 @@ class ConnectorCatalog {
     final extra = a['query'];
     if (extra is Map) extra.forEach((k, val) => q['$k'] = '$val');
     uri = uri.replace(queryParameters: q.isEmpty ? null : q);
-    final headers = <String, String>{'User-Agent': 'SubMacAgent/1.6'};
+    final headers = <String, String>{'User-Agent': 'TelesiaAgent/1.6'};
     final h = a['headers'];
     if (h is Map) h.forEach((k, val) => headers['$k'] = '$val');
     return _send(method, uri, headers, a['body'], (a['body_type'] ?? 'json').toString());
@@ -1043,7 +1043,7 @@ class ConnectorCatalog {
     if (name == 'email_send') {
       final s = id == 'mail' ? [v['smtp'] ?? '', '', '465'] : _servers[id]!;
       final port = int.parse(s[2]);
-      final smtp = SmtpClient('submac.site', isLogEnabled: false);
+      final smtp = SmtpClient('telesia.site', isLogEnabled: false);
       await smtp.connectToServer(s[1], port, isSecure: port == 465, timeout: const Duration(seconds: 20));
       await smtp.ehlo();
       if (port == 587) await smtp.startTls();

@@ -1,6 +1,6 @@
-"""Skills adapted from open-source skill collections (MIT / Apache-2.0) for the SubMac skill library.
+"""Skills adapted from open-source skill collections (MIT / Apache-2.0) for the Telesia skill library.
 
-Each skill is rewritten for SubMac's tools and for everyday users (plain words, phone first), keeps a
+Each skill is rewritten for Telesia's tools and for everyday users (plain words, phone first), keeps a
 credit line in its body, and carries `source`, `license` and `author` fields. The original licences
 are listed in docs/third-party.md. Run `python3 build.py` to write `index_add.json` and `s/<id>.json`;
 merge.py adds them to the live index (see README.md).
@@ -19,8 +19,8 @@ S = []
 
 def k(id, name, cat, sub, desc, tags, powers, src, path, body, level='basic'):
     s = SRC[src]
-    credit = (f"\n---\nAdapted for SubMac from \"{path}\" by {s['author']}, {s['license']} licence, {s['url']}. "
-              "Changed: rewritten for SubMac's tools and everyday users.")
+    credit = (f"\n---\nAdapted for Telesia from \"{path}\" by {s['author']}, {s['license']} licence, {s['url']}. "
+              "Changed: rewritten for Telesia's tools and everyday users.")
     S.append(dict(id=id, name=name, cat=cat, sub=sub, desc=desc, tags=tags, powers=powers, level=level, v=1,
                   source=f"{s['url']}/tree/main/{path}", license=s['license'], author=s['author'],
                   body=body.strip() + '\n' + credit + '\n'))

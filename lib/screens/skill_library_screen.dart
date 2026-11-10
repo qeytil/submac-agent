@@ -8,7 +8,7 @@ import '../widgets/markdown_view.dart';
 import '../widgets/pill_kit.dart';
 import '../ui/tokens.dart';
 
-/// The shared skill library: browse, read and install skills for SubMac or for one of the bots.
+/// The shared skill library: browse, read and install skills for Telesia or for one of the bots.
 class SkillLibraryScreen extends StatefulWidget {
   const SkillLibraryScreen({super.key, this.target = SkillLibrary.agent});
   /// SkillLibrary.agent, or a bot id.
@@ -22,7 +22,7 @@ class _SkillLibraryScreenState extends State<SkillLibraryScreen> {
   String _q = '';
   String _cat = 'All';
 
-  String get _who => widget.target == SkillLibrary.agent ? 'SubMac' : (Bots.I.byId(widget.target)?.name ?? 'this bot');
+  String get _who => widget.target == SkillLibrary.agent ? 'Telesia' : (Bots.I.byId(widget.target)?.name ?? 'this bot');
 
   @override
   void initState() {

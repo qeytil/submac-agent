@@ -557,7 +557,7 @@ void main() {
   });
 
   // v1.13.94+161 (owner 2026-10-24): a light frosted header with who you are talking to, the rail's soft open edge,
-  // the SubMac mark at the rail's foot, and the floating frosted composer.
+  // the Telesia mark at the rail's foot, and the floating frosted composer.
   group('header, rail edge and floating composer', () {
     testWidgets('the header shows the active bot (small face in its ring + name) in a floating pill, and swaps in place', (t) async {
       _size(t, _phone);
@@ -619,16 +619,16 @@ void main() {
       expect(Lux.railWidth, 84);
     });
 
-    testWidgets('the rail keeps its sizes and its foot; the small "+" became the SubMac mark', (t) async {
+    testWidgets('the rail keeps its sizes and its foot; the small "+" became the Telesia mark', (t) async {
       _size(t, _phone);
       await t.pumpWidget(_app(state()));
       await t.pumpAndSettle();
       await _openRail(t);
       expect(find.byKey(const ValueKey('rail-add')), findsNothing);
-      final mark = find.byKey(const ValueKey('rail-submac'));
+      final mark = find.byKey(const ValueKey('rail-telesia'));
       expect(mark, findsOneWidget);
       final sem = t.ensureSemantics();
-      expect(find.bySemanticsLabel('Back to SubMac'), findsOneWidget);
+      expect(find.bySemanticsLabel('Back to Telesia'), findsOneWidget);
       sem.dispose();
       expect(find.byKey(const ValueKey('rail-new-bot')), findsOneWidget);
       expect(find.byKey(const ValueKey('rail-store')), findsOneWidget);
@@ -636,7 +636,7 @@ void main() {
       expect(t.getSize(find.byKey(const ValueKey('rail-edge'))).width, Lux.railWidth);
     });
 
-    testWidgets('the SubMac mark goes back to the main chat', (t) async {
+    testWidgets('the Telesia mark goes back to the main chat', (t) async {
       _size(t, _phone);
       final s = state();
       await t.pumpWidget(_app(s, home: Builder(
@@ -652,7 +652,7 @@ void main() {
       await t.tap(find.text('main chat'));
       await t.pumpAndSettle();
       await _openRail(t);
-      await t.tap(find.byKey(const ValueKey('rail-submac')));
+      await t.tap(find.byKey(const ValueKey('rail-telesia')));
       await t.pumpAndSettle();
       expect(find.byType(BotsWorkspace), findsNothing);
       expect(find.text('main chat'), findsOneWidget);

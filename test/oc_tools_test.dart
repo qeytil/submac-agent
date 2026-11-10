@@ -14,7 +14,7 @@ import 'package:agent/services/connector_catalog.dart';
 import 'package:agent/services/oc_scope.dart';
 import 'package:agent/services/opencode.dart';
 import 'package:agent/services/save_guard.dart';
-import 'package:agent/services/submac_gateway.dart';
+import 'package:agent/services/telesia_gateway.dart';
 import 'package:agent/services/system_bridge.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -260,7 +260,7 @@ void main() {
 
     test('through the gateway, a bot calling remember runs it (as its own memory), not "no tool"', () async {
       final ran = <String>[];
-      final g = SubMacGateway(
+      final g = TelesiaGateway(
         tools: () => [
           {'type': 'function', 'function': {'name': 'bot_remember', 'description': 'x', 'parameters': {'type': 'object'}}}
         ],
@@ -277,7 +277,7 @@ void main() {
 
   group('B · opencode tool calls', () {
     test("run_tool with one of opencode's own tools says to call it directly", () async {
-      final g = SubMacGateway(tools: () => const [], run: (n, a) async => 'ran');
+      final g = TelesiaGateway(tools: () => const [], run: (n, a) async => 'ran');
       final r = await g.call('run_tool', {'name': 'webfetch', 'arguments': {'url': 'https://example.com'}});
       expect(r, contains('one of your own tools'));
       expect(r, contains('Call webfetch directly'));
@@ -381,7 +381,7 @@ void main() {
       expect(ConnectorCatalog.chatIdFromUpdates({'ok': true, 'result': []}), '');
     });
 
-    test("bot_telegram sends through the owner's connected Telegram bot when SubMac's own Telegram is off", () async {
+    test("bot_telegram sends through the owner's connected Telegram bot when Telesia's own Telegram is off", () async {
       final calls = <http.Request>[];
       ConnectorCatalog.httpClient = () => MockClient((r) async {
             calls.add(r);

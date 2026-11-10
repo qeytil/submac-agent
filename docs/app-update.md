@@ -3,23 +3,23 @@
 > **Since v1.13.53+86 (2026-10-22; current branch build 1.13.56+89) new updates are ONE file in Cloudflare R2.** See "Storage: Cloudflare R2" below.
 > The Supabase parts path described further down is kept only for releases saved before the switch.
 
-People on an older SubMac see an update window as soon as the owner publishes a newer build in the dashboard.
+People on an older Telesia see an update window as soon as the owner publishes a newer build in the dashboard.
 The download runs in Android's own downloader (it keeps going when they leave the app), the window shows the
 progress, and Install opens Android's installer. A required update blocks the app until it is installed.
 
 ## How the owner publishes an update
 
 1. Build the app as usual (the `app-release.apk` from the Dev check or release workflow). It must be signed with
-   the pinned SubMac key (the workflows enforce this), and its build number (`+NN` in pubspec) must be higher
+   the pinned Telesia key (the workflows enforce this), and its build number (`+NN` in pubspec) must be higher
    than the last published one. Phones only offer a higher build.
-2. Open the dashboard (Worker `submac-proxy-admin`), sign in, tab **Updates**.
+2. Open the dashboard (Worker `telesia-proxy-admin`), sign in, tab **Updates**.
 3. **Pick the file.** The dashboard reads the version and build straight from inside the file (it also checks the
-   app is `com.submac.agent`) and computes the file's sha256 check. If it cannot read them it falls back to the file
+   app is `com.telesia.app`) and computes the file's sha256 check. If it cannot read them it falls back to the file
    name (`1.13.51+84`), or you type them.
 4. **What's new**: a few plain lines. People see this in the window (it scrolls if long).
    The file then goes to Cloudflare R2 through the dashboard in 32 MiB pieces and is stored as one file.
 5. **When does it become required?**
-   - **Now**: everyone on an older version gets a full-screen "Please update SubMac" with only Download / Install.
+   - **Now**: everyone on an older version gets a full-screen "Please update Telesia" with only Download / Install.
    - **From (date and time)**: until then people may tap Later (the window comes back on every start); from then on
      it becomes the full-screen block. The time is in your browser's time zone (shown under the picker).
    - **Never**: people may always skip (the window still comes back on every start).
@@ -41,8 +41,8 @@ Rules the phone follows:
 Why: this Supabase plan caps one stored file at 50 MB, so builds had to be split into parts and joined on the
 phone. R2 has no such cap, so a release is now one public file and the phone downloads it in one go.
 
-- **Bucket** `submac-app-updates` on Cloudflare account b98ff27cdcd4696b015f93a601bcdcda (only for app updates;
-  the website bucket `submac-downloads` and submac.site are untouched). Public base
+- **Bucket** `telesia-app-updates` on Cloudflare account b98ff27cdcd4696b015f93a601bcdcda (only for app updates;
+  the website bucket `telesia-downloads` and telesia.site are untouched). Public base
   `https://pub-f8ebeb9291264a2d873d45061a442de0.r2.dev`, stored in `ai_settings.app_updates_public_base`.
   The bucket's location came back as **WNAM** (western North America), even though most users are in East Africa;
   Cloudflare serves the public URL from its edge, but the first byte of an uncached file comes from WNAM.
@@ -50,10 +50,10 @@ phone. R2 has no such cap, so a release is now one public file and the phone dow
   them and they get no caching. Connect a domain (for example `updates.<domain>`) to the bucket in Cloudflare, then
   change `ai_settings.app_updates_public_base` (and nothing else; the `file_url` check accepts any https host).
   Releases saved before the change keep their old address, so re-publish them or leave r2.dev on.
-- **Dashboard Worker** `submac-proxy-admin` (`tools/proxy-admin/worker.mjs`) has an R2 binding `UPDATES` and
+- **Dashboard Worker** `telesia-proxy-admin` (`tools/proxy-admin/worker.mjs`) has an R2 binding `UPDATES` and
   admin-only routes. Every call forwards the caller's own bearer to ai-admin `me`; anyone else gets 403.
   - `POST /api/updates/start` `{version_code, size_bytes}` → `{key, upload_id, part_size, parts}`. The key is
-    `android/<build>-<8 hex>/SubMac-<build>.apk`.
+    `android/<build>-<8 hex>/Telesia-<build>.apk`.
   - `PUT /api/updates/part?key&upload_id&n` body = one part of exactly 32 MiB (the last may be smaller), streamed
     straight into R2 → `{partNumber, etag}`.
   - `POST /api/updates/complete` `{key, upload_id, parts}` → `{key, size}`; `abort` `{key, upload_id}`.
@@ -87,7 +87,7 @@ Server (Supabase `moeemacbvsueekuvfjbo`, migration `supabase/migrations/20261020
   given build, with `required_at` = the earliest deadline of all newer published releases, plus `server_now`.
   Returns `{update:false, server_now}` when there is nothing newer.
 - `admin_app_versions()` (service role only): devices per app version for the dashboard.
-- Public bucket `app-updates` (Supabase Storage, not the website's R2 / submac.site). Anyone can download by URL.
+- Public bucket `app-updates` (Supabase Storage, not the website's R2 / telesia.site). Anyone can download by URL.
   Restrictive policies block insert/update/delete with anon or signed-in user keys; uploads only go through signed
   upload URLs that `ai-admin` creates for admins (`ai_admins`).
 - **Parts**: this Supabase plan caps one stored file at 50 MB and the app is ~63 MB, so the dashboard uploads the
@@ -110,23 +110,23 @@ App:
 - `lib/widgets/update_window.dart`: `UpdateLayer` (over every screen, from `MaterialApp.builder` in `main.dart`):
   optional = a card over the dimmed app with Download / Later, Cancel download / Keep going in the background,
   Install / Later; required = a full screen with only Download / Install (and Cancel download while downloading).
-  `AppUpdateTile` + `AppUpdateScreen` in Settings (section "SubMac"): this version, Check now, and the same panel.
+  `AppUpdateTile` + `AppUpdateScreen` in Settings (section "Telesia"): this version, Check now, and the same panel.
   English and Somali words (Somali when the reply language is Somali; the app has no other UI translations).
-- `android_native/AppUpdater.kt` (channel `submac/update`):
+- `android_native/AppUpdater.kt` (channel `telesia/update`):
   - `start`: removes old files, hands every part to Android's DownloadManager (to the app's own external files
     folder `updates/`, no storage permission; Android shows its download notification; continues after leaving
     or closing the app).
   - `status`: progress across parts; when all are in, joins them, checks sha256, deletes the parts; a mismatch
-    deletes everything (`bad`). `UpdateDone` (manifest receiver for DOWNLOAD_COMPLETE) does the same when SubMac is
-    closed and posts "Your SubMac update is ready. Tap to install."
+    deletes everything (`bad`). `UpdateDone` (manifest receiver for DOWNLOAD_COMPLETE) does the same when Telesia is
+    closed and posts "Your Telesia update is ready. Tap to install."
   - `install`: checks sha256 again, then opens Android's installer with `ACTION_VIEW` through the `UpdateFiles`
-    content provider (`com.submac.agent.updates`, not exported, one-time read grant; same job as androidx
-    FileProvider without adding a dependency). If "Install unknown apps" is off for SubMac it answers
+    content provider (`com.telesia.app.updates`, not exported, one-time read grant; same job as androidx
+    FileProvider without adding a dependency). If "Install unknown apps" is off for Telesia it answers
     `needs_permission`; the window explains the switch and opens it, and Install continues by itself on return.
   - `cancel`: removes the downloads and every file. Also used once the phone runs the new build (the file is
     deleted on the first start after updating).
-  - Tells Dart when the SubMac screen is freshly opened (the engine can outlive the screen), so the window shows
-    again on every start even when Android kept SubMac in memory.
+  - Tells Dart when the Telesia screen is freshly opened (the engine can outlive the screen), so the window shows
+    again on every start even when Android kept Telesia in memory.
 - `tools/patch_android.py`: adds `REQUEST_INSTALL_PACKAGES`, the `UpdateFiles` provider and the `UpdateDone`
   receiver to the manifest.
 - No new packages.
@@ -135,7 +135,7 @@ App:
 
 Same look as the other Settings pages (rounded `sheet` cards with a thin border, small-caps section titles, the serif
 page title, light and dark). `AppUpdateScreen` feeds `AppUpdateView` (pure, drawn from `AppUpdateViewData`):
-- Header card: logo, "SubMac", this version, and ONE status line with a dot: Up to date / Update available · X /
+- Header card: logo, "Telesia", this version, and ONE status line with a dot: Up to date / Update available · X /
   Downloading N% / Ready to install / Installing… / Couldn't check right now / See if a newer version is out.
   While downloading, a slim progress bar and "x MB / y MB" sit inside the same card.
 - One primary button for the moment: Check for updates → Download · size → (downloading: only a quiet Cancel
@@ -149,26 +149,26 @@ page title, light and dark). `AppUpdateScreen` feeds `AppUpdateView` (pure, draw
 
 ## Phone test steps
 
-Prepare two builds signed with the SubMac key: A (this branch, e.g. 1.13.51+84) installed on the phone, and B
+Prepare two builds signed with the Telesia key: A (this branch, e.g. 1.13.51+84) installed on the phone, and B
 with a higher build (bump pubspec and AppConfig.version, run Dev check, download the APK artifact).
 
 1. Install A. Open Settings > App update: shows "This version 1.13.51"; Check now says "You're up to date".
-2. Dashboard > Updates: pick B, What's new "Test update", Required **Never**, Publish. Close SubMac fully and open
+2. Dashboard > Updates: pick B, What's new "Test update", Required **Never**, Publish. Close Telesia fully and open
    it: the update window appears (version, size, what's new, Download / Later).
-3. Tap Later: the window goes. Close SubMac (swipe it away) and open it: the window is back.
+3. Tap Later: the window goes. Close Telesia (swipe it away) and open it: the window is back.
 4. Tap Download: progress moves; Android's notification shows the download. Press Home, wait, come back: progress
    continued (or Install is waiting). Lock the phone during the download: it still finishes.
 5. Start again, tap Cancel download: the download stops, the notification goes, the window shows Download again.
    Download again works.
-6. Let it finish, tap Later, close SubMac, open it: the window offers **Install** at once (no new download).
-7. Tap Install with "Install unknown apps" off for SubMac: the window explains it; Open settings, switch it on,
-   go back: Android's installer opens. Cancel the installer: back in SubMac, Install is offered again.
+6. Let it finish, tap Later, close Telesia, open it: the window offers **Install** at once (no new download).
+7. Tap Install with "Install unknown apps" off for Telesia: the window explains it; Open settings, switch it on,
+   go back: Android's installer opens. Cancel the installer: back in Telesia, Install is offered again.
 8. Install: the app updates and opens on B; no window; Settings > App update shows B. (The update file is deleted
    on that first start.)
 9. Forced: reinstall A (or publish C above B and stay on B). In the dashboard, Edit the release → Required **Now**.
-   Close and open SubMac: full-screen "Please update SubMac", no Later, no way into the app; back button does
+   Close and open Telesia: full-screen "Please update Telesia", no Later, no way into the app; back button does
    not reveal it. Download → Install works from there.
-10. Required later: Edit → From = 3 minutes from now. Open SubMac: Later is shown with "Required from …". Wait past
+10. Required later: Edit → From = 3 minutes from now. Open Telesia: Later is shown with "Required from …". Wait past
     the time with the app open: within ~30 s the window turns into the full-screen block.
 11. Somali: Settings > Reply language Somali → window and Settings entry in Somali.
 12. Clean up: Unpublish or Delete the test releases in the dashboard.
@@ -183,6 +183,6 @@ with a higher build (bump pubspec and AppConfig.version, run Dev check, download
 - The build number must go up for every published update; phones ignore equal or lower builds (no downgrades).
 - The full-screen block is drawn over the app; it does not stop background work that was already running
   (bots, wake word) until the user updates.
-- Users who removed SubMac's download from Android's Downloads app see "The download stopped" and can download again.
+- Users who removed Telesia's download from Android's Downloads app see "The download stopped" and can download again.
 - HyperOS/MIUI may show their own "Install unknown apps" wording or an extra security scan before installing.
 - Not phone-tested yet (no device in this run); the Kotlin side is compiled and checked by the Dev check build.

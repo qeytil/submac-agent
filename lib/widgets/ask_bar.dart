@@ -479,7 +479,7 @@ class _ConnectAppSheetState extends State<_ConnectAppSheet> {
                 ? (pr.needsKey
                     ? 'You paste your $name key. It stays encrypted on this phone, and you can disconnect any time in Apps.'
                     : pr.signIn
-                    ? 'You sign in on $name\'s own page. SubMac never sees your password, and you can disconnect any time in Apps.'
+                    ? 'You sign in on $name\'s own page. Telesia never sees your password, and you can disconnect any time in Apps.'
                     : 'Nothing to sign in to. You can turn it off any time in Apps.')
                 : 'You paste a key from $name. It stays encrypted on this phone, and you can disconnect any time in Apps.',
             style: TextStyle(color: p.muted, fontSize: AppText.micro, height: 1.35)),

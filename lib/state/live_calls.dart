@@ -49,7 +49,7 @@ extension AppStateLive on AppState {
           : SystemTools.phoneControl
               ? 'Phone: phone control is on. You can open apps, read the screen, tap, type and use WhatsApp yourself.'
               : 'Phone: phone control is off. You can still open apps, set alarms and draft messages; to tap, type or press Send '
-                  'in other apps, ask the user to turn on Phone control in SubMac settings.')
+                  'in other apps, ask the user to turn on Phone control in Telesia settings.')
       ..writeln()
       ..writeln(AppState._liveRules)
       ..writeln()
@@ -179,7 +179,7 @@ extension AppStateLive on AppState {
     });
     if (err != null) return err;
     _tgConv = reuse ?? lastOwnConvId;
-    return c.future.timeout(const Duration(minutes: 20), onTimeout: () => 'Still working on it. Check the SubMac app for the result.');
+    return c.future.timeout(const Duration(minutes: 20), onTimeout: () => 'Still working on it. Check the Telesia app for the result.');
   }
 
   Future<String?> startBackgroundTask(String task,
@@ -195,7 +195,7 @@ extension AppStateLive on AppState {
       hasOwnTitle: ownChatTitle != null,
       currentId: currentId,
       currentBusy: busyIn(currentId),
-      // A bot's chat that is merely open on screen is never borrowed for SubMac's own work.
+      // A bot's chat that is merely open on screen is never borrowed for Telesia's own work.
       currentIsForeignBot: currentId != null && currentId != liveConvId && Bots.I.isBotConv(currentId),
     );
     // A bot's chat answers 'busy' (teams retry it); any other chat says it plainly (shown in the scheduled-task notice).
@@ -282,7 +282,7 @@ extension AppStateLive on AppState {
     try {
       var convId = liveConvId;
       if (convId == null) {
-        // A SubMac call saves into the chat on screen, never into a bot's chat that happens to be open.
+        // A Telesia call saves into the chat on screen, never into a bot's chat that happens to be open.
         final into = SessionRules.liveSaveTarget(currentId: currentId, currentIsBot: Bots.I.isBotConv(currentId));
         if (into == null) {
           final first = turns.firstWhere((t) => t.role == 'user', orElse: () => turns.first).text;
@@ -344,16 +344,16 @@ extension AppStateLive on AppState {
     return id;
   }
 
-  /// After a SubMac call (plan 3, step 5): one small fast-model pass turns the transcript into a short recap
+  /// After a Telesia call (plan 3, step 5): one small fast-model pass turns the transcript into a short recap
   /// posted in the chat (so chat and the next call know what was said) and saves new facts to memory.
   /// Bot calls do their own wrap-up in [botCallEnded].
   Future<void> liveCallEnded(List<LiveTurn> turns, String? convId) async {
     final real = turns.where((t) => t.text.trim().isNotEmpty).toList();
     if (convId == null || real.where((t) => t.role == 'user').length < 2) return;
-    final ref = submacRef;
+    final ref = telesiaRef;
     final sb = StringBuffer();
     for (final t in real) {
-      final line = '${t.role == 'user' ? 'User' : 'SubMac'}: ${AppState._clip(t.text.trim(), 400)}\n';
+      final line = '${t.role == 'user' ? 'User' : 'Telesia'}: ${AppState._clip(t.text.trim(), 400)}\n';
       if (sb.length + line.length > 6000) break;
       sb.write(line);
     }
@@ -363,7 +363,7 @@ extension AppStateLive on AppState {
       final raw = await LlmClient().complete(source: 'live', maxTokens: 400, provider: ref.provider, model: ref.model, messages: [
         {
           'role': 'system',
-          'content': 'You read the transcript of a voice call between the user and their assistant SubMac. Reply with JSON only: '
+          'content': 'You read the transcript of a voice call between the user and their assistant Telesia. Reply with JSON only: '
               '{"recap":"...","facts":["..."]}. recap: at most 3 short lines in the language of the call: what was discussed, '
               'what was decided or done, and any next step. facts: 0 to 3 lasting facts about the user worth remembering '
               '(who they are, preferences, people, goals, important dates), each one short sentence in the third person. '

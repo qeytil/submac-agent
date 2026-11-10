@@ -1,4 +1,4 @@
-// A SubMac tool call from opencode goes to the chat (or team member) that made it, never another (2026-11-03).
+// A Telesia tool call from opencode goes to the chat (or team member) that made it, never another (2026-11-03).
 import 'package:agent/services/mcp_routes.dart';
 import 'package:flutter_test/flutter_test.dart';
 

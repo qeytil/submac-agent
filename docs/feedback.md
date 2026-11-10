@@ -17,7 +17,7 @@ will reach me in admin dashboard feedback section with the user details".
   before each send and when the screen closes, and cleared only after a successful send.
 - Words: lib/ui/feedback_words.dart (`ft()`), English/Somali/Arabic, own table like BillingCopy/ErrorCopy so the shared
   Strings table is untouched. Somali and Arabic need a native read.
-- Device details: `submac/update` → `info` now also returns `manufacturer`, `model`, `release` (android_native/AppUpdater.kt).
+- Device details: `telesia/update` → `info` now also returns `manufacturer`, `model`, `release` (android_native/AppUpdater.kt).
   Off Android the OS falls back to `Platform.operatingSystemVersion`.
 - Tests: test/feedback_test.dart (sender with a fake backend, error mapping, device row, words coverage, 9 widget tests).
 

@@ -12,7 +12,7 @@ import 'media_store.dart';
 import 'turn_visuals.dart';
 
 /// Making pictures, video, speech and sound with the user's own media providers (owner 2026-11-04,
-/// docs/media-providers.md). Runs on the phone, straight against the provider: nothing passes SubMac's servers.
+/// docs/media-providers.md). Runs on the phone, straight against the provider: nothing passes Telesia's servers.
 ///
 /// Request building ([MediaGen.build]) and answer reading ([MediaGen.read]) are pure and tested per protocol with a mock
 /// HTTP client; [MediaGen.run] sends, polls long jobs (with progress, cancellable) and downloads the result;

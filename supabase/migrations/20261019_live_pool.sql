@@ -29,7 +29,7 @@ create or replace function public.live_add_route(p_label text, p_key text, p_mod
 returns uuid language plpgsql security definer set search_path = public, vault as $$
 declare sid uuid; rid uuid;
 begin
-  sid := vault.create_secret(p_key, 'live_key_' || gen_random_uuid()::text, 'SubMac Live voice key');
+  sid := vault.create_secret(p_key, 'live_key_' || gen_random_uuid()::text, 'Telesia Live voice key');
   insert into live_routes(provider, label, model, secret_id, key_preview, priority)
   values (coalesce(nullif(p_provider,''),'Google Gemini'), coalesce(nullif(p_label,''),'live key'), nullif(p_model,''), sid,
           left(p_key, 6) || '…' || right(p_key, 4), coalesce(p_priority, 10))

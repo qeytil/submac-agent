@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.animation.ValueAnimator
 import android.content.Context
@@ -21,11 +21,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /**
- * The "SubMac is using your phone" layer: a red dot that shows each tap, swipe, scroll and
+ * The "Telesia is using your phone" layer: a red dot that shows each tap, swipe, scroll and
  * keystroke on top of the app the agent is driving, plus a small badge at the top with Stop.
  * Both are accessibility overlays (no extra permission) and never take touches except Stop.
  */
-class Ghost(private val svc: SubMacA11y) {
+class Ghost(private val svc: TelesiaA11y) {
     private val wm = svc.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val main = Handler(Looper.getMainLooper())
     private var layer: GhostView? = null
@@ -108,7 +108,7 @@ class Ghost(private val svc: SubMacA11y) {
             }
             // no coloured dot: a quiet text badge
             pill.addView(TextView(svc).apply {
-                text = "SubMac is using your phone"
+                text = "Telesia is using your phone"
                 setTextColor(0xFFF4F0E7.toInt())
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             })

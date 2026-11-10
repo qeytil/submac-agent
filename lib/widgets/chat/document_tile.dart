@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme.dart';
 import '../../ui/tokens.dart';
 
-/// A document or file SubMac made or found: a thin page outline with its type, the name, and a quiet line
+/// A document or file Telesia made or found: a thin page outline with its type, the name, and a quiet line
 /// under it (kind and size, or "Not available any more"). No card around it. Tap opens it; hold it for Save / Share.
 class DocumentTile extends StatelessWidget {
   const DocumentTile({super.key, required this.name, this.meta = '', this.onTap});

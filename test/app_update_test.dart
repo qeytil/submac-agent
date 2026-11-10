@@ -95,8 +95,8 @@ void main() {
         'version_code': 85,
         'version_name': '1.13.52',
         'storage': 'r2',
-        'file_url': 'https://pub-x.r2.dev/android/85-0a1b2c3d/SubMac-85.apk',
-        'apk_path': 'android/85-0a1b2c3d/SubMac-85.apk',
+        'file_url': 'https://pub-x.r2.dev/android/85-0a1b2c3d/Telesia-85.apk',
+        'apk_path': 'android/85-0a1b2c3d/Telesia-85.apk',
         'parts': [],
         'size_bytes': 125829120,
         'sha256': 'b' * 64,
@@ -104,7 +104,7 @@ void main() {
       expect(r.storage, 'r2');
       expect(r.singleFile, isTrue);
       expect(r.sizeBytes, 125829120);
-      expect(r.urls('https://x.supabase.co'), ['https://pub-x.r2.dev/android/85-0a1b2c3d/SubMac-85.apk']);
+      expect(r.urls('https://x.supabase.co'), ['https://pub-x.r2.dev/android/85-0a1b2c3d/Telesia-85.apk']);
       final again = Release.fromRpc(r.toJson())!;
       expect(again.toJson(), r.toJson());
       expect(again.singleFile, isTrue);

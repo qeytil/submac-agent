@@ -9,7 +9,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'tools.dart';
 
-/// Media by code: the agent writes JavaScript and SubMac runs it in a private, invisible browser
+/// Media by code: the agent writes JavaScript and Telesia runs it in a private, invisible browser
 /// on the phone. Canvas drawings become PNGs, SVG becomes PNG (+ the .svg), Web Audio code becomes
 /// a WAV, and canvas animations become a WebM video. No image model, no key, no cost.
 class MediaCoder {
@@ -40,7 +40,7 @@ class MediaCoder {
       'type': 'function',
       'function': {
         'name': 'code_media',
-        'description': 'Create an image, sound, music or short animation by writing JavaScript that SubMac runs on the phone (free and instant). '
+        'description': 'Create an image, sound, music or short animation by writing JavaScript that Telesia runs on the phone (free and instant). '
             'Use it for drawings, posters, logos, patterns, charts-as-art, generative art, illustrations, icons, wallpapers, '
             'sound effects, melodies, beats and ambient audio. The result is shown to the user and saved to the Library. '
             'If it returns an error, fix the code and call again. Never redeclare the given names (canvas, ctx, out, W, H, helpers).\n'
@@ -52,8 +52,8 @@ class MediaCoder {
             'kind=video: define `function frame(t, ctx)` (t = seconds) that draws one frame; it is recorded at fps for duration seconds (WebM).\n'
             'Helpers: W, H, DUR, SR, rand() (seeded), rnd(a,b), noise(x,y) (smooth 2D noise 0..1), lerp(a,b,t), ease(t), hsl(h,s,l), '
             'note("A4")→Hz, midi(n)→Hz, env(param, t, {a,d,s,r,peak,hold}) ADSR, osc(type,freq,t,len,gain), noiseBuf(sec), '
-            'C = SubMac colours {paper:"#f4f0e7", ink:"#17150f", red:"#c2361b", night:"#000000", wash:"#f6dfd6", brass:"#b08d57", slate:"#5b7083"}, '
-            'font(px, "serif"|"sans"|"mono", weight?, italic?) → a CSS font string using SubMac fonts (Instrument Serif, Geist, Geist Mono),  await loadImage(url), await load(scriptUrl) for a library from a CDN, console.log for notes.',
+            'C = Telesia colours {paper:"#f4f0e7", ink:"#17150f", red:"#c2361b", night:"#000000", wash:"#f6dfd6", brass:"#b08d57", slate:"#5b7083"}, '
+            'font(px, "serif"|"sans"|"mono", weight?, italic?) → a CSS font string using Telesia fonts (Instrument Serif, Geist, Geist Mono),  await loadImage(url), await load(scriptUrl) for a library from a CDN, console.log for notes.',
         'parameters': {
           'type': 'object',
           'properties': {
@@ -156,7 +156,7 @@ class MediaCoder {
 
     view = HeadlessInAppWebView(
       initialSize: Size(w.toDouble().clamp(320.0, 1200.0), h.toDouble().clamp(320.0, 1200.0)),
-      initialData: InAppWebViewInitialData(data: _harness, baseUrl: WebUri('https://submac.local/'), mimeType: 'text/html', encoding: 'utf-8'),
+      initialData: InAppWebViewInitialData(data: _harness, baseUrl: WebUri('https://telesia.local/'), mimeType: 'text/html', encoding: 'utf-8'),
       initialSettings: InAppWebViewSettings(
         javaScriptEnabled: true,
         mediaPlaybackRequiresUserGesture: false,
@@ -200,10 +200,10 @@ class MediaCoder {
         started = true;
         try {
           if (kind != 'audio') {
-            await ctl.callAsyncJavaScript(functionBody: 'return window.__submacFonts(fonts);', arguments: {'fonts': await _fonts()});
+            await ctl.callAsyncJavaScript(functionBody: 'return window.__telesiaFonts(fonts);', arguments: {'fonts': await _fonts()});
           }
           await ctl.callAsyncJavaScript(
-            functionBody: 'return window.__submacRun(kind, code, w, h, dur, fps, images);',
+            functionBody: 'return window.__telesiaRun(kind, code, w, h, dur, fps, images);',
             arguments: {'kind': kind, 'code': code, 'w': w, 'h': h, 'dur': dur, 'fps': fps, 'images': images},
           );
         } catch (e) {
@@ -223,7 +223,7 @@ class MediaCoder {
 
   static List<Map<String, String>>? _fontCache;
 
-  /// SubMac's own fonts, handed to the page so drawings use Instrument Serif, Geist and Geist Mono.
+  /// Telesia's own fonts, handed to the page so drawings use Instrument Serif, Geist and Geist Mono.
   static Future<List<Map<String, String>>> _fonts() async {
     if (_fontCache != null) return _fontCache!;
     final out = <Map<String, String>>[];
@@ -305,7 +305,7 @@ function wav(buf){
   return 'data:audio/wav;base64,' + btoa(bin);
 }
 
-window.__submacFonts = async function(list){
+window.__telesiaFonts = async function(list){
   for (const f of (list || [])) {
     try { const bin = atob(f.b64); const u = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
       const face = new FontFace(f.family, u.buffer, {style: f.style, weight: f.weight}); await face.load(); document.fonts.add(face); } catch(e) {}
@@ -317,7 +317,7 @@ const AsyncFn = Object.getPrototypeOf(async function(){}).constructor;
 // failing with "Identifier 'out' has already been declared" (models did that three times in a row).
 const inBlock = (code) => '{\n' + code + '\n}';
 
-window.__submacRun = async function(kind, code, W, H, DUR, FPS, srcs){
+window.__telesiaRun = async function(kind, code, W, H, DUR, FPS, srcs){
   try {
     const IMAGES = [];
     for (const u of (srcs || [])) IMAGES.push(await loadImage(u));

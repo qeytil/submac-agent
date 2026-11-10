@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The middle stop of the logo's sky gradient (docs/brand/telesia_logo_master.svg). -->
+    <color name="telesia_launch_sky">#86C0F3</color>
+</resources>

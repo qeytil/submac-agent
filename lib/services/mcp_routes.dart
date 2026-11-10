@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'submac_gateway.dart';
+import 'telesia_gateway.dart';
 
-/// Which SubMac chat (or team member) a SubMac tool call from opencode belongs to.
+/// Which Telesia chat (or team member) a Telesia tool call from opencode belongs to.
 ///
 /// An MCP call from opencode does not say which session made it. The session's own event stream does: a tool part
 /// with the tool's name and arguments appears there as the call starts. Each such part is noted here with its chat,
@@ -82,10 +82,10 @@ class McpRoutes {
 
   int get openCount => _open.length;
 
-  /// Notes the SubMac gateway calls (find_tools, run_tool) in one engine event for [conv], when the event comes from
+  /// Notes the Telesia gateway calls (find_tools, run_tool) in one engine event for [conv], when the event comes from
   /// a session of [family]: the turn's own session and every sub-session opencode starts under it (its `task` tool
   /// runs a subagent in a child session). The family grows here as `session.created`/`session.updated` events name a
-  /// parent in it. Without this, a subagent's SubMac call had no route and ran as whatever chat was open (a bot's
+  /// parent in it. Without this, a subagent's Telesia call had no route and ran as whatever chat was open (a bot's
   /// work could land in the owner's chat and the other way round; 2026-11-03).
   void watch(Map<String, dynamic> e, String conv, Set<String> family) {
     final props = e['properties'];
@@ -102,11 +102,11 @@ class McpRoutes {
     final st = p['state'] is Map ? p['state'] as Map : const {};
     if (st['status'] != 'running' || st['input'] is! Map) return;
     final input = Map<String, dynamic>.from(st['input'] as Map);
-    final tool = SubMacGateway.bare('${p['tool'] ?? ''}');
-    if (tool == SubMacGateway.runName) {
-      final (n, a) = SubMacGateway.inner(input);
+    final tool = TelesiaGateway.bare('${p['tool'] ?? ''}');
+    if (tool == TelesiaGateway.runName) {
+      final (n, a) = TelesiaGateway.inner(input);
       if (n.isNotEmpty) note(n, a, conv, part: '${p['id']}');
-    } else if ((tool == SubMacGateway.findName || SubMacGateway.directNames.contains(tool)) && '${p['tool']}' != tool) {
+    } else if ((tool == TelesiaGateway.findName || TelesiaGateway.directNames.contains(tool)) && '${p['tool']}' != tool) {
       note(tool, input, conv, part: '${p['id']}');
     }
   }
@@ -114,7 +114,7 @@ class McpRoutes {
   /// The route of a call that came from no running turn's session.
   static const orphan = '';
 
-  /// Notes SubMac gateway calls made by sessions that no running turn owns ([owned] is false for them): a turn that
+  /// Notes Telesia gateway calls made by sessions that no running turn owns ([owned] is false for them): a turn that
   /// was stopped while opencode still finished a step, a deleted team session, the opencode test screen. They are
   /// noted as [orphan], so their MCP call is refused instead of falling back to "the only turn running", which ran
   /// it as that other chat (a leak). Call it before the turns' own [watch] for each event.
@@ -128,7 +128,7 @@ class McpRoutes {
     watch(e, orphan, {session});
   }
 
-  /// The SubMac chat of [session]: its own, or the nearest parent's ([parent]: child session -> parent, from
+  /// The Telesia chat of [session]: its own, or the nearest parent's ([parent]: child session -> parent, from
   /// `session.created` events). A subagent's permission or question card shows in the chat whose turn started it,
   /// never in whatever chat happens to be open (2026-11-03).
   static String? rootConv(String session, String? Function(String session) convOf, Map<String, String> parent) {
@@ -143,7 +143,7 @@ class McpRoutes {
     return null;
   }
 
-  /// Where a call with no matching part goes: the only SubMac turn running (chat, bot or team member), or null when
+  /// Where a call with no matching part goes: the only Telesia turn running (chat, bot or team member), or null when
   /// there are several or none. Never "the chat on screen": that is how one bot's call used to act on another chat.
   static String? soleLive(Iterable<String> live) {
     final l = live.toSet();

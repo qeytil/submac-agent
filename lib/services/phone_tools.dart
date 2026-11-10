@@ -7,9 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'system_bridge.dart';
 import 'system_tools.dart';
 
-/// Bridge to the Android side (MainActivity.kt): phone intents and "Share to SubMac".
+/// Bridge to the Android side (MainActivity.kt): phone intents and "Share to Telesia".
 class NativeBridge {
-  static const channel = MethodChannel('submac/native');
+  static const channel = MethodChannel('telesia/native');
 
   static void Function()? onShared;
   static bool _listening = false;
@@ -23,7 +23,7 @@ class NativeBridge {
     });
   }
 
-  /// Text and files the user shared into SubMac from another app, if any.
+  /// Text and files the user shared into Telesia from another app, if any.
   static Future<Map<String, dynamic>?> takeShared() async {
     try {
       final r = await channel.invokeMethod<dynamic>('takeShared');

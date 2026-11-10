@@ -16,7 +16,7 @@ import 'logo.dart';
 import '../ui/tokens.dart';
 import '../ui/i18n.dart';
 
-/// Records a meeting or lecture, turns it into text, and asks SubMac for clean notes.
+/// Records a meeting or lecture, turns it into text, and asks Telesia for clean notes.
 Future<void> showMeetingRecorder(BuildContext context) async {
   final mic = await Permission.microphone.request();
   if (!mic.isGranted || !context.mounted) return;
@@ -67,7 +67,7 @@ class _MeetingSheetState extends State<_MeetingSheet> {
       if (!mounted) return;
       setState(() {
         _phase = 'error';
-        _error = 'The microphone didn\'t start. Check SubMac may use it, then try again.';
+        _error = 'The microphone didn\'t start. Check Telesia may use it, then try again.';
       });
     }
   }

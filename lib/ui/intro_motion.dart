@@ -1,6 +1,6 @@
 import 'package:flutter/animation.dart';
 
-/// The first-launch intro's timeline, curves and brand values (owner, 2026-10-26: "Animation drawing Submac then our
+/// The first-launch intro's timeline, curves and brand values (owner, 2026-10-26: "Animation drawing Telesia then our
 /// logo with professional clean intro style", with a "smooth satisfying sound with haptic").
 ///
 /// One controller runs for [total]; every beat is a fraction of it, so the picture, the haptic ticks and the sound
@@ -36,8 +36,8 @@ class IntroMotion {
   /// The white dot lands last (2200 to 2450); the soft impact (and the sound's second note) as it touches down (2295).
   static const double dotStart = 0.733, dotEnd = 0.817, dotLand = 0.765;
 
-  /// Selection ticks across the letter reveal: one as the reveal passes each letter of "SubMac" (6 at most).
-  static const String word = 'SubMac';
+  /// Selection ticks across the letter reveal: one as the reveal passes each letter of "Telesia" (6 at most).
+  static const String word = 'Telesia';
   /// How far the reveal edge has travelled (0..1 across the word) at draw progress [d] (0..1).
   static double revealEdge(double d) => easeInOut.transform(d.clamp(0.0, 1.0));
 
@@ -63,7 +63,7 @@ class IntroMotion {
   /// Progress (0..1) of a beat running from [a] to [b] at controller value [t].
   static double span(double t, double a, double b) => ((t - a) / (b - a)).clamp(0.0, 1.0);
 
-  // Brand (the new logo, submac.site).
+  // Brand (the new logo, telesia.site).
   static const Color paper = Color(0xFFFFFFFF);
   static const Color ink = Color(0xFF0A5BD3);
   static const Color inkClear = Color(0x000A5BD3);

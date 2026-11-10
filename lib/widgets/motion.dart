@@ -7,7 +7,7 @@ import '../ui/tokens.dart';
 
 bool reduceMotion(BuildContext context) => MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
-/// Fades a block in and lifts it [SubMotion.rise] px on the SubMac settle curve, after [delay]. This is the same
+/// Fades a block in and lifts it [SubMotion.rise] px on the Telesia settle curve, after [delay]. This is the same
 /// entrance as the chat's [Entrance] (one entrance everywhere: it used to be a second copy with its own scale and an
 /// uncancelled delay timer).
 class FadeSlideIn extends StatelessWidget {

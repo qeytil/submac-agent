@@ -12,7 +12,7 @@ import 'tools.dart';
 /// a one-line description and its parameters. `tool_make` tests it on the spot and saves it in the workspace
 /// (`tools/<name>.json`); from the next step on it is a real tool in the agent's list, called `my_<name>`, with its own
 /// schema, on this phone and in every later chat. It runs with no more power than code_run and run_shell already have
-/// (the workspace, the web through `submac`), and a shell tool goes through the same approval rules as run_shell.
+/// (the workspace, the web through `telesia`), and a shell tool goes through the same approval rules as run_shell.
 class ForgedTools {
   ForgedTools._();
 
@@ -74,7 +74,7 @@ class ForgedTools {
       'description': 'Make your own tool when no tool you have does the job: a small python, javascript or shell program. It is '
           'tested now with test_args and saved; from your next step it is in your list as my_<name>, here and in later chats. '
           'The program reads its inputs from ARGS (a dict in Python, an object in JavaScript, \$ARGS JSON in shell) and prints '
-          'its result. Python and JavaScript can use the web through submac (await submac.get(url), await submac.search(q)). '
+          'its result. Python and JavaScript can use the web through telesia (await telesia.get(url), await telesia.search(q)). '
           'action list shows your tools; remove deletes one.',
       'parameters': {
         'type': 'object',
@@ -189,7 +189,7 @@ class ForgedTools {
     _tools.insert(0, t);
   }
 
-  /// Runs [t] with [args]: Python and JavaScript in the phone's code runner (with `submac` for the web), shell in the
+  /// Runs [t] with [args]: Python and JavaScript in the phone's code runner (with `telesia` for the web), shell in the
   /// workspace with $ARGS set.
   static Future<String> run(ForgedTool t, Map<String, dynamic> args) async {
     final json = jsonEncode(args);

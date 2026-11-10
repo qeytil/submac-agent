@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.Manifest
 import android.app.Activity
@@ -17,7 +17,7 @@ import java.io.File
 import java.lang.ref.WeakReference
 import java.util.zip.ZipInputStream
 
-/** "submac/system": wake word, floating Live, phone control, SMS, notifications, permissions. */
+/** "telesia/system": wake word, floating Live, phone control, SMS, notifications, permissions. */
 object Bridge {
     var activity: WeakReference<Activity>? = null
     @Volatile var foreground = false
@@ -30,7 +30,7 @@ object Bridge {
     fun attach(c: Context, engine: FlutterEngine) {
         ctx = c
         dartReady = false
-        val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "submac/system")
+        val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "telesia/system")
         channel = ch
         ch.setMethodCallHandler { call, result ->
             try {
@@ -138,7 +138,7 @@ object Bridge {
                         Notifier.task(
                             ctx,
                             call.argument<Int>("id") ?: 1,
-                            call.argument<String>("title") ?: "SubMac",
+                            call.argument<String>("title") ?: "Telesia",
                             call.argument<String>("body") ?: "",
                             call.argument<String>("payload") ?: "",
                             call.argument<String>("kind") ?: "done"
@@ -151,7 +151,7 @@ object Bridge {
                             ctx,
                             call.argument<Int>("id") ?: 9100,
                             call.argument<String>("bot") ?: "",
-                            call.argument<String>("name") ?: "SubMac",
+                            call.argument<String>("name") ?: "Telesia",
                             call.argument<String>("reason") ?: "",
                             call.argument<Boolean>("full") ?: false
                         )
@@ -165,7 +165,7 @@ object Bridge {
                         Notifier.bot(
                             ctx,
                             call.argument<Int>("id") ?: 9200,
-                            call.argument<String>("name") ?: "SubMac",
+                            call.argument<String>("name") ?: "Telesia",
                             call.argument<String>("body") ?: "",
                             call.argument<String>("payload") ?: "",
                             call.argument<Boolean>("reply") ?: false
@@ -178,7 +178,7 @@ object Bridge {
                             ctx,
                             call.argument<Int>("id") ?: 9200,
                             call.argument<String>("channel") ?: Notifier.BOTS,
-                            call.argument<String>("title") ?: "SubMac",
+                            call.argument<String>("title") ?: "Telesia",
                             call.argument<String>("body") ?: "",
                             call.argument<String>("payload") ?: "",
                             call.argument<Boolean>("reply") ?: false,
@@ -208,14 +208,14 @@ object Bridge {
                             ctx,
                             call.argument<Int>("id") ?: 9900,
                             call.argument<String>("approval") ?: "",
-                            call.argument<String>("name") ?: "SubMac",
+                            call.argument<String>("name") ?: "Telesia",
                             call.argument<String>("title") ?: "",
                             call.argument<String>("body") ?: ""
                         )
                         result.success(true)
                     }
                     "setNotifWatches" -> {
-                        ctx.getSharedPreferences("submac_bots", Context.MODE_PRIVATE).edit()
+                        ctx.getSharedPreferences("telesia_bots", Context.MODE_PRIVATE).edit()
                             .putString("watches", call.argument<String>("json") ?: "[]").apply()
                         result.success(true)
                     }
@@ -287,7 +287,7 @@ object Bridge {
                         result.success(true)
                     }
                     "keepAlive" -> {
-                        if (call.argument<Boolean>("on") == true) TaskService.start(ctx, call.argument<String>("text") ?: "SubMac is active")
+                        if (call.argument<Boolean>("on") == true) TaskService.start(ctx, call.argument<String>("text") ?: "Telesia is active")
                         else TaskService.stop(ctx)
                         result.success(true)
                     }
@@ -305,10 +305,10 @@ object Bridge {
                         result.success(p)
                     }
                     // ---- phone control (Accessibility) ----
-                    "a11yEnabled" -> result.success(SubMacA11y.instance != null)
+                    "a11yEnabled" -> result.success(TelesiaA11y.instance != null)
                     "a11yState" -> result.success(
                         when {
-                            SubMacA11y.instance != null -> "on"
+                            TelesiaA11y.instance != null -> "on"
                             a11yOnInSettings() -> "stalled"
                             else -> "off"
                         }
@@ -316,7 +316,7 @@ object Bridge {
                     "a11yScreen", "a11yTap", "a11yLongPress", "a11yType", "a11yScroll", "a11yTapText",
                     "a11yTypeFocused", "a11yEnter", "a11yTapAt", "a11ySwipe", "a11yGlobal" -> a11yAsync(call, result)
                     "a11yShot" -> {
-                        val a = SubMacA11y.instance
+                        val a = TelesiaA11y.instance
                         if (a == null) result.success(null) else {
                             var answered = false
                             val h = android.os.Handler(android.os.Looper.getMainLooper())
@@ -327,12 +327,12 @@ object Bridge {
                     }
                     "device" -> result.success(Device.run(ctx, call.argument<String>("action") ?: "status", call.argument<String>("value") ?: ""))
                     "a11yBadge" -> {
-                        val a = SubMacA11y.instance
+                        val a = TelesiaA11y.instance
                         if (a != null) { if (call.argument<Boolean>("on") == true) a.ghost.active() else a.ghost.hideBadge() }
                         result.success(a != null)
                     }
-                    "a11yIdle" -> result.success((SubMacA11y.instance?.idleMs() ?: 99999L).toInt())
-                    // ---- the floating task chat while SubMac or a bot drives the screen ----
+                    "a11yIdle" -> result.success((TelesiaA11y.instance?.idleMs() ?: 99999L).toInt())
+                    // ---- the floating task chat while Telesia or a bot drives the screen ----
                     "bubbleShow" -> result.success(TaskBubble.show(ctx, call.argument<String>("state") ?: "{}"))
                     "bubbleHide" -> {
                         TaskBubble.hide()
@@ -341,13 +341,13 @@ object Bridge {
                     // No task drives the screen any more: cancel queued phone steps and take the badge down.
                     "screenHalt" -> {
                         ScreenGuard.halt()
-                        try { SubMacA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
+                        try { TelesiaA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
                         result.success(true)
                     }
                     // The app (re)started: nothing can be driving the screen, so clear whatever is still shown.
                     "screenReset" -> {
                         ScreenGuard.halt()
-                        try { SubMacA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
+                        try { TelesiaA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
                         TaskBubble.hide()
                         result.success(true)
                     }
@@ -411,7 +411,7 @@ object Bridge {
             val ch = channel
             if (ch == null || !dartReady) {
                 queue.add(method to args)
-                if (ch == null) SubMacApp.engine(SubMacApp.app)
+                if (ch == null) TelesiaApp.engine(TelesiaApp.app)
             } else {
                 ch.invokeMethod(method, args)
             }
@@ -422,8 +422,8 @@ object Bridge {
     @Volatile var launchPayload: String? = null
 
     fun handleLaunchIntent(i: Intent?) {
-        val p = i?.getStringExtra("submac_payload") ?: return
-        i.removeExtra("submac_payload")
+        val p = i?.getStringExtra("telesia_payload") ?: return
+        i.removeExtra("telesia_payload")
         launchPayload = p
         send("notificationTap", p)
     }
@@ -431,7 +431,7 @@ object Bridge {
     fun bringToFront(route: String?) {
         val i = Intent(ctx, MainActivity::class.java)
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        if (route != null) i.putExtra("submac_payload", route)
+        if (route != null) i.putExtra("telesia_payload", route)
         ctx.startActivity(i)
     }
 
@@ -441,9 +441,9 @@ object Bridge {
     fun permissions(): HashMap<String, Any> {
         val m = HashMap<String, Any>()
         m["overlay"] = Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(ctx)
-        m["accessibility"] = SubMacA11y.instance != null
+        m["accessibility"] = TelesiaA11y.instance != null
         // Switched on in Settings but not running: Android stopped it (crash, update or battery saver).
-        m["accessibilityStalled"] = SubMacA11y.instance == null && a11yOnInSettings()
+        m["accessibilityStalled"] = TelesiaA11y.instance == null && a11yOnInSettings()
         m["sms"] = granted(Manifest.permission.READ_SMS)
         m["calendar"] = granted(Manifest.permission.READ_CALENDAR) && granted(Manifest.permission.WRITE_CALENDAR)
         m["contacts"] = granted(Manifest.permission.READ_CONTACTS)
@@ -455,11 +455,11 @@ object Bridge {
         return m
     }
 
-    /** One phone action at a time, off the main thread, with a time limit: a slow app can't freeze SubMac. */
+    /** One phone action at a time, off the main thread, with a time limit: a slow app can't freeze Telesia. */
     private val a11yWorker = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     private fun a11yAsync(call: io.flutter.plugin.common.MethodCall, result: MethodChannel.Result) {
-        val a = SubMacA11y.instance
+        val a = TelesiaA11y.instance
         if (a == null) {
             result.success(if (a11yOnInSettings()) "PHONE_CONTROL_STALLED" else "Phone control is off.")
             return
@@ -515,7 +515,7 @@ object Bridge {
                 if (ScreenGuard.stale()) { ScreenGuard.exit(); answer(j(false, "stopped", "This task was stopped.")); return@execute }
                 if (act != "read") TaskBubble.yieldFocus()
                 val out = try {
-                    val a = SubMacA11y.instance
+                    val a = TelesiaA11y.instance
                     val hands = a?.let { WaHands(it) }
                     a?.ghost?.active()
                     fun opened(r: String) = r == "ok"
@@ -532,7 +532,7 @@ object Bridge {
                                 else j(false, "opened_for_user", r.optString("detail") + " The message is ready in WhatsApp for the user to tap Send.")
                             }
                         }
-                        hands == null -> j(false, "phone_control_off", "Phone control is off. Turn it on in SubMac > Apps > WhatsApp.")
+                        hands == null -> j(false, "phone_control_off", "Phone control is off. Turn it on in Telesia > Apps > WhatsApp.")
                         act == "send_name" || act == "open_name" -> {
                             WhatsApp.openHome(ctx, pkg)
                             android.os.SystemClock.sleep(1200)
@@ -598,7 +598,7 @@ object Bridge {
             val values = android.content.ContentValues().apply {
                 put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
                 put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
-                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "$dir/SubMac")
+                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "$dir/Telesia")
                 put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val resolver = ctx.contentResolver
@@ -607,15 +607,15 @@ object Bridge {
             values.clear()
             values.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
             resolver.update(uri, values, null, null)
-            return "$dir/SubMac/$name"
+            return "$dir/Telesia/$name"
         }
         @Suppress("DEPRECATION")
-        val outDir = File(android.os.Environment.getExternalStoragePublicDirectory(dir), "SubMac")
+        val outDir = File(android.os.Environment.getExternalStoragePublicDirectory(dir), "Telesia")
         outDir.mkdirs()
         val out = File(outDir, name)
         src.copyTo(out, overwrite = true)
         android.media.MediaScannerConnection.scanFile(ctx, arrayOf(out.absolutePath), arrayOf(mime), null)
-        return "$dir/SubMac/$name"
+        return "$dir/Telesia/$name"
     }
 
     fun openPermission(name: String) {

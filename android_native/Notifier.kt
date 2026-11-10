@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -12,40 +12,40 @@ import android.os.Build
 
 /**
  * Calm system notifications (docs/notifications.md). Who it is from decides the channel and the look:
- * Agent (SubMac itself: title "SubMac", SubMac red), Bots (the bot's name and its avatar colour), Teams (one
+ * Agent (Telesia itself: title "Telesia", Telesia red), Bots (the bot's name and its avatar colour), Teams (one
  * conversation per team, "<Bot>: message", inline Reply) and Background work (the silent running line).
  */
 object Notifier {
-    /** Agent: SubMac's own results (its chats, its scheduled tasks). v2 of the channels (2026-11-05): the new light
-     *  chime (res/raw/submac_chime.wav). A channel keeps its first sound, so the ids changed and the old ones go. */
-    const val TASKS = "submac_agent_v2"
+    /** Agent: Telesia's own results (its chats, its scheduled tasks). v2 of the channels (2026-11-05): the new light
+     *  chime (res/raw/telesia_chime.wav). A channel keeps its first sound, so the ids changed and the old ones go. */
+    const val TASKS = "telesia_agent_v2"
     const val AGENT = TASKS
     /** Ids from before the chime: deleted on start. */
-    private val RETIRED = arrayOf("submac_tasks", "submac_tasks_v2", "submac_bot_msgs")
-    const val WAKE = "submac_wake"
+    private val RETIRED = arrayOf("telesia_tasks", "telesia_tasks_v2", "telesia_bot_msgs")
+    const val WAKE = "telesia_wake"
     /** Everyday "done" results: silent, no pop-up. Only scheduled results and questions make a sound. */
-    const val QUIET = "submac_quiet"
+    const val QUIET = "telesia_quiet"
     /** A bot calling: rings with the phone's ringtone, at the top of the screen (or full screen if chosen). */
-    const val CALLS = "submac_bot_calls"
+    const val CALLS = "telesia_bot_calls"
     /** A message from a bot: like a text from a colleague. */
-    const val BOTS = "submac_bots_v2"
+    const val BOTS = "telesia_bots_v2"
     /** A team chat: one conversation per team. */
-    const val TEAMS = "submac_teams_v2"
+    const val TEAMS = "telesia_teams_v2"
     /** A team post marked [needs you]: pops up. */
-    const val TEAMS_NEEDS = "submac_teams_needs_v2"
-    /** Work running with SubMac closed ("Nova · Hourly news"): silent, low, no badge. */
-    const val WORK = "submac_work_v2"
-    /** A running task waits for the user's OK while SubMac is behind another app: pops up so the ask is never hidden. */
-    const val ASKS = "submac_asks"
+    const val TEAMS_NEEDS = "telesia_teams_needs_v2"
+    /** Work running with Telesia closed ("Nova · Hourly news"): silent, low, no badge. */
+    const val WORK = "telesia_work_v2"
+    /** A running task waits for the user's OK while Telesia is behind another app: pops up so the ask is never hidden. */
+    const val ASKS = "telesia_asks"
 
-    /** SubMac red: the agent's accent, so its notifications never look like a bot's. */
+    /** Telesia red: the agent's accent, so its notifications never look like a bot's. */
     val AGENT_RED: Int = 0xFFC2361B.toInt()
     private val INK: Int = 0xFF17150F.toInt()
-    private const val TEAM_PREFS = "submac_team_notes"
+    private const val TEAM_PREFS = "telesia_team_notes"
     /** The owner's own line in a team conversation (a reply typed in the notification). */
     private const val ME = "@you"
 
-    private fun chimeUri(ctx: Context): Uri = Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.submac_chime)
+    private fun chimeUri(ctx: Context): Uri = Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.telesia_chime)
 
     private fun soundAttrs(): AudioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_NOTIFICATION)
@@ -67,8 +67,8 @@ object Notifier {
         for (old in RETIRED) {
             try { nm.deleteNotificationChannel(old) } catch (_: Exception) {}
         }
-        nm.createNotificationChannel(chimed(ctx, AGENT, "SubMac", NotificationManager.IMPORTANCE_DEFAULT,
-            "SubMac's own results: a task finished, a scheduled task's result"))
+        nm.createNotificationChannel(chimed(ctx, AGENT, "Telesia", NotificationManager.IMPORTANCE_DEFAULT,
+            "Telesia's own results: a task finished, a scheduled task's result"))
         nm.createNotificationChannel(chimed(ctx, BOTS, "Bots", NotificationManager.IMPORTANCE_DEFAULT,
             "When one of your bots has something for you"))
         nm.createNotificationChannel(chimed(ctx, TEAMS, "Teams", NotificationManager.IMPORTANCE_DEFAULT,
@@ -77,7 +77,7 @@ object Notifier {
             "A teammate needs your answer or decision"))
         nm.createNotificationChannel(
             NotificationChannel(WORK, "Background work", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shown quietly while a bot, a team or a scheduled task works with SubMac closed"
+                description = "Shown quietly while a bot, a team or a scheduled task works with Telesia closed"
                 setSound(null, null)
                 enableVibration(false)
                 setShowBadge(false)
@@ -110,7 +110,7 @@ object Notifier {
             NotificationChannel(ASKS, "Needs your OK", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "When a task waits for your OK while you are in another app"
                 setSound(
-                    Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.submac_done),
+                    Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.telesia_done),
                     soundAttrs()
                 )
                 enableVibration(true)
@@ -119,8 +119,8 @@ object Notifier {
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(WAKE, "Hello SubMac", NotificationManager.IMPORTANCE_MIN).apply {
-                description = "Shown while SubMac listens for its name"
+            NotificationChannel(WAKE, "Hello Telesia", NotificationManager.IMPORTANCE_MIN).apply {
+                description = "Shown while Telesia listens for its name"
                 setShowBadge(false)
                 setSound(null, null)
             }
@@ -130,7 +130,7 @@ object Notifier {
     fun openIntent(ctx: Context, payload: String, req: Int): PendingIntent {
         val i = Intent(ctx, MainActivity::class.java)
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        i.putExtra("submac_payload", payload)
+        i.putExtra("telesia_payload", payload)
         return PendingIntent.getActivity(ctx, req, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
@@ -141,7 +141,7 @@ object Notifier {
     /** A quiet notification: one plain line that says what matters. Never the full reply. */
     fun task(ctx: Context, id: Int, title: String, body: String, payload: String, kind: String = "done") {
         ensureChannels(ctx)
-        val prefs = ctx.getSharedPreferences("submac_notes", Context.MODE_PRIVATE)
+        val prefs = ctx.getSharedPreferences("telesia_notes", Context.MODE_PRIVATE)
         if (kind == "paused") {
             // "Listening is paused" at most once every 6 hours.
             val last = prefs.getLong("paused_at", 0L)
@@ -152,23 +152,23 @@ object Notifier {
         var line = (if (body.isNotBlank()) body else title).replace(Regex("\\s+"), " ").trim()
         if (line.length > 110) line = line.substring(0, 108).trimEnd() + "…"
         val b = builder(ctx, if (kind == "approval") ASKS else if (loud) TASKS else QUIET)
-            .setSmallIcon(R.drawable.ic_stat_submac)
+            .setSmallIcon(R.drawable.ic_stat_telesia)
             .setColor(AGENT_RED)
             // One plain line that says what matters ("Your image is ready"). No big custom card.
             .setContentTitle(line)
             .setOnlyAlertOnce(true)
             .setAutoCancel(true)
             .setShowWhen(true)
-            .setGroup("submac_tasks")
+            .setGroup("telesia_tasks")
             .setCategory(Notification.CATEGORY_STATUS)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
             .setContentIntent(openIntent(ctx, payload, id))
         // On the lock screen show only the brand, never what the task was about.
         b.setPublicVersion(
             builder(ctx, TASKS)
-                .setSmallIcon(R.drawable.ic_stat_submac)
+                .setSmallIcon(R.drawable.ic_stat_telesia)
                 .setColor(0xFF17150F.toInt())
-                .setContentTitle("SubMac")
+                .setContentTitle("Telesia")
                 .setContentText("Something is ready for you.")
                 .build()
         )
@@ -194,7 +194,7 @@ object Notifier {
         if (line.length > 110) line = line.substring(0, 108).trimEnd() + "…"
         @Suppress("DEPRECATION")
         val b = builder(ctx, CALLS)
-            .setSmallIcon(R.drawable.ic_stat_submac)
+            .setSmallIcon(R.drawable.ic_stat_telesia)
             .setColor(0xFF17150F.toInt())
             .setContentTitle(name)
             .setContentText(if (line.isEmpty()) "Calling you" else line)
@@ -204,8 +204,8 @@ object Notifier {
             .setAutoCancel(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setContentIntent(ringing)
-            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_submac), "Decline", decline).build())
-            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_submac), "Answer", answer).build())
+            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Decline", decline).build())
+            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Answer", answer).build())
         if (Build.VERSION.SDK_INT >= 26) b.setTimeoutAfter(35_000)
         if (full) b.setFullScreenIntent(ringing, true)
         val n = b.build()
@@ -242,7 +242,7 @@ object Notifier {
         } catch (_: Throwable) {}
     }
 
-    /** Nobody answered: the ringing stops and a calm "Missed call" stays, even if SubMac itself was stopped. */
+    /** Nobody answered: the ringing stops and a calm "Missed call" stays, even if Telesia itself was stopped. */
     fun missed(ctx: Context, id: Int, botId: String, name: String, reason: String) {
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         try { nm.cancel(id) } catch (_: Throwable) {}
@@ -254,7 +254,7 @@ object Notifier {
         from(ctx, id, BOTS, name, body, payload, reply, "", 0, false)
     }
 
-    /** The inline Reply field: the typed text goes to AlarmReceiver ("reply_to" = the payload), even with SubMac closed. */
+    /** The inline Reply field: the typed text goes to AlarmReceiver ("reply_to" = the payload), even with Telesia closed. */
     private fun replyAction(ctx: Context, id: Int, payload: String, name: String): Notification.Action {
         val input = android.app.RemoteInput.Builder("reply_text").setLabel("Reply to $name").build()
         val flags = if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
@@ -264,7 +264,7 @@ object Notifier {
             Intent(ctx, AlarmReceiver::class.java).putExtra("reply_to", payload).putExtra("note", id).putExtra("name", name),
             flags
         )
-        return Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_submac), "Reply", pi)
+        return Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Reply", pi)
             .addRemoteInput(input).build()
     }
 
@@ -301,7 +301,7 @@ object Notifier {
     }
 
     /**
-     * A result or a message from the agent ([channel] AGENT: "SubMac", red) or a bot (BOTS: its name, its face).
+     * A result or a message from the agent ([channel] AGENT: "Telesia", red) or a bot (BOTS: its name, its face).
      * [body] is the short summary Dart made (1 to 3 lines). [high]: it needs the owner (the pop-up channel).
      */
     fun from(
@@ -317,9 +317,9 @@ object Notifier {
         if (nl > 0) first = text.substring(0, nl).trim()
         val ch = if (high) ASKS else channel
         val accent = if (agent) AGENT_RED else if (color != 0) color else INK
-        val name = if (title.isBlank()) "SubMac" else title
+        val name = if (title.isBlank()) "Telesia" else title
         val b = builder(ctx, ch)
-            .setSmallIcon(R.drawable.ic_stat_submac)
+            .setSmallIcon(R.drawable.ic_stat_telesia)
             .setColor(accent)
             .setContentTitle(name)
             .setContentText(first)
@@ -328,13 +328,13 @@ object Notifier {
             .setShowWhen(true)
             .setCategory(Notification.CATEGORY_MESSAGE)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-            .setGroup(if (agent) "submac_agent" else "submac_bots")
+            .setGroup(if (agent) "telesia_agent" else "telesia_bots")
             .setContentIntent(openIntent(ctx, payload, id))
         val icon = face(initial, color)
         if (icon != null) b.setLargeIcon(icon)
         if (reply && payload.isNotEmpty()) b.addAction(replyAction(ctx, id, payload, name))
         b.setPublicVersion(
-            builder(ctx, ch).setSmallIcon(R.drawable.ic_stat_submac).setColor(accent)
+            builder(ctx, ch).setSmallIcon(R.drawable.ic_stat_telesia).setColor(accent)
                 .setContentTitle(name).setContentText(if (agent) "Something is ready for you." else "New message").build()
         )
         post(ctx, id, b.build())
@@ -405,7 +405,7 @@ object Notifier {
         val payload = "office/" + teamId
         val line = if (own) "You: " + clean(text) else clean(sender) + ": " + clean(text)
         val b = builder(ctx, if (needs) TEAMS_NEEDS else TEAMS)
-            .setSmallIcon(R.drawable.ic_stat_submac)
+            .setSmallIcon(R.drawable.ic_stat_telesia)
             .setColor(INK)
             .setContentTitle(name)
             .setContentText(line)
@@ -415,11 +415,11 @@ object Notifier {
             .setShowWhen(true)
             .setCategory(Notification.CATEGORY_MESSAGE)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-            .setGroup("submac_team_" + teamId)
+            .setGroup("telesia_team_" + teamId)
             .setContentIntent(openIntent(ctx, payload, id))
             .addAction(replyAction(ctx, id, payload, name))
         b.setPublicVersion(
-            builder(ctx, TEAMS).setSmallIcon(R.drawable.ic_stat_submac).setColor(INK)
+            builder(ctx, TEAMS).setSmallIcon(R.drawable.ic_stat_telesia).setColor(INK)
                 .setContentTitle(name).setContentText(if (needs) "Needs you" else "New message").build()
         )
         post(ctx, id, b.build())
@@ -438,7 +438,7 @@ object Notifier {
         var more = body.replace(Regex("\\s+"), " ").trim()
         if (more.length > 400) more = more.substring(0, 398).trimEnd() + "…"
         val b = builder(ctx, BOTS)
-            .setSmallIcon(R.drawable.ic_stat_submac)
+            .setSmallIcon(R.drawable.ic_stat_telesia)
             .setColor(0xFF17150F.toInt())
             .setContentTitle(name)
             .setContentText(line)
@@ -448,10 +448,10 @@ object Notifier {
             .setCategory(Notification.CATEGORY_MESSAGE)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
             .setContentIntent(openIntent(ctx, "approvals", id))
-            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_submac), "Not now", act(false)).build())
-            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_submac), "Approve", act(true)).build())
+            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Not now", act(false)).build())
+            .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Approve", act(true)).build())
         b.setPublicVersion(
-            builder(ctx, BOTS).setSmallIcon(R.drawable.ic_stat_submac).setColor(0xFF17150F.toInt())
+            builder(ctx, BOTS).setSmallIcon(R.drawable.ic_stat_telesia).setColor(0xFF17150F.toInt())
                 .setContentTitle(name).setContentText("Needs your OK").build()
         )
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -463,7 +463,7 @@ object Notifier {
 
     /**
      * After an inline reply. A team: the owner's line joins the team's conversation (the answers follow as new posts).
-     * A bot or SubMac: the notification shows "You: <text>" for a moment, then goes; the answer comes as a new one.
+     * A bot or Telesia: the notification shows "You: <text>" for a moment, then goes; the answer comes as a new one.
      */
     fun replied(ctx: Context, id: Int, name: String, text: String = "", to: String = "") {
         ensureChannels(ctx)
@@ -471,9 +471,9 @@ object Notifier {
             team(ctx, id, to.substring(7), name, "", text, "", 0, false, true)
             return
         }
-        val agent = name == "SubMac"
+        val agent = name == "Telesia"
         val b = builder(ctx, if (agent) AGENT else BOTS)
-            .setSmallIcon(R.drawable.ic_stat_submac)
+            .setSmallIcon(R.drawable.ic_stat_telesia)
             .setColor(if (agent) AGENT_RED else INK)
             .setContentTitle(name)
             .setContentText(if (text.isEmpty()) "Sent" else "You: " + clean(text))

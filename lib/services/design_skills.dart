@@ -62,7 +62,7 @@ class DesignSkills {
       'choose"); when they chose anything (colours, fonts, layout, sections, tone), follow it exactly. Real content from what they told '
       'you; never invent their prices, contacts, reviews or team: ask, or leave a clearly marked spot. Self-contained files by default '
       '(no CDN scripts) so the preview and the free link always work; a web font or library only when they ask or the design truly needs '
-      'it, with a fallback. Never deliver a first draft: build complete files, check them (code_check on the folder; SubMac also checks '
+      'it, with a fallback. Never deliver a first draft: build complete files, check them (code_check on the folder; Telesia also checks '
       'every page you wrote before your final reply), fix, then deliver with the ```file card.';
 
   /// The media line: graphics follow the brief too.
@@ -213,7 +213,7 @@ class DesignSkills {
       '3. Plan: the sections the visitor needs in a sensible order (not a stock list), the design tokens for the chosen direction, '
       'and the files. todo with every step.\n'
       '4. Build complete files, part by part (below).\n'
-      '5. Check and fix (skill $reviewId). SubMac also checks every page you wrote before your final reply and sends back what fails.\n'
+      '5. Check and fix (skill $reviewId). Telesia also checks every page you wrote before your final reply and sends back what fails.\n'
       '6. Deliver (below).\n\n'
       '$_freedom\n$_fundamentals\n$_content\n$_build\n$_deliver';
 

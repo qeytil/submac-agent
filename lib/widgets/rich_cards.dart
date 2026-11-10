@@ -13,7 +13,7 @@ import 'markdown_view.dart';
 import 'motion.dart';
 import '../ui/tokens.dart';
 
-const _ua = 'SubMacAgent/1.7 (com.submac.agent; Android)';
+const _ua = 'TelesiaAgent/1.7 (com.telesia.app; Android)';
 
 /// Free, instant pictures from Wikipedia and Wikimedia Commons (public, no key, no image generation).
 /// Order: the article's own lead picture, then a Wikipedia search, then a Commons file search.
@@ -125,7 +125,7 @@ class SmartThumb extends StatelessWidget {
 }
 
 /// ```list {"title":"More things you can explore","items":[{"title","text","wiki","image","url","ask"}]}
-/// Picture, bold title, two quiet lines, hairlines between. Tap opens the link or asks SubMac about it.
+/// Picture, bold title, two quiet lines, hairlines between. Tap opens the link or asks Telesia about it.
 class ExploreListCard extends StatelessWidget {
   const ExploreListCard({super.key, required this.title, required this.items});
   final String title;

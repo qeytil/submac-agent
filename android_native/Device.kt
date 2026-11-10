@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -26,11 +26,11 @@ object Device {
                 "clipboard_read" -> {
                     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     val t = cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(ctx)?.toString()
-                    if (t.isNullOrEmpty()) "The clipboard is empty (Android only lets SubMac read it while SubMac is open)." else t.take(4000)
+                    if (t.isNullOrEmpty()) "The clipboard is empty (Android only lets Telesia read it while Telesia is open)." else t.take(4000)
                 }
                 "clipboard_write" -> {
                     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    cm.setPrimaryClip(ClipData.newPlainText("SubMac", value))
+                    cm.setPrimaryClip(ClipData.newPlainText("Telesia", value))
                     "Copied to the clipboard."
                 }
                 "flashlight_on", "flashlight_off" -> {
@@ -80,7 +80,7 @@ object Device {
                         val i = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, android.net.Uri.parse("package:" + ctx.packageName))
                         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         ctx.startActivity(i)
-                        return "Android needs \"Modify system settings\" for SubMac first. I opened that screen."
+                        return "Android needs \"Modify system settings\" for Telesia first. I opened that screen."
                     }
                     val pct = value.filter { it.isDigit() }.toIntOrNull()?.coerceIn(0, 100) ?: return "Give a brightness from 0 to 100."
                     Settings.System.putInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)

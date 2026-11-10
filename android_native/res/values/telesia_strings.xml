@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="telesia_a11y_desc">Lets Telesia read the screen and tap, type and scroll for you, only when you ask it to. Telesia asks before anything that sends, buys or deletes.</string>
+    <string name="telesia_a11y_label">Telesia phone control</string>
+    <string name="telesia_widget_desc">Ask Telesia, scan a page or start Live from your home screen.</string>
+</resources>

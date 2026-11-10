@@ -6,7 +6,7 @@
  * (/lib/ld-musl-aarch64.so.1) does not exist on Android. A shell-script wrapper cannot work either: Android refuses to
  * execute any file in app data (W^X, targetSdk 29+), scripts included. So this tiny static program ships in jniLibs
  * as libocexec.so (nativeLibraryDir may execute), filesDir/oc/bin/opencode is a symlink to it, and it re-runs itself as
- *   <nativeLibraryDir>/libocld.so --library-path $SUBMAC_OC_LIB <nativeLibraryDir>/libopencode.so args...
+ *   <nativeLibraryDir>/libocld.so --library-path $TELESIA_OC_LIB <nativeLibraryDir>/libopencode.so args...
  * which is exactly how OpenCode.kt starts the server. Built static in .github/workflows/apk.yml ("Bundle opencode").
  */
 #include <errno.h>
@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     char ld[4200], bin[4200];
     snprintf(ld, sizeof ld, "%s/libocld.so", self);
     snprintf(bin, sizeof bin, "%s/libopencode.so", self);
-    const char *libs = getenv("SUBMAC_OC_LIB"); /* filesDir/oc/lib: libstdc++.so.6 and libgcc_s.so.1 by soname */
+    const char *libs = getenv("TELESIA_OC_LIB"); /* filesDir/oc/lib: libstdc++.so.6 and libgcc_s.so.1 by soname */
     char **args = calloc((size_t)argc + 5, sizeof *args);
     if (!args) return 127;
     int i = 0;

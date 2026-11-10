@@ -1,4 +1,4 @@
-# SubMac UI rules (binding, whole app)
+# Telesia UI rules (binding, whole app)
 
 Set by the owner on 2026-10-23. Every developer follows these. The shared plan is in `RESTYLE.md`, and open items are in `docs/ISSUES-ui.md`.
 
@@ -8,12 +8,12 @@ Set by the owner on 2026-10-23. Every developer follows these. The shared plan i
 - **Short words, few symbols.** One word where one word works ("Search", "Again", "End"). No decorative glyphs or chevrons where the words already say it.
 - Action buttons stay hidden until a tap or a hold.
 - **Agent status is plain text only** ("Thinking", "Working", "Listening"), with no dots, icons or glyphs before it. The only animation allowed is a gentle text breath (`StatusWord`).
-- **Icons come from SubMac's own family** (`SubIcon`, `assets/icons/*.svg`: fine ink strokes). No Material default icon where a SubMac icon exists. Add a new SVG in the same stroke rather than using a Material one.
-- **Type:** one bold display sans (`Brand.display`: Geist 600, tight tracking) for the wordmark, titles, headings, short messages of yours and call names. The reading sans (Geist) is for body text. No serif in the UI (documents SubMac makes may use one). `Brand.serif` is a legacy alias of `Brand.display`.
+- **Icons come from Telesia's own family** (`SubIcon`, `assets/icons/*.svg`: fine ink strokes). No Material default icon where a Telesia icon exists. Add a new SVG in the same stroke rather than using a Material one.
+- **Type:** one bold display sans (`Brand.display`: Geist 600, tight tracking) for the wordmark, titles, headings, short messages of yours and call names. The reading sans (Geist) is for body text. No serif in the UI (documents Telesia makes may use one). `Brand.serif` is a legacy alias of `Brand.display`.
 - One accent, the brand red, used only for danger, errors and End.
 
 ## Haptics (`lib/ui/haptics.dart`)
-Almost silent: one light tick at most, and only for a hold that opens actions (`SubHaptics.hold`), a call connecting or ending (`SubHaptics.call`), SubMac needing you (`SubHaptics.attention`) or an error you must notice (`SubHaptics.error`). Never on taps, sends, streaming, scrolling or items appearing. Don't call `HapticFeedback` directly.
+Almost silent: one light tick at most, and only for a hold that opens actions (`SubHaptics.hold`), a call connecting or ending (`SubHaptics.call`), Telesia needing you (`SubHaptics.attention`) or an error you must notice (`SubHaptics.error`). Never on taps, sends, streaming, scrolling or items appearing. Don't call `HapticFeedback` directly.
 
 ## Motion (`lib/ui/motion.dart`)
 One signature set, used everywhere. Never ad-hoc durations or curves.

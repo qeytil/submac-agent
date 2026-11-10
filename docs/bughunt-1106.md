@@ -23,4 +23,4 @@ long_horizon, design_guard); analyze 0 errors (2 infos, baseline). Test: test/bu
 | Medium | Bots background | Headless alarm runs (OcChannel, wake lock) never checked on a device. | Device check. |
 | Low | Preview | Text/docx/pptx previews read the file synchronously inside `build`. | Load once in initState / isolate. |
 | Low | UI | 13 widgets `context.watch<AppState>()` whole; composer also rebuilds per keystroke. Mitigated by fix 2. | Selectors per field later. |
-| Low | Voice | Wake word is "Hello SubMac" (Vosk phrase list); rename needs a new tested phrase. | See docs/rename-telesia.md (R4). |
+| Low | Voice | Wake word is "Hello Telesia" (Vosk phrase list); rename needs a new tested phrase. | See docs/rename-telesia.md (R4). |

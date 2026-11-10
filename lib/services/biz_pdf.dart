@@ -29,7 +29,7 @@ class BizPdf {
     pdf.pageSettings.margins.all = 44;
     final kind = '${doc['kind']}';
     pdf.documentInformation.title = '${_titles[kind] ?? 'Document'} ${doc['no']}';
-    pdf.documentInformation.creator = 'SubMac';
+    pdf.documentInformation.creator = 'Telesia';
     var page = pdf.pages.add();
     final w = page.getClientSize().width;
     final p = bk.profile;
@@ -193,7 +193,7 @@ class BizPdf {
     final pdf = PdfDocument();
     pdf.pageSettings.margins.all = 48;
     pdf.documentInformation.title = title;
-    pdf.documentInformation.creator = 'SubMac';
+    pdf.documentInformation.creator = 'Telesia';
     var page = pdf.pages.add();
     final w = page.getClientSize().width;
     var y = 0.0;

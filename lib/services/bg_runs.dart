@@ -1,11 +1,11 @@
-// Bots working with SubMac closed (owner bug 2026-11-05: "bots cannot do scheduled background tasks without me
+// Bots working with Telesia closed (owner bug 2026-11-05: "bots cannot do scheduled background tasks without me
 // opening the app"). The rules a run nobody is watching follows, kept here as plain functions so they are tested
 // without a phone. The flow end to end is in docs/bots-background.md.
 import 'dart:async';
 
 import 'trust.dart';
 
-/// Alarms that reach Dart before SubMac has loaded its bots and scheduled tasks wait here, in order, and run once it
+/// Alarms that reach Dart before Telesia has loaded its bots and scheduled tasks wait here, in order, and run once it
 /// has. Android hands the alarm over as soon as Dart says it is ready to listen, which is before the bots and the
 /// scheduled tasks are loaded: a scheduled task fired then found no task (Scheduler not loaded), was dropped and
 /// turned the foreground service off.
@@ -19,12 +19,12 @@ class AlarmGate {
 
   bool get isOpen => _ready.isCompleted;
 
-  /// SubMac finished starting up: waiting alarms run now, in the order they came.
+  /// Telesia finished starting up: waiting alarms run now, in the order they came.
   void open() {
     if (!_ready.isCompleted) _ready.complete();
   }
 
-  /// Runs [f] once SubMac is ready (or after [maxWait]).
+  /// Runs [f] once Telesia is ready (or after [maxWait]).
   Future<void> run(Future<void> Function() f) async {
     if (!isOpen) {
       await _ready.future.timeout(maxWait, onTimeout: () {});
@@ -41,7 +41,7 @@ class BgRun {
   /// three hours, holding the phone awake, with the task stuck until the app was opened).
   static Duration approvalWait = const Duration(minutes: 3);
 
-  /// The retries for a wake held because SubMac was not ready yet (no account restored, cold start offline). They
+  /// The retries for a wake held because Telesia was not ready yet (no account restored, cold start offline). They
   /// used to run only when the home screen opened.
   static List<Duration> heldRetries = const [Duration(seconds: 15), Duration(seconds: 45), Duration(minutes: 2)];
 
@@ -54,7 +54,7 @@ class BgRun {
 
   /// The ongoing notification while the bot works: "<Bot name> · <task title>".
   static String line(String botName, String title) {
-    final n = botName.trim().isEmpty ? 'SubMac' : botName.trim();
+    final n = botName.trim().isEmpty ? 'Telesia' : botName.trim();
     final t = title.trim();
     return t.isEmpty ? n : '$n · $t';
   }
@@ -82,7 +82,7 @@ class BgRun {
   static String needs(String what) {
     final w = what.trim().replaceAll(RegExp(r'\s+'), ' ');
     final cut = w.length > 90 ? '${w.substring(0, 89).trimRight()}…' : w;
-    return 'Needs your OK: ${cut.isEmpty ? 'an action' : cut}. Open SubMac to allow it.';
+    return 'Needs your OK: ${cut.isEmpty ? 'an action' : cut}. Open Telesia to allow it.';
   }
 
   /// How a bot's result reaches the owner. A result they asked for on a schedule (a "message" routine or scheduled

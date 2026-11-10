@@ -1,16 +1,16 @@
-// Layer 2/3 (2026-11-03): the browser and phone control reach the owner's chat through SubMac's MCP tools (a bot's
+// Layer 2/3 (2026-11-03): the browser and phone control reach the owner's chat through Telesia's MCP tools (a bot's
 // engine turn is offered them by name); only one chat, bot or team member drives the phone's screen at a time.
 import 'dart:io';
 
 import 'package:agent/services/screen_lease.dart';
-import 'package:agent/services/submac_gateway.dart';
+import 'package:agent/services/telesia_gateway.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('one driver at a time; the holder keeps going; another gets a plain "in use"', () {
     var now = DateTime(2026, 11, 3, 13);
     final l = ScreenLease(clock: () => now);
-    expect(l.take('chatA', label: 'SubMac'), isNull);
+    expect(l.take('chatA', label: 'Telesia'), isNull);
     expect(l.take('chatA'), isNull);
     final no = l.take('team:o1:b2', label: 'Nova');
     expect(no, startsWith('Error: the phone screen is in use'));
@@ -48,8 +48,8 @@ void main() {
     expect(tools, contains('...PhoneTools.definitions'));
     expect(tools, contains('SystemTools.definitions()'));
     expect(tools, contains('WhatsAppTools.definition'));
-    expect(SubMacGateway.skill, contains('browser_task'));
-    expect(SubMacGateway.skill, contains('phone_screen'));
+    expect(TelesiaGateway.skill, contains('browser_task'));
+    expect(TelesiaGateway.skill, contains('phone_screen'));
   });
 
   test('a team member\'s browser job is not cancelled just because it has no chat run', () {

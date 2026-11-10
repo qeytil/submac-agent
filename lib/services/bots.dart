@@ -25,17 +25,17 @@ import 'system_bridge.dart';
 import 'team_key.dart';
 import 'trust.dart';
 
-/// Bots: colleagues who live in SubMac. Each has an identity, a role, its own memory, a desk of tasks, routines and
+/// Bots: colleagues who live in Telesia. Each has an identity, a role, its own memory, a desk of tasks, routines and
 /// triggers that wake it, and a sense of when it is worth interrupting the user. It runs on the phone; its setup, memory,
 /// desk and journal are kept in the owner's account too (BotSync), so jobs that need no phone can run in the cloud.
 
-/// The hidden marker that starts a message SubMac wrote to wake a bot (never shown in the chat).
+/// The hidden marker that starts a message Telesia wrote to wake a bot (never shown in the chat).
 const botWakeMark = '\u2063wake\u2063';
 
 class BotRoutine {
   BotRoutine({required this.id, required this.time, this.days = 'daily', this.kind = 'work', required this.instruction, this.local = false});
   final String id;
-  /// Runs on this phone (its own alarm wakes SubMac), never in the cloud: the job needs tools only the phone has
+  /// Runs on this phone (its own alarm wakes Telesia), never in the cloud: the job needs tools only the phone has
   /// (sites, email and apps, the browser, files, code, the phone itself). Owner 2026-11-02.
   bool local;
   /// 'HH:MM' in the phone's local time.
@@ -90,7 +90,7 @@ class BotRoutine {
   /// How long after its time a missed run is still worth doing (CB-21). Later than this it waits for the next one.
   static const catchUpWindow = Duration(hours: 3);
 
-  /// CB-21: a run missed while SubMac was stopped (phone off, app killed, alarm lost). When the latest slot passed
+  /// CB-21: a run missed while Telesia was stopped (phone off, app killed, alarm lost). When the latest slot passed
   /// less than [catchUpWindow] ago, this routine was already set to this time before that slot ([since]), and it has
   /// not run for that slot ([lastSlot]), it runs in about a minute. Otherwise null: [next] as usual. A routine made or
   /// moved after its time today never runs at once.
@@ -108,7 +108,7 @@ class BotRoutine {
   String describe() => '$time $days: ${kind == 'call' ? '(call) ' : kind == 'message' ? '(message) ' : ''}$instruction';
 }
 
-/// A wake that came before SubMac could run it (CB-46): kept until SubMac is ready, then run once.
+/// A wake that came before Telesia could run it (CB-46): kept until Telesia is ready, then run once.
 class HeldWake {
   HeldWake(this.bot, this.key, this.reason, this.instruction, this.kind, this.at);
   final String bot;
@@ -211,7 +211,7 @@ class Bot {
   /// What it works toward for this user (filled in as it learns).
   String mission;
   String icon;
-  /// The face it shows: 'av:<shape>.<colour>.<eyes>' = the owner's pick from SubMac's avatar set (sub_avatar.dart),
+  /// The face it shows: 'av:<shape>.<colour>.<eyes>' = the owner's pick from Telesia's avatar set (sub_avatar.dart),
   /// null or '' = the bot's own seeded avatar, anything else = the older animated face (BotFace). Presentation-only: it never travels in a shared package and a cloud push never
   /// overwrites it (contract invariant 2), so it is absent from export() and from applySetup().
   String? look;
@@ -316,7 +316,7 @@ class Bot {
       caseSensitive: false);
 
   /// Does this job need this phone (a call, texts, the screen) or a tool only the phone has? Those never run in the
-  /// cloud: the phone's own alarm wakes SubMac and the bot works locally. [local] is the bot's own choice when it
+  /// cloud: the phone's own alarm wakes Telesia and the bot works locally. [local] is the bot's own choice when it
   /// made the job.
   bool needsPhone(String instruction, String kind, {bool local = false}) =>
       local || kind == 'call' || (!powersOff.contains('phone') && _phoneWords.hasMatch(instruction)) || _localWords.hasMatch(instruction);
@@ -406,7 +406,7 @@ class Bot {
   /// lessons. Always passed through BotPackage.sanitize (an allow-list), so logins, keys, tokens and anything it
   /// knows about its owner (memory, journal, chats, desk) never leave the phone.
   Map<String, dynamic> export() => BotPackage.sanitize({
-        'submac': BotPackage.format,
+        'telesia': BotPackage.format,
         'name': name, 'role': role, 'persona': persona, 'icon': icon, 'voice': voice,
         // No 'model': the model is the owner's own choice (their providers and keys); a copy starts on its default.
         'instructions': instructions, 'first_meeting': firstMeeting, 'sandbox': sandbox,
@@ -725,7 +725,7 @@ class Bots extends ChangeNotifier {
     return b.followups.any((f) => f.kind == kind && (f.instruction.trim() == want || (isHeartbeat(want) && isHeartbeat(f.instruction))));
   }
 
-  /// The owner picks how a bot looks (SubMac avatar set, lib/widgets/sub_avatar.dart): 'av:<shape>.<colour>.<eyes>',
+  /// The owner picks how a bot looks (Telesia avatar set, lib/widgets/sub_avatar.dart): 'av:<shape>.<colour>.<eyes>',
   /// or null for the bot's own seeded avatar. Presentation only: never exported, never overwritten by a cloud push.
   Future<void> setLook(Bot b, String? look) async {
     b.look = look;
@@ -843,7 +843,7 @@ class Bots extends ChangeNotifier {
   void Function()? onChiefRemoved;
 
   /// Called as a bot is removed, before it leaves [bots] (set by AppState): its work stops with it ΓÇö its own
-  /// scheduled tasks (an alarm left behind wakes as SubMac's own task once the bot is gone), its team jobs and
+  /// scheduled tasks (an alarm left behind wakes as Telesia's own task once the bot is gone), its team jobs and
   /// membership, and its mission (bug audit 2026-11-07).
   Future<void> Function(Bot b)? onRemoved;
 
@@ -876,7 +876,7 @@ class Bots extends ChangeNotifier {
         bots.add(Bot.fromJson(Map<String, dynamic>.from(e as Map)));
       }
     } catch (_) {}
-    // SubMac's own bots now live in the Bot Store. One the owner never started is taken off their list (it is still in
+    // Telesia's own bots now live in the Bot Store. One the owner never started is taken off their list (it is still in
     // the Store); one they work with stays exactly as it was.
     bots.removeWhere((b) => b.builtIn && !b.active && b.convId.isEmpty);
     _seedChief();
@@ -1026,7 +1026,7 @@ class Bots extends ChangeNotifier {
   @visibleForTesting
   static DateTime Function() clock = DateTime.now;
 
-  /// How long a wake waits for SubMac to be ready (a cold start by an alarm) before it is held for later (CB-46).
+  /// How long a wake waits for Telesia to be ready (a cold start by an alarm) before it is held for later (CB-46).
   static Duration readyWait = const Duration(seconds: 10);
 
   static const _runsKey = 'bot_routine_runs_v1';
@@ -1095,7 +1095,7 @@ class Bots extends ChangeNotifier {
   /// The once-per-slot key of the wake [b] is starting now, if an alarm started it.
   String? wakeKey(Bot b) => _wakeKeys[b.id];
 
-  /// CB-46: keeps a wake SubMac could not run yet. False when the same wake is already held.
+  /// CB-46: keeps a wake Telesia could not run yet. False when the same wake is already held.
   Future<bool> holdWake(Bot b, String key, String reason, String instruction, String kind) async {
     final held = _held();
     if (held.any((w) => w.key == key)) return false;
@@ -1126,7 +1126,7 @@ class Bots extends ChangeNotifier {
   @visibleForTesting
   List<HeldWake> get heldForTest => _held();
 
-  /// Some wake is waiting for SubMac to be ready.
+  /// Some wake is waiting for Telesia to be ready.
   bool get hasHeldWakes => _p != null && _held().isNotEmpty;
 
   Future<void> armAll() async {
@@ -1146,7 +1146,7 @@ class Bots extends ChangeNotifier {
       final owned = b.active && !_cloud(b, r.id);
       DateTime? n;
       if (owned) {
-        // CB-21: a run missed while SubMac was stopped is caught up in a minute (within a few hours of its time).
+        // CB-21: a run missed while Telesia was stopped is caught up in a minute (within a few hours of its time).
         final had = _runs['${b.id}|${r.id}']?['sch'] == r.schedule;
         final since = _since(b, r, rNow);
         if (!had) runsChanged = true;
@@ -1377,7 +1377,7 @@ class Bots extends ChangeNotifier {
       final late = now.difference(slot) > const Duration(minutes: 5);
       _wakeKeys[b.id] = key;
       try {
-        await onWake?.call(b, late ? 'routine (${r.time} ${r.days}, caught up: SubMac was stopped at ${r.time})' : 'routine (${r.time} ${r.days})',
+        await onWake?.call(b, late ? 'routine (${r.time} ${r.days}, caught up: Telesia was stopped at ${r.time})' : 'routine (${r.time} ${r.days})',
             r.instruction, r.kind);
       } finally {
         if (_wakeKeys[b.id] == key) _wakeKeys.remove(b.id);
@@ -1502,7 +1502,7 @@ class Bots extends ChangeNotifier {
     return b;
   }
 
-  /// Sets a bot's own model from its profile (owner 2026-11-05): `auto` (Default, same as SubMac), `submac`, or one of
+  /// Sets a bot's own model from its profile (owner 2026-11-05): `auto` (Default, same as Telesia), `telesia`, or one of
   /// the owner's own provider models (`byok-…|model`). Saved and synced like the bot's other settings.
   Future<void> setModel(Bot b, String setting) async {
     final s = setting.trim();
@@ -1522,7 +1522,7 @@ class Bots extends ChangeNotifier {
   List<BotApp> appsNeeded(Bot b) => [for (final a in b.apps) if (!appReady(a)) a];
 
   /// A bot from a package: a shared file, a code, the Bot Store or an office copy. The package is checked by the same
-  /// strict gate as on the way out (BotPackage.sanitize). Returns null when the text is not a SubMac bot.
+  /// strict gate as on the way out (BotPackage.sanitize). Returns null when the text is not a Telesia bot.
   Future<Bot?> importBot(Map<String, dynamic> raw, {String origin = 'shared'}) async {
     final j = BotPackage.sanitize(raw);
     if (j == null) return null;
@@ -1606,7 +1606,7 @@ class Bots extends ChangeNotifier {
   }
 
   /// One plain note (once a day) when the model the owner picked for [b] cannot run here, so a bot is never silently
-  /// moved onto SubMac's model (owner 2026-11-08: the BYOK truth).
+  /// moved onto Telesia's model (owner 2026-11-08: the BYOK truth).
   void noteModelUnavailable(Bot b, String why) {
     final now = DateTime.now();
     if (b.journal.any((e) => e.kind == 'model' && now.difference(e.at).inHours < 20)) return;
@@ -1673,7 +1673,7 @@ class Bots extends ChangeNotifier {
     return stablePromptOf(b);
   }
 
-  /// What a bot's chat prompt carries after SubMac's part: knowledge, apps, memory, lessons, powers.
+  /// What a bot's chat prompt carries after Telesia's part: knowledge, apps, memory, lessons, powers.
   String memoryPromptFor(String? convId) {
     final b = byConv(convId);
     return b == null ? '' : memoryPromptOf(b);
@@ -1696,8 +1696,8 @@ class Bots extends ChangeNotifier {
   /// A few lines for small talk: who the bot is and the gist of what it knows, so "hi" is instant and still in character.
   String quickPromptOf(Bot b) {
     final sb = StringBuffer()
-      ..writeln('You are ${b.name}, the user\'s ${b.role}, a senior colleague who lives in SubMac on their phone. '
-          'Never call yourself an AI model or SubMac.')
+      ..writeln('You are ${b.name}, the user\'s ${b.role}, a senior colleague who lives in Telesia on their phone. '
+          'Never call yourself an AI model or Telesia.')
       ..writeln(b.persona)
       ..writeln(HouseRules.core)
       ..writeln(BotManner.block);
@@ -1714,14 +1714,14 @@ class Bots extends ChangeNotifier {
   }
 
   /// Who the bot is and how it works. Only what the owner set up, so it stays byte-identical from step to step and
-  /// from day to day (prompt cache). What it learns (memory, lessons) is in [memoryPromptOf], sent after SubMac's part.
+  /// from day to day (prompt cache). What it learns (memory, lessons) is in [memoryPromptOf], sent after Telesia's part.
   String stablePromptOf(Bot b) {
     final sb = StringBuffer()
       ..writeln('# Who you are')
-      ..writeln('You are ${b.name}, the user\'s ${b.role.isEmpty ? 'colleague' : b.role}. You work for them inside SubMac like a trusted employee: '
+      ..writeln('You are ${b.name}, the user\'s ${b.role.isEmpty ? 'colleague' : b.role}. You work for them inside Telesia like a trusted employee: '
           'you own your job, take initiative, remember what matters and keep every promise.')
       ..writeln(b.persona)
-      ..writeln('Stay in character: you are ${b.name}, never "an AI" or SubMac. Write like a calm colleague in a work group: short, warm, '
+      ..writeln('Stay in character: you are ${b.name}, never "an AI" or Telesia. Write like a calm colleague in a work group: short, warm, '
           'specific; headings only in a report.')
       ..writeln()
       ..writeln(HouseRules.core)
@@ -1823,7 +1823,7 @@ class Bots extends ChangeNotifier {
         'of these apps, and never say one is not connected before you tried it.\n';
   }
 
-  /// The brief of a bot's turn on SubMac's own bot engine (owner 2026-11-07, `lib/bot_agent/`). Unlike an opencode turn,
+  /// The brief of a bot's turn on Telesia's own bot engine (owner 2026-11-07, `lib/bot_agent/`). Unlike an opencode turn,
   /// the engine is the bot's own: every tool it may use is offered in the request, so it calls one directly by name —
   /// no opencode tools, no find/run gateway. [team]: false for its private chat with the owner.
   String agentBriefOf(Bot b, {bool team = false}) {
@@ -1840,7 +1840,7 @@ class Bots extends ChangeNotifier {
             '${team ? '' : 'To ask the owner a question with answers to pick, call your question tool (the app shows it as a tap card); '
                 'never write the question as JSON or code.\n'}'
             'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'
-            'Your name is ${b.name}. Never say you are an AI model or SubMac; you are ${b.name}.'
+            'Your name is ${b.name}. Never say you are an AI model or Telesia; you are ${b.name}.'
         .trim();
   }
 
@@ -1862,7 +1862,7 @@ class Bots extends ChangeNotifier {
     return t.isEmpty ? '' : '\n# Your teams\n$t\n';
   }
 
-  /// The bot's own working folder inside SubMac's workspace.
+  /// The bot's own working folder inside Telesia's workspace.
   static String botFolder(Bot b) => 'bots/${b.id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}';
 
   /// The identity text Live calls still use (kept as it was; calls are tuned separately).
@@ -1870,10 +1870,10 @@ class Bots extends ChangeNotifier {
     final others = hired.where((o) => o != b).map((o) => '${o.name} (${o.role})').join(', ');
     final sb = StringBuffer()
       ..writeln('# Who you are')
-      ..writeln('You are ${b.name}, the user\'s ${b.role}. You live inside SubMac on their phone and work for them like a dedicated, '
+      ..writeln('You are ${b.name}, the user\'s ${b.role}. You live inside Telesia on their phone and work for them like a dedicated, '
           'senior colleague: you take initiative, own your work, remember everything relevant, and follow through on every promise.')
       ..writeln(b.persona)
-      ..writeln('Stay in character in every message. Never call yourself an AI model or SubMac; you are ${b.name}. '
+      ..writeln('Stay in character in every message. Never call yourself an AI model or Telesia; you are ${b.name}. '
           'You talk like a real person texting a colleague: short, warm, specific, no filler, no headings unless you deliver a report.');
     if (b.mission.isNotEmpty) sb.writeln('\nYour mission for this user: ${b.mission}');
     if (b.instructions.trim().isNotEmpty) {
@@ -2134,7 +2134,7 @@ class Bots extends ChangeNotifier {
       'rules': {'type': 'string', 'description': 'Working rules, one line.'},
       'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campaign']},
     }, ['action', 'name', 'members']),
-    _fn('bot_telegram', 'Message the owner in their own SubMac Telegram chat (no approval needed). Use when they want results in Telegram.', {
+    _fn('bot_telegram', 'Message the owner in their own Telesia Telegram chat (no approval needed). Use when they want results in Telegram.', {
       'text': {'type': 'string'},
       'files': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Workspace file paths to attach.'},
     }, ['text']),
@@ -2161,17 +2161,17 @@ class Bots extends ChangeNotifier {
 
   static Future<String?> _telegramOwner(String text, List<String> files) async {
     final t = TelegramBridge.I;
-    // SubMac's own Telegram is not set up, but the owner connected their own Telegram bot in Apps: send through that
+    // Telesia's own Telegram is not set up, but the owner connected their own Telegram bot in Apps: send through that
     // (owner bug 2026-11-05: "I connected Telegram" and the bot kept answering "not connected").
     if ((!t.on || !t.paired) && ConnectorCatalog.connected.containsKey('telegram')) {
       return ConnectorCatalog.telegramToOwner([text, for (final f in files) 'File: $f'].join('\n'));
     }
     if (!t.on) {
-      return 'Error: Telegram is not connected. Tell the owner in one line that they can connect it in SubMac: Settings > Telegram '
+      return 'Error: Telegram is not connected. Tell the owner in one line that they can connect it in Telesia: Settings > Telegram '
           '(or add their own Telegram bot in Apps).';
     }
     if (!t.paired) {
-      return 'Error: Telegram is connected but not paired yet. Tell the owner to send the pairing code to their SubMac bot in Telegram.';
+      return 'Error: Telegram is connected but not paired yet. Tell the owner to send the pairing code to their Telesia bot in Telegram.';
     }
     await t.deliver([text, for (final f in files) 'FILE_SAVED $f'].join('\n'));
     return null;
@@ -2495,7 +2495,7 @@ class Bots extends ChangeNotifier {
             b.watches.add(w);
             await save();
             return 'Watching ${w.app.isEmpty ? 'all apps' : w.app}${w.keyword.isEmpty ? '' : ' for "${w.keyword}"'} (${w.id}). '
-                'This needs notification access, which the user turns on in SubMac permissions.';
+                'This needs notification access, which the user turns on in Telesia permissions.';
           case 'remove':
             b.watches.removeWhere((w) => w.id == s('id'));
             await save();
@@ -2834,7 +2834,7 @@ class BotTemplates {
             'back one clear answer.',
         mission: 'Lead the owner\'s bots and make new ones when they need them.',
         firstMeeting: 'Say who you are in one short line, then ask what they want help with first, or which bot they want you to make.',
-      )..origin = 'submac:chief';
+      )..origin = 'telesia:chief';
 
   static Bot get researcher => Bot(
         id: 'researcher',

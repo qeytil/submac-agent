@@ -1,16 +1,16 @@
-# SubMac Agent — Monetization & Payments (working context)
+# Telesia — Monetization & Payments (working context)
 
 Owner of this doc: monetization/payments lead (Hark). Last updated: 2026-10-20 (EAT), pricing locked. Read this before touching billing, allowance, pricing, or the finance dashboard.
 
 ## 1. Current state (as of 2026-10-20)
 - No payments in the app. Users get a free daily allowance plus referral/bot-hire rewards.
 - Allowance is metered in **weighted tokens**: `ceil(0.3 × uncached input + 0.1 × cached input + 1.0 × output)` (`supabase/functions/ai-chat/index.ts`).
-- Live DB settings: daily cap **500k** weighted (+40k grace; repo still says 200k). Past cap → `submac-lite`, 400 output tokens max. Images flat 4,000. 40 RPM per user.
+- Live DB settings: daily cap **500k** weighted (+40k grace; repo still says 200k). Past cap → `telesia-lite`, 400 output tokens max. Images flat 4,000. 40 RPM per user.
 - Live voice metered separately in minutes (15 min/day free, `live_user_limits`).
 - Rewards: 30k/day for 7 days per referral or bot hire; max 150k/day bonus; 20 lifetime, 5/day.
-- Real usage (4 users, 2026-10-18 → 10-20): avg reply 12.9k input (14% cached), 181 output ≈ **3,700 weighted**. **1M weighted ≈ 270 replies.** Median user-day 62k, p90 466k, max 610k. Bots/Offices = 69% of usage; `submac-smart` = 83%.
+- Real usage (4 users, 2026-10-18 → 10-20): avg reply 12.9k input (14% cached), 181 output ≈ **3,700 weighted**. **1M weighted ≈ 270 replies.** Median user-day 62k, p90 466k, max 610k. Bots/Offices = 69% of usage; `telesia-smart` = 83%.
 - Routing runs on free keys (33 keys, 9 providers). 87% of smart traffic is one free NVIDIA NIM key — NIM has no paid tier; replace first.
-- Hooks already present: `ai_user_cap()` (override + rewards + admin grants), `ai_user_limits`, `reward_ledger`, `live_user_limits`, cap check in `ai-chat`, app reads `x-submac-usage/state/window` headers.
+- Hooks already present: `ai_user_cap()` (override + rewards + admin grants), `ai_user_limits`, `reward_ledger`, `live_user_limits`, cap check in `ai-chat`, app reads `x-telesia-usage/state/window` headers.
 - Missing: products/purchases/wallet/entitlement tables, Sifalo verification for the Agent, non-expiring balance, tier in `/status`, per-tier model access/rate limits, deployed `ai-chat` v21 source in repo.
 
 ## 2. Cost model (paid APIs, real request shape)
@@ -30,11 +30,11 @@ Owner of this doc: monetization/payments lead (Hark). Last updated: 2026-10-20 (
 
 ## 3. Decisions made (owner, 2026-10-20)
 - **Launch distribution: direct APK** (not Play Store) → no Play Billing at launch.
-- **Payment rail: Sifalo Pay**, same merchant account and same integration as submac.site (`lib/sifalo.js`, `functions/api/pay/{webhook,reconcile,return}.js` in submac-owner/submac; env `SIFALO_API_USER`, `SIFALO_API_KEY`, `SIFALO_ENV`). Every payment re-verified with Sifalo; credit granted once. Sifalo has no auto-recurring.
-- **Currency: SubMac Coins**, closed-loop. USD → coins at a fixed price; coins sit in a wallet until the user exchanges them for tokens. No cash-out, transfers or refunds of coins. Not a crypto token.
+- **Payment rail: Sifalo Pay**, same merchant account and same integration as telesia.site (`lib/sifalo.js`, `functions/api/pay/{webhook,reconcile,return}.js` in telesia-owner/telesia; env `SIFALO_API_USER`, `SIFALO_API_KEY`, `SIFALO_ENV`). Every payment re-verified with Sifalo; credit granted once. Sifalo has no auto-recurring.
+- **Currency: Telesia Coins**, closed-loop. USD → coins at a fixed price; coins sit in a wallet until the user exchanges them for tokens. No cash-out, transfers or refunds of coins. Not a crypto token.
 - **Monthly plan = monthly pool pass**: one-time payment, 30 days, bucket of tokens with a daily ceiling; partial rollover only on renewal (rolled tokens never roll again).
 - **Token packs**: 1M, 5M, 10M, up to 15M.
-- **Finance dashboard** at `finemanagedash.submac.site`, isolated Worker, owner + accountant roles, ledger-based.
+- **Finance dashboard** at `finemanagedash.telesia.site`, isolated Worker, owner + accountant roles, ledger-based.
 
 ## 4. LOCKED PLAN (approved by owner 2026-10-20)
 Margins below = worst case (all tokens used) at $1.00 per 1M weighted cost and an ASSUMED 3% Sifalo fee.
@@ -42,7 +42,7 @@ Margins below = worst case (all tokens used) at $1.00 per 1M weighted cost and a
 ### Free tier (when paid keys go live)
 - 60k weighted/day (~16 replies), hard cap 1M/month. Standard models only. 10 Live minutes/month.
 
-### SubMac Coins (1 coin = $0.01, closed-loop)
+### Telesia Coins (1 coin = $0.01, closed-loop)
 | Top-up | Coins | Bonus |
 |---|---|---|
 | $1 | 100 | - |

@@ -18,7 +18,7 @@ class MemoryFact {
       );
 }
 
-/// Facts the user asked SubMac to remember. Kept on the device and synced to
+/// Facts the user asked Telesia to remember. Kept on the device and synced to
 /// the account (table public.memories, protected by Row Level Security).
 class MemoryStore {
   MemoryStore(this.local);

@@ -61,7 +61,7 @@ class TeamRun extends ChangeNotifier {
   /// The most model calls one member may make for its part.
   static const memberSteps = 10;
 
-  /// Teams on SubMac's bot engine (owner 2026-11-07; opencode before): one engine turn for bot [b] with its own
+  /// Teams on Telesia's bot engine (owner 2026-11-07; opencode before): one engine turn for bot [b] with its own
   /// brief and tools. [key] routes its tool calls (`team:<team>:<bot>`); [assign] is the lead's hand-off to a member.
   /// Set by the app; when null (tests, older callers) teams use [llm] / [ask] as before.
   Future<String> Function(Bot b, String key, String system, String task,
@@ -106,7 +106,7 @@ class TeamRun extends ChangeNotifier {
     },
   };
 
-  /// The team's shared folder in SubMac's workspace.
+  /// The team's shared folder in Telesia's workspace.
   static String folderOf(Office o) => 'teams/${o.id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}';
 
   static String _folderNote(Office o, {bool lead = false}) => '\n\n# Team folder\nThe team shares the folder ${folderOf(o)}/ '
@@ -161,7 +161,7 @@ class TeamRun extends ChangeNotifier {
       String? office,
       bool summarizeOnHalt = false}) async {
     final hooks = _TeamHooks(this, b, system, user, [...tools, ...extra], {for (final e in extra) Wire.toolName(e)}, onExtra, stopped ?? () => false);
-    final core = AgentCore(hooks: hooks, transport: _wire(b, maxTokens), tools: [...tools, ...extra], maxSteps: maxSteps, modelName: 'submac-team');
+    final core = AgentCore(hooks: hooks, transport: _wire(b, maxTokens), tools: [...tools, ...extra], maxSteps: maxSteps, modelName: 'telesia-team');
     // Registered while it runs, so the owner's "stop" cancels the model call or tool in flight (not only the next step).
     if (office != null) {
       (_cores[office] ??= {}).add(core);
@@ -310,7 +310,7 @@ class TeamRun extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// On start (after [Offices.init]): a team job that was running when SubMac closed is not resumed by itself
+  /// On start (after [Offices.init]): a team job that was running when Telesia closed is not resumed by itself
   /// (background runs never auto-resume); the team says so once, and "go" starts it again.
   Future<void> restore() async {
     try {
@@ -1042,7 +1042,7 @@ class TeamPlan {
   final String lang;
   bool get somali => lang == 'so';
 
-  /// Restored after SubMac closed before the lead had a plan (CB-64): "go" plans again.
+  /// Restored after Telesia closed before the lead had a plan (CB-64): "go" plans again.
   final bool replan;
 }
 

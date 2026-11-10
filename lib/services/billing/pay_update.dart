@@ -29,7 +29,7 @@ enum PayPhase {
   /// Definitely not paid (declined, insufficient funds, expired, reversed, refused).
   failed,
 
-  /// Could not reach SubMac at all. Safe to retry with the same key.
+  /// Could not reach Telesia at all. Safe to retry with the same key.
   offline,
 
   /// Something to fix before paying (bad number, rate limit, payments off...). Nothing was charged.

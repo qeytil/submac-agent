@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-/// Keeps what the caller said since SubMac last answered (16 kHz mono PCM16), so a Somali turn can be written down
+/// Keeps what the caller said since Telesia last answered (16 kHz mono PCM16), so a Somali turn can be written down
 /// again by a model that knows Somali. The call's own live transcription is weak for Somali; this fixes the chat
 /// the call is saved to (and so the tasks, the recap and later calls that read it).
 class UtteranceClipper {

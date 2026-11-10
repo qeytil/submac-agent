@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- SubMac notification, folded: a red-dot kicker, a serif headline, one quiet line. -->
+<!-- Telesia notification, folded: a red-dot kicker, a serif headline, one quiet line. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -21,7 +21,7 @@
             android:letterSpacing="0.16"
             android:textStyle="bold"
             android:singleLine="true"
-            android:text="SUBMAC" />
+            android:text="TELESIA" />
 
         <TextView
             android:id="@+id/sm_title"
@@ -49,6 +49,6 @@
         android:layout_width="9dp"
         android:layout_height="9dp"
         android:layout_marginStart="12dp"
-        android:src="@drawable/submac_dot"
+        android:src="@drawable/telesia_dot"
         android:contentDescription="@null" />
 </LinearLayout>

@@ -8,7 +8,7 @@ import '../ui/tokens.dart';
 import '../widgets/surface.dart';
 import '../ui/i18n.dart';
 
-/// What SubMac remembers about the user: view, edit, delete.
+/// What Telesia remembers about the user: view, edit, delete.
 class MemoryScreen extends StatelessWidget {
   const MemoryScreen({super.key});
 
@@ -58,7 +58,7 @@ class MemoryScreen extends StatelessWidget {
           SurfaceGroup(children: [
             SwitchListTile(
               title: const Text('Remember things'),
-              subtitle: const Text('SubMac keeps short notes about you to help next time'),
+              subtitle: const Text('Telesia keeps short notes about you to help next time'),
               value: state.memoryEnabled,
               onChanged: state.setMemoryEnabled,
             ),
@@ -83,7 +83,7 @@ class MemoryScreen extends StatelessWidget {
                   context: context,
                   builder: (d) => AlertDialog(
                     title: const Text('Forget everything?'),
-                    content: const Text('SubMac will forget all saved notes about you.'),
+                    content: const Text('Telesia will forget all saved notes about you.'),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
                       TextButton(

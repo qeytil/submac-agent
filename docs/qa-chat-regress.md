@@ -35,11 +35,11 @@ FAIL means the bug is still there.
 - Approvals: scripted per step; a watchdog answers any other approval sheet, team approval or `ask_user` with "Not now"
   after 20–25 s and logs `QAWARN unanswered-ask <title>`.
 - No other-app tasks: "Let it take action" off, phone/apps/browser powers off for bots and team members, team calls to
-  those tools refused, `ADB:front` if SubMac loses the front.
+  those tools refused, `ADB:front` if Telesia loses the front.
 - Each step has a hard timeout; the stall detector fails a step after 5 min with no log line, no app progress and no new
   charge (`billing_usage()`; `ai_usage` itself has no user read policy). A cut-off step's leftovers are retired and its
   runs stopped; per-phase budgets (A 38, B 28, C 20 min) skip what does not fit. Job/drive/test: 165/110/95 min.
-- The job fails on: drive exit ≠ 0, any `QAERR`, any `QA: STEPFAIL`, a logcat `FATAL EXCEPTION` in SubMac, an uncaught
+- The job fails on: drive exit ≠ 0, any `QAERR`, any `QA: STEPFAIL`, a logcat `FATAL EXCEPTION` in Telesia, an uncaught
   Flutter exception, or no `QA: done`.
 - CB-3 and CB-10 use a transport seam inside the test (`LlmClient.testClient` wrapper): a fake unknown tool call, and a
   stream cut with `finish_reason: length`. No app code changes.

@@ -1,4 +1,4 @@
--- SubMac billing (clean rebuild, PLAN.md PART 2 + Contract B). Volume billing: no coins, no model multipliers.
+-- Telesia billing (clean rebuild, PLAN.md PART 2 + Contract B). Volume billing: no coins, no model multipliers.
 -- One migration: removes the whole coin system (tables, functions, settings, cron) and creates the new one.
 -- No users are on billing, so nothing is converted. Safe to run twice.
 --
@@ -172,7 +172,7 @@ $$;
 create table if not exists billing.plans (
   id text primary key check (id ~ '^[a-z][a-z0-9_]{1,31}$'),
   kind text not null check (kind in ('free','package','payg')),
-  tier text not null check (tier in ('free','weekly','monthly','payg')),  -- what x-submac-plan says
+  tier text not null check (tier in ('free','weekly','monthly','payg')),  -- what x-telesia-plan says
   name text not null,
   price_usd numeric(10,2) not null default 0 check (price_usd >= 0),   -- package: the price; payg: price per unit_tokens
   total_tokens bigint,                       -- package: total for the period; free: monthly cap
@@ -973,7 +973,7 @@ begin
 end $$;
 
 -- ============================================================================ renewal reminder (no auto-charge with Sifalo)
--- The day before a package ends, if nothing is queued after it: one "From SubMac" inbox row (English + Somali).
+-- The day before a package ends, if nothing is queued after it: one "From Telesia" inbox row (English + Somali).
 do $$ begin
   if to_regclass('public.user_inbox') is not null and exists (select 1 from pg_constraint where conname = 'user_inbox_kind_check') then
     alter table public.user_inbox drop constraint user_inbox_kind_check;

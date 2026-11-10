@@ -2,7 +2,7 @@
 # QA run on the emulator: real flows (integration_test/qa_test.dart) with a screencap on every SHOT, the whole run
 # filmed, logcat kept, then a monkey (random taps) pass on the normal app for crashes and ANRs.
 set -u
-PKG=com.submac.agent
+PKG=com.telesia.app
 mkdir -p out/shots out/rec out/logs
 TS=$(date +%s)
 QA_EMAIL="${QA_EMAIL:-qa.emu.$TS@example.com}"

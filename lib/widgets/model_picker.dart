@@ -8,12 +8,12 @@ import 'brand_logo.dart';
 import 'chat/edge_fade.dart' show FrostedSurface;
 import 'logo.dart';
 
-/// Choosing a model (BYOK, owner 2026-11-03): SubMac first, then the user's own providers, each with its models
-/// (strong models first). Returns the chosen setting (`submac` or `byok-…|model`), or null when dismissed. Used by
+/// Choosing a model (BYOK, owner 2026-11-03): Telesia first, then the user's own providers, each with its models
+/// (strong models first). Returns the chosen setting (`telesia` or `byok-…|model`), or null when dismissed. Used by
 /// Settings → Models, the composer's model pill and each bot's profile.
 ///
-/// [forBot] (a bot's profile, owner 2026-11-05): a "Default (same as SubMac)" row comes first and returns `auto`;
-/// the SubMac row then means SubMac's own model even when the owner's chats use another one.
+/// [forBot] (a bot's profile, owner 2026-11-05): a "Default (same as Telesia)" row comes first and returns `auto`;
+/// the Telesia row then means Telesia's own model even when the owner's chats use another one.
 Future<String?> showModelPicker(BuildContext context, {required String current, String title = 'Model', bool forBot = false}) {
   return showModalBottomSheet<String>(
     context: context,
@@ -24,7 +24,7 @@ Future<String?> showModelPicker(BuildContext context, {required String current, 
   );
 }
 
-/// The words for a bot's model setting in its profile: "Default (same as SubMac)", "SubMac", or the own model's name
+/// The words for a bot's model setting in its profile: "Default (same as Telesia)", "Telesia", or the own model's name
 /// with its provider. A chosen model that cannot be used here says so (the bot runs on the default meanwhile).
 String botModelLabel(String setting, {ByokStore? store}) {
   final st = store ?? ByokStore.I;

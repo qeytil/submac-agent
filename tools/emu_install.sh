@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install + launch APKs on the running emulator. Usage: tools/emu_install.sh label apk...
 set -u
-PKG=com.submac.agent
+PKG=com.telesia.app
 echo "page size: $(adb shell getconf PAGE_SIZE)  sdk: $(adb shell getprop ro.build.version.sdk)  abi: $(adb shell getprop ro.product.cpu.abilist)"
 RC=0
 for APK in "$@"; do

@@ -23,15 +23,15 @@ class Push {
   Push._();
   static final I = Push._();
 
-  /// FIREBASE CLIENT CONFIG (the only place it lives). Public values for Firebase project submac-agent,
+  /// FIREBASE CLIENT CONFIG (the only place it lives). Public values for Firebase project telesia-agent,
   /// safe to ship like the Supabase anon key. appId belongs to the Android app registered for package
-  /// com.submac.agent, the applicationId (since v1.13.13; kept by the owner 2026-10-18). Swap appId here if the app is re-registered.
+  /// com.telesia.app, the applicationId (since v1.13.13; kept by the owner 2026-10-18). Swap appId here if the app is re-registered.
   static const firebaseOptions = FirebaseOptions(
     apiKey: 'AIzaSyDLfjR2dE1b5S-qVQyByhxMNRTElM0wAYo',
     appId: '1:264730074210:android:0187bdcc38dbc6d5f5053b',
     messagingSenderId: '264730074210',
-    projectId: 'submac-agent',
-    storageBucket: 'submac-agent.firebasestorage.app',
+    projectId: 'telesia-agent',
+    storageBucket: 'telesia-agent.firebasestorage.app',
   );
 
   static const _askedKey = 'push_permission_asked';
@@ -83,7 +83,7 @@ class Push {
 
   /// Payload for a push's data: the chat first, else the bot. Mirrors PushReceiver.kt.
   static String? payloadFor(Map<String, dynamic> data) {
-    // A message from the SubMac team (admin): opens "From SubMac".
+    // A message from the Telesia team (admin): opens "From Telesia".
     final inbox = '${data['inbox_id'] ?? ''}'.trim();
     if (inbox.isNotEmpty || data['open'] == 'inbox') return inbox.isEmpty ? 'inbox' : 'inbox/$inbox';
     final chat = '${data['chat_id'] ?? ''}'.trim();

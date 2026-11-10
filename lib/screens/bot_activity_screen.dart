@@ -169,7 +169,7 @@ class TeamFiles {
     try {
       final dir = await getTemporaryDirectory();
       final safe = name.replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '').trim().replaceAll(' ', '-');
-      final f = File('${dir.path}/${safe.isEmpty ? 'submac' : safe}.submac.json');
+      final f = File('${dir.path}/${safe.isEmpty ? 'telesia' : safe}.telesia.json');
       await f.writeAsString(const JsonEncoder.withIndent('  ').convert(data));
       await SharePlus.instance.share(ShareParams(files: [XFile(f.path, mimeType: 'application/json')], subject: name));
     } catch (e) {
@@ -192,23 +192,23 @@ class TeamFiles {
       final text = f.bytes != null ? utf8.decode(f.bytes!) : await File(f.path!).readAsString();
       return await importText(text);
     } catch (_) {
-      return 'That file isn\'t a SubMac bot or team.';
+      return 'That file isn\'t a Telesia bot or team.';
     }
   }
 
   static Future<String> importText(String text) async {
     final j = Map<String, dynamic>.from(jsonDecode(text.trim()) as Map);
-    if ('${j['submac']}' == 'bot') {
+    if ('${j['telesia']}' == 'bot') {
       final warn = BotPackage.warnings(j);
       if (warn.isNotEmpty) return 'Not added: this bot looks unsafe (it ${warn.join(', ')}).';
       final b = await Bots.I.importBot(j);
       return b == null ? 'That bot could not be added.' : '${b.name} joined. Open them to start.';
     }
-    if ('${j['submac']}' == 'office') {
+    if ('${j['telesia']}' == 'office') {
       final o = await Offices.I.importOffice(j);
       return o == null ? 'That team could not be added.' : '${o.name} joined your teams. New tasks wait for your OK at first.';
     }
-    return 'That file isn\'t a SubMac bot or team.';
+    return 'That file isn\'t a Telesia bot or team.';
   }
 
   static void toast(BuildContext context, String? msg) {

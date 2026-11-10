@@ -141,9 +141,9 @@ void main() {
       expect(await h.onNavigate(Uri.parse('https://pay.sifalo.net/')), isFalse);
     });
 
-    testWidgets('redirect seen only at load start (submac://pay) also finishes', (t) async {
+    testWidgets('redirect seen only at load start (telesia://pay) also finishes', (t) async {
       await open(t);
-      expect(web.hooks!.onLoadStart(Uri.parse('submac://pay?status=paid&purchase=11111111-2222-3333-4444-555555555555')), isTrue);
+      expect(web.hooks!.onLoadStart(Uri.parse('telesia://pay?status=paid&purchase=11111111-2222-3333-4444-555555555555')), isTrue);
       await settle(t);
       expect(find.text('Secure payment'), findsNothing);
       expect(api.touched, isEmpty); // nothing to send for the app scheme

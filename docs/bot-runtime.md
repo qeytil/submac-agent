@@ -23,7 +23,7 @@ loop, separate schedule** — one codebase, many independent instances.
 | Piece | Where | State |
 |---|---|---|
 | Engine instance + limits | `bot_agent/` | per turn, per person |
-| Brain / model | `BotModelRoute.of(b)` | the person's own BYOK key, else SubMac's lane |
+| Brain / model | `BotModelRoute.of(b)` | the person's own BYOK key, else Telesia's lane |
 | Memory | `b.memory`, `b.journal`, `b.knowledge` | its own |
 | Sandbox | `Bots.botFolder(b)` | its own notes/files folder |
 | Conversation | `b.convId` | its own chat |

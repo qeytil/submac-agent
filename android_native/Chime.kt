@@ -1,14 +1,14 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 
-/** The soft two-note SubMac wake chime (res/raw/submac_wake.wav). */
+/** The soft two-note Telesia wake chime (res/raw/telesia_wake.wav). */
 object Chime {
     fun play(ctx: Context) {
         try {
-            val id = ctx.resources.getIdentifier("submac_wake", "raw", ctx.packageName)
+            val id = ctx.resources.getIdentifier("telesia_wake", "raw", ctx.packageName)
             if (id == 0) return
             val mp = MediaPlayer()
             mp.setAudioAttributes(

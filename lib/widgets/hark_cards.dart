@@ -316,7 +316,7 @@ class _OrderCardState extends State<OrderCard> {
   }
 }
 
-/// A web page SubMac made (HTML) shown as a live preview; tap to open full screen.
+/// A web page Telesia made (HTML) shown as a live preview; tap to open full screen.
 class PageCard extends StatefulWidget {
   const PageCard(this.body, {super.key});
   final String body;
@@ -403,7 +403,7 @@ class _PageCardState extends State<PageCard> {
         MessageAction('Share', 'share', () => SharePlus.instance.share(ShareParams(files: [XFile(path)]))),
       ]);
 
-  /// Hark's website card: the page as a thumbnail, its title, "Page built by SubMac", and Open page (the in-app
+  /// Hark's website card: the page as a thumbnail, its title, "Page built by Telesia", and Open page (the in-app
   /// preview with sizes, Share and Publish). No border, no shadow; the card fill only.
   @override
   Widget build(BuildContext context) {
@@ -442,7 +442,7 @@ class _PageCardState extends State<PageCard> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                       Text(_title, maxLines: 2, overflow: TextOverflow.ellipsis, style: Brand.serif(size: AppText.title, color: p.text, height: 1.2)),
                       const SizedBox(height: Space.x1),
-                      Text(ready ? 'Page built by SubMac' : 'Getting the page from your account',
+                      Text(ready ? 'Page built by Telesia' : 'Getting the page from your account',
                           style: AppText.metaStyle.copyWith(color: p.muted)),
                       if (ready) ...[
                         const SizedBox(height: Space.x3),
@@ -460,7 +460,7 @@ class _PageCardState extends State<PageCard> {
   }
 }
 
-/// A video or sound SubMac made. A video plays right in the chat (tap to play, corner for full screen, hold for
+/// A video or sound Telesia made. A video plays right in the chat (tap to play, corner for full screen, hold for
 /// Save / Share); a sound is a light chip that opens the full-screen player. Files made on another phone are fetched
 /// from the account first.
 class MediaCard extends StatelessWidget {

@@ -1,4 +1,4 @@
-"""Builds assets/bots/health.json: the knowledge pack of SubMac's built-in Health adviser bot (Caafimaad).
+"""Builds assets/bots/health.json: the knowledge pack of Telesia's built-in Health adviser bot (Caafimaad).
 Facts follow WHO guidance and Somalia Ministry of Health documents, checked on 2026-10-21 (see the Sources piece).
 Re-check before changing numbers, schedules or phone numbers. Run: python3 tools/bots/health/build.py"""
 import json, os

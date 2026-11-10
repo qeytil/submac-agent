@@ -53,15 +53,15 @@ Causes found:
   opencode session as its 1:1 conversation. Every team reply, its steps and its result showed in both chats, the team's
   prompt sat in the private session's context, and the private chat's history leaked into team work.
 - Team turns asked (permission and question cards), ran tools, browser jobs and screen steps as the member's private
-  chat (`convId: home`); a member with no chat fell back to the "SubMac team" chat. Unwaited browser results were posted
+  chat (`convId: home`); a member with no chat fell back to the "Telesia team" chat. Unwaited browser results were posted
   into the private chat. A team's "stop" stopped every run in its members' private chats.
 - The bot's private brief read its journal's team lines ("Team part for …", "Led …").
 - A `session.error` with no session id ended every opencode turn running at that moment.
-- A SubMac call with no route went to "the only turn running", also when it came from a session no turn owned (a
+- A Telesia call with no route went to "the only turn running", also when it came from a session no turn owned (a
   stopped turn finishing a step); with several turns, the arguments fallback could take another turn's entry.
 - Caps: `TeamRun.parallel` (2 members at once), leftover parts run one by one, `_officeParallel` (2 office jobs at once),
   one office job per bot, office work waiting while the owner talks to the bot, the team daily work limit, 6 mentions
-  an hour, wakes put off while the bot did office work. `syncMcp` re-added SubMac's MCP server while other turns had
+  an hour, wakes put off while the bot did office work. `syncMcp` re-added Telesia's MCP server while other turns had
   calls in flight; a BYOK restart could race a second turn starting.
 
 Fixes:
@@ -173,11 +173,11 @@ teamwork; (4) bots ignored the model chosen in their profile.
    member whose part was done never answered when addressed; the lead's PEER instruction said "do not assign" even
    when the owner asked it to; the hand-over flag was saved under `dg`, the daily report time's key, so handing over
    overwrote the report time; retries lost the job's thread.
-4. **Plain model calls were pinned to SubMac.** opencode turns (private chat, wakes, scheduled tasks, team parts)
-   already sent the bot's model (`OcLane.pick`), but every one-answer call went to `submacRef`: the team's "who
+4. **Plain model calls were pinned to Telesia.** opencode turns (private chat, wakes, scheduled tasks, team parts)
+   already sent the bot's model (`OcLane.pick`), but every one-answer call went to `telesiaRef`: the team's "who
    speaks" decision, the lead's plan and combined answer (`_teamAsk`), instant team replies (`_officeQuick`),
    `bot_ask` (`_botConsult`) and the check-in gate (`_worthWaking`). The office pump also held a BYOK bot's team work
-   when SubMac's bots' share was used up, and the gate stopped its check-ins for the same reason.
+   when Telesia's bots' share was used up, and the gate stopped its check-ins for the same reason.
 
 ### What changed
 - `lib/services/team_floor.dart`: `TeamWatch` (saved per team in `Office.watches`, 24 h, once) and `TeamReact`:
@@ -200,12 +200,12 @@ teamwork; (4) bots ignored the model chosen in their profile.
 - `lib/state/bots_controller.dart`, `system_phone.dart`, `app_state.dart`: office runs carry the chain into their
   posts, assignments always report back, step caps for assign/react; plain bot calls go through
   `lib/services/bot_llm.dart` (`BotModelRoute`, `BotLlm`; BYOK calls go straight to the provider via the new
-  `ByokFetch.complete`, OpenAI/Anthropic/Gemini); a BYOK bot's office work is not held by SubMac's allowance.
+  `ByokFetch.complete`, OpenAI/Anthropic/Gemini); a BYOK bot's office work is not held by Telesia's allowance.
 - Tests: `test/team_turns_test.dart`, `test/bot_model_routes_test.dart` (incl. an office run whose post starts the
   watching teammate's run on its own model).
 
 ### Still open
-- The browser subagent (`browser_task`, old core) still runs on SubMac's model for every caller; it cannot use a
+- The browser subagent (`browser_task`, old core) still runs on Telesia's model for every caller; it cannot use a
   BYOK model until it moves onto opencode.
 - Watches are matched by rules (English, some Somali/Arabic words); a bot can always set one with `office_watch`.
 - Device check: a team with A and B; "B, analyze A's research once it posts", then "A, research X": B must post its

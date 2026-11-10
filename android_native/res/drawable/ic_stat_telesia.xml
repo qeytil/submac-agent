@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- SubMac notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
+<!-- Telesia notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
     android:viewportWidth="24" android:viewportHeight="24">

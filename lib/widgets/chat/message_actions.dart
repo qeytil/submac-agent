@@ -73,7 +73,7 @@ Future<void> showMessageActions(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    // SubMac motion: the quiet sheet reveal for tap / hold actions.
+    // Telesia motion: the quiet sheet reveal for tap / hold actions.
     sheetAnimationStyle: SubMotion.sheet,
     builder: (ctx) {
       final p = Palette.of(ctx);

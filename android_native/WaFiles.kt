@@ -1,4 +1,4 @@
-package com.submac.agent
+package com.telesia.app
 
 import android.content.ContentProvider
 import android.content.ContentValues
@@ -13,7 +13,7 @@ import java.io.File
 import java.io.FileNotFoundException
 
 /**
- * Read-only access to the files SubMac shares into WhatsApp (cache/wa_share only). Not exported: WhatsApp gets a
+ * Read-only access to the files Telesia shares into WhatsApp (cache/wa_share only). Not exported: WhatsApp gets a
  * one-time read grant from the share intent, nothing else can open these.
  */
 class WaFiles : ContentProvider() {

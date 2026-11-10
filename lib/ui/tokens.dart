@@ -118,7 +118,7 @@ class Lux {
   /// Air between two blocks of one reply (a paragraph, a table, a file).
   static const double blockGap = 18;
 
-  /// Reading size and leading of SubMac's prose.
+  /// Reading size and leading of Telesia's prose.
   static const double read = 16.5;
   static const double readHeight = 1.62;
 
@@ -151,7 +151,7 @@ class Lux {
   static const double greetingFace = 64;
 }
 
-/// The chat's timings: all taken from SubMac's signature motion ([SubMotion] in ui/motion.dart).
+/// The chat's timings: all taken from Telesia's signature motion ([SubMotion] in ui/motion.dart).
 class LuxMotion {
   const LuxMotion._();
 

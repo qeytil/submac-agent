@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'code_tools.dart';
 
-/// The result of checking a page or site SubMac built.
+/// The result of checking a page or site Telesia built.
 class SiteReport {
   SiteReport(this.entry, {List<String>? problems, List<String>? notes, this.files = 0})
       : problems = problems ?? <String>[],
@@ -40,7 +40,7 @@ class SiteReport {
   }
 }
 
-/// Checks a web page SubMac built before it is delivered: complete files, no missing pictures, styles, scripts or
+/// Checks a web page Telesia built before it is delivered: complete files, no missing pictures, styles, scripts or
 /// pages, in-page links that land, phone-ready head, no filler text. Static and offline (no browser needed), so it
 /// runs on every page the agent wrote, right before its final reply (see [SiteGate]). Pure apart from file reads;
 /// [checkHtml] and [checkCss] are pure and unit tested.
@@ -164,7 +164,7 @@ class SiteCheck {
 
   /// Checks the page at [entryPath] and every page, stylesheet and script next to it (its site folder; just the page
   /// when it sits alone in a shared folder).
-  /// [alone]: the page sits in a shared folder (the workspace, SubMac's pages, Downloads), so Publish sends the page
+  /// [alone]: the page sits in a shared folder (the workspace, Telesia's pages, Downloads), so Publish sends the page
   /// by itself and nothing it links to locally goes online with it.
   static Future<SiteReport> run(String entryPath, {bool alone = false}) async {
     final entry = File(entryPath);
@@ -256,7 +256,7 @@ class SiteGate {
   }
 
   static String fixNote(SiteReport r) => '# Your page is not ready yet\n'
-      'SubMac checked the page you built before your final reply. It is not delivered yet.\n${r.text}\n'
+      'Telesia checked the page you built before your final reply. It is not delivered yet.\n${r.text}\n'
       'Fix every problem now with your tools (append_file to finish a file, edit_file for small fixes, write the missing files). '
       'Do not send the final reply until the page is complete. Keep the user\'s choices exactly as they asked.';
 

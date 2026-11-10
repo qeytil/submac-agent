@@ -12,20 +12,20 @@ import 'byok_opencode.dart';
 import 'cloud.dart';
 import 'oc_lanes.dart';
 import 'output_limits.dart';
-import 'submac_gateway.dart';
-import 'submac_mcp.dart';
+import 'telesia_gateway.dart';
+import 'telesia_mcp.dart';
 import 'tools.dart';
 
-/// The opencode engine on the phone (owner, 2026-11-02): SubMac's chat runs on opencode, unchanged (its own prompts,
+/// The opencode engine on the phone (owner, 2026-11-02): Telesia's chat runs on opencode, unchanged (its own prompts,
 /// tools and behaviour). The server is started by the Android side (OpenCode.kt) on 127.0.0.1 behind a password;
 /// model calls go to the app's local proxy, which forwards them to ai-chat with a fresh access token (LocalProxy.kt).
 ///
-/// One opencode session per SubMac chat. Events come from one shared `/event` stream.
+/// One opencode session per Telesia chat. Events come from one shared `/event` stream.
 class OpenCodeEngine {
   OpenCodeEngine._();
   static final OpenCodeEngine I = OpenCodeEngine._();
 
-  static const _ch = MethodChannel('submac/native');
+  static const _ch = MethodChannel('telesia/native');
   static const _prefsKey = 'opencode.sessions.v1';
 
   final _client = http.Client();
@@ -36,8 +36,8 @@ class OpenCodeEngine {
   StreamSubscription<String>? _sse;
   Map<String, String>? _sessions;
 
-  /// SubMac's own tools, offered to opencode as an MCP server (set by the app before the first prompt).
-  SubMacMcp? mcp;
+  /// Telesia's own tools, offered to opencode as an MCP server (set by the app before the first prompt).
+  TelesiaMcp? mcp;
 
   /// The MCP server's state as opencode last reported it (connected | failed | ...), for the status line.
   String mcpStatus = '';
@@ -87,7 +87,7 @@ class OpenCodeEngine {
   }
 
   /// Turns running on the engine now (owner chats, bot chats, team members, office jobs), each in its own session.
-  /// opencode's server runs sessions side by side; SubMac only has to keep from restarting the engine or re-adding
+  /// opencode's server runs sessions side by side; Telesia only has to keep from restarting the engine or re-adding
   /// its MCP server under a turn that is working (bots team audit 2026-11-04: nothing here allows only one turn).
   int _turns = 0;
   int get turnsInFlight => _turns;
@@ -101,7 +101,7 @@ class OpenCodeEngine {
   static bool shouldRestart({required bool stale, required int turnsInFlight, required bool appBusy}) =>
       stale && turnsInFlight == 0 && !appBusy;
 
-  /// SubMac's MCP server may be re-added (to refresh its tool list) only when the caller's own turn is the only one:
+  /// Telesia's MCP server may be re-added (to refresh its tool list) only when the caller's own turn is the only one:
   /// re-adding replaces opencode's MCP client, which would cut a call another turn has in flight.
   static bool mayResync(int turnsInFlight) => turnsInFlight <= 1;
 
@@ -116,10 +116,10 @@ class OpenCodeEngine {
     final res = await _ch.invokeMethod('ocStart', {
       'password': _pass,
       'port': 4096 + r.nextInt(2000),
-      // opencode works in SubMac's own workspace, so its files show in the Files screen.
+      // opencode works in Telesia's own workspace, so its files show in the Files screen.
       'cwd': await AgentTools.workspaceDir(),
-      // The `submac` skill: opencode sees its name and loads it when a task needs the phone's apps (owner, 2026-11-03).
-      'skills': const {'submac': SubMacGateway.skill},
+      // The `telesia` skill: opencode sees its name and loads it when a task needs the phone's apps (owner, 2026-11-03).
+      'skills': const {'telesia': TelesiaGateway.skill},
       // One provider per allowance lane, each on its own proxy path (owner 2026-11-03, see OcLane).
       'providers': OcLane.providers(),
       'models': OcLane.models,
@@ -127,7 +127,7 @@ class OpenCodeEngine {
       // which go only into the engine's environment (the config names them as {env:…}), never into a file.
       'byokProviders': jsonEncode(byok),
       'byokEnv': ByokOpencode.envOf(ByokStore.I),
-      // How long a reply may be (owner 2026-11-06, see OutputLimits): SubMac's models get an explicit output limit
+      // How long a reply may be (owner 2026-11-06, see OutputLimits): Telesia's models get an explicit output limit
       // (the server clamps it per route), and opencode's own ceiling (32,000 unless set) is raised to the largest
       // limit of any configured model, so no reply is cut at 32,000 or at a flat default.
       ...startLimits(ByokOpencode.maxOutputOf(ByokStore.I)),
@@ -145,13 +145,13 @@ class OpenCodeEngine {
     await _addMcp();
   }
 
-  /// The output-limit arguments of `ocStart` (pure, for tests): SubMac's models' limit and opencode's ceiling.
+  /// The output-limit arguments of `ocStart` (pure, for tests): Telesia's models' limit and opencode's ceiling.
   static Map<String, int> startLimits(int byokMax) => {
-        'modelOutput': OutputLimits.submac,
+        'modelOutput': OutputLimits.telesia,
         'outputTokenMax': OutputLimits.engineMax([byokMax]),
       };
 
-  /// Registers SubMac's MCP server with the engine. The long timeout covers a call that waits on the user's OK or
+  /// Registers Telesia's MCP server with the engine. The long timeout covers a call that waits on the user's OK or
   /// a browser task (opencode's default of 60 s cut such calls off: "MCP error -32001: Request timed out").
   Future<void> _addMcp() async {
     final s = mcp;
@@ -183,25 +183,25 @@ class OpenCodeEngine {
   static const mcpTimeoutMs = 30 * 60 * 1000;
 
   /// The tool names opencode was last given. opencode lists an MCP server's tools once, when it is added, and only
-  /// lists again on a tools/list_changed notification (SubMac's server has no stream to send one). So when SubMac's
+  /// lists again on a tools/list_changed notification (Telesia's server has no stream to send one). So when Telesia's
   /// tools change (an app connected or signed out, its tools loaded, the image model turned on), the server is added
   /// again before the next prompt, which makes opencode list it afresh.
   String _mcpSig = '';
-  static String _sigOf(SubMacMcp s) => (s.listed().map((t) => '${t['name']}').toList()..sort()).join(',');
+  static String _sigOf(TelesiaMcp s) => (s.listed().map((t) => '${t['name']}').toList()..sort()).join(',');
 
-  /// Re-adds SubMac's MCP server when its tool list changed since opencode last listed it. Call between turns only:
+  /// Re-adds Telesia's MCP server when its tool list changed since opencode last listed it. Call between turns only:
   /// re-adding replaces opencode's client, which would cut off a call in flight.
   Future<void> syncMcp() async {
     final s = mcp;
     if (s == null || _port == 0) return;
     if (_sigOf(s) == _mcpSig) return;
     // Other turns are working side by side: the new tool list waits for a turn that runs alone. The gateway still
-    // finds and runs every current SubMac tool (find_tools / run_tool read the live list), so nothing is cut off.
+    // finds and runs every current Telesia tool (find_tools / run_tool read the live list), so nothing is cut off.
     if (!mayResync(_turns)) return;
     await _addMcp();
   }
 
-  /// The SubMac chat a session belongs to, or null.
+  /// The Telesia chat a session belongs to, or null.
   String? convOf(String session) {
     final side = _side[session];
     if (side != null) return side;
@@ -319,7 +319,7 @@ class OpenCodeEngine {
     } catch (_) {}
   }
 
-  /// The opencode session of a SubMac chat (made on first use; made again if the engine lost it).
+  /// The opencode session of a Telesia chat (made on first use; made again if the engine lost it).
   Future<String> sessionFor(String convId, {String? title}) async {
     final m = await _map();
     final known = m[convId];
@@ -361,7 +361,7 @@ class OpenCodeEngine {
   }
 
   /// Sends one user message; the reply arrives on [events]. [system] is appended after opencode's own system prompt
-  /// for this turn (SubMac's name only; see SubMacStyle). [model] is the turn's provider and model (OcLane.pick): the
+  /// for this turn (Telesia's name only; see TelesiaStyle). [model] is the turn's provider and model (OcLane.pick): the
   /// provider decides the allowance lane its model calls bill to (owner 2026-11-03).
   Future<void> prompt(String session, List<Map<String, dynamic>> parts, {String? system, Map<String, String>? model}) async {
     // A BYOK model added while another task kept the engine busy is not in the running engine yet: say so plainly
@@ -711,14 +711,14 @@ class OcPart {
   bool get finished => status == 'completed' || status == 'error';
 }
 
-/// opencode's permission and question requests as SubMac asks (the card above the composer): a command to run asks
+/// opencode's permission and question requests as Telesia asks (the card above the composer): a command to run asks
 /// "Run this command?" with Allow · Always allow · Deny; a question from opencode's question tool shows its choices.
 /// The answer goes back to the engine, which then carries on (or stops that step on Deny). Pure, so it is tested
 /// without the engine or the app.
 class OpenCodeAsks {
   OpenCodeAsks({required this.ask, required this.permit, required this.answer, required this.convOf, this.autopilot, this.unattended, this.refused});
 
-  /// A run nobody is watching (a bot's scheduled task with SubMac closed, 2026-11-05): returns how to answer a
+  /// A run nobody is watching (a bot's scheduled task with Telesia closed, 2026-11-05): returns how to answer a
   /// permission ('once' | 'reject', see BgRun.permission) without showing a card, or null when someone can answer.
   /// [perm] is '' for a question from opencode's question tool (always skipped then: only the owner could answer).
   final String? Function(String conv, String perm)? unattended;

@@ -10,8 +10,8 @@ import 'system_bridge.dart';
 import 'tools.dart';
 import 'whatsapp.dart';
 
-/// The floating chat while SubMac or a bot drives the screen, and the one place that decides when the
-/// "SubMac is using your phone" badge comes down.
+/// The floating chat while Telesia or a bot drives the screen, and the one place that decides when the
+/// "Telesia is using your phone" badge comes down.
 ///
 /// Every screen step (phone control, WhatsApp hands, the browser) passes through [stepStarted]/[stepFinished];
 /// a run's end passes through [runEnded]. When no owner is left (or the watchdog drops a quiet one) the badge is
@@ -103,9 +103,9 @@ class TaskBubble {
 
   // ---------------------------------------------------------------- asking in the bubble
 
-  /// Asks [req] in the floating bubble when the user is outside SubMac and this chat is driving the screen.
+  /// Asks [req] in the floating bubble when the user is outside Telesia and this chat is driving the screen.
   /// Returns null when the bubble can't ask (the caller asks in the app as before), or when the user opened
-  /// SubMac while it waited (the app asks instead).
+  /// Telesia while it waited (the app asks instead).
   Future<bool?> confirm(ActionRequest req, String? convId) async {
     final app = _app;
     if (app == null || !SystemBridge.I.supported || convId == null || app.appVisible || app.liveCtl.active) return null;
@@ -165,7 +165,7 @@ class TaskBubble {
   /// The app moved to or from the background.
   void visibilityChanged() {
     final c = _confirm;
-    // Back in SubMac with a question waiting in the bubble: the app asks it instead.
+    // Back in Telesia with a question waiting in the bubble: the app asks it instead.
     if (c != null && (_app?.appVisible ?? false)) c.answer(null);
     _sync(force: true);
   }
@@ -196,7 +196,7 @@ class TaskBubble {
     }
     final id = focus!.id;
     final bot = Bots.I.byConv(id);
-    final who = bot?.name ?? 'SubMac';
+    final who = bot?.name ?? 'Telesia';
     final run = app.runs.where((r) => r.convId == id && !r.side).firstOrNull;
     final lines = bubbleLines(app.messagesOf(id).map((m) => (m.role, m.content)));
     final state = bubbleState(

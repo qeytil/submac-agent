@@ -21,10 +21,10 @@ class UpdateText {
   }
 
   String get available => so ? 'Cusboonaysiin cusub' : 'A new version is ready';
-  String get required => so ? 'Fadlan cusboonaysii SubMac' : 'Please update SubMac';
+  String get required => so ? 'Fadlan cusboonaysii Telesia' : 'Please update Telesia';
   String get requiredBody => so
-      ? 'Noocan cusub waa khasab. Soo deji oo rakib si aad u sii isticmaasho SubMac.'
-      : 'This update is required. Download and install it to keep using SubMac.';
+      ? 'Noocan cusub waa khasab. Soo deji oo rakib si aad u sii isticmaasho Telesia.'
+      : 'This update is required. Download and install it to keep using Telesia.';
   String requiredFrom(String when) => so ? 'Waa khasab laga bilaabo $when.' : 'Required from $when.';
   String version(String v) => so ? 'Nooca $v' : 'Version $v';
   String get whatsNew => so ? 'Waxa cusub' : "What's new";
@@ -35,15 +35,15 @@ class UpdateText {
   String get install => so ? 'Rakib' : 'Install';
   String get downloading => so ? 'Waa la soo dejinayaa…' : 'Downloading…';
   String get leaveOk => so
-      ? 'Waad ka bixi kartaa SubMac; soo dejintu way socotaa. Markay dhammaato, Rakib ayaa kuu diyaar ah.'
-      : 'You can leave SubMac; the download keeps going. When it finishes, Install is waiting for you.';
+      ? 'Waad ka bixi kartaa Telesia; soo dejintu way socotaa. Markay dhammaato, Rakib ayaa kuu diyaar ah.'
+      : 'You can leave Telesia; the download keeps going. When it finishes, Install is waiting for you.';
   String get ready => so ? 'Diyaar u ah rakibid.' : 'Downloaded and checked. Ready to install.';
   String get opening => so ? 'Waxaa la furayaa rakibaha Android…' : "Opening Android's installer…";
   String get failed => so ? 'Soo dejintu way istaagtay. Mar kale isku day.' : 'The download stopped. You can download it again.';
   String get badFile => so
       ? 'Faylka cusboonaysiinta lama hubin karin, waa la tirtiray. Mar kale soo deji.'
       : "The update file didn't check out, so it was removed. Please download it again.";
-  String get allowTitle => so ? 'U oggolow SubMac inuu rakibo' : 'Allow SubMac to install updates';
+  String get allowTitle => so ? 'U oggolow Telesia inuu rakibo' : 'Allow Telesia to install updates';
   String get allowBody => so
       ? 'Android wuxuu u baahan yahay oggolaanshahaaga. Fur dejinta, shid "Allow from this source", kadibna soo noqo. Rakibiddu way sii socon doontaa.'
       : 'Android needs your OK once. Open settings, turn on "Allow from this source", then come back. Installing continues by itself.';
@@ -397,7 +397,7 @@ class AppUpdateView extends StatelessWidget {
           const SizedBox(width: 14),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('SubMac', style: Brand.serif(size: 26, color: p.text, height: 1.05)),
+              Text('Telesia', style: Brand.serif(size: 26, color: p.text, height: 1.05)),
               const SizedBox(height: 2),
               Text(t.version(d.currentName), style: TextStyle(color: p.muted, fontSize: AppText.meta)),
               const SizedBox(height: 8),

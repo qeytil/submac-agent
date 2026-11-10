@@ -13,7 +13,7 @@ decide and act on their own, and reach the owner only for approvals, money or ir
   teammate), an activity log, a summary, a budget and counters.
 - **On disk, resumable.** `<workspace>/missions/<id>/mission.json` (written atomically: tmp + rename) and a readable
   `MISSION.md` the bot can open with its own file tools (and the owner sees in Files). Loaded at start-up before the
-  alarm gate opens, so an alarm that started SubMac finds it.
+  alarm gate opens, so an alarm that started Telesia finds it.
 - **Wakes itself.** Its own exact alarm `mission|<id>` through the same path bot routines and scheduled tasks use
   (AlarmManager → AlarmReceiver → TaskService foreground + wake lock → headless engine → AlarmGate →
   `_onAlarm`). Before each run a fallback wake is set (+2 h), so a run killed with the app, or one that ends without
@@ -62,18 +62,18 @@ decide and act on their own, and reach the owner only for approvals, money or ir
 ## 2. Long-horizon runs with the app closed
 Built on bots-background (1.13.125): headless `OcChannel`, TaskService wake lock, AlarmGate, unattended permissions.
 Mission state is never kept only in memory: every change is saved before the next await that could be cut, and the
-next wake is armed before a run starts, so any number of background runs can follow each other with SubMac never
+next wake is armed before a run starts, so any number of background runs can follow each other with Telesia never
 opened.
 
 ## 3. Browser use with the app closed
 **Why it failed.** The browser agent (`browser_task` → `BrowserJobs` subagent on `agent/core.dart` →
 `BrowserAgent`) drives `InAppWebView` widgets that live in the app's widget tree (`lib/widgets/browser_layer.dart`).
-With SubMac closed the engine runs headless: no frame is ever drawn, so the platform view is never created,
+With Telesia closed the engine runs headless: no frame is ever drawn, so the platform view is never created,
 `BrowserTab.ready` never completes and every browser step failed after 20 s ("the browser view is not ready"). The
 web tools (`web_search`, `web_research`, `fetch_url`, opencode's `webfetch`) are plain HTTP and already worked.
 
 **Now.**
-1. *Off-screen tabs*: when nothing can draw the browser (`BrowserAgent.noScreen` = started headless or SubMac not
+1. *Off-screen tabs*: when nothing can draw the browser (`BrowserAgent.noScreen` = started headless or Telesia not
    visible), a new tab is a `HeadlessInAppWebView` (flutter_inappwebview's own off-screen WebView, created with the
    application context, 412×915) with the same callbacks and page script as the widget tab. Pop-ups of an off-screen
    page are off-screen too; the browser layer never builds a second view for such a tab; closing frees it. No Kotlin
@@ -81,21 +81,21 @@ web tools (`web_search`, `web_research`, `fetch_url`, opencode's `webfetch`) are
 2. *Read-only fallback* (`lib/services/fetch_browser.dart`): if the off-screen view cannot start, the task switches to
    read-only mode at that step (and later tasks this session start in it): plain HTTP GET, the page's readable text
    (`Readable`), numbered links. `browser_open`, `browser_click` (link number), `browser_find`, `browser_scroll` /
-   `browser_read`, `browser_back` work; typing, sign-in, forms, scripts and payments answer that they need SubMac
+   `browser_read`, `browser_back` work; typing, sign-in, forms, scripts and payments answer that they need Telesia
    open, and the task finishes saying so.
 3. *The bot's own model*: a bot's browser task thinks on the bot's model (`BotBrowserModel`, bot_llm.dart): an
    OpenAI-compatible BYOK key → that provider straight from the phone (tool calls + screenshots in the OpenAI shape;
-   no screenshots for a model marked text-only; tokens count to the bot); a SubMac model → that model; Anthropic /
-   Gemini keys or a model without tool calling → SubMac's model (their tool protocols are not converted yet).
+   no screenshots for a model marked text-only; tokens count to the bot); a Telesia model → that model; Anthropic /
+   Gemini keys or a model without tool calling → Telesia's model (their tool protocols are not converted yet).
 
-**Limits.** Off-screen pages cannot be watched live on the card while SubMac is closed; a site's real-touch fallback
+**Limits.** Off-screen pages cannot be watched live on the card while Telesia is closed; a site's real-touch fallback
 (`webTouch`) finds no view and uses page script; whether `takeScreenshot` returns a picture for an off-screen view
 varies by WebView version (the agent still has the numbered elements and text). Read-only mode cannot sign in or
 submit. Sites that block plain reads stay blocked.
 
 ## 4. A bot's own engine (`lib/bot_agent/`)
 A bot is a "digital person" that works on its own, on the phone, under its own profile, so it no longer shares opencode
-with the SubMac agent (owner 2026-11-07). opencode is reserved for the owner's chat.
+with the Telesia agent (owner 2026-11-07). opencode is reserved for the owner's chat.
 
 - **`lib/bot_agent/bot_agent_config.dart`** — `BotAgentConfig` (the bot's id, name, notes folder and loop limits:
   `maxSteps` 24, `maxContinues` 4, `maxToolChars` 16000) and `BotAgents`, one stable config per bot.
@@ -107,25 +107,25 @@ with the SubMac agent (owner 2026-11-07). opencode is reserved for the owner's c
 - **Route** (`lib/state/agent_runner.dart`, `_runBotTurn`): a turn whose conversation belongs to a bot
   (`Bots.I.byConv(convId) != null`) takes this path and returns before opencode is ever touched. The model step goes to
   the bot's own BYOK provider when it can take tools (`BotBrowserModel.of(...).byok`, OpenAI-shaped tool calls straight
-  from the phone); otherwise to SubMac's lane (the same resilient stream as the owner's chat). Every tool is called
-  directly by name through the app's router (no `submac_run_tool` lookup, no MCP gateway, no opencode session).
+  from the phone); otherwise to Telesia's lane (the same resilient stream as the owner's chat). Every tool is called
+  directly by name through the app's router (no `telesia_run_tool` lookup, no MCP gateway, no opencode session).
 - **Teams** (`_teamTurn`): a team's lead and members run the same loop under their `TeamKey`
   (`team:<team>:<bot>`) — `team_assign`, `team_task`, the office tools and the bot's own tools are called by name, and
   only the answer is posted to the team chat. Their turns write no chat rows, so nothing leaks into the member's 1:1
   chat. `Runner.ocTurn = teamTurn` means every office job and team plan uses this engine; opencode is never started for
   a team.
 - **Allowance:** the bot's profile allowance (`tokenBudgetK`/`overBudget`, plus a live mission's) stops background work
-  between steps, and only when the bot is **not** on its own key. A BYOK bot is not billed by SubMac, so its allowance
+  between steps, and only when the bot is **not** on its own key. A BYOK bot is not billed by Telesia, so its allowance
   never cuts its own-model work (owner 2026-11-07). `b.addTokens` counts the lane's tokens as they go.
 
-**Limits.** An Anthropic or Gemini BYOK key (a tool protocol that is not converted yet) still falls back to SubMac's
+**Limits.** An Anthropic or Gemini BYOK key (a tool protocol that is not converted yet) still falls back to Telesia's
 lane. The team's `_teamPermission` helper remains in `agent_runner.dart` for the owner-chat opencode path only; no
 opencode session ever runs under a `TeamKey`.
 
 ## 5. Always on (owner 2026-11-08)
 
 A digital person should feel present, not only wake on an alarm. "Always on" is the phone-side version of that: on by
-default, it keeps SubMac's foreground service up all day and pulses it, so a bot is never waiting for the app to be
+default, it keeps Telesia's foreground service up all day and pulses it, so a bot is never waiting for the app to be
 opened.
 
 - **`lib/services/always_on.dart`** — `AlwaysOn.I`: the saved choice (`always_on`, default **on**) and the steady
@@ -149,7 +149,7 @@ opened.
   schedule_next clamps, runs/tokens guardrails and day roll-over, tokens only during runs, on/off, stop, needs_you +
   answer, done, owner-only start, replace, team assign, armAll after restart, failed and unstarted runs, notification
   rate limit, tools in every bot's list and never switched off, brief in the prompt.
-- `test/mission_wake_test.dart`: mission alarm with SubMac closed → unattended bot wake with the mission instruction
+- `test/mission_wake_test.dart`: mission alarm with Telesia closed → unattended bot wake with the mission instruction
   and "<Bot> · Mission: …" line; outcome; busy bot not woken twice; offline cut; tool routing (owner starts, wake
   cannot); team mission → lead's mission job with the plan; "Name: step" hand-off starts the teammate's turn.
 - `test/browser_background_test.dart`: FetchBrowser parse/open/click/find/back, unsupported actions, blocked pages;
@@ -162,12 +162,12 @@ opened.
 
 ## Device checks (after the next APK)
 1. Bot Job page → Mission → goal "Every 2 hours check the price of <product> on two shops and keep a log", 6 runs a
-   day. Swipe SubMac away, screen off. Within ~1 min a "<Bot> · Mission: …" notification appears and goes; the Job
+   day. Swipe Telesia away, screen off. Within ~1 min a "<Bot> · Mission: …" notification appears and goes; the Job
    page later shows the plan, a log line per run and the next wake. `adb shell dumpsys alarm | grep mission` lists it.
 2. In that run, a `browser_task` (or ask for a site that needs scripts): `adb logcat | grep -i inappwebview` shows a
    headless WebView; no "browser view is not ready". If the device's WebView refuses off-screen use, the task's report
    says READ-ONLY mode and still reads the pages.
-3. Restart the phone, do not open SubMac: the mission's next wake still comes (rearm notification, then the run).
+3. Restart the phone, do not open Telesia: the mission's next wake still comes (rearm notification, then the run).
 4. A goal that needs spending ("buy the cheapest one") → one "[needs you]" notification, Approve on the Job page →
    the next run within a minute logs the answer.
 5. Stop on the Job page during a run: the run stops, no more wakes.

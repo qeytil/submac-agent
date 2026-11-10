@@ -249,12 +249,12 @@ void main() {
 
   group('replies', () {
     test('a reply rides at the top of the message and comes back out', () {
-      const r = ReplyRef(id: 'm-42', author: 'SubMac', quote: 'The meeting is at **3 pm** on Friday.\nBring the slides.');
+      const r = ReplyRef(id: 'm-42', author: 'Telesia', quote: 'The meeting is at **3 pm** on Friday.\nBring the slides.');
       final enc = ReplyCodec.encode(r, 'Can we move it to 4?');
-      expect(enc, startsWith('[Reply to SubMac · #m-42]\n> The meeting is at 3 pm on Friday. Bring the slides.'));
+      expect(enc, startsWith('[Reply to Telesia · #m-42]\n> The meeting is at 3 pm on Friday. Bring the slides.'));
       final dec = ReplyCodec.decode(enc);
       expect(dec.ref!.id, 'm-42');
-      expect(dec.ref!.author, 'SubMac');
+      expect(dec.ref!.author, 'Telesia');
       expect(dec.body, 'Can we move it to 4?');
       expect(ReplyCodec.decode('Just a message').ref, isNull);
       expect(ReplyCodec.quoteOf('x' * 900).length, lessThanOrEqualTo(ReplyCodec.quoteMax + 1));

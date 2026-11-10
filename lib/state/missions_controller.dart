@@ -33,7 +33,7 @@ extension AppStateMissions on AppState {
     if (!_wakeMayClaim(b)) return false;
     if (b.overBudget) return false;
     // Owner 2026-11-07: a mission wake is governed by the bot's own allowance (above), not by a hardcoded
-    // account-wide guard. SubMac's server refusal is the backstop.
+    // account-wide guard. Telesia's server refusal is the backstop.
     await _botWake(b, 'your mission', instruction, 'mission');
     // _botWake marks the chat while its run goes on; no mark means it did not start.
     return b.convId.isNotEmpty && (_botWakeConvs[b.convId] == 'mission' || runs.any((r) => r.convId == b.convId && !r.side));

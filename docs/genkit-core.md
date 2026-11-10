@@ -6,7 +6,7 @@ only** (generate, tools, interrupts, middleware, cancellation). The old hand-wri
 phone tests in the PR are the gate.
 
 ## Who runs on it
-- Main chat with SubMac and every bot chat (`_runAgent` → `_MainHooks`).
+- Main chat with Telesia and every bot chat (`_runAgent` → `_MainHooks`).
 - Team members and the lead (`TeamRun._agent` → `_TeamHooks`): the lead hands each part to a member with a
   `handoff_<name>` tool, sees each result, then answers once; parts it did not hand off still run and are combined.
 - The browser sub-agent (`browser_jobs.dart`).

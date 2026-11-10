@@ -3,7 +3,7 @@
 //  * read: only looks (search, read a file or page, see the screen). Safe to run again.
 //  * idempotent: writes, but running it again gives the same state (write a file with the same content, make the same
 //    document, open the same page). Safe to run again.
-//  * sideEffect: changes something outside SubMac or can't be undone or repeated safely (send, post, pay, call, delete,
+//  * sideEffect: changes something outside Telesia or can't be undone or repeated safely (send, post, pay, call, delete,
 //    tap on a page, append). Never run again on resume: the model is told it may or may not have happened.
 //
 // A tool that is not listed is a side effect (the safe default).

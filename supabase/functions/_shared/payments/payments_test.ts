@@ -281,7 +281,7 @@ Deno.test("success: hosted checkout -> webhook credits once via DB RPC", async (
   assertEquals(w.tokens.get(UID), 500000);
 });
 
-Deno.test("duplicate webhook + return: no double credit; return redirects to submac://pay", async () => {
+Deno.test("duplicate webhook + return: no double credit; return redirects to telesia://pay", async () => {
   const w = new World();
   const { purchase_id } = await startHosted(w);
   const sid = w.pay(purchase_id, "1");
@@ -289,7 +289,7 @@ Deno.test("duplicate webhook + return: no double credit; return redirects to sub
   for (let i = 0; i < 3; i++) await handleWebhook(webhookReq(`?purchase=${purchase_id}`, body), deps(w));
   const ret = await handleReturn(new Request(`${FN}/billing-return?provider=sifalo&purchase=${purchase_id}&order_id=${purchase_id}&sid=${sid}`), deps(w));
   assertEquals(ret.status, 303);
-  assertEquals(ret.headers.get("location"), `submac://pay?status=paid&purchase=${purchase_id}`);
+  assertEquals(ret.headers.get("location"), `telesia://pay?status=paid&purchase=${purchase_id}`);
   assertEquals(w.credits, 1);
   assertEquals(w.tokens.get(UID), 500000);
 });
@@ -325,7 +325,7 @@ Deno.test("no order_id in verify: credits when the order lookup names the same s
   const { purchase_id } = await startHosted(w, PAYG_5);
   const sid = w.pay(purchase_id, "5"); // verify by sid does not echo order_id; verify by order id finds this sid
   const r = await handleReturn(new Request(`${FN}/billing-return?provider=sifalo&purchase=${purchase_id}&order_id=${purchase_id}&sid=${sid}`), deps(w));
-  assertEquals(r.headers.get("location"), `submac://pay?status=paid&purchase=${purchase_id}`);
+  assertEquals(r.headers.get("location"), `telesia://pay?status=paid&purchase=${purchase_id}`);
   const v = w.verifyReplies.at(-2)!; // verify by sid (the last one is the order lookup)
   assertEquals("order_id" in v, false);
   assertEquals(w.verifyReplies.at(-1)!.order_id, purchase_id);
@@ -346,7 +346,7 @@ Deno.test("reused sid: a sid already credited to one purchase is rejected on a s
   const r = await handleWebhook(webhookReq(`?purchase=${b.purchase_id}`, { sid: sidA }), deps(w));
   assertEquals((await r.json()).outcome, "sid_not_for_order");
   const ret = await handleReturn(new Request(`${FN}/billing-return?purchase=${b.purchase_id}&order_id=${b.purchase_id}&sid=${sidA}`), deps(w));
-  assertEquals(ret.headers.get("location"), `submac://pay?status=error&purchase=${b.purchase_id}&reason=sid_not_for_order`);
+  assertEquals(ret.headers.get("location"), `telesia://pay?status=error&purchase=${b.purchase_id}&reason=sid_not_for_order`);
   assertEquals(w.purchases.get(b.purchase_id)!.status, "pending");
   // replaying for the original purchase: already_paid, no double credit
   assertEquals((await (await handleWebhook(webhookReq(`?purchase=${a.purchase_id}`, { sid: sidA }), deps(w))).json()).outcome, "already_paid");
@@ -373,7 +373,7 @@ Deno.test("order binding: a sid the provider never linked to this order is not c
   const { purchase_id } = await startHosted(w, PAYG_1);
   const stray = w.pay(null, "1"); // someone else's $1 payment (right amount, wrong order)
   const ret = await handleReturn(new Request(`${FN}/billing-return?purchase=${purchase_id}&sid=${stray}`), deps(w));
-  assertEquals(ret.headers.get("location"), `submac://pay?status=error&purchase=${purchase_id}&reason=sid_not_for_order`);
+  assertEquals(ret.headers.get("location"), `telesia://pay?status=error&purchase=${purchase_id}&reason=sid_not_for_order`);
   assertEquals((await (await handleWebhook(webhookReq(`?purchase=${purchase_id}`, { sid: stray }), deps(w))).json()).outcome, "sid_not_for_order");
   assertEquals(w.purchases.get(purchase_id)!.status, "pending");
   assertEquals(w.purchases.get(purchase_id)!.result, "sid_not_for_order");
@@ -419,11 +419,11 @@ Deno.test("return link always goes back to the app (never a JSON page)", async (
   const crash: Deps = { ...deps(w), fetch: () => Promise.reject(new TypeError("db down")) };
   const r = await handleReturn(new Request(`${FN}/billing-return?purchase=${pid}&sid=SID1`), crash);
   assertEquals(r.status, 303);
-  assertEquals(r.headers.get("location"), `submac://pay?status=pending&purchase=${pid}&reason=processing`);
+  assertEquals(r.headers.get("location"), `telesia://pay?status=pending&purchase=${pid}&reason=processing`);
   const r2 = await handleReturn(new Request(`${FN}/billing-return?provider=nope&order_id=${pid}`), deps(w));
-  assertEquals(r2.headers.get("location"), `submac://pay?status=error&purchase=${pid}&reason=unavailable`);
-  const r3 = await handleReturn(new Request(`${FN}/billing-return`), deps(w, { ...ENV, BILLING_APP_RETURN_URL: "submac://pay?" }));
-  assertEquals(r3.headers.get("location"), "submac://pay?status=error&purchase=");
+  assertEquals(r2.headers.get("location"), `telesia://pay?status=error&purchase=${pid}&reason=unavailable`);
+  const r3 = await handleReturn(new Request(`${FN}/billing-return`), deps(w, { ...ENV, BILLING_APP_RETURN_URL: "telesia://pay?" }));
+  assertEquals(r3.headers.get("location"), "telesia://pay?status=error&purchase=");
 });
 
 Deno.test("verify echoes a different order_id -> rejected even when amount matches", async () => {
@@ -459,7 +459,7 @@ Deno.test("pending: 603 stays pending; reconcile credits once it is paid", async
   const r = await handleWebhook(webhookReq(`?purchase=${purchase_id}`, { sid, status: "pending", code: 603 }), deps(w));
   assertEquals((await r.json()).outcome, "pending");
   const ret = await handleReturn(new Request(`${FN}/billing-return?purchase=${purchase_id}&sid=${sid}`), deps(w));
-  assertEquals(ret.headers.get("location"), `submac://pay?status=pending&purchase=${purchase_id}`);
+  assertEquals(ret.headers.get("location"), `telesia://pay?status=pending&purchase=${purchase_id}`);
   assertEquals(w.purchases.get(purchase_id)!.status, "pending");
   // customer approves on the phone later; no second webhook (Sifalo fires once) -> reconcile picks it up
   Object.assign(w.pays.get(sid)!, { status: "success", code: 601 });
@@ -495,7 +495,7 @@ Deno.test("failed: declined payment marks the purchase failed; return says faile
   assertEquals((await r.json()).outcome, "failed");
   assertEquals(w.purchases.get(purchase_id)!.status, "failed");
   const ret = await handleReturn(new Request(`${FN}/billing-return?purchase=${purchase_id}&sid=${sid}`), deps(w));
-  assertEquals(ret.headers.get("location"), `submac://pay?status=failed&purchase=${purchase_id}&reason=insufficient_funds`);
+  assertEquals(ret.headers.get("location"), `telesia://pay?status=failed&purchase=${purchase_id}&reason=insufficient_funds`);
   assertEquals(w.credits, 0);
   // a retry on the checkout page that succeeds still credits (failed is not terminal)
   const ok = w.pay(purchase_id, "1");
@@ -543,7 +543,7 @@ Deno.test("flag off: all four refuse with no provider call and no DB write", asy
   assertEquals((await wh.json()).error, "billing_disabled");
   const rt = await handleReturn(new Request(`${FN}/billing-return?purchase=${pid}&sid=SID1`), deps(w));
   assertEquals(rt.status, 303);
-  assertEquals(rt.headers.get("location"), `submac://pay?status=error&purchase=${pid}&reason=billing_disabled`);
+  assertEquals(rt.headers.get("location"), `telesia://pay?status=error&purchase=${pid}&reason=billing_disabled`);
   const rc = await handleReconcile(cronReq(), deps(w));
   assertEquals(rc.status, 503);
   assertEquals((await rc.json()).error, "billing_disabled");
@@ -564,7 +564,7 @@ Deno.test("missing secrets: all four refuse with zero network calls", async () =
     assertEquals(wh.status, 200);
     assertEquals((await wh.json()).error, "payments_not_configured");
     const rt = await handleReturn(new Request(`${FN}/billing-return?sid=SID1`), d);
-    assertEquals([rt.status, rt.headers.get("location")], [303, "submac://pay?status=error&purchase=&reason=unavailable"]);
+    assertEquals([rt.status, rt.headers.get("location")], [303, "telesia://pay?status=error&purchase=&reason=unavailable"]);
     assertEquals((await handleReconcile(cronReq(), d)).status, 503);
     assertEquals(w.calls.length, 0, `calls made with ${missing} missing`);
   }
@@ -634,7 +634,7 @@ Deno.test("fake provider: checkout/return/webhook run through the same core, key
   book.set("pay_1", { order: c.purchase_id, amount: 1, status: "paid" });
   // path routing: /billing-return/fakepay
   const ret = await handleReturn(new Request(`${FN}/billing-return/fakepay?purchase=${c.purchase_id}&payment=pay_1`), d);
-  assertEquals(ret.headers.get("location"), `submac://pay?status=paid&purchase=${c.purchase_id}`);
+  assertEquals(ret.headers.get("location"), `telesia://pay?status=paid&purchase=${c.purchase_id}`);
   const mp = w.calls.find((x) => x.url.endsWith("/billing_payment_paid"))!.body as Record<string, unknown>;
   assertEquals(mp.p_provider, "fakepay");
   assertEquals(mp.p_ref, "pay_1");
@@ -781,7 +781,7 @@ Deno.test("concurrent duplicate webhooks + returns at the same moment -> single 
   const outcomes = await Promise.all(out.slice(0, 5).map(async (r) => (await r.json()).outcome));
   assert(outcomes.every((o) => o === "paid" || o === "already_paid"), outcomes.join());
   assert(outcomes.filter((o) => o === "paid").length <= 1); // a return may win the race; still one credit
-  for (const r of out.slice(5)) assertEquals(r.headers.get("location"), `submac://pay?status=paid&purchase=${purchase_id}`);
+  for (const r of out.slice(5)) assertEquals(r.headers.get("location"), `telesia://pay?status=paid&purchase=${purchase_id}`);
   assertEquals(w.credits, 1);
   assertEquals(w.tokens.get(UID), 500000);
 });
@@ -798,7 +798,7 @@ Deno.test("Sifalo down (network / 5xx / malformed / timeout) on verify: stays pe
     w.faults.push({ on: "verify", kind });
     const ret = await handleReturn(new Request(`${FN}/billing-return?purchase=${purchase_id}&sid=${sid}`), deps(w));
     const reason = kind === "timeout" ? "provider_timeout" : "provider_unavailable";
-    assertEquals(ret.headers.get("location"), `submac://pay?status=pending&purchase=${purchase_id}&reason=${reason}`);
+    assertEquals(ret.headers.get("location"), `telesia://pay?status=pending&purchase=${purchase_id}&reason=${reason}`);
     assertEquals(w.purchases.get(purchase_id)!.status, "pending", kind);
     assertEquals(w.credits, 0);
     // poll shows "processing" with the reason while Sifalo is down

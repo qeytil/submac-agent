@@ -12,7 +12,7 @@ const route = { route_id: "A", model_ref: "mA", model: "gpt-oss:120b", vision: t
   provider: "PA", provider_id: "pA", base_url: `http://127.0.0.1:${MOCK}/up/A` };
 const config = {
   settings: { daily_cap_tokens: 200000, billing_enabled: true, billing_precheck_cache_ms: 0 },
-  aliases: [{ alias: "submac", max_output_tokens: 4096, system_hint: null, routes: [route] }],
+  aliases: [{ alias: "telesia", max_output_tokens: 4096, system_hint: null, routes: [route] }],
   key_meta: { pA: [{ id: "kA", cooldown_until: null }] },
 };
 const sse = (text: string) => `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: text } }] })}\n\n` +
@@ -62,7 +62,7 @@ async function ready() {
   throw new Error("function did not start");
 }
 const chat = (body: unknown, extra: Record<string, string> = {}) => fetch(`http://127.0.0.1:${FN}/ai-chat`, {
-  method: "POST", headers: { authorization: "Bearer " + jwt, "content-type": "application/json", "x-submac-chat": "c1", ...extra }, body: JSON.stringify(body),
+  method: "POST", headers: { authorization: "Bearer " + jwt, "content-type": "application/json", "x-telesia-chat": "c1", ...extra }, body: JSON.stringify(body),
 });
 const rpcCalls = (fn: string) => calls.filter((c) => c.path === `/rest/v1/rpc/${fn}`);
 const settle = () => new Promise((ok) => setTimeout(ok, 300));
@@ -72,23 +72,23 @@ Deno.test({ name: "ai-chat billing on (usage_gate / usage_charge)", sanitizeOps:
   try {
     await t.step("functions not deployed yet -> the reply still goes out on the old allowance, no coin RPCs", async () => {
       gateMode = "missing";
-      const r = await chat({ model: "submac", stream: true, messages: [{ role: "user", content: "hi" }] });
+      const r = await chat({ model: "telesia", stream: true, messages: [{ role: "user", content: "hi" }] });
       assertEquals(r.status, 200);
       assertMatch(await r.text(), /hello from A/);
-      assertEquals(r.headers.get("x-submac-plan"), "free");
+      assertEquals(r.headers.get("x-telesia-plan"), "free");
       assert(rpcCalls("usage_gate").length >= 1, "usage_gate asked");
       for (const old of ["billing_precheck", "billing_multipliers", "billing_consume", "billing_consume_enqueue"]) assertEquals(rpcCalls(old).length, 0, old);
     });
     await t.step("allow -> Contract A headers from the gate; charged once with raw tokens and a request id", async () => {
       gateMode = "allow";
       const before = rpcCalls("usage_charge").length;
-      const r = await chat({ model: "submac", stream: true, messages: [{ role: "user", content: "hello there" }] });
+      const r = await chat({ model: "telesia", stream: true, messages: [{ role: "user", content: "hello there" }] });
       assertEquals(r.status, 200);
       assertMatch(await r.text(), /hello from A/);
-      assertEquals(r.headers.get("x-submac-plan"), "monthly");
-      assertEquals(r.headers.get("x-submac-today-left"), "50000");
-      assertEquals(r.headers.get("x-submac-total-left"), "700000");
-      assertEquals(r.headers.get("x-submac-resets-at"), "2026-10-24T00:00:00+03:00");
+      assertEquals(r.headers.get("x-telesia-plan"), "monthly");
+      assertEquals(r.headers.get("x-telesia-today-left"), "50000");
+      assertEquals(r.headers.get("x-telesia-total-left"), "700000");
+      assertEquals(r.headers.get("x-telesia-resets-at"), "2026-10-24T00:00:00+03:00");
       assertEquals(rpcCalls("usage_gate").at(-1)!.body, { p_user_id: "22222222-2222-2222-2222-222222222222", p_source: "agent" });
       await settle();
       const charges = rpcCalls("usage_charge").slice(before);
@@ -99,7 +99,7 @@ Deno.test({ name: "ai-chat billing on (usage_gate / usage_charge)", sanitizeOps:
     });
     await t.step("background lane -> gate and charge use the bot source", async () => {
       const before = rpcCalls("usage_charge").length;
-      const r = await chat({ model: "submac", stream: true, messages: [{ role: "user", content: "bot wake" }] }, { "x-submac-lane": "background" });
+      const r = await chat({ model: "telesia", stream: true, messages: [{ role: "user", content: "bot wake" }] }, { "x-telesia-lane": "background" });
       await r.text();
       assertEquals(rpcCalls("usage_gate").at(-1)!.body.p_source, "background");
       await settle();
@@ -108,11 +108,11 @@ Deno.test({ name: "ai-chat billing on (usage_gate / usage_charge)", sanitizeOps:
     await t.step("deny -> 429 with the Contract A code and friendly text, no model call", async () => {
       gateMode = "deny";
       const ups = calls.filter((c) => c.path.startsWith("/up/")).length;
-      const r = await chat({ model: "submac", stream: true, messages: [{ role: "user", content: "more" }] });
+      const r = await chat({ model: "telesia", stream: true, messages: [{ role: "user", content: "more" }] });
       const j = await r.json();
       assertEquals(r.status, 429);
       assertEquals(j.error.code, "limit_total");
-      assertEquals(r.headers.get("x-submac-error"), "limit_total");
+      assertEquals(r.headers.get("x-telesia-error"), "limit_total");
       assert(!/coin|pass|pack/i.test(j.error.message), j.error.message);
       assertEquals(calls.filter((c) => c.path.startsWith("/up/")).length, ups);
     });

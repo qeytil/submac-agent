@@ -8,12 +8,12 @@ const SEC = {
   "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh; connect-src 'self' https://*.supabase.co https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co; frame-ancestors 'none'",
 };
 
-// ---------- /api/updates/*: app update files into Cloudflare R2 (binding UPDATES -> bucket submac-app-updates) ----------
+// ---------- /api/updates/*: app update files into Cloudflare R2 (binding UPDATES -> bucket telesia-app-updates) ----------
 // The dashboard streams the file here in 32 MiB parts (R2 multipart upload), so one release is ONE public file and the
 // phone downloads it in one go. Only admins: the caller's own sign-in is checked by ai-admin "me" on every request.
 const PART = 32 * 1024 * 1024; // every part but the last has exactly this size (R2 needs equal parts, >= 5 MiB)
 const MAX_PARTS = 40; // 1.25 GiB, far above any app file
-const KEY = /^android\/([0-9]+)-[0-9a-f]{8}\/SubMac-([0-9]+)\.apk$/;
+const KEY = /^android\/([0-9]+)-[0-9a-f]{8}\/Telesia-([0-9]+)\.apk$/;
 const J = (b, status = 200) => new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
 async function admin(req, env, action = "me", body = {}) {
@@ -57,9 +57,9 @@ async function updates(req, env, op) {
       if (!Number.isInteger(code) || code <= 0) return J({ error: "Version number (build) is missing." }, 400);
       if (!Number.isInteger(size) || size <= 0 || size > PART * MAX_PARTS) return J({ error: "The file size is not right." }, 400);
       const rnd = [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("");
-      const key = `android/${code}-${rnd}/SubMac-${code}.apk`;
+      const key = `android/${code}-${rnd}/Telesia-${code}.apk`;
       const up = await env.UPDATES.createMultipartUpload(key, {
-        httpMetadata: { contentType: "application/vnd.android.package-archive", contentDisposition: `attachment; filename="SubMac-${code}.apk"` },
+        httpMetadata: { contentType: "application/vnd.android.package-archive", contentDisposition: `attachment; filename="Telesia-${code}.apk"` },
         customMetadata: { by: String(me.data.email || ""), size: String(size) },
       });
       return J({ key, upload_id: up.uploadId, part_size: PART, parts: Math.max(1, Math.ceil(size / PART)) });

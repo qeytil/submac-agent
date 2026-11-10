@@ -91,7 +91,7 @@ void main() {
   });
 
   group('Full access', () {
-    test('off: changes ask, small changes in SubMac\'s space do not; money always asks', () {
+    test('off: changes ask, small changes in Telesia\'s space do not; money always asks', () {
       expect(FullAccess.shouldAsk(level: BotTrust.levelNew, kind: 'change', tool: 'mcp_x', fullAccess: false), isTrue);
       expect(FullAccess.shouldAsk(level: BotTrust.levelNew, kind: 'change', tool: 'write_file', fullAccess: false), isFalse);
       expect(FullAccess.shouldAsk(level: BotTrust.levelNew, kind: 'change', tool: 'edit_file', fullAccess: false), isFalse);

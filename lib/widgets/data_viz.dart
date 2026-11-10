@@ -1,6 +1,6 @@
 part of 'diagram_card.dart';
 
-// Data and analytics visuals in the SubMac style: gauge, rings, columns, multi-line/area, scatter,
+// Data and analytics visuals in the Telesia style: gauge, rings, columns, multi-line/area, scatter,
 // heatmap, radar, waterfall, sparklines, and a branded free-form canvas.
 
 String _unitFmt(double v, String unit) =>

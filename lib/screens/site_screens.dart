@@ -16,7 +16,7 @@ import '../ui/tokens.dart';
 import '../widgets/sub_icon.dart';
 import '../ui/i18n.dart';
 
-/// Full-screen preview of a page SubMac built: try it at phone, tablet and computer width, then Publish.
+/// Full-screen preview of a page Telesia built: try it at phone, tablet and computer width, then Publish.
 class SitePreviewScreen extends StatefulWidget {
   const SitePreviewScreen({super.key, required this.path});
   final String path;
@@ -174,7 +174,7 @@ Future<void> _offerProject(BuildContext context, Site site, String? chatId) asyn
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Keep "${site.title}" as a project?', style: Brand.serif(size: 24, color: p.text)),
           const SizedBox(height: 8),
-          Text('You keep coming back to this site. As a project, its chats and files stay together and SubMac remembers what it is for.',
+          Text('You keep coming back to this site. As a project, its chats and files stay together and Telesia remembers what it is for.',
               style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.4)),
           const SizedBox(height: 16),
           SizedBox(
@@ -234,7 +234,7 @@ class _PublishSheetState extends State<_PublishSheet> {
     });
     try {
       if (host == SiteHost.vercel && !Sites.vercelConnected(widget.app)) {
-        setState(() => _working = 'Sign in to Vercel in the window that opens. SubMac carries on by itself.');
+        setState(() => _working = 'Sign in to Vercel in the window that opens. Telesia carries on by itself.');
         final err = await widget.app.connectMcpPreset(Sites.vercelPreset);
         if (err != null) throw PublishException(err);
         unawaited(widget.app.refreshMcpTools());
@@ -340,7 +340,7 @@ class _PublishSheetState extends State<_PublishSheet> {
       Text('Pick where your site lives. You can change this later.', style: TextStyle(color: p.muted, fontSize: AppText.meta)),
       const SizedBox(height: 16),
       _option(p,
-          title: 'Free SubMac link',
+          title: 'Free Telesia link',
           tag: 'No sign-up',
           line: 'Free link, 7 days.',
           onTap: () => _go(SiteHost.free)),
@@ -349,7 +349,7 @@ class _PublishSheetState extends State<_PublishSheet> {
           tag: vercelOn ? 'Connected' : 'Free account',
           line: vercelOn
               ? 'Stays online for good, in your own Vercel account. Add your own domain there any time.'
-              : 'Stays online for good, in your own account. You sign in once, SubMac does the rest.',
+              : 'Stays online for good, in your own account. You sign in once, Telesia does the rest.',
           onTap: () => _go(SiteHost.vercel)),
     ]);
   }
@@ -412,7 +412,7 @@ class _PublishSheetState extends State<_PublishSheet> {
   }
 }
 
-/// Every site SubMac built on this phone, with where it lives and what is left on free links.
+/// Every site Telesia built on this phone, with where it lives and what is left on free links.
 class SitesScreen extends StatefulWidget {
   final bool embedded;
   const SitesScreen({super.key, this.embedded = false});
@@ -495,7 +495,7 @@ class _SitesScreenState extends State<SitesScreen> {
         builder: (context, _) {
           final list = Sites.I.list;
           if (list.isEmpty) {
-            return const EmptyHint(text: 'Sites SubMac builds for you show here, ready to publish.');
+            return const EmptyHint(text: 'Sites Telesia builds for you show here, ready to publish.');
           }
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),

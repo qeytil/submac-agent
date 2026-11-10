@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'billing_copy.dart';
 
 /// Plans, usage and payments as the app sees them (billing v2: no coins, one price per token).
-/// Every value comes from the server (`billing_usage`, the x-submac-* headers, error payloads); nothing here is a price list.
+/// Every value comes from the server (`billing_usage`, the x-telesia-* headers, error payloads); nothing here is a price list.
 
 int _int(Object? v, [int d = 0]) => v is num ? v.toInt() : int.tryParse('${v ?? ''}') ?? d;
 int? _intOrNull(Object? v) => v == null ? null : (v is num ? v.toInt() : int.tryParse('$v'));
@@ -221,7 +221,7 @@ class PaygBalance {
       PaygBalance(id: '${j['id'] ?? ''}', left: _int(j['left']), amount: _int(j['amount']), expiresAt: _time(j['expires_at']));
 }
 
-/// `billing_usage()` and the x-submac-* headers: what the user can spend now.
+/// `billing_usage()` and the x-telesia-* headers: what the user can spend now.
 @immutable
 class UsageSummary {
   final bool enabled;
@@ -283,7 +283,7 @@ class UsageSummary {
     );
   }
 
-  /// The four Contract A headers on a chat answer (x-submac-today-left / total-left / resets-at / plan). Null when the
+  /// The four Contract A headers on a chat answer (x-telesia-today-left / total-left / resets-at / plan). Null when the
   /// answer carried none of them.
   static Map<String, dynamic>? headerValues(Map<String, String> h) {
     String? g(String k) {
@@ -291,7 +291,7 @@ class UsageSummary {
       return v == null || v.trim().isEmpty ? null : v.trim();
     }
 
-    final today = g('x-submac-today-left'), total = g('x-submac-total-left'), resets = g('x-submac-resets-at'), plan = g('x-submac-plan');
+    final today = g('x-telesia-today-left'), total = g('x-telesia-total-left'), resets = g('x-telesia-resets-at'), plan = g('x-telesia-plan');
     if (today == null && total == null && resets == null && plan == null) return null;
     return {
       if (today != null && int.tryParse(today) != null) 'today_left': int.parse(today),
@@ -472,7 +472,7 @@ class BillingNotice {
       case 'no_plan':
         return tr('You need a plan for this.');
       case 'busy':
-        return tr('SubMac is busy. Try again soon.');
+        return tr('Telesia is busy. Try again soon.');
     }
     return tr("This reply couldn't be sent.");
   }

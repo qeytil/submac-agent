@@ -6,7 +6,7 @@ Model: the shipped WhatsApp phone engine (`docs/project-state.md` "WhatsApp on t
 
 ## 1. The decision this implements (owner, 2026-10-19 18:30 EAT)
 - No Composio (or any third-party connector) for users' Facebook/Instagram.
-- Until SubMac has its **own Meta app** (app review + business verification), Facebook (profile, Messenger, Pages via the app)
+- Until Telesia has its **own Meta app** (app review + business verification), Facebook (profile, Messenger, Pages via the app)
   and Instagram run on the **phone engine** = Path 2, same as WhatsApp: **notification access + accessibility** on the
   user's own phone, in the user's own installed apps.
 - Hard rules: **approval before posting / sending / replying**, **human-paced**, **no bulk**, **phone must be unlocked**,
@@ -29,18 +29,18 @@ Model: the shipped WhatsApp phone engine (`docs/project-state.md` "WhatsApp on t
 
 Out of scope: Threads (`com.instagram.barcelona`), WhatsApp (already shipped), Messenger Kids, Workplace.
 
-### What SubMac can do (user-facing)
+### What Telesia can do (user-facing)
 - "Who messaged me on Messenger / Instagram?" -> inbox from notifications (works with the screen off; reading only).
 - "Reply to Amina on Messenger: ..." -> approval card -> send (from the notification when it is still there, else open the
   chat, type, press Send, verify).
 - "Read my chat with Hodan on Instagram" -> opens the thread, reads the visible messages (+ scroll for older).
 - "What happened on Facebook today?" -> activity digest from notifications (comments, mentions, tags, Page messages).
 - "Reply to that comment on my Page: ..." -> approval card -> opens the post from the notification, types, presses Reply, verifies.
-- "Post this photo on Instagram with this caption" / "Post on my Page: ..." -> approval card -> SubMac **prepares** the
+- "Post this photo on Instagram with this caption" / "Post on my Page: ..." -> approval card -> Telesia **prepares** the
   composer (media + caption typed) and **the user taps Post/Share** (phase 4 decision, section 5).
 - Bots: watch a Messenger chat / Instagram DM / Page inbox and draft replies (approval), daily activity digest.
 
-### What SubMac will never do (refused in the tool, not just the prompt)
+### What Telesia will never do (refused in the tool, not just the prompt)
 - Bulk: no `send_bulk` action at all on Meta apps, one recipient per call, and a bulk detector (section 6).
 - Engagement automation: no likes, follows/unfollows, friend requests, group joins, story-view farming, auto-comments on
   other people's posts, mass tagging, "DM everyone who liked my post".
@@ -91,9 +91,9 @@ Send in Instagram.", "Error: the phone is locked ...".
 ### Approval cards (always, also with Full access)
 | Action | Card | Confirm | Edit | Who presses the final button |
 |---|---|---|---|---|
-| messenger reply/send, instagram reply/send | "Reply to Amina on Messenger?" + text | Send | yes | SubMac (verifies), fallback: typed for the user |
-| send_file | "Send photo.jpg to Amina on Messenger?" | Send | caption | SubMac via share picker; fallback user |
-| comment_reply (IG/FB/Page) | "Reply publicly to Hodan's comment on your post?" + text | Reply | yes | SubMac (verifies) |
+| messenger reply/send, instagram reply/send | "Reply to Amina on Messenger?" + text | Send | yes | Telesia (verifies), fallback: typed for the user |
+| send_file | "Send photo.jpg to Amina on Messenger?" | Send | caption | Telesia via share picker; fallback user |
+| comment_reply (IG/FB/Page) | "Reply publicly to Hodan's comment on your post?" + text | Reply | yes | Telesia (verifies) |
 | post (IG/FB/Page) | "Post on Instagram (feed)?" + caption + media names + "You tap Share" | Prepare | yes | **The user** (phase 4) |
 
 - Bots in the background ask through the approval notification (existing path).
@@ -121,7 +121,7 @@ Reuse, don't fork. WhatsApp.kt already contains a good MessagingStyle parser, a 
    - Intents: launch app, open DM list, **Instagram official share intents** (`com.instagram.share.ADD_TO_FEED`,
      `com.instagram.share.ADD_TO_STORY`, plain `ACTION_SEND` image/video to `com.instagram.android` for reel/feed), Facebook
      `ACTION_SEND` image to `com.facebook.katana` / `com.facebook.pages.app`, Messenger `ACTION_SEND` to `com.facebook.orca`.
-     Files go through the existing non-exported read-only provider `com.submac.agent.wafiles` (`WaFiles.kt`, reused as is;
+     Files go through the existing non-exported read-only provider `com.telesia.app.wafiles` (`WaFiles.kt`, reused as is;
      no new exported component). Note: Meta apps drop pre-filled text from share intents (platform policy), so captions are
      **typed by MetaHands** or, as fallback, put on the clipboard with "Paste the caption, then tap Share".
 3. **`MetaHands.kt` (accessibility, like WaHands):** per app: find entry box, Send button, verify the message appears and the box
@@ -136,7 +136,7 @@ Reuse, don't fork. WhatsApp.kt already contains a good MessagingStyle parser, a 
    ui_changed | unsure | no_button | timeout`.
 4. **NotifListener:** dispatch `MetaApps.isMeta(pkg)` like WhatsApp (respect a per-app "keep messages" switch); bot watch gap
    2 min per chat for messages, 10 min for activity.
-5. **Bridge** (`submac/system`): `metaStatus`, `metaInbox(pkg, query, unread, limit, per)`, `metaActivity(pkg, kinds, limit)`,
+5. **Bridge** (`telesia/system`): `metaStatus`, `metaInbox(pkg, query, unread, limit, per)`, `metaActivity(pkg, kinds, limit)`,
    `metaChat(query, pkg)`, `metaQuickReply(chat, pkg, text)`, `metaCapture(pkg, on)`, `metaClear(pkg)`, `metaAct(json)` (async,
    same `waAsync` style with timeout).
 6. **Manifest:** `<queries>` for all six packages + the Instagram share actions.
@@ -146,11 +146,11 @@ Reuse, don't fork. WhatsApp.kt already contains a good MessagingStyle parser, a 
 
 ## 5. Safety and approval rules
 - Approval card before every send / reply / comment / post (table above). Edit keeps the user's text exactly.
-- **Posting (decided): SubMac prepares, the user taps Post/Share.** Reasons: posts are public and permanent-feeling, composer UIs
+- **Posting (decided): Telesia prepares, the user taps Post/Share.** Reasons: posts are public and permanent-feeling, composer UIs
   change often, and the audience selector (Public / Friends / a Page) cannot be verified reliably by accessibility. After
-  phase 4 has clean monitoring numbers, a later setting "Let SubMac press Post after I approve" can be added (still never for
+  phase 4 has clean monitoring numbers, a later setting "Let Telesia press Post after I approve" can be added (still never for
   bots in the background).
-- Comment replies are pressed by SubMac after approval (short, on the user's own posts/Page only; the reply box is under a
+- Comment replies are pressed by Telesia after approval (short, on the user's own posts/Page only; the reply box is under a
   known comment, so the target is verifiable). Replying to comments on other people's posts: not supported.
 - Identity: never guess who someone is. `to` must match one chat in the store or the app's search results exactly (case- and
   accent-insensitive); two matches -> ask the user which one ("There are two chats called Ahmed: ...").
@@ -171,7 +171,7 @@ Reuse, don't fork. WhatsApp.kt already contains a good MessagingStyle parser, a 
 | Posts prepared (each app; IG feed+story+reel together) | – | 3 | 6 |
 | Thread reads (opening chats with hands) | 3 s | 60 | – |
 - **Bulk detector:** the same or near-same text (normalised, >80% token overlap) to more than 3 different chats within 30 minutes
-  is refused: "This looks like a bulk message. SubMac sends Messenger/Instagram messages one person at a time." Bots get the same.
+  is refused: "This looks like a bulk message. Telesia sends Messenger/Instagram messages one person at a time." Bots get the same.
 - Over a limit -> plain error with when it frees up; never queue silently.
 - Instagram is known to "action block" accounts that act fast; the numbers above are deliberately below normal human peaks.
   They live in `MetaLimiter` constants for phase 1; phase 0 adds optional `ai_settings` overrides only if real data asks for it.
@@ -190,12 +190,12 @@ Reuse, don't fork. WhatsApp.kt already contains a good MessagingStyle parser, a 
 Apps > On this phone > **Facebook & Instagram** (`lib/screens/meta_apps_screen.dart`, same building blocks as
 `whatsapp_screen.dart`): one card per installed app (Messenger, Instagram, Facebook, Meta Business Suite; Lite apps shown with
 "messages only"), each with:
-- **Use with SubMac** switch (default off; on = tool offered to the agent, notifications kept).
+- **Use with Telesia** switch (default off; on = tool offered to the agent, notifications kept).
 - Status rows with live state + deep links: Notification access (shared), Phone control (shared), "Keep messages on this phone"
   (per app), Clear saved messages.
-- Plain notes: what SubMac can and can't do, "You approve every message. Posts: SubMac gets them ready and you tap Post.",
-  "Works only while your phone is unlocked.", "SubMac never likes, follows or messages strangers for you."
-- One-line honesty note: "Meta can limit accounts that act too fast. SubMac keeps a human pace."
+- Plain notes: what Telesia can and can't do, "You approve every message. Posts: Telesia gets them ready and you tap Post.",
+  "Works only while your phone is unlocked.", "Telesia never likes, follows or messages strangers for you."
+- One-line honesty note: "Meta can limit accounts that act too fast. Telesia keeps a human pace."
 - Status JSON (`metaStatus`): per app installed/version/enabled/capture/chats/activity count, notifRead, phoneControl, locked.
 
 ## 9. Dashboard monitoring (frictionless, per feature, for WhatsApp too)
@@ -249,7 +249,7 @@ message text, names or usernames**.
 - **Meta terms and account limits:** automating Meta apps through accessibility is not an official integration. Mitigation: the
   user acts on their own account on their own phone, every outgoing item is approved, human pace, no engagement automation, no
   bulk, no cold outreach beyond 5/day. Residual risk of an action block (Instagram especially) remains and is stated in setup.
-- **Google Play accessibility policy:** fine for the sideloaded beta; before any Play listing SubMac needs the prominent
+- **Google Play accessibility policy:** fine for the sideloaded beta; before any Play listing Telesia needs the prominent
   disclosure + consent screen and the AccessibilityService declaration (applies to WhatsApp too).
 - **UI churn:** Facebook/Messenger/Instagram ship weekly and use generated views. Mitigation: id/description tables per app,
   `ui_changed` state with typed-for-user fallback, per-version monitoring (section 9) to spot breakage within hours.
@@ -280,7 +280,7 @@ Messenger/Instagram) — lowest risk, no UI automation, visible value in two to 
 - Three tools (`messenger`, `instagram`, `facebook`) instead of one; tools are sent only when the app is switched on in setup.
 - Facebook chats go through `messenger`; the `facebook` tool is activity, comment replies and posts only. Pages: Page inbox under
   `messenger` (`app: page`), Page posts under `facebook` (`as: page`), both via Meta Business Suite.
-- Posts: SubMac prepares, **the user taps Post/Share**; comment replies and private messages are pressed by SubMac after approval.
+- Posts: Telesia prepares, **the user taps Post/Share**; comment replies and private messages are pressed by Telesia after approval.
 - Trust (no card) only for private messages per bot per app; never for public actions; office trust does not bypass public actions.
 - Phone must be unlocked for every Meta outgoing step, **including notification quick replies** (stricter than WhatsApp).
 - No calls, no bulk action, no engagement automation, cold chats capped at 5/day; limits in section 6.

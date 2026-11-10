@@ -1,4 +1,4 @@
--- Billing day = EAT (Africa/Mogadishu, UTC+3, no DST) everywhere: PLAN.md Contract A says x-submac-resets-at is the next
+-- Billing day = EAT (Africa/Mogadishu, UTC+3, no DST) everywhere: PLAN.md Contract A says x-telesia-resets-at is the next
 -- EAT midnight, and usage_gate / billing v2 already count days in EAT (billing.eat_day). The legacy daily counters
 -- (ai_user_daily for tokens, live_call_daily for call minutes, used while billing_enabled is false) were keyed by the
 -- UTC date, so they reset at 03:00 EAT. From now on their `day` is the EAT date, so the allowance resets at 00:00 EAT.
@@ -96,12 +96,12 @@ begin
     perform flag_user(u, 'multi_account', 'medium', 'anomaly', array_length(r.ids, 1) || ' accounts on one phone', jsonb_build_object('device', left(r.device_id, 6))) from unnest(r.ids) u;
     n := n + 1;
   end loop;
-  -- Invitees who never used SubMac (2+ days after joining) for an inviter with 3+ rewarded invites.
+  -- Invitees who never used Telesia (2+ days after joining) for an inviter with 3+ rewarded invites.
   for r in select f.inviter_id, count(*) idle from referrals f
             where f.kind = 'invite' and f.status = 'rewarded' and f.created_at < now() - interval '2 days'
               and not exists (select 1 from ai_user_daily y where y.user_id = f.invitee_id)
             group by f.inviter_id having count(*) >= 3 loop
-    perform flag_user(r.inviter_id, 'reward_farming', 'medium', 'anomaly', r.idle || ' invited accounts never used SubMac', '{}'::jsonb); n := n + 1;
+    perform flag_user(r.inviter_id, 'reward_farming', 'medium', 'anomaly', r.idle || ' invited accounts never used Telesia', '{}'::jsonb); n := n + 1;
   end loop;
   return jsonb_build_object('ok', true, 'flags_touched', n);
 end $function$;

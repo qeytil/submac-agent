@@ -19,7 +19,7 @@ import 'bot_face.dart';
 import 'chat/message_actions.dart';
 import 'sub_icon.dart';
 
-/// Pieces of the Grok-style drawer, in SubMac's own look: quiet, collapsible sections of text-first rows,
+/// Pieces of the Grok-style drawer, in Telesia's own look: quiet, collapsible sections of text-first rows,
 /// no cards. Used by the main menu (Sidebar) and the Bots page.
 
 /// Which drawer sections are folded (kept for the app run).
@@ -444,7 +444,7 @@ Future<void> newTeamFlow(BuildContext context, {VoidCallback? before, void Funct
 }
 
 
-/// A bot's face, with SubMac's crown over it when it is the Chief.
+/// A bot's face, with Telesia's crown over it when it is the Chief.
 class ChiefFace extends StatelessWidget {
   const ChiefFace({super.key, required this.bot, required this.size, this.presence = false, this.mood = BotMood.idle});
   final Bot bot;
@@ -456,7 +456,7 @@ class ChiefFace extends StatelessWidget {
   Widget build(BuildContext context) {
     final face = BotAvatar(bot: bot, size: size, presence: presence, mood: mood);
     if (!Bots.I.isChief(bot)) return face;
-    // Grok marks its Primary Bot with a small badge; SubMac's Chief wears the crown on the face's top corner, cut out of
+    // Grok marks its Primary Bot with a small badge; Telesia's Chief wears the crown on the face's top corner, cut out of
     // the page colour so it reads on a dark or light face. It stays inside the face's box, so no row can clip it.
     final c = (size * 0.5).clamp(14.0, 20.0).toDouble();
     final p = Palette.of(context);
@@ -586,6 +586,6 @@ class RosterRow extends StatelessWidget {
 ({String line, DateTime? at}) teamLast(Office o) {
   final x = o.posts.where((e) => e.kind != 'update' && e.text.trim().isNotEmpty).lastOrNull;
   if (x == null) return (line: '${o.members.length} ${o.members.length == 1 ? 'bot' : 'bots'}', at: null);
-  final who = x.from == 'you' ? tr('You') : (Bots.I.byId(x.from)?.name ?? 'SubMac');
+  final who = x.from == 'you' ? tr('You') : (Bots.I.byId(x.from)?.name ?? 'Telesia');
   return (line: '$who: ${x.text.replaceAll(RegExp(r'\s+'), ' ').trim()}', at: x.at);
 }

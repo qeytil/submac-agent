@@ -47,7 +47,7 @@ void main() {
     // 11000 -> 11400 (core loop v3, 2026-11-01): web_research and the shell/run_shell honesty lines are worth ~160 tokens;
     // the cap still catches a schema that balloons.
     // 11400 -> 11500 (bots background, 2026-11-05): bot_telegram (~60 tokens) lets a bot's scheduled task message the
-    // owner in Telegram with SubMac closed. Bot tools reach opencode through find_tools, not with every step.
+    // owner in Telegram with Telesia closed. Bot tools reach opencode through find_tools, not with every step.
     // 11500 -> 11560 (team turns, 2026-11-06): office_watch (~40 tokens) lets a bot wait for a teammate's post instead
     // of polling ("analyze Nova's research once it posts"). Office tools are offered only under a team key.
     // 11560 -> 11970 (bot autonomy, 2026-11-07): the four mission tools (~400 tokens: plan, update/needs_you,

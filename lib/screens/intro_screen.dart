@@ -11,7 +11,7 @@ import '../ui/i18n.dart';
 import '../ui/intro_motion.dart';
 import '../ui/motion.dart';
 
-/// The first-launch intro (owner, 2026-10-26): on a clean white page the wordmark "SubMac" draws itself in behind a
+/// The first-launch intro (owner, 2026-10-26): on a clean white page the wordmark "Telesia" draws itself in behind a
 /// thin brand-blue pen line, then resolves into the logo (it scales and fades in), and the white dot lands last.
 /// As the pen passes each letter a light selection tick fires with one soft glass-like pluck (rising A-major
 /// pentatonic notes), then a warm two-note bloom plays as the logo lands, with one soft impact when the dot touches down. About three seconds; a tap anywhere skips
@@ -157,7 +157,7 @@ class IntroScreenState extends State<IntroScreen> with SingleTickerProviderState
   }
 }
 
-/// "SubMac" revealed left to right up to [edge] (0..1) through a soft mask, with a thin pen line riding the edge.
+/// "Telesia" revealed left to right up to [edge] (0..1) through a soft mask, with a thin pen line riding the edge.
 class IntroWordmark extends StatelessWidget {
   const IntroWordmark({super.key, required this.edge, this.pen = 1});
   final double edge;
@@ -209,7 +209,7 @@ class _PenPainter extends CustomPainter {
   bool shouldRepaint(_PenPainter old) => old.edge != edge || old.opacity != opacity;
 }
 
-/// The new SubMac logo: the light-blue tile with its blue "S" (assets/intro/submac_tile.svg), and the white dot drawn
+/// The new Telesia logo: the light-blue tile with its blue "S" (assets/intro/telesia_tile.svg), and the white dot drawn
 /// on top so it can land last. [dot] is the dot's arrival (0 = not there, 1 = landed).
 class IntroLogo extends StatelessWidget {
   const IntroLogo({super.key, this.dot = 1, this.size = IntroMotion.tileSize});
@@ -222,7 +222,7 @@ class IntroLogo extends StatelessWidget {
       dimension: size,
       child: CustomPaint(
         foregroundPainter: _DotPainter(dot),
-        child: SvgPicture.asset('assets/intro/submac_tile.svg', width: size, height: size),
+        child: SvgPicture.asset('assets/intro/telesia_tile.svg', width: size, height: size),
       ),
     );
   }

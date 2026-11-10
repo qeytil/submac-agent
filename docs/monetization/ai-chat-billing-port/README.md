@@ -30,7 +30,7 @@ md5 a7002d40…), cold and warm isolate.
   entitlements (precheck cache), planned from them; after the fresh precheck the plan is rebuilt and the early call is kept only if
   the first route and the exact request body match, otherwise it is aborted (nothing reached the client) and the loop starts over.
 - **Refusals** (`daily_limit`, `payments_pending`, `background_paused`) go through v30's `refuse()` (abort early call, mark gate).
-- **/status**: billing block + `x-submac-balance`; precheck in parallel with `ai_gate` + `live_minutes_left` when warm.
+- **/status**: billing block + `x-telesia-balance`; precheck in parallel with `ai_gate` + `live_minutes_left` when warm.
 - **Live / transcribe / image**: as in the v27 path (`billing_live_charge` per heartbeat, grace on outage, Standard-only media for free
   users, charged with `media:<uuid>` ids); image keeps v30's `ensureKeys(cfg, [r])` per route.
 - **Charges**: `billing_consume` with `chat:<uuid>`, retry → `billing_consume_enqueue` → in-isolate list (`billing_unsaved`).

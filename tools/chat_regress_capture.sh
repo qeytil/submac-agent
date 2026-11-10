@@ -3,10 +3,10 @@
 # the cold-start phases: P2 force-stop + relaunch (CB-21) and P3 process kill while a routine is due (CB-46).
 # ADB:<cmd> lines from the harness: front, notif, alarms, net_off, net_on, bg_60, doze_on, doze_off.
 # Every wait here is bounded. This script always exits 0; it writes out/logs/verdict.env and the workflow's Verdict
-# step fails the job on: drive exit != 0, any QAERR line, any STEPFAIL, a logcat FATAL EXCEPTION in SubMac, an
+# step fails the job on: drive exit != 0, any QAERR line, any STEPFAIL, a logcat FATAL EXCEPTION in Telesia, an
 # uncaught Flutter exception in logcat, or a missing "QA: done".
 set -u
-PKG=com.submac.agent
+PKG=com.telesia.app
 ACT=$PKG/.MainActivity
 DRIVE_MIN=${DRIVE_MIN:-110}
 mkdir -p out/shots out/logs
@@ -25,9 +25,9 @@ adb logcat -c; ( adb logcat -v time > out/logs/logcat.txt ) & LOGC=$!
 note() { echo "$(date -u +%T) $*" | tee -a out/logs/phases.txt; }
 front() { adb shell am start -n $ACT >/dev/null 2>&1 || adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1; }
 notif() { echo "=== $(date -u +%T) $1" >> out/logs/notifications.txt
-  adb shell dumpsys notification --noredact 2>/dev/null | grep -E "pkg=com.submac.agent|android.title=|android.text=|android.bigText=" | head -60 >> out/logs/notifications.txt; }
+  adb shell dumpsys notification --noredact 2>/dev/null | grep -E "pkg=com.telesia.app|android.title=|android.text=|android.bigText=" | head -60 >> out/logs/notifications.txt; }
 alarms() { echo "=== $(date -u +%T) $1" >> out/logs/alarms.txt
-  adb shell dumpsys alarm 2>/dev/null | grep -B1 -A4 "com.submac.agent" | grep -E "RTC|when|origWhen|com.submac|tag=" | head -40 >> out/logs/alarms.txt; }
+  adb shell dumpsys alarm 2>/dev/null | grep -B1 -A4 "com.telesia.app" | grep -E "RTC|when|origWhen|com.telesia|tag=" | head -40 >> out/logs/alarms.txt; }
 net() { if [ "$1" = off ]; then adb shell cmd connectivity airplane-mode enable; adb shell svc wifi disable; adb shell svc data disable
         else adb shell cmd connectivity airplane-mode disable; adb shell svc wifi enable; adb shell svc data enable; fi; note "net $1"; }
 
@@ -85,7 +85,7 @@ if [ -n "$DUE" ]; then
     note "P3 killed pid $PID (now '$(adb shell pidof $PKG | tr -d '\r')'), rk2 due $(date -u -d @$DUE3 +%T)"
     alarms "after kill"
     NOW=$(date +%s); SLEEP=$(( DUE3 + 150 - NOW )); [ $SLEEP -gt 0 ] && [ $SLEEP -lt 500 ] && sleep $SLEEP
-    note "P3 pid after the alarm: '$(adb shell pidof $PKG | tr -d '\r')'; opening SubMac to read the result"
+    note "P3 pid after the alarm: '$(adb shell pidof $PKG | tr -d '\r')'; opening Telesia to read the result"
     front
     for i in $(seq 1 25); do sleep 8; grep -qE "CB-46 (PASS|FAIL|SKIP)|P3: end of observation" out/logs/logcat.txt && break; done
     notif "P3 end"; alarms "P3 end"
@@ -102,7 +102,7 @@ grep -E "P2:|P3:" out/logs/logcat.txt > out/logs/phases_app.txt || true
 { grep -oE "CB-[0-9]+[ab]? (PASS|FAIL|SKIP)\|.*" out/logs/drive.txt; grep -oE "CB-(21|46) (PASS|FAIL|SKIP)\|P[23] .*" out/logs/logcat.txt | awk '!seen[$0]++'; } > out/logs/cb.txt || true
 grep -oE "CB-(21|46) (PASS|FAIL|SKIP)" out/logs/cb.txt | awk '{n[$2]++} END {printf "PHASE P: CB pass=%d fail=%d skip=%d\n", n["PASS"], n["FAIL"], n["SKIP"]}' >> out/logs/drive.txt
 grep -E "QA:|QAWARN|QAERR:|CB-[0-9]|PHASE|T:|ADB:" out/logs/drive.txt > out/logs/summary.txt || true
-# A FATAL EXCEPTION counts only when it is SubMac's process.
+# A FATAL EXCEPTION counts only when it is Telesia's process.
 grep -A2 "FATAL EXCEPTION" out/logs/logcat.txt | grep -c "Process: $PKG" > out/logs/n_fatal.txt || true
 grep -nE "FATAL EXCEPTION|ANR in|E/flutter|Unhandled Exception" out/logs/logcat.txt | head -300 > out/logs/crashes.txt || true
 NERR=$(grep -c "QAERR:" out/logs/drive.txt || true)

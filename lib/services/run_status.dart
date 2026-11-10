@@ -98,7 +98,7 @@ class RunStatus {
     preparing, approval, answer, queued, retryIn, reconnecting, compacting, checkingPage, stopping, failed, more,
   ];
 
-  /// The step labels of SubMac's own tools and the parallel-read groups (AppStateAgentStream._toolStatus).
+  /// The step labels of Telesia's own tools and the parallel-read groups (AppStateAgentStream._toolStatus).
   static const toolKeys = [
     'Taking a note', 'Updating my desk', 'Planning ahead', 'Setting a watch', 'Calling you', 'Asking {name}',
     'Sharing to the Docs', 'Checking the Docs', 'Sending the email', 'Reading an email', 'Checking your email',

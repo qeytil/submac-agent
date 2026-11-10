@@ -3,7 +3,7 @@
 /// code_build. Pure Dart (no Flutter, no state), so it is unit tested and the prompt text never changes between steps.
 ///
 /// Why: asked to "build my app APK on GitHub", the agent sometimes answered that it needs Android Studio or a computer.
-/// That is wrong: GitHub's ubuntu-latest runners already carry the Android SDK, and SubMac's own APK is built that way
+/// That is wrong: GitHub's ubuntu-latest runners already carry the Android SDK, and Telesia's own APK is built that way
 /// (.github/workflows/dev-check.yml and build-apk.yml in this repo).
 class ApkBuild {
   ApkBuild._();
@@ -18,7 +18,7 @@ class ApkBuild {
   /// One line for the shared house rules (every prompt: main agent, quick replies, Live, bots, teams).
   static const rule = '- Android apps (APK or AAB) can be built remotely on GitHub Actions with no computer: GitHub\'s ubuntu-latest '
       'machines already have the Android SDK, build-tools, platform-tools and Java (ANDROID_HOME is set). $marker and is never '
-      'needed; SubMac itself is built this way. Never say a remote APK build is impossible or needs Android Studio or a local setup: '
+      'needed; Telesia itself is built this way. Never say a remote APK build is impossible or needs Android Studio or a local setup: '
       'offer it (skill $skillId).';
 
   /// The short version for a team job.
@@ -389,13 +389,13 @@ jobs:
       'build again.\n'
       '5. At most 3 tries on failures. Then stop and tell the user the exact error line from the log and what it needs from them.\n'
       '6. Success: give the APK (code_build downloads it to builds/<repo>/: show it with a ```file card), the run link, and the '
-      'Release link when you made one. Say once how to install: open it and allow "install unknown apps" for SubMac.\n'
+      'Release link when you made one. Say once how to install: open it and allow "install unknown apps" for Telesia.\n'
       'Private repos use the free 2,000 Actions minutes a month; public repos are free without a limit.\n';
 
   static const _facts = '## Facts (never get these wrong)\n'
       '- GitHub\'s ubuntu-latest runners already have the Android SDK (ANDROID_HOME and ANDROID_SDK_ROOT set), build-tools, '
       'platform-tools, cmdline-tools and several Java versions. Nothing has to be installed by hand.\n'
-      '- Android Studio is only an editor: it is never needed to build an APK. No computer is needed either; SubMac itself is built '
+      '- Android Studio is only an editor: it is never needed to build an APK. No computer is needed either; Telesia itself is built '
       'this way.\n'
       '- Never tell the user a remote APK build is impossible. If something blocks it (GitHub not connected, the token lacks the '
       '"workflow" permission, the code has errors), say exactly that and how to clear it.\n';
@@ -409,7 +409,7 @@ jobs:
       '## Xaqiiqooyin\n'
       '- Mashiinnada GitHub Actions (ubuntu-latest) waxaa horey ugu jira Android SDK, build-tools, platform-tools iyo Java '
       '(ANDROID_HOME waa la dejiyay). Waxba gacanta laguma rakibo.\n'
-      '- Android Studio waa tafatire kaliya: weligeed looma baahna si APK loo dhiso. Kombiyuutarna looma baahna; SubMac laftiisa '
+      '- Android Studio waa tafatire kaliya: weligeed looma baahna si APK loo dhiso. Kombiyuutarna looma baahna; Telesia laftiisa '
       'sidaas ayaa loo dhisaa.\n'
       '- Weligaa ha oran "ma suurtowdo". Haddii wax xannibayaan (GitHub lama xirin, token-ku ma laha ogolaanshaha "workflow", '
       'koodhka khalad ayaa ku jira), sheeg kaas iyo sida loo xalliyo.\n\n'
@@ -424,7 +424,7 @@ jobs:
       'saxiixa (signing). Sababta dhabta ah xalli, push garee, mar kale dhis.\n'
       '5. Ugu badnaan 3 jeer. Kadib u sheeg isticmaalaha sadarka khaladka ee log-ga iyo waxa looga baahan yahay.\n'
       '6. Guul: sii APK-ga (```file card), link-ga run-ka, iyo link-ga Release haddii aad samaysay. Sida loo rakibo: fur faylka, '
-      'oggolow "install unknown apps" SubMac.\n\n'
+      'oggolow "install unknown apps" Telesia.\n\n'
       '## Saxiixa (ikhtiyaari)\nCaadi ahaan waa furaha debug: waa la rakibi karaa lana wadaagi karaa, laakiin Google Play ma aha. '
       'Furaha isticmaalaha: afar secrets oo repo-ga ah (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, '
       'ANDROID_KEY_PASSWORD). Weligaa keystore ama password ha gelin repo-ga ama chat-ka. Isla furaha ku hay update kasta.\n\n'

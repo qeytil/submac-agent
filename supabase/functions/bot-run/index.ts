@@ -9,7 +9,7 @@
 //
 // Per bot: claim + 5 min lock (bot_run_claim) -> due jobs from `schedule` (phone-local routine times via
 // tz_offset_min, UTC follow-ups, heartbeat) minus run_state.done -> allowance and token budget checks -> heartbeat:
-// a tiny check first (model "submac", small max_tokens); routines and follow-ups go straight to work -> work through ai-chat (internal call,
+// a tiny check first (model "telesia", small max_tokens); routines and follow-ups go straight to work -> work through ai-chat (internal call,
 // the user's allowance, source 'bot-cloud'), cloud-safe tools only, at most 6 steps -> journal / memory / desk rows
 // with origin 'cloud' -> run_state.done, last_run_at, next_run_at, lock cleared -> push (push-send) for messages.
 // Never writes messages, setup, schedule or device_id.
@@ -36,7 +36,7 @@ const DEADLINE_MS = 60_000;   // stop starting new jobs (and bots) after this
 const MODEL_TIMEOUT_MS = 40_000;
 const JOB_MS = 120_000;
 const ROUND_WALL_MS = 140_000;
-const MODEL = "submac";       // the one public model; ai-chat's router picks the route
+const MODEL = "telesia";       // the one public model; ai-chat's router picks the route
 const GRACE_MS = 3 * 3600_000;        // a routine time missed by more than this is skipped, not run late
 const FOLLOWUP_STALE_MS = 3 * 86400_000;
 const DAY_MS = 86400_000;
@@ -162,7 +162,7 @@ async function callModel(ctx: Ctx, body: Record<string, unknown>, until = Number
       method: "POST", signal: ctl.signal,
       headers: {
         "content-type": "application/json", authorization: `Bearer ${SERVICE}`, apikey: SERVICE,
-        "x-submac-internal": ctx.secret, "x-submac-user": ctx.uid, "x-submac-chat": cut("bot:" + ctx.botId, 64),
+        "x-telesia-internal": ctx.secret, "x-telesia-user": ctx.uid, "x-telesia-chat": cut("bot:" + ctx.botId, 64),
       },
       body: JSON.stringify({ ...body, stream: false }),
     });
@@ -215,10 +215,10 @@ function stablePrompt(ctx: Ctx): string {
   const trusted = str(s.tr) === "trusted";
   const out: string[] = [];
   out.push("# Who you are",
-    `You are ${name}, the user's ${role || "colleague"}. You work for them inside SubMac like a trusted employee: ` +
+    `You are ${name}, the user's ${role || "colleague"}. You work for them inside Telesia like a trusted employee: ` +
     "you own your job, take initiative, remember what matters and keep every promise.");
   if (str(s.persona).trim()) out.push(cut(str(s.persona).trim(), 4000));
-  out.push(`Stay in character: you are ${name}, never "an AI" or SubMac. Write like a person texting a colleague: short, warm, specific; headings only in a report.`);
+  out.push(`Stay in character: you are ${name}, never "an AI" or Telesia. Write like a person texting a colleague: short, warm, specific; headings only in a report.`);
   if (str(s.mission).trim()) out.push("", "Your job for this user: " + cut(str(s.mission).trim(), 1500));
   if (str(s.ins).trim()) out.push("", "# Your instructions (from the owner, always follow them)", cut(str(s.ins).trim(), 8000));
   out.push("", "# How you work",
@@ -727,7 +727,7 @@ async function runBot(row: any, secret: string, cap: number, t0: number): Promis
         } else {
           const text = out.text.trim();
           const jid = await journal(ctx, out.kind === "message" ? "message" : "note", `${label} (cloud): ${cut(text.replace(/\s+/g, " "), 300)}`, text);
-          if (out.kind === "message") ({ sent: res.pushed, note: res.push_note } = await push(ctx, str(ctx.setup.name || ctx.name || "SubMac"), cut(text.replace(/\s+/g, " "), 300), jid));
+          if (out.kind === "message") ({ sent: res.pushed, note: res.push_note } = await push(ctx, str(ctx.setup.name || ctx.name || "Telesia"), cut(text.replace(/\s+/g, " "), 300), jid));
         }
         results.push(res);
       }

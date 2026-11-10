@@ -1,4 +1,4 @@
-// Conversion between SubMac's OpenAI-style chat (what ai-chat speaks, what the app builds its prompt as) and Genkit's
+// Conversion between Telesia's OpenAI-style chat (what ai-chat speaks, what the app builds its prompt as) and Genkit's
 // typed messages. Lossless both ways for everything the app sends: each converted message keeps its original map in
 // `metadata['oa']`, and a tool call keeps its exact argument text and provider data (Gemini thought signatures) in the
 // part's metadata.

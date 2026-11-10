@@ -52,9 +52,9 @@ Found in the 2026-11-02..06 tool rows:
 ## C. Bots and the owner's connected apps
 
 - The alarm gate opened when the bots and scheduled tasks had loaded, before the owner's connected apps and MCP
-  servers were read, so a bot's run started by an alarm with SubMac closed found no apps. The gate now opens after
+  servers were read, so a bot's run started by an alarm with Telesia closed found no apps. The gate now opens after
   them.
-- `bot_telegram` only knew SubMac's own Telegram; the owner had connected their own Telegram bot in Apps, and the bot
+- `bot_telegram` only knew Telesia's own Telegram; the owner had connected their own Telegram bot in Apps, and the bot
   kept saying "not connected". It now sends through the connected Telegram bot (owner's chat = newest private chat
   from getUpdates, kept after the first send).
 - A bot's opencode brief now lists the owner's connected apps it may use (cut by its powers and app scope) with how to

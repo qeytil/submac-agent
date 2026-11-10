@@ -84,7 +84,7 @@ void main() {
       expect(count('selectionClick'), inInclusiveRange(1, 5));
       expect(count('mediumImpact'), 0);
 
-      // The draw is done: one tick per letter of "SubMac", at most six.
+      // The draw is done: one tick per letter of "Telesia", at most six.
       await tester.pump(const Duration(milliseconds: 800)); // 1550 ms
       expect(count('selectionClick'), IntroMotion.word.length);
       expect(IntroMotion.word.length, lessThanOrEqualTo(6));

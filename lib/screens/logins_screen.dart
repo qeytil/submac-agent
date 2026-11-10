@@ -10,7 +10,7 @@ import '../ui/tokens.dart';
 import '../widgets/surface.dart';
 import '../ui/i18n.dart';
 
-/// Sites SubMac can sign in to for the user. Logins stay encrypted on this phone.
+/// Sites Telesia can sign in to for the user. Logins stay encrypted on this phone.
 class LoginsScreen extends StatelessWidget {
   const LoginsScreen({super.key});
 

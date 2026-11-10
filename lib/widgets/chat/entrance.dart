@@ -87,7 +87,7 @@ class _EntranceState extends State<Entrance> with SingleTickerProviderStateMixin
   }
 }
 
-/// SubMac's list reveal: each row rises and settles in turn ([SubMotion.staggerFor]), once, when the
+/// Telesia's list reveal: each row rises and settles in turn ([SubMotion.staggerFor]), once, when the
 /// list first shows (the menu opening, the Bots page arriving). Rows past [maxAnimated] simply appear.
 /// An [Expanded] or [Flexible] row keeps its place in the Column and animates its child.
 List<Widget> revealRows(List<Widget> rows, {int maxAnimated = 12}) => [

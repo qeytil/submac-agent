@@ -42,8 +42,8 @@ Root causes of the rail glitch (all in `lib/screens/bots_workspace.dart`, fixed 
 4. **Two motions.** Open used 280 ms on `settle`, fold 180 ms on `leave`. Now one LuxMotion duration, with the curve mirrored on the way back.
 5. **Keyboard snap-shut.** `_KeyboardWatch` folded the rail on every frame the keyboard showed at all. Tapping the toggle with the keyboard up (which puts the keyboard away) opened the rail and closed it again a frame later. It now folds only while the keyboard is coming up.
 
-The chat never relays out: the rail is a fixed-width overlay (84 dp, same soft edge and SubMac mark). Reduced motion jumps straight to the end; RTL slides in from the right.
+The chat never relays out: the rail is a fixed-width overlay (84 dp, same soft edge and Telesia mark). Reduced motion jumps straight to the end; RTL slides in from the right.
 
-Header: the same as the main SubMac chat. No band. The rail toggle, Call and "+" are blurred circles (`FloatIcon`). Who you're talking to is a light blurred pill (`FrostedSurface`) with a 22 dp face in its tiny status ring and the name. The chat scrolls behind it and fades at the top edge (`ChatEdgeFade`). It swaps in place on chat switch. Its height is still `chatTopInset`.
+Header: the same as the main Telesia chat. No band. The rail toggle, Call and "+" are blurred circles (`FloatIcon`). Who you're talking to is a light blurred pill (`FrostedSurface`) with a 22 dp face in its tiny status ring and the name. The chat scrolls behind it and fades at the top edge (`ChatEdgeFade`). It swaps in place on chat switch. Its height is still `chatTopInset`.
 
 Known limit: opening the rail while the keyboard is up still lets the Scaffold resize the chat as the keyboard goes down. That is the keyboard moving, not the rail.

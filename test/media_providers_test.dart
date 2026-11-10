@@ -10,7 +10,7 @@ import 'package:agent/services/ai_models.dart';
 import 'package:agent/services/byok.dart';
 import 'package:agent/services/media_gen.dart';
 import 'package:agent/services/media_providers.dart';
-import 'package:agent/services/submac_gateway.dart';
+import 'package:agent/services/telesia_gateway.dart';
 
 const _key = 'sk-test-SECRET-1234567890';
 
@@ -178,16 +178,16 @@ void main() {
       expect('${fn['description']}', contains('never make media they did not ask'));
       expect('${fn['description']}', isNot(contains(_key)));
       // opencode's per-message tools stay find_tools + run_tool.
-      final listing = SubMacGateway.listing(defs);
+      final listing = TelesiaGateway.listing(defs);
       expect(listing.map((t) => (t['function'] as Map)['name']), ['find_tools', 'run_tool']);
       // ...and find_tools finds it.
-      final gw = SubMacGateway(tools: () => defs, run: (n, a) async => '');
+      final gw = TelesiaGateway(tools: () => defs, run: (n, a) async => '');
       expect(gw.find('make a video or picture media'), contains('media_generate'));
     });
 
-    test('the submac skill says when to use it', () {
-      expect(SubMacGateway.skill, contains('media_generate'));
-      expect(SubMacGateway.skill, contains('never make media they did not ask for'));
+    test('the telesia skill says when to use it', () {
+      expect(TelesiaGateway.skill, contains('media_generate'));
+      expect(TelesiaGateway.skill, contains('never make media they did not ask for'));
     });
   });
 

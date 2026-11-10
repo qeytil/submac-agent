@@ -1,4 +1,4 @@
-// SubMac browser page script v2 (browser-use v2). Injected at document start and on demand.
+// Telesia browser page script v2 (browser-use v2). Injected at document start and on demand.
 // Source of truth for lib/services/browser/page_script.dart (tools/gen_page_script.py copies it there).
 // Rules: never mutate the page's DOM (no overlays, no attributes); every wait has a hard limit;
 // coordinates the agent sees are fractions of the VISUAL viewport (what the screenshot shows), so

@@ -11,7 +11,7 @@ import '../ui/tokens.dart';
 ///
 /// Only the working ring moves: a brighter arc travels slowly around it. The arc turns with a transform (no repaint
 /// of the face, no layout), in its own RepaintBoundary, and only while working; under reduced motion the ring stands
-/// still. Colour changes cross-fade on SubMac's settle curve.
+/// still. Colour changes cross-fade on Telesia's settle curve.
 class StatusRing extends StatefulWidget {
   const StatusRing({super.key, required this.state, required this.size, required this.child});
 

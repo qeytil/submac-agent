@@ -118,7 +118,7 @@ extension AppStateConnectors on AppState {
   }
 
   /// The agent adds an MCP server the user described in chat (address, and a key or token when it needs one). It is
-  /// saved like one added in Apps, so it shows there and every chat, bot and call can use it. No key: SubMac checks
+  /// saved like one added in Apps, so it shows there and every chat, bot and call can use it. No key: Telesia checks
   /// whether the server wants a sign-in and opens it.
   Future<String> addMcpServerFromChat(Map<String, dynamic> a) async {
     final token = '${a['token'] ?? ''}'.trim();

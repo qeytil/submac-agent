@@ -104,7 +104,7 @@ void main() {
 
     test('Edit opens the text when there is text to change, otherwise asks for a change', () {
       const a = BubbleAsk(id: '1', kind: 'approval', who: 'Ada', title: 'Send reply', editText: 'Hi');
-      const b = BubbleAsk(id: '2', kind: 'confirm', who: 'SubMac', title: 'Delete');
+      const b = BubbleAsk(id: '2', kind: 'confirm', who: 'Telesia', title: 'Delete');
       expect(bubbleEditMode(a), BubbleEdit.inPlace);
       expect(bubbleEditMode(b), BubbleEdit.askForChange);
       expect(a.toJson()['editable'], isTrue);
@@ -112,8 +112,8 @@ void main() {
     });
 
     test('sign-ins never go in the bubble', () {
-      const q = BubbleAsk(id: 'q', kind: 'question', who: 'SubMac', title: 'Sign in', needsApp: true);
-      final s = bubbleState(owner: 'c1', who: 'SubMac', step: 'Signing in', lines: const [], ask: q);
+      const q = BubbleAsk(id: 'q', kind: 'question', who: 'Telesia', title: 'Sign in', needsApp: true);
+      final s = bubbleState(owner: 'c1', who: 'Telesia', step: 'Signing in', lines: const [], ask: q);
       expect((s['ask'] as Map)['needsApp'], isTrue);
       expect(s['owner'], 'c1');
       expect(s['canType'], isTrue);

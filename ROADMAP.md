@@ -1,16 +1,16 @@
-# SubMac Agent roadmap (agreed 2026-10-13)
+# Telesia roadmap (agreed 2026-10-13)
 
 > Historical. Current state: `docs/project-state.md`. Current plans: `docs/plans-2026-10.md`.
 
 ## Status
-- **v1.4.0 (shipped 2026-10-14)**: provider limits (requests/tokens per minute, requests per day) with calm waiting, auto-retry on "too many requests", backup model, usage meter, Test connection, Get a free key guide; reply style (short answer first, then cards) with new cards (Table, Photos, Images, Rich links, Code Run, Receipt + Undo, Confirm), shimmer while a card is written, spring fade-in motion; web search with source chips; Memory (remember/forget + Settings page, synced); no-login tools (weather, Wikipedia, currency, maps, RSS, YouTube transcripts); phone actions (alarm, timer, calendar, call/SMS drafts, open link/app, share); camera, Scan text (on-device OCR), PDF reading; Files screen + Share to SubMac; Connectors (Composio and any MCP server, GitHub, Notion, Brave/Tavily search keys).
-- **Next (1.5)**: SubMac built-in model (zero-setup default via a Supabase key pool, parked 2026-10-14); email connector (IMAP/SMTP with app password); jump-to-latest pill; scheduled automations.
+- **v1.4.0 (shipped 2026-10-14)**: provider limits (requests/tokens per minute, requests per day) with calm waiting, auto-retry on "too many requests", backup model, usage meter, Test connection, Get a free key guide; reply style (short answer first, then cards) with new cards (Table, Photos, Images, Rich links, Code Run, Receipt + Undo, Confirm), shimmer while a card is written, spring fade-in motion; web search with source chips; Memory (remember/forget + Settings page, synced); no-login tools (weather, Wikipedia, currency, maps, RSS, YouTube transcripts); phone actions (alarm, timer, calendar, call/SMS drafts, open link/app, share); camera, Scan text (on-device OCR), PDF reading; Files screen + Share to Telesia; Connectors (Composio and any MCP server, GitHub, Notion, Brave/Tavily search keys).
+- **Next (1.5)**: Telesia built-in model (zero-setup default via a Supabase key pool, parked 2026-10-14); email connector (IMAP/SMTP with app password); jump-to-latest pill; scheduled automations.
 
 Principle: power under the hood, zero jargon on screen. Agent actions shown as plain-language cards ("Organizing your Downloads"), tech details collapsible.
 
 ## Phase 1 (next): Device access
 - All-files access toggle (MANAGE_EXTERNAL_STORAGE, permission_handler); onboarding card explains in plain words
-- Built-in file browser + "share to SubMac Agent" from any app (share intent)
+- Built-in file browser + "share to Telesia" from any app (share intent)
 - Safe mode: confirm before delete/overwrite outside workspace; trash folder instead of rm
 
 ## Design pass (runs with Phase 1): Premium, calm, simple
@@ -32,7 +32,7 @@ Principle: power under the hood, zero jargon on screen. Agent actions shown as p
 - Keeps running with screen off (foreground service); session timer / usage hint
 - Provider-agnostic layer so OpenAI Realtime etc. can be added later
 
-## SubMac brand
+## Telesia brand
 - Paper #f4f0e7 / ink #17150f / signature red #c2361b (sparingly); dark mode = ink bg, cream text
 - Instrument Serif (titles, greeting, Live captions), Geist (UI), Geist Mono (code); 4px corners, hairline rules
 - App icon: serif S on ink square + red dot; Live orb = the red dot
@@ -52,7 +52,7 @@ Principle: power under the hood, zero jargon on screen. Agent actions shown as p
 ## Agentic but simple
 - Goals not commands; plan card for big jobs (Start/Edit); background tasks + notification; self-check & retry
 - Outcome lines, Details to reveal commands; permission levels (Ask always / Ask for risky / Just do it)
-- SubMac trash (30-day restore), Undo; memory page; scheduled automations; one-tap action gallery
+- Telesia trash (30-day restore), Undo; memory page; scheduled automations; one-tap action gallery
 
 ## Smarter tools & commands
 - Bundled Linux toolbox (Termux/proot-style, ~100 MB on first use): Python, ffmpeg, zip, curl, ImageMagick, PDF tools (sideload flavor; check Play policy)
@@ -73,7 +73,7 @@ Principle: power under the hood, zero jargon on screen. Agent actions shown as p
 - Free voice: Android speech recognition dictation + TextToSpeech read-aloud
 - Auto chat titles, pin/rename, swipe-delete + Undo, instant search, long-press menu (Copy/Edit/Regenerate/Read aloud/Share), time-of-day greeting
 - Share reply as branded image card; export chat to PDF
-- App icon shortcuts (New chat/Live/Scan), quick settings tile, home widget, Share-to-SubMac
+- App icon shortcuts (New chat/Live/Scan), quick settings tile, home widget, Share-to-Telesia
 - Shimmer loaders, offline drafts/queued send, optional sound cues, tablet layout
 
 ## Built-in skills (playbooks) for non-tech users
@@ -83,12 +83,12 @@ Principle: power under the hood, zero jargon on screen. Agent actions shown as p
 - Communication: Draft email/WhatsApp message, Reply to email, Summarize inbox, Polite complaint/request
 - Business: Social post + image, Product description, Invoice/receipt, Simple website/landing copy, Customer reply
 - Learning: Explain like I'm new, Step-by-step how-to, Language practice (incl. Somali/Arabic)
-- Each skill = hidden playbook + one-tap card in Actions gallery; auto-triggered from normal chat; users can save their own ("Teach SubMac")
+- Each skill = hidden playbook + one-tap card in Actions gallery; auto-triggered from normal chat; users can save their own ("Teach Telesia")
 
 ## Builder skill (websites & mini-apps for non-tech users)
 - Flow: describe -> 2-3 simple questions (name, style, photos) -> agent builds static site/PWA in sandbox -> live preview in app WebView (phone/tablet/desktop toggle)
 - Edit by talking ("make the title bigger") or tap an element and say what to change; version history + Undo
-- One-tap Publish to free hosting, e.g. name.submac.site (Cloudflare Pages); custom domain later; QR code + share link
+- One-tap Publish to free hosting, e.g. name.telesia.site (Cloudflare Pages); custom domain later; QR code + share link
 - Mini-apps = installable PWAs (trackers, calculators, booking/order forms, quizzes); form/data storage via Supabase
 - Templates: business page, shop catalog with WhatsApp order button, restaurant menu, portfolio, CV site, event invite, link-in-bio
 - Brand kit from a logo photo (colors/fonts); AI images; plain-language SEO
@@ -122,7 +122,7 @@ Principle: power under the hood, zero jargon on screen. Agent actions shown as p
 - Phone actions via intents: set alarm/reminder, calendar event, open app, share, call/SMS draft (user confirms)
 
 ## Phase 4: Easy setup & accounts
-- (Later, user decision) Built-in default SubMac model (proxy via Supabase Edge Function) so non-tech users need no API key; advanced users add their own
+- (Later, user decision) Built-in default Telesia model (proxy via Supabase Edge Function) so non-tech users need no API key; advanced users add their own
 - Google sign-in; chat sync across devices already on
 - Image generation; shareable chat links
 

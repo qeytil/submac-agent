@@ -1,10 +1,10 @@
 class AppConfig {
-  static const appName = 'SubMac Agent';
+  static const appName = 'Telesia';
   /// Shown in Settings; keep in step with pubspec.yaml.
   static const version = '1.13.79';
-  static const supportEmail = 'contact@submac.site';
-  static const privacyUrl = 'https://submac.site/submacagent/privacypolicy';
-  static const termsUrl = 'https://submac.site/submacagent/termsofuse';
+  static const supportEmail = 'contact@telesia.site';
+  static const privacyUrl = 'https://telesia.site/telesiaagent/privacypolicy';
+  static const termsUrl = 'https://telesia.site/telesiaagent/termsofuse';
   /// Region the cloud proxy (edge functions) runs in, sent as `x-region` on every call. Pinned to the database's
   /// region (Frankfurt): unpinned, Supabase runs the function near the caller and every database check crosses
   /// the world (measured ~1.3 s of setup before the model vs ~0.3 s pinned).

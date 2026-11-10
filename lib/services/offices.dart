@@ -370,7 +370,7 @@ class Office {
   int dailyLimit;
   /// The owner's standing rules: when to escalate, spend limits, tone, what never to do.
   String rules;
-  /// The team's folder in Files, relative to SubMac's files (e.g. "Teams/Hodan Coffee"); '' until migrated.
+  /// The team's folder in Files, relative to Telesia's files (e.g. "Teams/Hodan Coffee"); '' until migrated.
   String folder = '';
   /// 1 = an office from before Teams; 2 = a team (docs copied into its folder).
   int v = 1;
@@ -567,7 +567,7 @@ class Approval {
   /// money | send | delete | change ('' = unknown): a money ask is never approved by Full access.
   final String kind;
   bool get isMoney => kind == 'money' || group == 'money';
-  /// Asks every time, even with Full access on: money, and changes to how SubMac itself works (kind 'settings').
+  /// Asks every time, even with Full access on: money, and changes to how Telesia itself works (kind 'settings').
   bool get alwaysAsks => isMoney || kind == 'settings';
   /// What the owner changed it to ('' = approved as it was). [wantsChange] = they asked for a change first.
   String edited = '';
@@ -1022,7 +1022,7 @@ class Offices extends ChangeNotifier {
   Map<String, dynamic> export(Office o) {
     final team = [for (final id in o.members) Bots.I.byId(id)].whereType<Bot>().toList();
     return {
-      'submac': 'office',
+      'telesia': 'office',
       'v': 1,
       'name': o.name, 'goal': o.goal, 'icon': o.icon, 'rules': o.rules, 'mode': o.mode == 'paused' ? 'manual' : o.mode,
       'check_minutes': o.checkMinutes, 'work_from': o.workFrom, 'work_to': o.workTo, 'digest_time': o.digestTime,
@@ -1036,7 +1036,7 @@ class Offices extends ChangeNotifier {
 
   /// An office from a shared copy. Team members you already have (same name and role) are reused, the rest join new.
   Future<Office?> importOffice(Map<String, dynamic> j) async {
-    if ('${j['submac']}' != 'office') return null;
+    if ('${j['telesia']}' != 'office') return null;
     final ids = <String>[];
     for (final e in (j['bots'] as List? ?? const [])) {
       final m = Map<String, dynamic>.from(e as Map);

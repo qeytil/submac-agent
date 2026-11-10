@@ -1,6 +1,6 @@
-// Bots working with SubMac closed (owner bug 2026-11-05): a bot's scheduled task must run on its own, every hour,
+// Bots working with Telesia closed (owner bug 2026-11-05): a bot's scheduled task must run on its own, every hour,
 // with the app closed. These cover the Dart side of that path (docs/bots-background.md): alarms that arrive before
-// SubMac is ready, the foreground line, held wakes retried without the screen, permissions and approvals in a run
+// Telesia is ready, the foreground line, held wakes retried without the screen, permissions and approvals in a run
 // nobody watches, and the owner's own Telegram. The engine is mocked (AppState.debugRunAgent).
 //
 // Run: flutter test test/bots_unattended_test.dart
@@ -39,8 +39,8 @@ Future<void> _settle([int ms = 20]) => Future<void>.delayed(Duration(millisecond
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('AlarmGate: an alarm that comes before SubMac is ready waits instead of being dropped', () {
-    test('alarms wait, then run in the order they came once SubMac is ready', () async {
+  group('AlarmGate: an alarm that comes before Telesia is ready waits instead of being dropped', () {
+    test('alarms wait, then run in the order they came once Telesia is ready', () async {
       final g = AlarmGate();
       final ran = <String>[];
       final a = g.run(() async => ran.add('a'));
@@ -77,7 +77,7 @@ void main() {
           'Nova · Send me local and international news every hour…');
       expect(BgRun.line('Nova', BgRun.title('')), 'Nova · Check-in');
       expect(BgRun.line('Nova', BgRun.title('(retry) Daily brief\nmore lines')), 'Nova · Daily brief');
-      expect(BgRun.line('', 'X'), 'SubMac · X');
+      expect(BgRun.line('', 'X'), 'Telesia · X');
     });
 
     test('permissions with nobody watching: what the owner already allowed goes, the rest is refused at once', () {
@@ -193,7 +193,7 @@ void main() {
       if (await tmp.exists()) await tmp.delete(recursive: true);
     });
 
-    test('an alarm before SubMac is ready runs once it is, unattended, with "<Bot> · <task>" on the notification', () async {
+    test('an alarm before Telesia is ready runs once it is, unattended, with "<Bot> · <task>" on the notification', () async {
       s.repo.testUserId = 'u1';
       final fired = s.onAlarmForTest(Bots.alarmId(b, 'news'));
       await _settle();

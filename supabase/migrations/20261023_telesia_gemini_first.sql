@@ -1,10 +1,10 @@
 -- Owner fix 2026-10-23 (after the first production smoke test of the one-model router, 20261023_router_single_model.sql).
 --
--- 1. Somali quality: the `submac` route list had the Ollama / NVIDIA routes first (unhealthy), so Poolside served every
+-- 1. Somali quality: the `telesia` route list had the Ollama / NVIDIA routes first (unhealthy), so Poolside served every
 --    chat and its Somali is weak. The Gemini routes now come first, in their current relative order; every other route
 --    keeps its order after them. Priorities are renumbered 10, 20, 30, ... (the router and ai_config_lite order by
 --    priority, then id). The shared router pointer is not touched (it is empty when nothing has failed).
--- 2. Wasted first try: alias `submac` asked for max_tokens 64000, which Poolside refuses (400, limit 32768), so every
+-- 2. Wasted first try: alias `telesia` asked for max_tokens 64000, which Poolside refuses (400, limit 32768), so every
 --    fresh isolate lost one attempt before shrinking. The alias output limit is now 32768; ai-chat also clamps each
 --    provider to its known limit (router.ts providerOutCap, override with ai_settings.provider_max_output_tokens).
 --
@@ -18,7 +18,7 @@ with ordered as (
     from public.ai_routes r
     join public.ai_models m on m.id = r.model_ref
     join public.ai_providers p on p.id = m.provider_id
-   where r.alias = 'submac'
+   where r.alias = 'telesia'
 )
 update public.ai_routes r
    set priority = o.prio
@@ -27,4 +27,4 @@ update public.ai_routes r
 
 update public.ai_aliases
    set max_output_tokens = 32768
- where alias = 'submac' and (max_output_tokens is null or max_output_tokens > 32768);
+ where alias = 'telesia' and (max_output_tokens is null or max_output_tokens > 32768);

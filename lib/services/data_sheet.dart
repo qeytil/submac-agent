@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:archive/archive.dart';
 
-/// A table read from a CSV, Excel (.xlsx) or JSON file, with the analysis SubMac's data tools run on it:
+/// A table read from a CSV, Excel (.xlsx) or JSON file, with the analysis Telesia's data tools run on it:
 /// describe, filter, computed columns, group and aggregate, pivot, sort and charts. Pure Dart, so it can be tested.
 class SheetTable {
   SheetTable(this.columns, this.rows);

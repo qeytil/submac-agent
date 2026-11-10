@@ -99,7 +99,7 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
   }
 }
 
-/// Text with a soft light passing over it: the "SubMac is working" look.
+/// Text with a soft light passing over it: the "Telesia is working" look.
 class ShimmerText extends StatefulWidget {
   const ShimmerText(this.text, {super.key, this.style});
   final String text;

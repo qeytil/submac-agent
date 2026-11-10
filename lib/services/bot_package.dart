@@ -148,7 +148,7 @@ class BotPackage {
   static final _hidden = RegExp('[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]');
   static final _redFlags = <RegExp, String>{
     RegExp(r'ignore (all |any )?(the )?(previous|prior|above|earlier|system) (instructions|rules|prompts?)', caseSensitive: false):
-        'tries to override SubMac\'s own rules',
+        'tries to override Telesia\'s own rules',
     RegExp(r"(do not|don't|never) (tell|inform) (the )?(user|owner)", caseSensitive: false): 'hides what it does from you',
     RegExp(r'(send|forward|upload|post|share|copy|export)\b[^.\n]{0,60}\b(contacts?|address book|sms|text messages|passwords?|codes?|otp|photos|location|notifications)\b[^.\n]{0,60}\b(to|at)\b',
         caseSensitive: false): 'sends your private data somewhere',
@@ -220,9 +220,9 @@ class BotPackage {
   }
 
   /// The one gate. Takes anything shaped like a bot package (or an older shared bot) and returns only the allowed,
-  /// cleaned fields. Returns null when it is not a SubMac bot.
+  /// cleaned fields. Returns null when it is not a Telesia bot.
   static Map<String, dynamic>? sanitize(Map<String, dynamic> raw) {
-    if ('${raw['submac']}' != format) return null;
+    if ('${raw['telesia']}' != format) return null;
     final name = _str(raw['name'], 40);
     if (name.isEmpty) return null;
     final icon = '${raw['icon'] ?? 'person'}';
@@ -286,7 +286,7 @@ class BotPackage {
     }
 
     return {
-      'submac': format,
+      'telesia': format,
       'v': version,
       'name': name,
       'role': _str(raw['role'], 60),
@@ -297,7 +297,7 @@ class BotPackage {
       'first_meeting': _str(raw['first_meeting'], 800),
       'voice': _voices.contains(voice) ? voice : '',
       // A bot's model is its owner's own choice (owner 2026-11-05): never carried in a package, a copy starts on its
-      // default (same as SubMac).
+      // default (same as Telesia).
       'model': 'auto',
       'proactivity': const {'free', 'quiet', 'balanced', 'active'}.contains(pro) ? pro : 'free',
       'heartbeat_hours': _int(raw['heartbeat_hours'], 0, 48, 6),
