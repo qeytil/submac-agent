@@ -364,7 +364,8 @@ class OpenCodeEngine {
   /// Sends one user message; the reply arrives on [events]. [system] is appended after opencode's own system prompt
   /// for this turn (Telesia's name only; see TelesiaStyle). [model] is the turn's provider and model (OcLane.pick): the
   /// provider decides the allowance lane its model calls bill to (owner 2026-11-03).
-  Future<void> prompt(String session, List<Map<String, dynamic>> parts, {String? system, Map<String, String>? model}) async {
+  Future<void> prompt(String session, List<Map<String, dynamic>> parts,
+      {String? system, Map<String, String>? model, String? variant}) async {
     // A BYOK model added while another task kept the engine busy is not in the running engine yet: say so plainly
     // instead of opencode's "model not found".
     final pid = model?['providerID'] ?? '';
@@ -373,17 +374,30 @@ class OpenCodeEngine {
     }
     await _pushToken();
     final r = await _client.post(_u('/session/$session/prompt_async'),
-        headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode(promptBody(parts, system: system, model: model)));
+        headers: {..._auth, 'content-type': 'application/json'},
+        body: jsonEncode(promptBody(parts, system: system, model: model, variant: variant)));
     if (r.statusCode >= 300) throw OpenCodeError('Prompt: HTTP ${r.statusCode} ${r.body}');
   }
 
   /// The body of one prompt (pure, for tests). The model is always named (owner 2026-11-03): without it opencode reuses
   /// the session's last model, which would keep a bot's chat on the background lane after a wake.
-  static Map<String, dynamic> promptBody(List<Map<String, dynamic>> parts, {String? system, Map<String, String>? model}) => {
+  static Map<String, dynamic> promptBody(List<Map<String, dynamic>> parts,
+          {String? system, Map<String, String>? model, String? variant}) =>
+      {
         'parts': parts,
         if (system != null && system.isNotEmpty) 'system': system,
         'model': model ?? OcLane.pick(background: false),
+        // How hard the model should think: opencode's own model variant (owner 2026-11-10).
+        if (variant != null && variant.isNotEmpty) 'variant': variant,
       };
+
+  /// The effort hint Telesia's own model takes (`x-telesia-effort`, PLAN 1.5), handed to the phone's proxy.
+  /// Ignored when the installed proxy is older than the app; it never breaks a turn (owner 2026-11-10).
+  Future<void> pushEffort(String? effort) async {
+    try {
+      await _ch.invokeMethod('ocEffort', {'effort': effort ?? ''});
+    } catch (_) {}
+  }
 
   /// Stops the reply being written in [session].
   Future<void> abort(String session) async {

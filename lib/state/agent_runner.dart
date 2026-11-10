@@ -422,7 +422,12 @@ extension AppStateAgentRunner on AppState {
         // The window is nearly full: fold the older part first, so the user never has to start a new chat
         // (owner 2026-11-10). opencode compacts by itself too; this is the early, visible one.
         await _ocCompactIfFull(convId: convId, run: run, session: session, list: list, model: laneModel);
-        await oc.prompt(session, await _partsFor(lastUser), system: layer, model: laneModel);
+        // How hard this chat should think (owner 2026-11-10): Telesia's own model takes it as an effort hint, a user
+        // model that reasons takes it as opencode's own variant, and Auto sends neither.
+        final level = AppState.thinkingLevel.value;
+        await oc.pushEffort(Thinking.effort(level));
+        await oc.prompt(session, await _partsFor(lastUser),
+            system: layer, model: laneModel, variant: _ocVariant(level, laneModel));
         while (true) {
           final sent = DateTime.now();
           var drops = oc.streamDrops;
@@ -804,6 +809,17 @@ extension AppStateAgentRunner on AppState {
 
   /// One compact note per engine summary, however many times its events arrive.
   static final Set<String> _compacted = {};
+
+  /// The opencode variant for [level] on this turn's model: only a user model that reasons has variants (its family
+  /// names them low/medium/high). Telesia's own model takes the effort hint instead (owner 2026-11-10).
+  static String? _ocVariant(ThinkingLevel level, Map<String, String> model) {
+    final effort = Thinking.effort(level);
+    if (effort == null || !OcLane.isByok(model)) return null;
+    final choice = ByokStore.I.choices
+        .where((c) => c.provider.id == model['providerID'] && c.model.id == model['modelID'])
+        .firstOrNull;
+    return choice != null && choice.model.reasoning == true ? effort : null;
+  }
 
   /// The pictures, drawings, pages and videos the turn made with opencode's own tools (a written .svg, a script's
   /// .png, an .html page) or named in its answer, shown as cards under the answer (owner 2026-11-04: "no visual

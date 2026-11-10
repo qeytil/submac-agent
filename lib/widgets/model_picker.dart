@@ -183,7 +183,9 @@ class ModelPill extends StatelessWidget {
                 padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, 0, Space.x2, 0),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Flexible(
-                    child: Text(label,
+                    // "Model", not the whole model id (owner 2026-11-10): the row under the composer keeps its room
+                    // for the Thinking and permission pills; the sheet names the model itself.
+                    child: Text(tr('Model'),
                         maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.microStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
                   ),
                   Icon(Icons.expand_more_rounded, size: IconSize.sm, color: p.muted),

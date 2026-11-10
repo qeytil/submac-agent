@@ -647,7 +647,11 @@ class _ComposerState extends State<Composer> {
                   padding: EdgeInsetsDirectional.only(top: Space.x2),
                   child: Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: Wrap(spacing: Space.x2, runSpacing: Space.x1, crossAxisAlignment: WrapCrossAlignment.center, children: [PermissionPill(), ModelPill()]),
+                    child: Wrap(spacing: Space.x2, runSpacing: Space.x1, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                      ModelPill(),
+                      ThinkingPill(),
+                      PermissionPill(),
+                    ]),
                   ),
                 ),
             ],
@@ -658,54 +662,152 @@ class _ComposerState extends State<Composer> {
   }
 }
 
-/// Ask · Autopilot, under the composer: two quiet words in one frosted pill, the chosen one inked.
+/// One quiet pill under the composer: a word and a small chevron, opening a small sheet on tap (owner 2026-11-10).
+class _QuietPill extends StatelessWidget {
+  const _QuietPill({this.keyName, required this.label, required this.onTap});
+  final String? keyName;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return FrostedSurface(
+      radius: Radii.pill,
+      child: InkWell(
+        key: keyName == null ? null : ValueKey(keyName),
+        borderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
+        onTap: onTap,
+        child: Container(
+          height: 28,
+          constraints: const BoxConstraints(maxWidth: 200),
+          padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, 0, Space.x2, 0),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.microStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
+            ),
+            Icon(Icons.expand_more_rounded, size: IconSize.sm, color: p.muted),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// How hard the model thinks, in the app's words: Think · Auto, Light or Deep (owner 2026-11-10). One pill; the
+/// choice is asked for in a small sheet, so the row under the composer stays quiet.
+class ThinkingPill extends StatelessWidget {
+  const ThinkingPill({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: AppState.thinkingLevel,
+      builder: (context, _) => _QuietPill(
+        keyName: 'think-pill',
+        label: '${tr('Think')} · ${tr(Thinking.word(AppState.thinkingLevel.value))}',
+        onTap: () => _pickThinking(context),
+      ),
+    );
+  }
+}
+
+String _thinkingHint(ThinkingLevel l) => switch (l) {
+      ThinkingLevel.auto => 'The model decides',
+      ThinkingLevel.light => 'Faster answers, less thinking',
+      ThinkingLevel.deep => 'Slower answers, harder thinking',
+    };
+
+Future<void> _pickThinking(BuildContext context) async {
+  final level = await showModalBottomSheet<ThinkingLevel>(
+    context: context,
+    showDragHandle: true,
+    sheetAnimationStyle: SubMotion.sheet,
+    builder: (ctx) {
+      final p = Palette.of(ctx);
+      return SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x2),
+            child: Text(tr('How hard Telesia thinks'), style: AppText.titleStyle.copyWith(color: p.text)),
+          ),
+          for (final l in Thinking.all)
+            ListTile(
+              key: ValueKey('think-${l.name}'),
+              title: Text(tr(Thinking.word(l))),
+              subtitle: Text(tr(_thinkingHint(l)), style: AppText.microStyle.copyWith(color: p.muted)),
+              trailing: AppState.thinkingLevel.value == l
+                  ? Icon(Icons.check_rounded, color: p.text, size: IconSize.lg)
+                  : const SizedBox(width: IconSize.lg),
+              onTap: () => Navigator.pop(ctx, l),
+            ),
+          const SizedBox(height: Space.x4),
+        ]),
+      );
+    },
+  );
+  if (level != null) AppState.thinkingLevel.value = level;
+}
+
+/// What Telesia may do without asking, in one word: Ask or Autopilot (owner 2026-11-10). One pill now: the choice is
+/// asked for in a small sheet, instead of two words always showing under the composer.
 class PermissionPill extends StatelessWidget {
   const PermissionPill({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final p = Palette.of(context);
     return ListenableBuilder(
       listenable: FullAccess.I,
-      builder: (context, _) {
-        final auto = FullAccess.I.on;
-        Widget seg(String label, bool on, bool value) => Semantics(
-              button: true,
-              selected: on,
-              label: label,
-              child: InkWell(
-                key: ValueKey('perm-$label'),
-                borderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
-                onTap: on ? null : () => FullAccess.I.set(value),
-                child: AnimatedContainer(
-                  duration: LuxMotion.quick,
-                  curve: LuxMotion.ease,
-                  height: 24,
-                  padding: const EdgeInsets.symmetric(horizontal: Space.x3),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: on ? (value ? p.accentWash : p.bubble) : Colors.transparent,
-                    borderRadius: const BorderRadius.all(Radius.circular(Radii.pill)),
-                  ),
-                  child: Text(label,
-                      style: AppText.microStyle.copyWith(
-                          color: on ? p.text : p.muted, fontWeight: on ? FontWeight.w600 : FontWeight.w500)),
-                ),
-              ),
-            );
-        return FrostedSurface(
-          radius: Radii.pill,
-          child: Padding(
-            padding: const EdgeInsets.all(2),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              seg(tr('Ask'), !auto, false),
-              seg(tr('Autopilot'), auto, true),
-            ]),
-          ),
-        );
-      },
+      builder: (context, _) => _QuietPill(
+        keyName: 'perm-pill',
+        label: FullAccess.I.on ? tr('Autopilot') : tr('Ask'),
+        onTap: () => _pickPermission(context),
+      ),
     );
   }
+}
+
+Future<void> _pickPermission(BuildContext context) async {
+  final auto = await showModalBottomSheet<bool>(
+    context: context,
+    showDragHandle: true,
+    sheetAnimationStyle: SubMotion.sheet,
+    builder: (ctx) {
+      final p = Palette.of(ctx);
+      final on = FullAccess.I.on;
+      Widget check(bool v) => v
+          ? Icon(Icons.check_rounded, color: p.text, size: IconSize.lg)
+          : const SizedBox(width: IconSize.lg);
+      return SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x2),
+            child: Text(tr('What Telesia may do'), style: AppText.titleStyle.copyWith(color: p.text)),
+          ),
+          ListTile(
+            key: const ValueKey('perm-ask'),
+            title: Text(tr('Ask')),
+            subtitle: Text(tr('Approvals wait for you'), style: AppText.microStyle.copyWith(color: p.muted)),
+            trailing: check(!on),
+            onTap: () => Navigator.pop(ctx, false),
+          ),
+          ListTile(
+            key: const ValueKey('perm-auto'),
+            title: Text(tr('Autopilot')),
+            subtitle: Text(tr('Answers approvals by itself; money and your settings still ask'),
+                style: AppText.microStyle.copyWith(color: p.muted)),
+            trailing: check(on),
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+          const SizedBox(height: Space.x4),
+        ]),
+      );
+    },
+  );
+  if (auto != null) await FullAccess.I.set(auto);
 }
 
 /// A plain icon with a round touch area: no outline, no fill.

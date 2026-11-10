@@ -1,7 +1,18 @@
-patch fetched: 1871 bytes
+patch fetched: 7911 bytes from https://n.uguu.se/CORfEyrk.py
+patched lib/app_state.dart
+patched lib/app_state.dart
+patched lib/services/opencode.dart
+patched lib/services/opencode.dart
+patched lib/services/opencode.dart
+patched lib/services/opencode.dart
+patched lib/state/agent_runner.dart
+patched lib/state/agent_runner.dart
+wrote lib/services/thinking_level.dart (1333 bytes)
+DONE: 8 edits, 1 new files
+patch fetched: 12016 bytes from https://n.uguu.se/uHWVfvZK.py
 patched lib/widgets/composer.dart
 patched lib/widgets/composer.dart
-patched lib/widgets/composer.dart
-patched lib/widgets/composer.dart
-DONE: 4 edits
+patched lib/widgets/model_picker.dart
+wrote test/thinking_level_test.dart (1594 bytes)
+DONE: 3 edits, 1 new files
 python exit=0

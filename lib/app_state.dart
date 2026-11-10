@@ -125,6 +125,7 @@ import 'services/bot_runtime.dart';
 import 'services/bot_inbox.dart';
 import 'services/chat_compact.dart';
 import 'services/context_window.dart';
+import 'services/thinking_level.dart';
 
 part 'state/agent_runner.dart';
 part 'state/agent_stream.dart';
@@ -934,6 +935,11 @@ class AppState extends ChangeNotifier {
   }
 
   static void noteCompacted(String convId, {DateTime? now}) => _ocCompactedAt[convId] = now ?? DateTime.now();
+
+  // ---------- thinking level ----------
+  /// How hard the model thinks before it answers, set by the quiet Thinking pill under the composer (owner
+  /// 2026-11-10). For this chat only, like the old "think harder": a new chat starts on Auto.
+  static final thinkingLevel = ValueNotifier<ThinkingLevel>(ThinkingLevel.auto);
 
 
 
