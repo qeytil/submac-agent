@@ -1,16 +1,50 @@
-1423:Expected: empty
-1424:  Actual: [
-1752:::error::1669 tests passed, 1 failed.
------ last 12 lines -----
-✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: email and code six-digit code, spaces and dashes ignored
-✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: verification gate unverified email accounts are held back
-✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: verification gate verified and Google accounts go straight in
-✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: verification gate unconfirmed sign-in error is recognised
-✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: verification gate a code reset is taken once
-✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: messages wrong or expired code
-✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: messages unconfirmed email offers a new code
-✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: consent needs 18+ and the current version
-✅ /home/runner/work/submac-agent/submac-agent/test/auth_flow_test.dart: consent saved data passes the check
+1229-✅ /home/runner/work/submac-agent/submac-agent/test/missions_test.dart: mission.json is valid JSON with the owner, goal and budget
+1230-✅ /home/runner/work/submac-agent/submac-agent/test/browser_extract_test.dart: formatSchemaIndex lists the blocks with sizes, or says the page carries none
+1231-✅ /home/runner/work/submac-agent/submac-agent/test/browser_extract_test.dart: formatSchemaOpen pretty-prints the block and says when the index moved on
+1232-✅ /home/runner/work/submac-agent/submac-agent/test/browser_extract_test.dart: formatExtract carries the rows as JSON and points at the data card
+1233-✅ /home/runner/work/submac-agent/submac-agent/test/browser_extract_test.dart: the page script ships the schema ear: v11 with schema/schemaOpen/extract/extractHtml and a summary in the snapshot
+1234-✅ /home/runner/work/submac-agent/submac-agent/test/browser_extract_test.dart: PageSnapshot carries the schema summary from the snapshot JSON
+1235-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: htmlToText: the readability pass scripts, styles and markup go; the words stay
+1236-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: htmlToText: the readability pass entities are decoded, including numeric ones
+1237-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: htmlToText: the readability pass blocks keep their breaks and the text is capped
+1238-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: describe: the patch, not the whole page only new or changed elements go out
+1239-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: describe: the patch, not the whole page unchanged text is not repeated
+1240-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: describe: the patch, not the whole page no change at all says so, and a new page lists everything
+1241-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: describe: the patch, not the whole page without diff the whole page is sent, as before
+1242-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: the tool surface carries the speed switches browser_open can read without rendering
+1243-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: the tool surface carries the speed switches browser_wait can wait for quiet
+1244-✅ /home/runner/work/submac-agent/submac-agent/test/browser_speed_test.dart: the tool surface carries the speed switches browser_read can list everything again
+1245-✅ /home/runner/work/submac-agent/submac-agent/test/live_retranscribe_test.dart: utterance clipper trims silence and keeps the voiced part
+1246-✅ /home/runner/work/submac-agent/submac-agent/test/live_retranscribe_test.dart: utterance clipper a click or breath is not a turn
+1247-✅ /home/runner/work/submac-agent/submac-agent/test/live_retranscribe_test.dart: utterance clipper a very long turn keeps its newest seconds
+1248-✅ /home/runner/work/submac-agent/submac-agent/test/live_retranscribe_test.dart: wav header
+1249-✅ /home/runner/work/submac-agent/submac-agent/test/live_retranscribe_test.dart: transcript cleanup
+1250-✅ /home/runner/work/submac-agent/submac-agent/test/live_retranscribe_test.dart: voice guides teach the Somali C and X
+1251-✅ /home/runner/work/submac-agent/submac-agent/test/bots_act_on_their_own_test.dart: a bot's risky call is never gated by a card
+1252-✅ /home/runner/work/submac-agent/submac-agent/test/bots_act_on_their_own_test.dart: a team member's call under its team key is never gated by a card
+1253-✅ /home/runner/work/submac-agent/submac-agent/test/bots_act_on_their_own_test.dart: a new bot is born free: no off hours by default
+1254-✅ /home/runner/work/submac-agent/submac-agent/test/bots_act_on_their_own_test.dart: a new bot is born free: a light self-wake and no daily limit
+1255-✅ /home/runner/work/submac-agent/submac-agent/test/bots_act_on_their_own_test.dart: a bot proposes a mission; the owner's yes starts it once
+1256-✅ /home/runner/work/submac-agent/submac-agent/test/bots_act_on_their_own_test.dart: the SubMac allowance never stops or bills a bot on its own key
+1257-::endgroup::
+1258-::group::❌ /home/runner/work/submac-agent/submac-agent/test/design_guard_test.dart: UI layer stays inside the design budget (failed)
+1259:Expected: empty
+1260-  Actual: [
+1261-            'lib/widgets/composer.dart: icon Icons.vpn_key_rounded used 2 time(s), budget 0'
+1262-          ]
+1263-Design guard: values outside the budget.
+1264-Use lib/ui/tokens.dart and Palette, or lower the matching entry in
+1265-test/design_budget.json when you remove a literal.
+1266-
+1267-lib/widgets/composer.dart: icon Icons.vpn_key_rounded used 2 time(s), budget 0
+1268-
+1269-package:matcher                                     expect
+1270-package:flutter_test/src/widget_tester.dart 473:18  expect
+1271-test/design_guard_test.dart 111:5                   main.<fn>
+1272-::endgroup::
+1273-::group::✅ Passing tests
+1274-✅ /home/runner/work/submac-agent/submac-agent/test/message_arrive_test.dart: one constant: a message arrives over 1000 ms on an ease-out
+----- summary -----
 ::endgroup::
 
 ::error::1669 tests passed, 1 failed.
