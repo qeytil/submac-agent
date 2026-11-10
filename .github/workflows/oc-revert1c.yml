@@ -1,0 +1,19 @@
+name: oc-revert1c
+on:
+  push:
+    paths:
+      - 'tools/oc_revert1c_run.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/oc_revert1c.py
+      - run: |
+          git config user.name "submac-agent"
+          git config user.email "agent@submac.site"
+          git add -A
+          git commit -m "revert(byok): keep OcLane pick for now (needs bot_model_routes rework)"
+          git push
