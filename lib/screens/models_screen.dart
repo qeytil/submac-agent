@@ -36,8 +36,8 @@ class ModelsScreen extends StatelessWidget {
                 ListTile(
                   key: const ValueKey('chat-model'),
                   leading: chat == null ? const AppLogo(size: 36) : BrandLogo(chat.provider.logo, chat.provider.label, size: 36),
-                  title: Text(chat == null ? 'SubMac' : chat.model.label, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(chat == null ? tr('Included in your plan') : '${chat.provider.label} · ${tr('your key')}',
+                  title: Text(chat == null ? tr('Connect a model') : chat.model.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(chat == null ? tr('Tap to add your provider') : '${chat.provider.label} · ${tr('your key')}',
                       style: AppText.microStyle.copyWith(color: p.muted)),
                   trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
                   onTap: () async {
