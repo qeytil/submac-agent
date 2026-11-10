@@ -129,7 +129,7 @@ void main() {
     test('profile words', () {
       _withProvider();
       expect(botModelLabel('auto'), BotModelWords.defaultLabel);
-      expect(botModelLabel('submac'), 'SubMac');
+      expect(botModelLabel('submac'), BotModelWords.defaultLabel);
       expect(botModelLabel('$_pid|claude-opus-4'), contains('Claude Opus 4'));
       expect(botModelLabel('$_pid|missing'), startsWith(BotModelWords.defaultLabel));
       expect(botModelLabel('$_pid|missing'), contains('not available'));
@@ -194,7 +194,7 @@ void main() {
       await t.tap(find.byKey(const ValueKey('bot-model')));
       await t.pumpAndSettle();
       expect(find.byKey(const ValueKey('model-default')), findsOneWidget);
-      expect(find.byKey(const ValueKey('model-submac')), findsOneWidget);
+      expect(find.byKey(const ValueKey('model-submac')), findsNothing);
       expect(find.byKey(const ValueKey('model-$_pid|claude-opus-4')), findsOneWidget);
       // Strong first in the sheet too.
       final opus = t.getTopLeft(find.byKey(const ValueKey('model-$_pid|claude-opus-4'))).dy;
