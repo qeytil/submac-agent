@@ -1,0 +1,36 @@
+name: oc-brand-audit2
+on:
+  push:
+    paths:
+      - 'tools/oc_audit2_run.txt'
+permissions:
+  contents: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dump sources
+        run: |
+          set -e
+          {
+            echo "### sizes"
+            wc -l lib/services/telesia_gateway.dart lib/services/mcp_routes.dart lib/services/tools.dart lib/screens/intro_screen.dart lib/services/mcp_known.dart 2>/dev/null
+            echo "### telesia_gateway.dart (full)"
+            grep -n "" lib/services/telesia_gateway.dart | sed -n '1,700p'
+            echo "### mcp_routes.dart (full)"
+            grep -n "" lib/services/mcp_routes.dart | sed -n '1,700p'
+            echo "### prefix/substring hits across lib"
+            grep -rn -E "substring\([0-9]+\)|substring\(prefix|telesia_|'telesia'|\"telesia\"" lib --include='*.dart' | grep -v "assets/" | head -80
+            echo "### IntroMotion"
+            grep -rn -A4 "class IntroMotion\|IntroMotion" lib --include='*.dart' | head -40
+            echo "### gateway call/inner error strings"
+            grep -rn -i -E "unknown tool|is not available|no .* tool named" lib --include='*.dart' | head -30
+          } > tools/oc_audit2.txt
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add tools/oc_audit2.txt
+          git commit -m "chore(ci): brand audit2 report" || true
+          git push
