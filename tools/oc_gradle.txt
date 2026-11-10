@@ -1,0 +1,117 @@
+### PRE flutter create: build.gradle.kts
+8:    namespace = "com.submac.agent"
+19:        applicationId = "com.submac.agent"
+### PRE full gradle (first 80 lines)
+1:plugins {
+2:    id("com.android.application")
+3:    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+4:    id("dev.flutter.flutter-gradle-plugin")
+5:}
+6:
+7:android {
+8:    namespace = "com.submac.agent"
+9:    compileSdk = flutter.compileSdkVersion
+10:    ndkVersion = flutter.ndkVersion
+11:
+12:    compileOptions {
+13:        sourceCompatibility = JavaVersion.VERSION_17
+14:        targetCompatibility = JavaVersion.VERSION_17
+15:    }
+16:
+17:    defaultConfig {
+18:        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+19:        applicationId = "com.submac.agent"
+20:        // You can update the following values to match your application needs.
+21:        // For more information, see: https://flutter.dev/to/review-gradle-config.
+22:        minSdk = flutter.minSdkVersion
+23:        targetSdk = flutter.targetSdkVersion
+24:        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
+25:        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
+26:        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
+27:        // flag during build.
+28:        versionCode = flutter.versionCode
+29:        versionName = flutter.versionName
+30:    }
+31:
+32:    buildTypes {
+33:        release {
+34:            // TODO: Add your own signing config for the release build.
+35:            // Signing with the debug keys for now, so `flutter run --release` works.
+36:            signingConfig = signingConfigs.getByName("debug")
+37:        }
+38:    }
+39:}
+40:
+41:kotlin {
+42:    compilerOptions {
+43:        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+44:    }
+45:}
+46:
+47:flutter {
+48:    source = "../.."
+49:}
+### POST patch: build.gradle.kts identity
+9:    namespace = "com.submac.agent"
+20:        applicationId = "com.submac.agent"
+### POST patch manifest identity
+49:        android:label="Telesia"
+87:                <data android:scheme="com.telesia.app" android:host="login-callback"/>
+133:            android:label="@string/telesia_a11y_label"
+147:            android:label="Telesia"
+157:        <provider android:name=".WaFiles" android:authorities="com.telesia.app.wafiles"
+161:        <provider android:name=".UpdateFiles" android:authorities="com.telesia.app.updates"
+166:        <receiver android:name=".QuickWidget" android:exported="true" android:label="Telesia">
+### kotlin files written
+android/app/src/main/kotlin/com/telesia/agent/TelesiaA11y.kt
+android/app/src/main/kotlin/com/telesia/agent/TaskService.kt
+android/app/src/main/kotlin/com/telesia/agent/NotifListener.kt
+android/app/src/main/kotlin/com/telesia/agent/PhoneData.kt
+android/app/src/main/kotlin/com/telesia/agent/TaskBubble.kt
+android/app/src/main/kotlin/com/telesia/agent/WaFiles.kt
+android/app/src/main/kotlin/com/telesia/agent/WebHands.kt
+android/app/src/main/kotlin/com/telesia/agent/Bridge.kt
+android/app/src/main/kotlin/com/telesia/agent/ScreenGuard.kt
+android/app/src/main/kotlin/com/telesia/agent/WaHands.kt
+android/app/src/main/kotlin/com/telesia/agent/Overlay.kt
+android/app/src/main/kotlin/com/telesia/agent/MainActivity.kt
+android/app/src/main/kotlin/com/telesia/agent/TelesiaApp.kt
+android/app/src/main/kotlin/com/telesia/agent/Sms.kt
+android/app/src/main/kotlin/com/telesia/agent/WhatsApp.kt
+android/app/src/main/kotlin/com/telesia/agent/QuickWidget.kt
+android/app/src/main/kotlin/com/telesia/agent/WakeService.kt
+android/app/src/main/kotlin/com/telesia/agent/AppUpdater.kt
+android/app/src/main/kotlin/com/telesia/agent/BootReceiver.kt
+android/app/src/main/kotlin/com/telesia/agent/PushReceiver.kt
+android/app/src/main/kotlin/com/telesia/agent/Notifier.kt
+android/app/src/main/kotlin/com/telesia/agent/Chime.kt
+android/app/src/main/kotlin/com/telesia/agent/Ghost.kt
+android/app/src/main/kotlin/com/telesia/agent/OpenCode.kt
+android/app/src/main/kotlin/com/telesia/agent/OcChannel.kt
+android/app/src/main/kotlin/com/telesia/agent/LocalProxy.kt
+android/app/src/main/kotlin/com/telesia/agent/Device.kt
+### settings.gradle.kts
+### gradle dir tree
+android/app/src/main
+android/app/src/main/res
+android/app/src/main/res/xml
+android/app/src/main/res/mipmap-mdpi
+android/app/src/main/res/mipmap-xxxhdpi
+android/app/src/main/res/drawable
+android/app/src/main/res/mipmap-xhdpi
+android/app/src/main/res/values-v31
+android/app/src/main/res/mipmap-hdpi
+android/app/src/main/res/drawable-v21
+android/app/src/main/res/values
+android/app/src/main/res/raw
+android/app/src/main/res/layout
+android/app/src/main/res/values-night-v31
+android/app/src/main/res/mipmap-xxhdpi
+android/app/src/main/res/values-night
+android/app/src/main/java
+android/app/src/main/java/io
+android/app/src/main/java/io/flutter
+android/app/src/main/kotlin
+android/app/src/main/kotlin/com
+android/app/src/main/kotlin/com/telesia
+android/app/src/main/kotlin/com/submac
