@@ -1,0 +1,46 @@
+name: oc-testcheck
+on:
+  push:
+    paths:
+      - 'tools/oc_tests_run.txt'
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.telesia --project-name agent --platforms android,ios .
+          rm -f test/widget_test.dart
+          python3 tools/patch_android.py
+          flutter pub get
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings > /tmp/a.log 2>&1 || true
+      - name: Tests
+        run: |
+          (flutter test > /tmp/t.log 2>&1) || true
+          {
+            if grep -q "Some tests failed" /tmp/t.log; then echo "RESULT: FAIL"; else echo "RESULT: PASS"; fi
+            grep -E "tests passed|All tests passed" /tmp/t.log | tail -3 || true
+            grep -E "\(failed\)" /tmp/t.log | sed 's/^/FAIL /' | sort -u | head -40
+            echo "=== analyze (info/warn/errors) ==="
+            grep -E "error . " /tmp/a.log | head -30 || true
+          } > tools/oc_test_result.txt
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add tools/oc_test_result.txt
+          git commit -m "chore(ci): test check" || true
+          git push
