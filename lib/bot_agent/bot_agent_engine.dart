@@ -42,7 +42,7 @@ class BotTurnResult {
   final int tokens;
 
   /// Why the loop ended early: '' the bot answered on its own, 'cancelled', 'stopped' (the app's own guard),
-  /// 'steps' (the step cap).
+  /// 'steps' (the step cap), 'continues' (a reply still cut off after every continuation).
   final String stopped;
 
   bool get ok => stopped.isEmpty;
@@ -147,7 +147,12 @@ class BotAgentEngine {
       // A reply that ran out of room goes on in the same turn instead of ending mid-sentence.
       reply = continuing ? '$reply${r.content}' : r.content;
       if (r.cutOff) {
-        if (continues >= config.maxContinues || i >= config.maxSteps - 1) break;
+        if (continues >= config.maxContinues) {
+          // Out of continuations (not the step cap): say so, so a cut reply is not filed as "ran out of steps".
+          stopped = 'continues';
+          break;
+        }
+        if (i >= config.maxSteps - 1) break; // the step cap: reported as 'steps' below
         continues++;
         continuing = true;
         messages.add({'role': 'assistant', 'content': r.content});

@@ -536,12 +536,13 @@ class Bot {
 
   int get messagesLeft {
     _rollDay();
-    return (messageCap - messagesToday).clamp(0, 99).toInt();
+    // Bound by the real cap: a 'free' bot's cap is _noCap (1000), so clamping at 99 told it "99 left" all day.
+    return (messageCap - messagesToday).clamp(0, messageCap).toInt();
   }
 
   int get callsLeft {
     _rollDay();
-    return (callCap - callsToday).clamp(0, 99).toInt();
+    return (callCap - callsToday).clamp(0, callCap).toInt();
   }
 
   void log(String kind, String text, {bool team = false}) {
