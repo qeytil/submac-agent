@@ -10,8 +10,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../app_state.dart';
 import '../models.dart';
-import '../services/billing/billing_service.dart';
-import '../screens/billing/billing_notice_sheet.dart';
 import '../services/bots.dart';
 import '../services/error_copy.dart';
 import '../services/house_rules.dart';
@@ -1101,9 +1099,6 @@ class _CalmErrorCardState extends State<_CalmErrorCard> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final state = context.read<AppState>();
-    // Billing refusal (limit, paid model, payment confirming...): its own card with the reason, reset time and options.
-    final notice = Billing.I.noticeFor(ErrorCopy.detail(widget.raw));
-    if (notice != null) return BillingNoticeCard(notice: notice, isLast: widget.isLast, onRetry: () => state.regenerate());
     // The app's own words in the app's language, chosen by the error's code (CB-27); the raw text only under Details.
     final e = ErrorCopy.explain(widget.raw);
     String b(String en) => ErrorCopy.button(en);

@@ -39,7 +39,6 @@ import '../widgets/chat/activity_panel.dart';
 import '../widgets/chat/edge_fade.dart';
 import '../widgets/chat/entrance.dart';
 import '../widgets/chat/typing_text.dart';
-import 'billing/billing_widgets.dart';
 import 'inbox_screen.dart';
 import 'live_screen.dart';
 import '../services/inbox.dart';
@@ -259,8 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
             callLabel: bot != null ? 'Call ${bot.name}' : 'Call SubMac',
             onCall: () => bot != null ? state.callBot(bot) : openLive(context),
             onNew: state.newChat,
-            // Replies left: only while billing is on (zero width otherwise).
-            middle: const WalletChip(),
+            middle: const SizedBox.shrink(),
           ),
         ),
         ])),
@@ -481,16 +479,8 @@ class BotMark extends StatelessWidget {
   }
 }
 
-/// Today at a glance: how much is left, in plain words. No tokens, no model names.
-Future<void> showTodaySheet(BuildContext context) async {
-  unawaited(Cloud.refreshStatus(force: true));
-  await showModalBottomSheet<void>(
-    sheetAnimationStyle: SubMotion.sheet,
-    context: context,
-    showDragHandle: true,
-    builder: (ctx) => const TodayUsage(padding: EdgeInsetsDirectional.fromSTEB(20, 0, 20, 28)),
-  );
-}
+/// BYOK only: there is no cloud allowance to show any more (the long-press menu is unchanged).
+Future<void> showTodaySheet(BuildContext context) async {}
 
 /// A calm bar for today's allowance (used in the sheet and in Settings).
 class TodayUsage extends StatelessWidget {
