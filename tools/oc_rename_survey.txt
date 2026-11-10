@@ -1,0 +1,1480 @@
+### total occurrences (case-insensitive)
+3375
+### files and counts
+./docs/project-state.md:135
+./supabase/live/ai-chat-v46.js:58
+./supabase/live/ai-chat-v45.js:58
+./supabase/live/ai-chat-v43.js:58
+./supabase/live/ai-chat-v42.js:58
+./lib/state/agent_runner.dart:58
+./android_native/Notifier.kt:52
+./supabase/functions/ai-chat/index.ts:51
+./docs/monetization/ai-chat-billing-port/index.v27-billing.ts:46
+./docs/notifications.md:37
+./lib/services/bots.dart:36
+./docs/audit/ui.md:36
+./android_native/Bridge.kt:32
+./tools/patch_android.py:31
+./lib/services/submac_gateway.dart:28
+./docs/app-update.md:28
+./lib/state/bots_controller.dart:27
+./docs/plans-2026-10.md:27
+./lib/services/oc_lanes.dart:26
+./lib/services/bot_llm.dart:26
+./lib/state/tool_router.dart:25
+./lib/services/opencode.dart:25
+./android_native/OpenCode.kt:24
+./lib/screens/settings_screen.dart:22
+./docs/audit/timing.md:22
+./test/oc_lanes_test.dart:21
+./lib/services/cloud.dart:20
+./lib/app_state.dart:20
+./test/bot_model_test.dart:19
+./docs/facebook-instagram-phone.md:19
+./docs/audit/unfinished.md:19
+./test/notifications_test.dart:18
+./docs/bots-background.md:18
+./supabase/functions/ai-chat/smoke_test.ts:17
+./docs/bot-autonomy.md:17
+./android_native/TaskService.kt:17
+./tools/proxy-admin/index.html:16
+./test/bots_leak_test.dart:16
+./supabase/functions/_shared/payments/payments_test.ts:16
+./PLAN.md:16
+./test/bot_model_routes_test.dart:15
+./supabase/migrations/20261023_router_single_model.sql:15
+./supabase/migrations/20261020_thinking_modes.sql:15
+./lib/services/notif_text.dart:15
+./lib/services/system_tools.dart:14
+./lib/services/live_audio.dart:14
+./lib/services/code_runner.dart:14
+./lib/services/byok.dart:14
+./docs/cloud-proxy.md:14
+./docs/byok.md:14
+./lib/services/bot_store.dart:13
+./android_native/WakeService.kt:13
+./.github/workflows/apk.yml:13
+./test/visual_output_test.dart:12
+./test/browser_background_test.dart:12
+./supabase/functions/ai-chat/billing_smoke_test.ts:12
+./lib/widgets/composer.dart:12
+./lib/services/tools.dart:12
+./lib/services/error_copy.dart:12
+./docs/browser-godmode.md:12
+./android_native/AppUpdater.kt:12
+./supabase/tests/router_test.sql:11
+./lib/state/system_phone.dart:11
+./lib/services/system_bridge.dart:11
+./lib/services/sites.dart:11
+./lib/services/mcp_routes.dart:11
+./lib/services/live_session.dart:11
+./docs/audit/agent.md:11
+./docs/agent-loop.md:11
+./test/opencode_lab_test.dart:10
+./lib/state/settings_store.dart:10
+./lib/services/whatsapp.dart:10
+./lib/services/media_coder.dart:10
+./lib/services/code_git.dart:10
+./lib/screens/home_screen.dart:10
+./lib/agent/core.dart:10
+./android_native/LocalProxy.kt:10
+./ROADMAP.md:10
+./test/submac_mcp_test.dart:9
+./test/luxury_ui_test.dart:9
+./test/bots_team_isolation_test.dart:9
+./lib/widgets/message_view.dart:9
+./lib/services/mcp_oauth.dart:9
+./lib/services/connector_catalog.dart:9
+./lib/screens/live_screen.dart:9
+./lib/screens/bots_workspace.dart:9
+./lib/main.dart:9
+./integration_test/chat_regress_test.dart:9
+./docs/ui-grok-reference.md:9
+./test/submac_gateway_test.dart:8
+./test/max_output_test.dart:8
+./lib/state/live_calls.dart:8
+./lib/services/submac_mcp.dart:8
+./lib/services/hire_links.dart:8
+./lib/screens/auth_screen.dart:8
+./docs/teams-opencode-plan.md:8
+./docs/monetization/MONETIZATION.md:8
+./docs/model-routes-2026-10-21.md:8
+./docs/agent-flexibility.md:8
+./docs/ISSUES.md:8
+./android_native/TaskBubble.kt:8
+./android_native/SubMacA11y.kt:8
+./android_native/MainActivity.kt:8
+./tools/bots/coder/build.py:7
+./test/live_audio_test.dart:7
+./test/billing/billing_service_test.dart:7
+./supabase/functions/ai-admin/index.ts:7
+./lib/widgets/update_window.dart:7
+./lib/services/llm_client.dart:7
+./lib/services/browser_jobs.dart:7
+./lib/services/bg_runs.dart:7
+./lib/screens/site_screens.dart:7
+./lib/screens/inbox_screen.dart:7
+./lib/screens/bot_store_screen.dart:7
+./.github/workflows/oc-rename-survey.yml:7
+./tools/chat_regress_capture.sh:6
+./test/media_providers_test.dart:6
+./test/byok_test.dart:6
+./test/bots_workspace_test.dart:6
+./test/bots_unattended_test.dart:6
+./test/bots_opencode_test.dart:6
+./test/billing/checkout_url_test.dart:6
+./supabase/migrations/20261107_max_output.sql:6
+./supabase/functions/bot-run/index.ts:6
+./supabase/functions/ai-chat/router_test.ts:6
+./lib/widgets/output_cards.dart:6
+./lib/ui/i18n.dart:6
+./lib/state/notifications.dart:6
+./lib/services/task_bubble.dart:6
+./lib/services/output_limits.dart:6
+./lib/services/full_access.dart:6
+./lib/services/apk_build.dart:6
+./lib/screens/whatsapp_screen.dart:6
+./lib/screens/offices_screen.dart:6
+./lib/screens/files_screen.dart:6
+./docs/max-output.md:6
+./docs/grok-bots-research.md:6
+./android_native/WhatsApp.kt:6
+./android_native/PushReceiver.kt:6
+./android_native/OcChannel.kt:6
+./RESTYLE.md:6
+./test/screen_lease_test.dart:5
+./test/mcp_known_test.dart:5
+./test/app_logo_test.dart:5
+./supabase/tests/run_router_tests.sh:5
+./supabase/migrations/20261019_rewards.sql:5
+./supabase/migrations/20261018_cloud_proxy.sql:5
+./supabase/functions/ai-chat/router.ts:5
+./lib/widgets/model_picker.dart:5
+./lib/widgets/logo.dart:5
+./lib/services/updater.dart:5
+./lib/services/team_run.dart:5
+./lib/services/rewards.dart:5
+./lib/services/push.dart:5
+./lib/services/house_rules.dart:5
+./lib/services/context_window.dart:5
+./lib/services/calm.dart:5
+./lib/services/bot_package.dart:5
+./lib/services/billing/billing_service.dart:5
+./lib/services/billing/billing_models.dart:5
+./lib/screens/system_screens.dart:5
+./lib/screens/models_screen.dart:5
+./lib/screens/connectors_screen.dart:5
+./lib/screens/bot_activity_screen.dart:5
+./integration_test/qa_test.dart:5
+./android_native/BootReceiver.kt:5
+./tools/skills/thirdparty/build.py:4
+./tools/proxy-admin/worker.mjs:4
+./test/oc_tools_test.dart:4
+./test/chat_regress_misc_b_test.dart:4
+./test/chat_regress_bots_test.dart:4
+./test/chat_regress_attach_test.dart:4
+./test/bots_background_test.dart:4
+./test/bots_act_on_their_own_test.dart:4
+./supabase/migrations/20261023_submac_gemini_first.sql:4
+./supabase/migrations/20261021_app_releases_r2.sql:4
+./lib/widgets/sub_avatar.dart:4
+./lib/widgets/hark_cards.dart:4
+./lib/widgets/bot_list.dart:4
+./lib/ui/motion.dart:4
+./lib/ui/intro_motion.dart:4
+./lib/theme.dart:4
+./lib/state/chat_controller.dart:4
+./lib/services/submac_style.dart:4
+./lib/services/site_check.dart:4
+./lib/services/screen_control.dart:4
+./lib/services/paste_guard.dart:4
+./lib/services/outbound_guard.dart:4
+./lib/services/offices.dart:4
+./lib/services/live_controller.dart:4
+./lib/services/inbox.dart:4
+./lib/services/billing/checkout_url.dart:4
+./lib/screens/intro_screen.dart:4
+./lib/config.dart:4
+./docs/ui-rules.md:4
+./docs/third-party.md:4
+./docs/site-publishing.md:4
+./docs/bots-opencode.md:4
+./docs/ISSUES-ui.md:4
+./assets/bots/coder.json:4
+./android_native/res/layout/submac_widget.xml:4
+./android_native/res/layout/submac_notif_big.xml:4
+./android_native/SubMacApp.kt:4
+./android_native/Overlay.kt:4
+./android_native/NotifListener.kt:4
+./android_native/Ghost.kt:4
+./android_native/Device.kt:4
+./tools/browser_eval/eval.js:3
+./test/team_intelligence_test.dart:3
+./test/screen_control_test.dart:3
+./test/app_update_test.dart:3
+./supabase/migrations/20261023_eat_day.sql:3
+./supabase/migrations/20261023_billing_v2.sql:3
+./supabase/migrations/20261020_billing.sql:3
+./supabase/migrations/20261019_admin_users.sql:3
+./supabase/functions/site-preview/index.ts:3
+./supabase/functions/_shared/payments/core.ts:3
+./supabase/functions/LIVE.md:3
+./pubspec.yaml:3
+./lib/widgets/save_sheet.dart:3
+./lib/ui/haptics.dart:3
+./lib/state/agent_stream.dart:3
+./lib/services/wake_word.dart:3
+./lib/services/telegram_bridge.dart:3
+./lib/services/stream_policy.dart:3
+./lib/services/somali.dart:3
+./lib/services/session_rules.dart:3
+./lib/services/quick_lane.dart:3
+./lib/services/phone_tools.dart:3
+./lib/services/forged_tools.dart:3
+./lib/services/fetch_browser.dart:3
+./lib/services/code_tools.dart:3
+./lib/services/browser_agent.dart:3
+./lib/screens/projects_screen.dart:3
+./lib/screens/preview_screen.dart:3
+./lib/screens/memory_screen.dart:3
+./lib/screens/bot_job_screen.dart:3
+./lib/bot_agent/bot_agent_config.dart:3
+./docs/media-providers.md:3
+./docs/intro-auth-flow.md:3
+./docs/audit/backend.md:3
+./docs/audit-5.6.md:3
+./android_native/res/values/submac_strings.xml:3
+./android_native/res/values-v31/styles.xml:3
+./android_native/res/values-night-v31/styles.xml:3
+./android_native/res/layout/submac_notif_small.xml:3
+./android_native/QuickWidget.kt:3
+./android_native/Chime.kt:3
+./tools/notif_chime.py:2
+./tools/browser_eval/package.json:2
+./tools/avatars/gen.py:2
+./test/team_opencode_test.dart:2
+./test/sites_test.dart:2
+./test/opencode_tools_bundle_test.dart:2
+./test/motion_guard_test.dart:2
+./test/mission_wake_test.dart:2
+./test/media_preview_test.dart:2
+./test/cloud_share_test.dart:2
+./test/billing/billing_widgets_test.dart:2
+./supabase/migrations/20261020_site_previews.sql:2
+./supabase/live/ai-chat-v42_window_test.ts:2
+./supabase/functions/ai-chat/billing_gate.ts:2
+./supabase/config.toml:2
+./lib/widgets/team_parts.dart:2
+./lib/widgets/rich_cards.dart:2
+./lib/widgets/mission_section.dart:2
+./lib/widgets/meeting_sheet.dart:2
+./lib/widgets/hark_style.dart:2
+./lib/widgets/diagram_card.dart:2
+./lib/widgets/chat/reply_quote.dart:2
+./lib/widgets/chat/blocks.dart:2
+./lib/widgets/approval_card.dart:2
+./lib/ui/tokens.dart:2
+./lib/services/oc_scope.dart:2
+./lib/services/missions.dart:2
+./lib/services/mcp_client.dart:2
+./lib/services/local_store.dart:2
+./lib/services/intro_sound.dart:2
+./lib/services/health_tools.dart:2
+./lib/services/doc_maker.dart:2
+./lib/services/design_skills.dart:2
+./lib/services/byok_opencode.dart:2
+./lib/services/bot_manner.dart:2
+./lib/services/biz_pdf.dart:2
+./lib/services/ai_models.dart:2
+./lib/services/agent_loop.dart:2
+./lib/screens/skill_library_screen.dart:2
+./lib/screens/media_models_screen.dart:2
+./lib/screens/library_screen.dart:2
+./lib/screens/bots_screen.dart:2
+./lib/screens/billing/checkout_webview_screen.dart:2
+./lib/bot_agent/bot_agent_engine.dart:2
+./lib/agent/run_journal.dart:2
+./docs/qa-chat-regress.md:2
+./docs/oc-tools.md:2
+./docs/build61-feedback.md:2
+./docs/bots-workspace.md:2
+./docs/billing/README.md:2
+./docs/apps-dcr-check.md:2
+./android_native/res/xml/submac_widget.xml:2
+./android_native/res/values/submac_launch.xml:2
+./android_native/res/drawable/launch_background.xml:2
+./android_native/res/drawable-v21/launch_background.xml:2
+./android_native/ocexec.c:2
+./android_native/WebHands.kt:2
+./android_native/WaHands.kt:2
+./android_native/WaFiles.kt:2
+./README.md:2
+./.github/workflows/analyze-test.yml:2
+./tools/skills/thirdparty/README.md:1
+./tools/skills/somali/build.py:1
+./tools/skills/somali/README.md:1
+./tools/reel_capture.sh:1
+./tools/qa_capture.sh:1
+./tools/intro_sound.py:1
+./tools/emu_install.sh:1
+./tools/emu_conflicts.sh:1
+./tools/browser_page.js:1
+./tools/bots/health/build.py:1
+./tools/bots/business/build.py:1
+./test/turn_line_test.dart:1
+./test/tool_budget_test.dart:1
+./test/mcp_routes_test.dart:1
+./test/intro_auth_flow_test.dart:1
+./test/grok_bots_pro_test.dart:1
+./test/chat_regress_misc_test.dart:1
+./test/chat_regress_data_test.dart:1
+./test/chat_regress_approvals_test.dart:1
+./test/bot_agent_engine_test.dart:1
+./test/avatars_test.dart:1
+./test/app_update_screen_test.dart:1
+./supabase/tests/billing_v2_test.sql:1
+./supabase/schema.sql:1
+./supabase/migrations/20261021_billing_usage_retry.sql:1
+./supabase/migrations/20261021_billing_search_path.sql:1
+./supabase/migrations/20261021_billing_providers.sql:1
+./supabase/migrations/20261021_billing_hardening.sql:1
+./supabase/migrations/20261019_live_pool.sql:1
+./supabase/migrations/20261019_bot_run.sql:1
+./supabase/migrations/20261019_background_lane.sql:1
+./supabase/migrations/20261018_bot_store_public.sql:1
+./supabase/migrations/0002_memories.sql:1
+./supabase/live/ai-chat-v43_bot_chat_test.ts:1
+./supabase/live/README_v43.md:1
+./supabase/functions/push-send/index.ts:1
+./supabase/functions/account-delete/index.ts:1
+./supabase/functions/_shared/payments/sifalo.ts:1
+./lib/widgets/sub_icon.dart:1
+./lib/widgets/sub_avatar_data.dart:1
+./lib/widgets/status_ring.dart:1
+./lib/widgets/sidebar.dart:1
+./lib/widgets/page_cards.dart:1
+./lib/widgets/motion.dart:1
+./lib/widgets/graph_card.dart:1
+./lib/widgets/data_viz.dart:1
+./lib/widgets/chat_extras.dart:1
+./lib/widgets/chat/typing_text.dart:1
+./lib/widgets/chat/message_actions.dart:1
+./lib/widgets/chat/entrance.dart:1
+./lib/widgets/chat/document_tile.dart:1
+./lib/widgets/chat/activity.dart:1
+./lib/widgets/browser_layer.dart:1
+./lib/widgets/avatar_picker.dart:1
+./lib/widgets/audio_card.dart:1
+./lib/widgets/ask_bar.dart:1
+./lib/ui/launch_flags.dart:1
+./lib/ui/feedback_words.dart:1
+./lib/state/missions_controller.dart:1
+./lib/state/connectors.dart:1
+./lib/services/whatsapp_text.dart:1
+./lib/services/web_tools.dart:1
+./lib/services/usage_accounting.dart:1
+./lib/services/update_logic.dart:1
+./lib/services/turn_visuals.dart:1
+./lib/services/somali_knowledge.dart:1
+./lib/services/setup_tools.dart:1
+./lib/services/run_status.dart:1
+./lib/services/memory_store.dart:1
+./lib/services/meeting_notes.dart:1
+./lib/services/media_store.dart:1
+./lib/services/media_providers.dart:1
+./lib/services/media_gen.dart:1
+./lib/services/mcp_known.dart:1
+./lib/services/live_retranscribe.dart:1
+./lib/services/feedback.dart:1
+./lib/services/data_sheet.dart:1
+./lib/services/connector_tools.dart:1
+./lib/services/browser/page_script.dart:1
+./lib/services/biz_tools.dart:1
+./lib/services/biz_books.dart:1
+./lib/services/billing/pay_update.dart:1
+./lib/services/billing/billing_copy.dart:1
+./lib/services/always_on.dart:1
+./lib/screens/today_screen.dart:1
+./lib/screens/opencode_lab_screen.dart:1
+./lib/screens/logins_screen.dart:1
+./lib/screens/hire_screen.dart:1
+./lib/screens/feedback_screen.dart:1
+./lib/screens/bot_setup_screens.dart:1
+./lib/screens/approvals_screen.dart:1
+./lib/models.dart:1
+./lib/agent/wire.dart:1
+./lib/agent/tool_effects.dart:1
+./integration_test/reel_test.dart:1
+./docs/ui-polish-161.md:1
+./docs/motion-audit.md:1
+./docs/monetization/payments-implementation.md:1
+./docs/monetization/ai-chat-billing-port/README.md:1
+./docs/hark-cards.md:1
+./docs/genkit-core.md:1
+./docs/free-inference-2026-10.md:1
+./docs/flutter-347-upgrade.md:1
+./docs/feedback.md:1
+./docs/custom-models.md:1
+./docs/bughunt-1106.md:1
+./docs/bot-runtime.md:1
+./android_native/res/xml/submac_a11y.xml:1
+./android_native/res/raw/keep.xml:1
+./android_native/res/drawable/ic_stat_submac.xml:1
+./android_native/Sms.kt:1
+./android_native/ScreenGuard.kt:1
+./android_native/PhoneData.kt:1
+./analysis_options.yaml:1
+### assets
+assets/bg/daylight.webp
+assets/bg/night.webp
+assets/bots/business.json
+assets/bots/coder.json
+assets/bots/health.json
+assets/brand/submac_mark.svg
+assets/brand/submac_mark_plain.svg
+assets/fonts/Geist-Bold.ttf
+assets/fonts/Geist-Medium.ttf
+assets/fonts/Geist-Regular.ttf
+assets/fonts/Geist-SemiBold.ttf
+assets/fonts/GeistMono-Medium.ttf
+assets/fonts/GeistMono-Regular.ttf
+assets/fonts/InstrumentSerif-Italic.ttf
+assets/fonts/InstrumentSerif-Regular.ttf
+assets/icon.png
+assets/icon_bg.png
+assets/icon_fg.png
+assets/icon_ios.png
+assets/icon_mono.png
+assets/icons/back.svg
+assets/icons/check.svg
+assets/icons/chevron_down.svg
+assets/icons/chevron_right.svg
+assets/icons/close.svg
+assets/icons/copy.svg
+assets/icons/crown.svg
+assets/icons/edit.svg
+assets/icons/expand.svg
+assets/icons/eye.svg
+assets/icons/eye_off.svg
+assets/icons/file.svg
+assets/icons/folder.svg
+assets/icons/image.svg
+assets/icons/image_broken.svg
+assets/icons/menu.svg
+assets/icons/mic.svg
+assets/icons/more.svg
+assets/icons/phone.svg
+assets/icons/play.svg
+assets/icons/plus.svg
+assets/icons/refresh.svg
+assets/icons/reply.svg
+assets/icons/search.svg
+assets/icons/select.svg
+assets/icons/send.svg
+assets/icons/share.svg
+assets/icons/speaker.svg
+assets/icons/speaker_stop.svg
+assets/icons/steps.svg
+assets/icons/stop.svg
+assets/icons/store.svg
+assets/icons/trash.svg
+assets/intro/intro_sound.m4a
+assets/intro/submac_tile.svg
+assets/knowledge/somali/part1.json
+assets/knowledge/somali/part2.json
+assets/knowledge/somali/part3.json
+assets/knowledge/somali/part4.json
+assets/knowledge/somali/part5.json
+assets/logos/airtable.svg
+assets/logos/alphavantage.png
+assets/logos/amplitude.png
+assets/logos/anthropic.svg
+assets/logos/apify.png
+assets/logos/apollo.png
+assets/logos/asana.svg
+assets/logos/atlassian.svg
+assets/logos/attio.png
+assets/logos/axiom.png
+assets/logos/basecamp.svg
+assets/logos/brave.svg
+assets/logos/brevo.svg
+assets/logos/brightdata.png
+assets/logos/buffer.svg
+assets/logos/buildkite.svg
+assets/logos/calcom.svg
+assets/logos/calendly.svg
+assets/logos/canva.png
+assets/logos/clerk.svg
+assets/logos/clickup.svg
+assets/logos/close.png
+assets/logos/cloudflare.svg
+assets/logos/coda.svg
+assets/logos/coingecko.png
+assets/logos/composio.png
+assets/logos/confluence.svg
+assets/logos/consensus.png
+assets/logos/context7.png
+assets/logos/dataforseo.png
+assets/logos/deepseek.svg
+assets/logos/deepwiki.png
+assets/logos/dice.png
+assets/logos/discord.svg
+assets/logos/dropbox.svg
+assets/logos/elevenlabs.svg
+assets/logos/exa.png
+assets/logos/figma.svg
+assets/logos/fireflies.png
+assets/logos/folk.png
+assets/logos/frameio.png
+assets/logos/framer.svg
+assets/logos/freshdesk.png
+assets/logos/gitbook.svg
+assets/logos/gitguardian.png
+assets/logos/github.svg
+assets/logos/gitlab.svg
+assets/logos/globalping.png
+assets/logos/gmail.svg
+assets/logos/godaddy.svg
+assets/logos/googlegemini.svg
+assets/logos/grafana.svg
+assets/logos/granola.png
+assets/logos/greenhouse.svg
+assets/logos/homeassistant.svg
+assets/logos/honeycomb.png
+assets/logos/hubspot.svg
+assets/logos/huggingface.svg
+assets/logos/hunter.png
+assets/logos/icloud.svg
+assets/logos/ilovepdf.svg
+assets/logos/instacart.svg
+assets/logos/intercom.svg
+assets/logos/invideo.png
+assets/logos/jam.png
+assets/logos/jina.png
+assets/logos/jira.svg
+assets/logos/jotform.png
+assets/logos/kajabi.png
+assets/logos/kiwi.png
+assets/logos/klaviyo.png
+assets/logos/krisp.png
+assets/logos/linear.svg
+assets/logos/lmstudio.svg
+assets/logos/lottiefiles.svg
+assets/logos/lovable.png
+assets/logos/mailchimp.svg
+assets/logos/make.svg
+assets/logos/mapbox.svg
+assets/logos/meetup.svg
+assets/logos/mem.png
+assets/logos/mercury.png
+assets/logos/mintlify.svg
+assets/logos/miro.svg
+assets/logos/mistralai.svg
+assets/logos/mixpanel.svg
+assets/logos/monday.png
+assets/logos/moonshotai.svg
+assets/logos/mslearn.png
+assets/logos/mux.png
+assets/logos/neon.svg
+assets/logos/netlify.svg
+assets/logos/newrelic.svg
+assets/logos/newsapi.png
+assets/logos/notion.svg
+assets/logos/nvidia.svg
+assets/logos/ollama.svg
+assets/logos/openai.svg
+assets/logos/opencode.svg
+assets/logos/openrouter.svg
+assets/logos/otter.png
+assets/logos/paddle.svg
+assets/logos/parallel.png
+assets/logos/paypal.svg
+assets/logos/pcloud.png
+assets/logos/peek.png
+assets/logos/pexels.svg
+assets/logos/pipedream.png
+assets/logos/pipedrive.png
+assets/logos/posthog.svg
+assets/logos/postman.svg
+assets/logos/productboard.png
+assets/logos/railway.svg
+assets/logos/ramp.png
+assets/logos/razorpay.svg
+assets/logos/recurly.png
+assets/logos/replicate.svg
+assets/logos/resend.svg
+assets/logos/retool.svg
+assets/logos/sendgrid.png
+assets/logos/sentry.svg
+assets/logos/serper.png
+assets/logos/shipstation.png
+assets/logos/shopify.svg
+assets/logos/slack.svg
+assets/logos/spline.png
+assets/logos/square.svg
+assets/logos/stripe.svg
+assets/logos/supabase.svg
+assets/logos/supermemory.png
+assets/logos/tavily.png
+assets/logos/telegram.svg
+assets/logos/todoist.svg
+assets/logos/toggl.svg
+assets/logos/trello.svg
+assets/logos/twilio.png
+assets/logos/typeform.svg
+assets/logos/unsplash.svg
+assets/logos/vanta.png
+assets/logos/vercel.svg
+assets/logos/vimeo.svg
+assets/logos/webflow.svg
+assets/logos/whatsapp.svg
+assets/logos/wix.svg
+assets/logos/woocommerce.svg
+assets/logos/wordpress.svg
+assets/logos/workable.png
+assets/logos/xai.svg
+assets/logos/yahoo.png
+assets/logos/youtube.svg
+assets/logos/zapier.svg
+assets/logos/zendesk.svg
+assets/logos/zenrows.png
+assets/logos/zoho.svg
+### android_native refs
+android_native/res/xml/submac_a11y.xml:10:    android:description="@string/submac_a11y_desc" />
+android_native/res/xml/submac_widget.xml:6:    android:initialLayout="@layout/submac_widget" android:updatePeriodMillis="0"
+android_native/res/xml/submac_widget.xml:7:    android:description="@string/submac_widget_desc"/>
+android_native/res/drawable/launch_background.xml:2:<!-- SubMac's own launch screen (replaces the white Flutter template): the brand sky with the SubMac mark, shown
+android_native/res/drawable/launch_background.xml:6:    <item android:drawable="@color/submac_launch_sky" />
+android_native/res/drawable/ic_stat_submac.xml:2:<!-- SubMac notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
+android_native/res/values-v31/styles.xml:3:     behind the adaptive SubMac icon makes the first second of the app look like SubMac, in light and dark. -->
+android_native/res/values-v31/styles.xml:7:        <item name="android:windowSplashScreenBackground">@color/submac_launch_sky</item>
+android_native/res/values-v31/styles.xml:8:        <item name="android:windowSplashScreenIconBackgroundColor">@color/submac_launch_sky</item>
+android_native/res/drawable-v21/launch_background.xml:2:<!-- SubMac's own launch screen (replaces the white Flutter template): the brand sky with the SubMac mark, shown
+android_native/res/drawable-v21/launch_background.xml:6:    <item android:drawable="@color/submac_launch_sky" />
+android_native/res/values/submac_strings.xml:3:    <string name="submac_a11y_desc">Lets SubMac read the screen and tap, type and scroll for you, only when you ask it to. SubMac asks before anything that sends, buys or deletes.</string>
+android_native/res/values/submac_strings.xml:4:    <string name="submac_a11y_label">SubMac phone control</string>
+android_native/res/values/submac_strings.xml:5:    <string name="submac_widget_desc">Ask SubMac, scan a page or start Live from your home screen.</string>
+android_native/res/values/submac_launch.xml:3:    <!-- The middle stop of the logo's sky gradient (docs/brand/submac_logo_master.svg). -->
+android_native/res/values/submac_launch.xml:4:    <color name="submac_launch_sky">#86C0F3</color>
+android_native/res/raw/keep.xml:3:    tools:keep="@raw/submac_wake,@raw/submac_done,@raw/submac_chime,@layout/submac_notif_small,@layout/submac_notif_big,@xml/submac_a11y,@string/submac_a11y_desc" />
+android_native/res/layout/submac_notif_small.xml:2:<!-- SubMac notification, folded: a red-dot kicker, a serif headline, one quiet line. -->
+android_native/res/layout/submac_notif_small.xml:24:            android:text="SUBMAC" />
+android_native/res/layout/submac_notif_small.xml:52:        android:src="@drawable/submac_dot"
+android_native/res/layout/submac_widget.xml:4:    android:background="@drawable/submac_widget_bg" android:orientation="horizontal"
+android_native/res/layout/submac_widget.xml:8:        <ImageView android:layout_width="10dp" android:layout_height="10dp" android:src="@drawable/submac_dot"/>
+android_native/res/layout/submac_widget.xml:10:            android:layout_marginStart="10dp" android:text="Ask SubMac" android:textColor="#6E685C"
+android_native/res/layout/submac_widget.xml:17:        android:background="@drawable/submac_widget_pill" android:gravity="center"
+android_native/res/layout/submac_notif_big.xml:2:<!-- SubMac notification, opened: more air, a larger serif headline, a hairline, one quiet line. -->
+android_native/res/layout/submac_notif_big.xml:20:            android:src="@drawable/submac_dot"
+android_native/res/layout/submac_notif_big.xml:32:            android:text="SUBMAC" />
+android_native/res/layout/submac_notif_big.xml:52:        android:src="@drawable/submac_hairline"
+android_native/res/values-night-v31/styles.xml:3:     behind the adaptive SubMac icon makes the first second of the app look like SubMac, in light and dark. -->
+android_native/res/values-night-v31/styles.xml:7:        <item name="android:windowSplashScreenBackground">@color/submac_launch_sky</item>
+android_native/res/values-night-v31/styles.xml:8:        <item name="android:windowSplashScreenIconBackgroundColor">@color/submac_launch_sky</item>
+android_native/TaskService.kt:1:package com.submac.agent
+android_native/TaskService.kt:16: * Keeps SubMac alive while a task runs with the app closed, showing one calm line.
+android_native/TaskService.kt:25:        @Volatile var text = "SubMac is active"
+android_native/TaskService.kt:60:        // Always "SubMac is active" (owner 2026-11-07); the bot and its task are the second line, "Nova · Hourly news".
+android_native/TaskService.kt:64:            .setSmallIcon(R.drawable.ic_stat_submac)
+android_native/TaskService.kt:66:            .setContentTitle("SubMac is active")
+android_native/TaskService.kt:72:        if (line.isNotEmpty() && !line.equals("SubMac is active", ignoreCase = true)) b.setContentText(line)
+android_native/TaskService.kt:89:                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "submac:task").also { it.setReferenceCounted(false) }
+android_native/TaskService.kt:122:/** Fires a scheduled task: wakes SubMac (even if closed) and hands the task id to Dart. */
+android_native/TaskService.kt:129:            SubMacApp.engine(ctx)
+android_native/TaskService.kt:137:            Notifier.missed(ctx, note, missed, intent.getStringExtra("name") ?: "SubMac", intent.getStringExtra("reason") ?: "")
+android_native/TaskService.kt:138:            if (SubMacApp.engineIfRunning() != null) Bridge.send("botMissed", missed)
+android_native/TaskService.kt:145:            SubMacApp.engine(ctx)
+android_native/TaskService.kt:153:            val name = intent.getStringExtra("name") ?: "SubMac"
+android_native/TaskService.kt:158:                SubMacApp.engine(ctx)
+android_native/TaskService.kt:166:        TaskService.start(ctx, if (label.isEmpty()) "SubMac · Getting ready" else label)
+android_native/TaskService.kt:167:        SubMacApp.engine(ctx)
+android_native/NotifListener.kt:1:package com.submac.agent
+android_native/NotifListener.kt:11:/** Keeps the latest notifications (on the phone only) so SubMac can answer "what did I miss?". */
+android_native/NotifListener.kt:47:            val prefs = getSharedPreferences("submac_bots", Context.MODE_PRIVATE)
+android_native/NotifListener.kt:99:                // WhatsApp: kept per chat in SubMac's phone-only store; watches see the new message itself.
+android_native/PhoneData.kt:1:package com.submac.agent
+android_native/TaskBubble.kt:1:package com.submac.agent
+android_native/TaskBubble.kt:40: * The floating task chat, shown over other apps while SubMac or a bot drives the screen.
+android_native/TaskBubble.kt:226:        val a11y = SubMacA11y.instance
+android_native/TaskBubble.kt:471:        val et = textBox(c, "Tell ${state.optString("who", "SubMac")} something", draft)
+android_native/TaskBubble.kt:489:        open.text = "Open SubMac"
+android_native/TaskBubble.kt:531:        try { SubMacA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
+android_native/TaskBubble.kt:544:        whoTv?.text = s.optString("who", "SubMac")
+android_native/TaskBubble.kt:637:            ask.optBoolean("needsApp") -> row.addView(pillButton(c, "Open SubMac", strong = true) { send("open"); hideNow() }, first)
+android_native/WaFiles.kt:1:package com.submac.agent
+android_native/WaFiles.kt:16: * Read-only access to the files SubMac shares into WhatsApp (cache/wa_share only). Not exported: WhatsApp gets a
+android_native/WebHands.kt:1:package com.submac.agent
+android_native/WebHands.kt:16: * Real hands for the in-app browser. Instead of faking clicks with page script, SubMac sends genuine
+android_native/Bridge.kt:1:package com.submac.agent
+android_native/Bridge.kt:20:/** "submac/system": wake word, floating Live, phone control, SMS, notifications, permissions. */
+android_native/Bridge.kt:33:        val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "submac/system")
+android_native/Bridge.kt:141:                            call.argument<String>("title") ?: "SubMac",
+android_native/Bridge.kt:154:                            call.argument<String>("name") ?: "SubMac",
+android_native/Bridge.kt:168:                            call.argument<String>("name") ?: "SubMac",
+android_native/Bridge.kt:181:                            call.argument<String>("title") ?: "SubMac",
+android_native/Bridge.kt:211:                            call.argument<String>("name") ?: "SubMac",
+android_native/Bridge.kt:218:                        ctx.getSharedPreferences("submac_bots", Context.MODE_PRIVATE).edit()
+android_native/Bridge.kt:290:                        if (call.argument<Boolean>("on") == true) TaskService.start(ctx, call.argument<String>("text") ?: "SubMac is active")
+android_native/Bridge.kt:308:                    "a11yEnabled" -> result.success(SubMacA11y.instance != null)
+android_native/Bridge.kt:311:                            SubMacA11y.instance != null -> "on"
+android_native/Bridge.kt:319:                        val a = SubMacA11y.instance
+android_native/Bridge.kt:330:                        val a = SubMacA11y.instance
+android_native/Bridge.kt:334:                    "a11yIdle" -> result.success((SubMacA11y.instance?.idleMs() ?: 99999L).toInt())
+android_native/Bridge.kt:335:                    // ---- the floating task chat while SubMac or a bot drives the screen ----
+android_native/Bridge.kt:344:                        try { SubMacA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
+android_native/Bridge.kt:350:                        try { SubMacA11y.instance?.ghost?.hideBadge() } catch (_: Throwable) {}
+android_native/Bridge.kt:414:                if (ch == null) SubMacApp.engine(SubMacApp.app)
+android_native/Bridge.kt:425:        val p = i?.getStringExtra("submac_payload") ?: return
+android_native/Bridge.kt:426:        i.removeExtra("submac_payload")
+android_native/Bridge.kt:434:        if (route != null) i.putExtra("submac_payload", route)
+android_native/Bridge.kt:444:        m["accessibility"] = SubMacA11y.instance != null
+android_native/Bridge.kt:446:        m["accessibilityStalled"] = SubMacA11y.instance == null && a11yOnInSettings()
+android_native/Bridge.kt:458:    /** One phone action at a time, off the main thread, with a time limit: a slow app can't freeze SubMac. */
+android_native/Bridge.kt:462:        val a = SubMacA11y.instance
+android_native/Bridge.kt:518:                    val a = SubMacA11y.instance
+android_native/Bridge.kt:535:                        hands == null -> j(false, "phone_control_off", "Phone control is off. Turn it on in SubMac > Apps > WhatsApp.")
+android_native/Bridge.kt:601:                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "$dir/SubMac")
+android_native/Bridge.kt:610:            return "$dir/SubMac/$name"
+android_native/Bridge.kt:613:        val outDir = File(android.os.Environment.getExternalStoragePublicDirectory(dir), "SubMac")
+android_native/Bridge.kt:618:        return "$dir/SubMac/$name"
+android_native/SubMacApp.kt:1:package com.submac.agent
+android_native/SubMacApp.kt:13:class SubMacApp : Application() {
+android_native/SubMacApp.kt:21:        lateinit var app: SubMacApp
+android_native/SubMacApp.kt:22:        private const val ENGINE = "submac_main"
+android_native/ScreenGuard.kt:1:package com.submac.agent
+android_native/WaHands.kt:1:package com.submac.agent
+android_native/WaHands.kt:16:class WaHands(private val a: SubMacA11y) {
+android_native/Overlay.kt:1:package com.submac.agent
+android_native/Overlay.kt:44: *  sheet  - the card plus a box to type to SubMac.
+android_native/Overlay.kt:48:    // The app's real ink (theme.dart), not pure black, so the card reads as SubMac.
+android_native/Overlay.kt:363:            et.hint = "Message SubMac"
+android_native/ocexec.c:9: *   <nativeLibraryDir>/libocld.so --library-path $SUBMAC_OC_LIB <nativeLibraryDir>/libopencode.so args...
+android_native/ocexec.c:29:    const char *libs = getenv("SUBMAC_OC_LIB"); /* filesDir/oc/lib: libstdc++.so.6 and libgcc_s.so.1 by soname */
+android_native/MainActivity.kt:1:package com.submac.agent
+android_native/MainActivity.kt:17: * SubMac native bridge (copied over the generated MainActivity by CI):
+android_native/MainActivity.kt:19: * - receiving "Share to SubMac" text and files from other apps
+android_native/MainActivity.kt:25:    // One long-lived engine (owned by SubMacApp) so Live, the wake word and background tasks
+android_native/MainActivity.kt:27:    override fun provideFlutterEngine(context: Context): FlutterEngine = SubMacApp.engine(context)
+android_native/MainActivity.kt:65:     * long-lived engine (SubMacApp), so Dart's main() and its SystemChrome.setEnabledSystemUIMode(edgeToEdge) run
+android_native/MainActivity.kt:132:        val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "submac/native")
+android_native/MainActivity.kt:138:                    // SubMac with no screen (OcChannel, 2026-11-05).
+android_native/Sms.kt:1:package com.submac.agent
+android_native/WhatsApp.kt:1:package com.submac.agent
+### tools refs
+tools/bots/business/build.py:1:"""Builds assets/bots/business.json: the knowledge pack of SubMac's built-in Business adviser bot.
+tools/bots/health/build.py:1:"""Builds assets/bots/health.json: the knowledge pack of SubMac's built-in Health adviser bot (Caafimaad).
+tools/bots/coder/build.py:1:"""Builds assets/bots/coder.json: the knowledge pack of SubMac's built-in Coder bot (Barnaamije).
+tools/bots/coder/build.py:2:How a senior engineer works with SubMac's coding tools. Written 2026-10-21. Run: python3 tools/bots/coder/build.py"""
+tools/bots/coder/build.py:11:delete_file (to SubMac Trash), run_shell (Android toybox sh: no python, node or git on the phone).
+tools/bots/coder/build.py:77:(a free 7-day SubMac link, or the user's own Vercel). For a permanent free address: code_git publish (public repo) then code_build
+tools/bots/coder/build.py:92:5. Show it with a ```file card. To install: open it, allow "install unknown apps" for SubMac once. The build is signed with a
+tools/bots/coder/build.py:101:(ANDROID_HOME is set). Android Studio is only an editor and is never needed; no computer is needed; SubMac itself is built this way.
+tools/bots/coder/build.py:144:- The token stays in SubMac: never print it, never put it in files. If GitHub answers 401, ask the user to connect GitHub again;
+tools/browser_page.js:1:// SubMac browser page script v2 (browser-use v2). Injected at document start and on demand.
+tools/chat_regress_capture.sh:6:# step fails the job on: drive exit != 0, any QAERR line, any STEPFAIL, a logcat FATAL EXCEPTION in SubMac, an
+tools/chat_regress_capture.sh:9:PKG=com.submac.agent
+tools/chat_regress_capture.sh:28:  adb shell dumpsys notification --noredact 2>/dev/null | grep -E "pkg=com.submac.agent|android.title=|android.text=|android.bigText=" | head -60 >> out/logs/notifications.txt; }
+tools/chat_regress_capture.sh:30:  adb shell dumpsys alarm 2>/dev/null | grep -B1 -A4 "com.submac.agent" | grep -E "RTC|when|origWhen|com.submac|tag=" | head -40 >> out/logs/alarms.txt; }
+tools/chat_regress_capture.sh:88:    note "P3 pid after the alarm: '$(adb shell pidof $PKG | tr -d '\r')'; opening SubMac to read the result"
+tools/chat_regress_capture.sh:105:# A FATAL EXCEPTION counts only when it is SubMac's process.
+tools/intro_sound.py:4:# Synthesizes the SubMac intro sound (original, no samples): one soft rounded glass/marimba pluck per letter of the
+tools/proxy-admin/index.html:6:<title>SubMac Proxy Admin</title>
+tools/proxy-admin/index.html:62:  <h2>SubMac Proxy Admin</h2>
+tools/proxy-admin/index.html:73:    <h1>SubMac Proxy</h1>
+tools/proxy-admin/index.html:243:  }).join("") + `<div class="card"><h2>Add a name</h2><div class="row"><input id="newAlias" placeholder="submac-something"><input id="newAliasDesc" placeholder="What it's for" style="flex:1"><button class="b" onclick="newAlias()">Add</button></div>
+tools/proxy-admin/index.html:246:// The app plans every request against a fixed 48k window (ContextWindow). A model in submac-smart or
+tools/proxy-admin/index.html:247:// submac-vision with a smaller window than that budget plus the reply would make swaps fail, so flag it.
+tools/proxy-admin/index.html:250:  if (!["submac-smart", "submac-vision"].includes(a.alias) || !m.context_window) return "";
+tools/proxy-admin/index.html:564:window.userGrant = async () => { await userDo("reward_grant", { user_id: S.uid, amount_per_day: +$("#ugAmt").value, days: +$("#ugDays").value, note: $("#ugNote").value.trim(), show_note: $("#ugShow").checked }, "Reward granted. The user sees it in From SubMac."); };
+tools/proxy-admin/index.html:603:    <p class="mute" style="margin:8px 0 0">Shows in the user's From SubMac inbox and adds to their daily allowance right away. Not limited by the caps above.</p></div>
+tools/proxy-admin/index.html:611:// ---------- Messages to users ("From SubMac") ----------
+tools/proxy-admin/index.html:618:      <div class="row" style="margin-top:6px"><button class="b p" onclick="msgSaveEdit('${m.id}')">Save edit</button><button class="b" onclick="S.editMsg=null;render()">Cancel</button><span class="mute">Edits show in the app's From SubMac and chat. A push already shown on a phone can't change.</span></div></td></tr>`
+tools/proxy-admin/index.html:630:    <p class="mute" style="margin:6px 0">Every message also lands in the user's From SubMac inbox. In chat it shows as a "SubMac team" card. You can edit or delete it after sending.</p>
+tools/proxy-admin/index.html:640:    ${C.delivery !== "push" ? `<div class="stat" style="width:360px;border-color:var(--acc)"><span style="color:var(--acc);font-weight:600">✓ SubMac team</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span style="color:var(--text);font-size:13px">${b}</span></div></div>` : ""}
+tools/proxy-admin/index.html:641:    <div class="stat" style="width:300px"><span>From SubMac inbox</span><div style="margin-top:6px"><b style="font-size:14px;display:block">${t}</b><span class="mute" style="font-size:12px">SubMac team · now</span></div></div></div>`;
+tools/proxy-admin/index.html:836:  if (F.info && F.info.package && F.info.package !== "com.submac.agent") warn.push("This file is not SubMac Agent (" + esc(F.info.package) + ").");
+tools/proxy-admin/index.html:1040:  ["grace_alias", "Name used after the cap (e.g. \"submac-lite\")."],
+tools/proxy-admin/worker.mjs:11:// ---------- /api/updates/*: app update files into Cloudflare R2 (binding UPDATES -> bucket submac-app-updates) ----------
+tools/proxy-admin/worker.mjs:16:const KEY = /^android\/([0-9]+)-[0-9a-f]{8}\/SubMac-([0-9]+)\.apk$/;
+tools/proxy-admin/worker.mjs:60:      const key = `android/${code}-${rnd}/SubMac-${code}.apk`;
+tools/proxy-admin/worker.mjs:62:        httpMetadata: { contentType: "application/vnd.android.package-archive", contentDisposition: `attachment; filename="SubMac-${code}.apk"` },
+tools/qa_capture.sh:5:PKG=com.submac.agent
+tools/emu_conflicts.sh:5:PKG=com.submac.agent; OLD=$1; NEW=$2
+tools/skills/somali/README.md:5:Health and law here stay at the information level. Professional advice belongs to SubMac built-in bots.
+tools/skills/somali/build.py:332:Everyday first aid questions. Diagnosis, treatment plans and medicines are for health workers: point to a clinic or a SubMac health bot if the user has one.
+tools/skills/thirdparty/README.md:3:`build.py` holds skills rewritten for SubMac from permissively licensed skill packs (obra/superpowers, MIT; anthropics/skills, only the folders that ship an Apache-2.0 LICENSE.txt; alirezarezvani/claude-skills, MIT). Every skill keeps a credit line in its body and `source`, `license`, `author` fields in its file; the index line carries `license`. Licences and versions are listed in `docs/third-party.md`.
+tools/skills/thirdparty/build.py:1:"""Skills adapted from open-source skill collections (MIT / Apache-2.0) for the SubMac skill library.
+tools/skills/thirdparty/build.py:3:Each skill is rewritten for SubMac's tools and for everyday users (plain words, phone first), keeps a
+tools/skills/thirdparty/build.py:22:    credit = (f"\n---\nAdapted for SubMac from \"{path}\" by {s['author']}, {s['license']} licence, {s['url']}. "
+tools/skills/thirdparty/build.py:23:              "Changed: rewritten for SubMac's tools and everyday users.")
+tools/browser_eval/package.json:2:  "name": "submac-browser-eval",
+tools/browser_eval/package.json:4:  "description": "browser_eval: SubMac's page script on real sites (docs/browser-eval.md)",
+tools/browser_eval/eval.js:4:// What it measures: the part of SubMac's browser that does not need the model — the page script the phone injects
+tools/browser_eval/eval.js:186:    const filled = await T.S('login', 'submac', 'secret');
+tools/browser_eval/eval.js:246:    const r = await T.S('upload', f.i, 'note.txt', 'text/plain', Buffer.from('hello from submac').toString('base64'));
+tools/reel_capture.sh:4:PKG=com.submac.agent
+tools/oc_rename_survey.txt:18:./lib/services/submac_gateway.dart:28
+tools/oc_rename_survey.txt:82:./test/submac_mcp_test.dart:9
+tools/oc_rename_survey.txt:93:./test/submac_gateway_test.dart:8
+tools/oc_rename_survey.txt:96:./lib/services/submac_mcp.dart:8
+tools/oc_rename_survey.txt:105:./android_native/SubMacA11y.kt:8
+tools/oc_rename_survey.txt:178:./supabase/migrations/20261023_submac_gemini_first.sql:4
+tools/oc_rename_survey.txt:187:./lib/services/submac_style.dart:4
+tools/oc_rename_survey.txt:204:./android_native/res/layout/submac_widget.xml:4
+tools/oc_rename_survey.txt:205:./android_native/res/layout/submac_notif_big.xml:4
+tools/oc_rename_survey.txt:206:./android_native/SubMacApp.kt:4
+tools/oc_rename_survey.txt:246:./android_native/res/values/submac_strings.xml:3
+tools/oc_rename_survey.txt:249:./android_native/res/layout/submac_notif_small.xml:3
+tools/oc_rename_survey.txt:303:./android_native/res/xml/submac_widget.xml:2
+tools/oc_rename_survey.txt:304:./android_native/res/values/submac_launch.xml:2
+tools/oc_rename_survey.txt:420:./android_native/res/xml/submac_a11y.xml:1
+tools/oc_rename_survey.txt:422:./android_native/res/drawable/ic_stat_submac.xml:1
+tools/oc_rename_survey.txt:433:assets/brand/submac_mark.svg
+tools/oc_rename_survey.txt:434:assets/brand/submac_mark_plain.svg
+tools/oc_rename_survey.txt:482:assets/intro/submac_tile.svg
+tools/oc_rename_survey.txt:643:android_native/res/xml/submac_a11y.xml:10:    android:description="@string/submac_a11y_desc" />
+tools/oc_rename_survey.txt:644:android_native/res/xml/submac_widget.xml:6:    android:initialLayout="@layout/submac_widget" android:updatePeriodMillis="0"
+tools/oc_rename_survey.txt:645:android_native/res/xml/submac_widget.xml:7:    android:description="@string/submac_widget_desc"/>
+tools/oc_rename_survey.txt:646:android_native/res/drawable/launch_background.xml:2:<!-- SubMac's own launch screen (replaces the white Flutter template): the brand sky with the SubMac mark, shown
+tools/oc_rename_survey.txt:647:android_native/res/drawable/launch_background.xml:6:    <item android:drawable="@color/submac_launch_sky" />
+tools/oc_rename_survey.txt:648:android_native/res/drawable/ic_stat_submac.xml:2:<!-- SubMac notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
+tools/oc_rename_survey.txt:649:android_native/res/values-v31/styles.xml:3:     behind the adaptive SubMac icon makes the first second of the app look like SubMac, in light and dark. -->
+tools/oc_rename_survey.txt:650:android_native/res/values-v31/styles.xml:7:        <item name="android:windowSplashScreenBackground">@color/submac_launch_sky</item>
+tools/oc_rename_survey.txt:651:android_native/res/values-v31/styles.xml:8:        <item name="android:windowSplashScreenIconBackgroundColor">@color/submac_launch_sky</item>
+### pubspec/app id (patch_android head)
+63:s = s.replace('android:label="agent"', 'android:label="SubMac Agent"')
+82:                <data android:scheme="com.submac.agent" android:host="login-callback"/>
+123:            android:label="@string/submac_a11y_label"
+137:            android:label="SubMac"
+147:        <provider android:name=".WaFiles" android:authorities="com.submac.agent.wafiles"
+151:        <provider android:name=".UpdateFiles" android:authorities="com.submac.agent.updates"
+156:        <receiver android:name=".QuickWidget" android:exported="true" android:label="SubMac">
+168:kdir = "android/app/src/main/kotlin/com/submac/agent"
+
+===== FILE: pubspec.yaml =====
+name: agent
+description: SubMac Agent - an agentic chat app.
+publish_to: 'none'
+version: 1.13.140+210
+
+environment:
+  sdk: '>=3.12.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.18.3
+  provider: ^6.1.2
+  http: ^1.5.0
+  shared_preferences: ^2.3.2
+  flutter_secure_storage: ^10.3.4
+  flutter_markdown: ^0.7.4
+  markdown: ^7.2.2
+  flutter_highlight: ^0.7.0
+  highlight: ^0.7.0
+  file_picker: ^11.0.3
+  path_provider: ^2.1.4
+  uuid: ^4.5.1
+  url_launcher: ^6.3.0
+  # 12.x: permission_handler_android 14 needs compileSdk 37, which AGP 8.13 does not support (see dependency_overrides).
+  permission_handler: 12.0.1
+  speech_to_text: ^7.5.0
+  flutter_tts: ^4.2.5
+  share_plus: ^12.0.2
+  record: ^7.1.2
+  flutter_pcm_sound: ^3.3.3
+  web_socket_channel: ^3.0.1
+  # v1.4: camera, on-device text reading, PDF text
+  image_picker: ^1.2.4
+  google_mlkit_text_recognition: ^0.17.1
+  syncfusion_flutter_pdf: ^33.2.13
+  # v1.5: in-app browser the agent drives
+  flutter_inappwebview: ^6.1.5
+  image: ^4.12.0
+  # v1.6: email over IMAP/SMTP with app passwords
+  enough_mail: ^2.1.7
+  crypto: ^3.0.3
+  # v1.7: SubMac's own icon set (assets/icons)
+  flutter_svg: ^2.3.0
+  qr_flutter: ^4.1.0
+  flutter_math_fork: ^0.7.4
+  archive: ^4.5.2
+  # v1.13.50 (ECO): readable web pages and office files (Word/Excel/PowerPoint/OpenDocument/EPUB) as text, on the phone.
+  html: ^0.15.4
+  xml: ^6.5.0
+  # v1.13.12: FCM push (plan 2.1). Firebase options are set in Dart (no google-services plugin).
+  firebase_core: ^4.15.2
+  firebase_messaging: ^16.7.1
+  # v1.13.92: videos play inline in the chat.
+  video_player: ^2.14.1
+  # v1.14: the agent loop runs on Genkit Dart (stable core only: generate, tools, interrupts, middleware).
+  genkit: ^1.0.1
+  schemantic: ^1.0.0
+  # v1.13.104: the first-launch intro's short sound (ambient session: mixes with music, silent when the phone is muted).
+  audioplayers: ^6.8.1
+
+dependency_overrides:
+  # The newest Android side that compiles against SDK 36 (13.0.2 uses Android 17's ACCESS_LOCAL_NETWORK).
+  permission_handler_android: 13.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/bg/
+    - assets/logos/
+    - assets/brand/
+    - assets/bots/
+    - assets/knowledge/somali/
+    # First-launch intro: the logo tile (its dot is drawn in code so it can land last) and the intro sound.
+    - assets/intro/
+  fonts:
+    - family: Geist
+      fonts:
+        - asset: assets/fonts/Geist-Regular.ttf
+        - asset: assets/fonts/Geist-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Geist-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Geist-Bold.ttf
+          weight: 700
+    - family: GeistMono
+      fonts:
+        - asset: assets/fonts/GeistMono-Regular.ttf
+        - asset: assets/fonts/GeistMono-Medium.ttf
+          weight: 500
+    - family: InstrumentSerif
+      fonts:
+        - asset: assets/fonts/InstrumentSerif-Regular.ttf
+        - asset: assets/fonts/InstrumentSerif-Italic.ttf
+          style: italic
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  # New logo (submac.site). Master: docs/brand/submac_logo_master.svg; PNGs rendered from it.
+  image_path: assets/icon.png
+  image_path_ios: assets/icon_ios.png
+  adaptive_icon_background: assets/icon_bg.png
+  adaptive_icon_foreground: assets/icon_fg.png
+  # icon_fg.png already fills the full 108dp layer with the mark inside the 66dp safe zone: no extra inset.
+  adaptive_icon_foreground_inset: 0
+  # Android 13+ themed icons: the mark alone, white on clear (the launcher tints it).
+  adaptive_icon_monochrome: assets/icon_mono.png
+
+===== FILE: lib/screens/intro_screen.dart =====
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import '../services/intro_sound.dart';
+import '../theme.dart';
+import '../ui/i18n.dart';
+import '../ui/intro_motion.dart';
+import '../ui/motion.dart';
+
+/// The first-launch intro (owner, 2026-10-26): on a clean white page the wordmark "SubMac" draws itself in behind a
+/// thin brand-blue pen line, then resolves into the logo (it scales and fades in), and the white dot lands last.
+/// As the pen passes each letter a light selection tick fires with one soft glass-like pluck (rising A-major
+/// pentatonic notes), then a warm two-note bloom plays as the logo lands, with one soft impact when the dot touches down. About three seconds; a tap anywhere skips
+/// it (sound and ticks stop at once). With Remove animations the finished logo simply fades in, with one light tick.
+///
+/// Pure Flutter: one AnimationController, every beat a fraction of it (IntroMotion).
+class IntroScreen extends StatefulWidget {
+  const IntroScreen({super.key, required this.onDone, this.sound});
+
+  /// Called once, when the intro finishes or is skipped.
+  final VoidCallback onDone;
+
+  /// The sound to play; the device player by default. Tests pass a fake.
+  final IntroSound? sound;
+
+  @override
+  State<IntroScreen> createState() => IntroScreenState();
+}
+
+class IntroScreenState extends State<IntroScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: IntroMotion.total);
+  IntroSound? _sound;
+  bool _started = false;
+  bool _done = false;
+  bool _still = false;
+  int _nextTick = 0;
+  bool _landed = false;
+  late final List<double> _ticks = IntroMotion.ticks();
+
+  /// True once the intro has finished or was skipped. For tests.
+  bool get done => _done;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    _still = SubMotion.still(context);
+    _c.addStatusListener((s) {
+      if (s == AnimationStatus.completed) _finish();
+    });
+    if (_still) {
+      // Remove animations: the finished logo fades in quickly, one light tick, no sound.
+      _c.duration = IntroMotion.still;
+      unawaited(HapticFeedback.selectionClick());
+    } else {
+      _c.addListener(_beats);
+      _sound = widget.sound ?? IntroSound.device();
+      unawaited(_sound!.play().catchError((Object _) {})); // a sound that fails never stops the intro
+    }
+    _c.forward();
+  }
+
+  /// Haptics in step with the picture: a selection tick as the pen passes each letter, one soft impact as the dot lands.
+  void _beats() {
+    final t = _c.value;
+    while (_nextTick < _ticks.length && t >= _ticks[_nextTick]) {
+      _nextTick++;
+      unawaited(HapticFeedback.selectionClick());
+    }
+    if (!_landed && t >= IntroMotion.dotLand) {
+      _landed = true;
+      unawaited(HapticFeedback.mediumImpact());
+    }
+  }
+
+  /// Tap to skip: sound and ticks stop at once.
+  void skip() {
+    if (_done) return;
+    _c.removeListener(_beats);
+    _c.stop();
+    unawaited(_sound?.stop().catchError((Object _) {}));
+    _finish();
+  }
+
+  void _finish() {
+    if (_done) return;
+    _done = true;
+    _c.removeListener(_beats);
+    widget.onDone();
+  }
+
+  @override
+  void dispose() {
+    _c.removeListener(_beats);
+    _c.dispose();
+    // A finished intro lets the sound's short tail ring out; a skipped one has already stopped it.
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: tr('Skip intro'),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: skip,
+        // Material gives the wordmark a proper text style (no debug underline) on the plain white page.
+        child: Material(
+          color: IntroMotion.paper,
+          child: Center(
+            child: RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _c,
+                builder: (context, _) => _still ? _stillFrame(_c.value) : _frame(_c.value),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stillFrame(double t) => Opacity(
+        opacity: IntroMotion.span(t, 0, 0.35),
+        child: const IntroLogo(dot: 1),
+      );
+
+  Widget _frame(double t) {
+    final draw = IntroMotion.span(t, IntroMotion.drawStart, IntroMotion.drawEnd);
+    final wordOut = IntroMotion.easeInOut.transform(IntroMotion.span(t, IntroMotion.wordOutStart, IntroMotion.wordOutEnd));
+    final logo = IntroMotion.easeOut.transform(IntroMotion.span(t, IntroMotion.logoStart, IntroMotion.logoEnd));
+    final dot = IntroMotion.easeOut.transform(IntroMotion.span(t, IntroMotion.dotStart, IntroMotion.dotEnd));
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        if (wordOut < 1)
+          Opacity(
+            opacity: 1 - wordOut,
+            child: Transform.scale(
+              scale: 1 - 0.06 * wordOut,
+              child: IntroWordmark(edge: IntroMotion.revealEdge(draw)),
+            ),
+          ),
+        if (logo > 0)
+          Opacity(
+            opacity: logo,
+            child: Transform.scale(scale: 0.82 + 0.18 * logo, child: IntroLogo(dot: dot)),
+          ),
+      ],
+    );
+  }
+}
+
+/// "SubMac" revealed left to right up to [edge] (0..1) through a soft mask, with a thin pen line riding the edge.
+class IntroWordmark extends StatelessWidget {
+  const IntroWordmark({super.key, required this.edge, this.pen = 1});
+  final double edge;
+  final double pen;
+
+  @override
+  Widget build(BuildContext context) {
+    const soft = 0.08;
+    // The mask runs a little past both ends so the first and last letters start and finish cleanly.
+    final e = -soft + (1 + 2 * soft) * edge;
+    return CustomPaint(
+      foregroundPainter: _PenPainter(edge: e, opacity: edge <= 0 || edge >= 1 ? 0 : pen),
+      child: ShaderMask(
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (r) => LinearGradient(
+          colors: const [IntroMotion.ink, IntroMotion.ink, IntroMotion.inkClear],
+          stops: [0, (e - soft).clamp(0.0, 1.0), e.clamp(0.0, 1.0)],
+        ).createShader(r),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Text(
+            IntroMotion.word,
+            textDirection: TextDirection.ltr,
+            style: Brand.serif(size: IntroMotion.wordSize, color: IntroMotion.ink, height: 1.1),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PenPainter extends CustomPainter {
+  _PenPainter({required this.edge, required this.opacity});
+  final double edge;
+  final double opacity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (opacity <= 0) return;
+    final x = size.width * edge.clamp(0.0, 1.0);
+    final paint = Paint()
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..color = IntroMotion.theme.withValues(alpha: opacity);
+    canvas.drawLine(Offset(x, size.height * 0.16), Offset(x, size.height * 0.88), paint);
+  }
+
+  @override
+  bool shouldRepaint(_PenPainter old) => old.edge != edge || old.opacity != opacity;
+}
+
+/// The new SubMac logo: the light-blue tile with its blue "S" (assets/intro/submac_tile.svg), and the white dot drawn
+/// on top so it can land last. [dot] is the dot's arrival (0 = not there, 1 = landed).
+class IntroLogo extends StatelessWidget {
+  const IntroLogo({super.key, this.dot = 1, this.size = IntroMotion.tileSize});
+  final double dot;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: size,
+      child: CustomPaint(
+        foregroundPainter: _DotPainter(dot),
+        child: SvgPicture.asset('assets/intro/submac_tile.svg', width: size, height: size),
+      ),
+    );
+  }
+}
+
+class _DotPainter extends CustomPainter {
+  _DotPainter(this.t);
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (t <= 0) return;
+    final c = Offset(IntroMotion.dotCentre.dx * size.width, IntroMotion.dotCentre.dy * size.height);
+    // Drops in from just above its place and grows to full size as it settles.
+    final drop = (1 - t) * size.height * 0.08;
+    final r = IntroMotion.dotRadius * size.width * math.min(1.0, 0.2 + 0.8 * t);
+    canvas.drawCircle(c.translate(0, -drop), r, Paint()..color = IntroMotion.dot.withValues(alpha: t.clamp(0.0, 1.0)));
+  }
+
+  @override
+  bool shouldRepaint(_DotPainter old) => old.t != t;
+}
+
+===== FILE: lib/services/intro_sound.dart =====
+import 'dart:async';
+
+import 'package:audioplayers/audioplayers.dart';
+
+/// The intro's sound: one soft rounded pluck per letter of the wordmark, on the haptic ticks, then a warm two-note bloom
+/// as the logo resolves and the dot lands (assets/intro/intro_sound.m4a, 3.3 s, about -17.5 LUFS; synthesized for
+/// SubMac by tools/intro_sound.py, no samples).
+///
+/// It never gets in the way:
+/// * an ambient session: it mixes with (and on Android briefly ducks) the user's music, never stops it;
+/// * silent when the phone is muted: Android plays it as a sonification sound on the system stream, which follows
+///   silent and vibrate mode; iOS uses the ambient category, which follows the mute switch;
+/// * any failure to load or play is swallowed, so the intro runs on silently;
+/// * [stop] cuts it at once (skip).
+abstract class IntroSound {
+  Future<void> play();
+  Future<void> stop();
+
+  /// The real player. Tests pass their own [IntroSound].
+  factory IntroSound.device() => _DeviceIntroSound();
+}
+
+class _DeviceIntroSound implements IntroSound {
+  static const asset = 'intro/intro_sound.m4a'; // under AudioCache's 'assets/' prefix
+
+  static final context = AudioContext(
+    android: const AudioContextAndroid(
+      contentType: AndroidContentType.sonification,
+      usageType: AndroidUsageType.assistanceSonification,
+      audioFocus: AndroidAudioFocus.gainTransientMayDuck,
+    ),
+    iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
+  );
+
+  AudioPlayer? _player;
+  bool _stopped = false;
+
+  @override
+  Future<void> play() async {
+    try {
+      final p = _player ??= AudioPlayer(playerId: 'submac_intro');
+      await p.setAudioContext(context);
+      await p.setReleaseMode(ReleaseMode.release);
+      if (_stopped) return;
+      await p.play(AssetSource(asset), volume: 0.9);
+      if (_stopped) await p.stop();
+      unawaited(p.onPlayerComplete.first.then((_) => _release()).catchError((_) {}));
+    } catch (_) {
+      // No sound is fine: the intro carries on.
+    }
+  }
+
+  @override
+  Future<void> stop() async {
+    _stopped = true;
+    try {
+      await _player?.stop();
+    } catch (_) {}
+    await _release();
+  }
+
+  Future<void> _release() async {
+    final p = _player;
+    _player = null;
+    try {
+      await p?.dispose();
+    } catch (_) {}
+  }
+}
+
+===== FILE: lib/widgets/logo.dart =====
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import '../theme.dart';
+
+/// SubMac logo (the new mark from submac.site): a blue "S" and a white dot on a light-blue rounded tile.
+/// Drawn from the vector master in assets/brand, so it stays sharp at every size.
+/// [tile] false draws only the S and the dot, for places that already sit on their own surface.
+class AppLogo extends StatelessWidget {
+  final double size;
+  final bool tile;
+  const AppLogo({super.key, this.size = 32, this.tile = true});
+
+  static const tileAsset = 'assets/brand/submac_mark.svg';
+  static const plainAsset = 'assets/brand/submac_mark_plain.svg';
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'SubMac',
+      image: true,
+      child: SvgPicture.asset(
+        tile ? tileAsset : plainAsset,
+        width: size,
+        height: size,
+        excludeFromSemantics: true,
+      ),
+    );
+  }
+}
+
+/// Was the breathing dot. Now: a fine working ring when [animate] is true, nothing otherwise.
+/// (No hidden ticker: the ring is the only motion, and it stands still with Remove animations.)
+class RedDot extends StatelessWidget {
+  final double size;
+  final bool animate;
+  const RedDot({super.key, this.size = 12, this.animate = false});
+
+  @override
+  Widget build(BuildContext context) {
+    // No dots in the interface (they read as filler). Working shows a fine, quiet ring; still shows nothing.
+    if (!animate) return const SizedBox.shrink();
+    final s = size < 12 ? 12.0 : size;
+    return SizedBox(
+      width: s,
+      height: s,
+      // With Remove animations the ring stands still (and never keeps a test's pumpAndSettle waiting).
+      child: CircularProgressIndicator(
+        strokeWidth: 1.4,
+        color: Palette.of(context).muted,
+        value: (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ? 0.7 : null,
+      ),
+    );
+  }
+}
+
+/// What the agent is doing, shown through the brand mark.
+enum MarkMode { idle, thinking, working, roaming }
+
+/// The SubMac mark (the serif "S") as a living indicator. No dots (owner rule): motion is carried by the letter
+/// and one fine line.
+/// - idle: the S breathes slowly;
+/// - thinking: the S glows softly while a fine ring opens out around it;
+/// - working: a short fine arc turns around the S;
+/// - roaming (browsing or using the phone): a longer arc sweeps around the S, a little faster.
+class AgentMark extends StatefulWidget {
+  const AgentMark({super.key, this.size = 28, this.mode = MarkMode.thinking});
+  final double size;
+  final MarkMode mode;
+
+  @override
+  State<AgentMark> createState() => _AgentMarkState();
+}
+
+class _AgentMarkState extends State<AgentMark> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: _period(widget.mode));
+
+  static Duration _period(MarkMode m) => switch (m) {
+        MarkMode.idle => const Duration(milliseconds: 3200),
+        MarkMode.thinking => const Duration(milliseconds: 1600),
+        MarkMode.working => const Duration(milliseconds: 1100),
+        MarkMode.roaming => const Duration(milliseconds: 1800),
+      };
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (still) {
+      _c.stop();
+      _c.value = 0.5;
+    } else if (!_c.isAnimating) {
+      _c.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(AgentMark old) {
+    super.didUpdateWidget(old);
+    if (old.mode != widget.mode) {
+      _c.duration = _period(widget.mode);
+      if (_c.isAnimating) _c.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final s = widget.size;
+    return SizedBox(
+      width: s,
+      height: s,
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) {
+          final t = _c.value;
+          final wave = 0.5 - 0.5 * math.cos(2 * math.pi * t); // 0 to 1 and back
+          final glow = switch (widget.mode) {
+            MarkMode.idle => 0.78 + 0.22 * wave,
+            MarkMode.thinking => 0.7 + 0.3 * wave,
+            MarkMode.working => 1.0,
+            MarkMode.roaming => 0.85 + 0.15 * wave,
+          };
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(child: CustomPaint(painter: _MarkLine(mode: widget.mode, t: t, color: p.text))),
+              Positioned(
+                left: s * 0.24,
+                top: s * 0.02,
+                child: Opacity(
+                  opacity: glow.clamp(0.0, 1.0),
+                  child: Text('S', style: Brand.serif(size: s * 0.86, color: p.text, height: 1.0)),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The one fine line around the mark: a ring that opens out (thinking) or an arc that turns (working, roaming).
+class _MarkLine extends CustomPainter {
+  _MarkLine({required this.mode, required this.t, required this.color});
+  final MarkMode mode;
+  final double t;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide / 2;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = (size.shortestSide / 28).clamp(1.0, 2.4).toDouble();
+    switch (mode) {
+      case MarkMode.idle:
+        return;
+      case MarkMode.thinking:
+        paint.color = color.withValues(alpha: 0.45 * (1 - t));
+        canvas.drawCircle(c, r * (0.75 + 0.35 * t), paint);
+      case MarkMode.working:
+        paint.color = color.withValues(alpha: 0.7);
+        canvas.drawArc(Rect.fromCircle(center: c, radius: r * 0.98), 2 * math.pi * t - math.pi / 2, math.pi * 0.45, false, paint);
+      case MarkMode.roaming:
+        paint.color = color.withValues(alpha: 0.55);
+        canvas.drawArc(Rect.fromCircle(center: c, radius: r * 0.98), 2 * math.pi * t - math.pi / 2, math.pi * 0.9, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MarkLine old) => old.t != t || old.mode != mode || old.color != color;
+}
