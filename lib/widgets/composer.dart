@@ -21,6 +21,7 @@ import '../models.dart';
 import '../screens/live_screen.dart';
 import '../services/attach_limits.dart';
 import '../services/full_access.dart';
+import '../services/thinking_level.dart';
 import '../services/doc_tools.dart';
 import '../theme.dart';
 import 'chat_extras.dart';
@@ -689,7 +690,7 @@ class _QuietPill extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppText.microStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
             ),
-            Icon(Icons.expand_more_rounded, size: IconSize.sm, color: p.muted),
+            const ActivityChevron(open: false),
           ]),
         ),
       ),
@@ -740,8 +741,8 @@ Future<void> _pickThinking(BuildContext context) async {
               title: Text(tr(Thinking.word(l))),
               subtitle: Text(tr(_thinkingHint(l)), style: AppText.microStyle.copyWith(color: p.muted)),
               trailing: AppState.thinkingLevel.value == l
-                  ? Icon(Icons.check_rounded, color: p.text, size: IconSize.lg)
-                  : const SizedBox(width: IconSize.lg),
+                  ? Text(tr('Now'), style: AppText.microStyle.copyWith(color: p.muted))
+                  : null,
               onTap: () => Navigator.pop(ctx, l),
             ),
           const SizedBox(height: Space.x4),
@@ -778,9 +779,7 @@ Future<void> _pickPermission(BuildContext context) async {
     builder: (ctx) {
       final p = Palette.of(ctx);
       final on = FullAccess.I.on;
-      Widget check(bool v) => v
-          ? Icon(Icons.check_rounded, color: p.text, size: IconSize.lg)
-          : const SizedBox(width: IconSize.lg);
+      Widget? now(bool v) => v ? Text(tr('Now'), style: AppText.microStyle.copyWith(color: p.muted)) : null;
       return SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Padding(
@@ -791,7 +790,7 @@ Future<void> _pickPermission(BuildContext context) async {
             key: const ValueKey('perm-ask'),
             title: Text(tr('Ask')),
             subtitle: Text(tr('Approvals wait for you'), style: AppText.microStyle.copyWith(color: p.muted)),
-            trailing: check(!on),
+            trailing: now(!on),
             onTap: () => Navigator.pop(ctx, false),
           ),
           ListTile(
@@ -799,7 +798,7 @@ Future<void> _pickPermission(BuildContext context) async {
             title: Text(tr('Autopilot')),
             subtitle: Text(tr('Answers approvals by itself; money and your settings still ask'),
                 style: AppText.microStyle.copyWith(color: p.muted)),
-            trailing: check(on),
+            trailing: now(on),
             onTap: () => Navigator.pop(ctx, true),
           ),
           const SizedBox(height: Space.x4),
