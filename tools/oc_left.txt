@@ -1,0 +1,1473 @@
+HIT tools/new_apk.yml:222: echo "**If SubMac Agent 1.3.0 or 1.4.0 is on your phone, uninstall it first.** Those builds were signed with a different key, and Android refuses to update an app across 
+HIT tools/oc_audit.txt:3: ### total occurrences (case-insensitive, submac)
+HIT tools/oc_audit.txt:16: ### file names containing submac
+HIT tools/oc_audit.txt:49: .github/workflows/oc-brand-audit.yml:28:            grep -rn -i -E "applicationId|namespace|org com|com\.submac|com\.telesia|package com\." \
+HIT tools/oc_audit.txt:51: .github/workflows/oc-apkfix.yml:23:            -e 's/com\.submac/com.telesia/g' \
+HIT tools/oc_audit.txt:53: .github/workflows/oc-gradle-dump.yml:24:          flutter create --org com.submac --project-name agent --platforms android,ios .
+HIT tools/oc_audit.txt:54: .github/workflows/oc-gradle-dump.yml:35:            grep -n -E "applicationId|namespace|com\.(submac|telesia)" /tmp/pre_build.gradle.kts 2>/dev/null || echo "(no match)"
+HIT tools/oc_audit.txt:55: .github/workflows/oc-gradle-dump.yml:39:            grep -n -E "applicationId|namespace|com\.(submac|telesia)" android/app/build.gradle.kts 2>/dev/null || echo "(no match
+HIT tools/oc_audit.txt:57: tools/oc_fix1.py:9:3. CI still generates the Android project with --org com.submac, so gradle
+HIT tools/oc_audit.txt:58: tools/oc_fix1.py:10:   stamps applicationId/namespace com.submac.agent instead of com.telesia.app,
+HIT tools/oc_audit.txt:61: tools/oc_fix1.py:68:    edit(f, "flutter create --org com.submac", "flutter create --org com.telesia", 1)
+HIT tools/oc_audit.txt:64: tools/oc_fix1.py:99:for wrong in ("com.submac.agent", "com.telesia.agent"):
+HIT tools/oc_audit.txt:70: tools/patch_android.py:187:for wrong in ("com.submac.agent", "com.telesia.agent"):
+HIT tools/oc_gradle.txt:2: 8:    namespace = "com.submac.agent"
+HIT tools/oc_gradle.txt:3: 19:        applicationId = "com.submac.agent"
+HIT tools/oc_gradle.txt:12: 8:    namespace = "com.submac.agent"
+HIT tools/oc_gradle.txt:23: 19:        applicationId = "com.submac.agent"
+HIT tools/oc_gradle.txt:55: 9:    namespace = "com.submac.agent"
+HIT tools/oc_gradle.txt:56: 20:        applicationId = "com.submac.agent"
+HIT tools/oc_gradle.txt:117: android/app/src/main/kotlin/com/submac
+HIT tools/oc_test_tail.txt:31: 355-✅ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: engine events reach only their own turn parts, deltas and idle of one session never 
+HIT tools/oc_test_tail.txt:33: 357-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them a call from a session n
+HIT tools/oc_test_tail.txt:42: 366-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them a running turn's own ca
+HIT tools/oc_test_tail.txt:51: 375-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them with several turns runn
+HIT tools/oc_test_tail.txt:60: 384-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them alone, a call whose arg
+HIT tools/oc_test_tail.txt:71: 610-::group::❌ /home/runner/work/submac-agent/submac-agent/test/intro_auth_flow_test.dart: first-launch intro plays the draw, ticks per letter, lands the dot, then hands 
+HIT tools/oc_test_tail.txt:79: 618-#4      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/submac-agent/submac-agent/test/intro_auth_flow_test.dart:90:7)
+HIT tools/oc_test_tail.txt:84: 672-✅ /home/runner/work/submac-agent/submac-agent/test/visual_output_test.dart: generate_image reaches opencode listed by name only while the server can make pictures
+HIT tools/oc_test_tail.txt:86: 674-::group::❌ /home/runner/work/submac-agent/submac-agent/test/visual_output_test.dart: generate_image reaches opencode a direct call runs through the chat's own tool li
+HIT tools/oc_test_tail.txt:94: 682-::group::❌ /home/runner/work/submac-agent/submac-agent/test/visual_output_test.dart: generate_image reaches opencode a direct call is routed to the chat whose turn ma
+HIT tools/oc_test_tail.txt:105: 1409-✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: opencode can find and run every app tool (no 8-tool cap)
+HIT tools/oc_test_tail.txt:107: 1411-::group::❌ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: run_tool forgives the telesia_ prefix models add (failed)
+HIT tools/oc_test_tail.txt:121: 1588-✅ /home/runner/work/submac-agent/submac-agent/test/skill_save_test.dart: skill_save stores, refuses collisions, and reads back as a skill
+HIT tools/oc_test_tail.txt:123: 1590-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it a run_tool call in the turn's own se
+HIT tools/oc_test_tail.txt:131: 1598-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it a subagent (child session) call rout
+HIT tools/oc_test_tail.txt:140: 1607-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it find_tools is routed too, so a looku
+HIT tools/oc_test_tail.txt:149: 1616-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it a "telesia_" prefix on the inner nam
+HIT tools/patch_android.py:187: for wrong in ("com.submac.agent", "com.telesia.agent"):
+HIT .github/workflows/apk.yml:222: echo "**If SubMac Agent 1.3.0 or 1.4.0 is on your phone, uninstall it first.** Those builds were signed with a different key, and Android refuses to update an app across 
+HIT .github/workflows/oc-apkfix.yml:23: -e 's/com\.submac/com.telesia/g' \
+HIT .github/workflows/oc-apkfix.yml:24: -e 's/Make it SubMac/Make it Telesia/g' \
+HIT .github/workflows/oc-apkfix.yml:25: -e 's/submac_chime/telesia_chime/g' \
+HIT .github/workflows/oc-apkfix.yml:26: -e 's/"submac-/"telesia-/g' \
+HIT .github/workflows/oc-apkfix.yml:27: -e "s/SubMac Agent [\$][{][{]/Telesia $D{{/g" \
+HIT .github/workflows/oc-apkfix.yml:28: -e "s/### SubMac [\$][{][{]/### Telesia $D{{/g" \
+HIT .github/workflows/oc-apkfix.yml:29: -e 's/pinned SubMac key/pinned Telesia key/g' \
+HIT .github/workflows/oc-apkfix.yml:30: -e 's/The SubMac launcher icon/The Telesia launcher icon/g' \
+HIT .github/workflows/oc-apkfix.yml:31: -e 's/the SubMac logo/the Telesia logo/g' \
+HIT .github/workflows/oc-apkfix.yml:35: echo "submac lines: $(grep -c -i submac tools/apk.yml.new || true)"
+HIT .github/workflows/oc-brand-audit.yml:19: echo "### total occurrences (case-insensitive, submac)"
+HIT .github/workflows/oc-brand-audit.yml:20: grep -rio -i submac --exclude-dir=.git --exclude=tools/oc_audit.txt . 2>/dev/null | wc -l
+HIT .github/workflows/oc-brand-audit.yml:22: grep -ric -i submac --exclude-dir=.git 2>/dev/null | grep -v ':0$' | grep -v 'tools/oc_audit.txt' | sort -t: -k2 -nr | head -80
+HIT .github/workflows/oc-brand-audit.yml:23: echo "### file names containing submac"
+HIT .github/workflows/oc-brand-audit.yml:24: git ls-files | grep -i submac || echo "(none)"
+HIT .github/workflows/oc-brand-audit.yml:28: grep -rn -i -E "applicationId|namespace|org com|com\.submac|com\.telesia|package com\." \
+HIT .github/workflows/oc-brand-audit.yml:35: grep -n -C3 -i -E "submac|telesia|_apps_list_tools|bots_list|bot_followup|generate_image|mainConv|botConv|chat-1|\b6\b" "$f" 2>/dev/null | head -60
+HIT .github/workflows/oc-brand-audit.yml:38: grep -rn -E "startsWith\('|submac_|telesia_|apps_list_tools|generate_image" lib --include='*.dart' 2>/dev/null | head -120
+HIT .github/workflows/oc-gradle-dump.yml:24: flutter create --org com.submac --project-name agent --platforms android,ios .
+HIT .github/workflows/oc-gradle-dump.yml:35: grep -n -E "applicationId|namespace|com\.(submac|telesia)" /tmp/pre_build.gradle.kts 2>/dev/null || echo "(no match)"
+HIT .github/workflows/oc-gradle-dump.yml:39: grep -n -E "applicationId|namespace|com\.(submac|telesia)" android/app/build.gradle.kts 2>/dev/null || echo "(no match)"
+HIT .github/workflows/oc-gradle-dump.yml:41: grep -n -E "com\.(submac|telesia)|android:label|package=" android/app/src/main/AndroidManifest.xml 2>/dev/null || echo "(no match)"
+HIT .github/workflows/oc-gradle-dump.yml:45: grep -n -E "com\.(submac|telesia)|name" /tmp/pre_settings.gradle.kts 2>/dev/null | head -20
+HIT ./.github/workflows/apk.yml:222: echo "**If SubMac Agent 1.3.0 or 1.4.0 is on your phone, uninstall it first.** Those builds were signed with a different key, and Android refuses to update an app across 
+HIT ./.github/workflows/oc-apkfix.yml:23: -e 's/com\.submac/com.telesia/g' \
+HIT ./.github/workflows/oc-apkfix.yml:24: -e 's/Make it SubMac/Make it Telesia/g' \
+HIT ./.github/workflows/oc-apkfix.yml:25: -e 's/submac_chime/telesia_chime/g' \
+HIT ./.github/workflows/oc-apkfix.yml:26: -e 's/"submac-/"telesia-/g' \
+HIT ./.github/workflows/oc-apkfix.yml:27: -e "s/SubMac Agent [\$][{][{]/Telesia $D{{/g" \
+HIT ./.github/workflows/oc-apkfix.yml:28: -e "s/### SubMac [\$][{][{]/### Telesia $D{{/g" \
+HIT ./.github/workflows/oc-apkfix.yml:29: -e 's/pinned SubMac key/pinned Telesia key/g' \
+HIT ./.github/workflows/oc-apkfix.yml:30: -e 's/The SubMac launcher icon/The Telesia launcher icon/g' \
+HIT ./.github/workflows/oc-apkfix.yml:31: -e 's/the SubMac logo/the Telesia logo/g' \
+HIT ./.github/workflows/oc-apkfix.yml:35: echo "submac lines: $(grep -c -i submac tools/apk.yml.new || true)"
+HIT ./.github/workflows/oc-brand-audit.yml:19: echo "### total occurrences (case-insensitive, submac)"
+HIT ./.github/workflows/oc-brand-audit.yml:20: grep -rio -i submac --exclude-dir=.git --exclude=tools/oc_audit.txt . 2>/dev/null | wc -l
+HIT ./.github/workflows/oc-brand-audit.yml:22: grep -ric -i submac --exclude-dir=.git 2>/dev/null | grep -v ':0$' | grep -v 'tools/oc_audit.txt' | sort -t: -k2 -nr | head -80
+HIT ./.github/workflows/oc-brand-audit.yml:23: echo "### file names containing submac"
+HIT ./.github/workflows/oc-brand-audit.yml:24: git ls-files | grep -i submac || echo "(none)"
+HIT ./.github/workflows/oc-brand-audit.yml:28: grep -rn -i -E "applicationId|namespace|org com|com\.submac|com\.telesia|package com\." \
+HIT ./.github/workflows/oc-brand-audit.yml:35: grep -n -C3 -i -E "submac|telesia|_apps_list_tools|bots_list|bot_followup|generate_image|mainConv|botConv|chat-1|\b6\b" "$f" 2>/dev/null | head -60
+HIT ./.github/workflows/oc-brand-audit.yml:38: grep -rn -E "startsWith\('|submac_|telesia_|apps_list_tools|generate_image" lib --include='*.dart' 2>/dev/null | head -120
+HIT ./.github/workflows/oc-gradle-dump.yml:24: flutter create --org com.submac --project-name agent --platforms android,ios .
+HIT ./.github/workflows/oc-gradle-dump.yml:35: grep -n -E "applicationId|namespace|com\.(submac|telesia)" /tmp/pre_build.gradle.kts 2>/dev/null || echo "(no match)"
+HIT ./.github/workflows/oc-gradle-dump.yml:39: grep -n -E "applicationId|namespace|com\.(submac|telesia)" android/app/build.gradle.kts 2>/dev/null || echo "(no match)"
+HIT ./.github/workflows/oc-gradle-dump.yml:41: grep -n -E "com\.(submac|telesia)|android:label|package=" android/app/src/main/AndroidManifest.xml 2>/dev/null || echo "(no match)"
+HIT ./.github/workflows/oc-gradle-dump.yml:45: grep -n -E "com\.(submac|telesia)|name" /tmp/pre_settings.gradle.kts 2>/dev/null | head -20
+HIT ./tools/new_apk.yml:222: echo "**If SubMac Agent 1.3.0 or 1.4.0 is on your phone, uninstall it first.** Those builds were signed with a different key, and Android refuses to update an app across 
+HIT ./tools/oc_audit.txt:3: ### total occurrences (case-insensitive, submac)
+HIT ./tools/oc_audit.txt:16: ### file names containing submac
+HIT ./tools/oc_audit.txt:49: .github/workflows/oc-brand-audit.yml:28:            grep -rn -i -E "applicationId|namespace|org com|com\.submac|com\.telesia|package com\." \
+HIT ./tools/oc_audit.txt:51: .github/workflows/oc-apkfix.yml:23:            -e 's/com\.submac/com.telesia/g' \
+HIT ./tools/oc_audit.txt:53: .github/workflows/oc-gradle-dump.yml:24:          flutter create --org com.submac --project-name agent --platforms android,ios .
+HIT ./tools/oc_audit.txt:54: .github/workflows/oc-gradle-dump.yml:35:            grep -n -E "applicationId|namespace|com\.(submac|telesia)" /tmp/pre_build.gradle.kts 2>/dev/null || echo "(no match)"
+HIT ./tools/oc_audit.txt:55: .github/workflows/oc-gradle-dump.yml:39:            grep -n -E "applicationId|namespace|com\.(submac|telesia)" android/app/build.gradle.kts 2>/dev/null || echo "(no match
+HIT ./tools/oc_audit.txt:57: tools/oc_fix1.py:9:3. CI still generates the Android project with --org com.submac, so gradle
+HIT ./tools/oc_audit.txt:58: tools/oc_fix1.py:10:   stamps applicationId/namespace com.submac.agent instead of com.telesia.app,
+HIT ./tools/oc_audit.txt:61: tools/oc_fix1.py:68:    edit(f, "flutter create --org com.submac", "flutter create --org com.telesia", 1)
+HIT ./tools/oc_audit.txt:64: tools/oc_fix1.py:99:for wrong in ("com.submac.agent", "com.telesia.agent"):
+HIT ./tools/oc_audit.txt:70: tools/patch_android.py:187:for wrong in ("com.submac.agent", "com.telesia.agent"):
+HIT ./tools/oc_gradle.txt:2: 8:    namespace = "com.submac.agent"
+HIT ./tools/oc_gradle.txt:3: 19:        applicationId = "com.submac.agent"
+HIT ./tools/oc_gradle.txt:12: 8:    namespace = "com.submac.agent"
+HIT ./tools/oc_gradle.txt:23: 19:        applicationId = "com.submac.agent"
+HIT ./tools/oc_gradle.txt:55: 9:    namespace = "com.submac.agent"
+HIT ./tools/oc_gradle.txt:56: 20:        applicationId = "com.submac.agent"
+HIT ./tools/oc_gradle.txt:117: android/app/src/main/kotlin/com/submac
+HIT ./tools/oc_test_tail.txt:31: 355-✅ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: engine events reach only their own turn parts, deltas and idle of one session never 
+HIT ./tools/oc_test_tail.txt:33: 357-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them a call from a session n
+HIT ./tools/oc_test_tail.txt:42: 366-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them a running turn's own ca
+HIT ./tools/oc_test_tail.txt:51: 375-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them with several turns runn
+HIT ./tools/oc_test_tail.txt:60: 384-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_team_isolation_test.dart: Telesia calls route only to the turn that made them alone, a call whose arg
+HIT ./tools/oc_test_tail.txt:71: 610-::group::❌ /home/runner/work/submac-agent/submac-agent/test/intro_auth_flow_test.dart: first-launch intro plays the draw, ticks per letter, lands the dot, then hands 
+HIT ./tools/oc_test_tail.txt:79: 618-#4      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/submac-agent/submac-agent/test/intro_auth_flow_test.dart:90:7)
+HIT ./tools/oc_test_tail.txt:84: 672-✅ /home/runner/work/submac-agent/submac-agent/test/visual_output_test.dart: generate_image reaches opencode listed by name only while the server can make pictures
+HIT ./tools/oc_test_tail.txt:86: 674-::group::❌ /home/runner/work/submac-agent/submac-agent/test/visual_output_test.dart: generate_image reaches opencode a direct call runs through the chat's own tool li
+HIT ./tools/oc_test_tail.txt:94: 682-::group::❌ /home/runner/work/submac-agent/submac-agent/test/visual_output_test.dart: generate_image reaches opencode a direct call is routed to the chat whose turn ma
+HIT ./tools/oc_test_tail.txt:105: 1409-✅ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: opencode can find and run every app tool (no 8-tool cap)
+HIT ./tools/oc_test_tail.txt:107: 1411-::group::❌ /home/runner/work/submac-agent/submac-agent/test/mcp_known_test.dart: run_tool forgives the telesia_ prefix models add (failed)
+HIT ./tools/oc_test_tail.txt:121: 1588-✅ /home/runner/work/submac-agent/submac-agent/test/skill_save_test.dart: skill_save stores, refuses collisions, and reads back as a skill
+HIT ./tools/oc_test_tail.txt:123: 1590-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it a run_tool call in the turn's own se
+HIT ./tools/oc_test_tail.txt:131: 1598-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it a subagent (child session) call rout
+HIT ./tools/oc_test_tail.txt:140: 1607-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it find_tools is routed too, so a looku
+HIT ./tools/oc_test_tail.txt:149: 1616-::group::❌ /home/runner/work/submac-agent/submac-agent/test/bots_leak_test.dart: routing a Telesia call to the turn that made it a "telesia_" prefix on the inner nam
+HIT ./tools/patch_android.py:187: for wrong in ("com.submac.agent", "com.telesia.agent"):
+--- submac hits total: 124 (shown 124)
+=== lib/widgets/logo.dart (6291 bytes)
+  8: /// Telesia logo (the new mark from telesia.site): a blue "S" and a white dot on a light-blue rounded tile.
+  22: label: 'Telesia',
+  62: /// The Telesia mark (the serif "S") as a living indicator. No dots (owner rule): motion is carried by the letter
+  141: child: Text('S', style: Brand.serif(size: s * 0.86, color: p.text, height: 1.0)),
+=== lib/widgets/brand_logo.dart (8676 bytes)
+  12: /// the serif letter tile, so a new app never shows a broken image.
+  114: 'wordpress': 0xFF21759B,
+  132: // mcp.notion.com -> notion; search-mcp.parallel.ai -> parallel (whole labels only, so mem never matches supermemory).
+  133: final labels = (Uri.tryParse(url)?.host.toLowerCase() ?? '').split('.');
+  134: for (final l in labels.reversed) {
+=== lib/ui/intro_motion.dart (3555 bytes)
+  3: /// The first-launch intro's timeline, curves and brand values (owner, 2026-10-26: "Animation drawing Telesia then our
+  11: /// The whole intro: the wordmark draws in, resolves into the logo, the dot lands, a short hold.
+  27: /// The wordmark draws in (0 to 1500).
+  30: /// The wordmark gives way (1500 to 1800).
+  31: static const double wordOutStart = 0.5, wordOutEnd = 0.6;
+  33: /// The logo scales and fades in as the word leaves (1700 to 2200).
+  39: /// Selection ticks across the letter reveal: one as the reveal passes each letter of "Telesia" (6 at most).
+  40: static const String word = 'Telesia';
+  41: /// How far the reveal edge has travelled (0..1 across the word) at draw progress [d] (0..1).
+  58: /// The controller values at which a tick fires: as the reveal edge passes the middle of each letter.
+  60: for (var i = 0; i < word.length; i++) drawStart + (drawEnd - drawStart) * drawFor((i + 0.5) / word.length),
+  73: /// The wordmark's size and the logo tile's size (logical pixels).
+  74: static const double wordSize = 60;
+=== lib/config.dart (1102 bytes)
+  2: static const appName = 'Telesia';
+=== pubspec.yaml (3819 bytes)
+  2: description: Telesia - an agentic chat app.
+  42: # v1.6: email over IMAP/SMTP with app passwords
+  45: # v1.7: Telesia's own icon set (assets/icons)
+=== lib/theme.dart (12334 bytes)
+  5: /// Telesia brand palette: warm paper, deep ink, one signature red.
+  22: /// Third level of text: timestamps, hints, labels over outputs (luxury UI).
+  109: /// Brand type (owner, 2026-10-23): one refined bold sans for display text (the Telesia wordmark,
+  111: /// read. No serif in the app UI any more (documents Telesia makes may still use one).
+  115: /// Display sizes were drawn for the old serif, which sets much smaller on the line; the bold sans
+  128: letterSpacing: -0.022 * s);
+  133: static TextStyle serif({double size = 32, Color? color, FontStyle? style, double? height}) =>
+  146: displayLarge: Brand.serif(size: 52, color: p.text),
+  147: displayMedium: Brand.serif(size: 44, color: p.text),
+  148: displaySmall: Brand.serif(size: 36, color: p.text),
+  149: headlineLarge: Brand.serif(size: 32, color: p.text),
+  150: headlineMedium: Brand.serif(size: 28, color: p.text),
+  151: headlineSmall: Brand.serif(size: 24, color: p.text),
+  152: titleLarge: Brand.serif(size: 22, color: p.text),
+  181: // Telesia's own screen motion (ui/motion.dart): a fade with a small rise that settles.
+  193: titleTextStyle: Brand.serif(size: AppText.display, color: p.text, height: 1.0),
+  196: // Sheets are the paper itself rising: the page colour, no handle glyph, no shadow line.
+  211: titleTextStyle: Brand.serif(size: AppText.display, color: p.text),
+  213: // A note at the foot of the paper: plain words, no pill.
+  235: // UI rules: no boxes. The main action is a bold word on the paper, not a filled block.
+  252: // No outline (UI rules): a second action is a medium-weight word.
+  271: // A chip is a word with a whisper of tone, never an outline.
+  276: labelStyle: TextStyle(fontFamily: Brand.sans, fontSize: AppText.meta, color: p.text),
+=== android_native tree
+  android_native/AppUpdater.kt (19110)
+  android_native/BootReceiver.kt (2022)
+  android_native/Bridge.kt (37864)
+  android_native/Chime.kt (1036)
+  android_native/Device.kt (8699)
+  android_native/Ghost.kt (11908)
+  android_native/LocalProxy.kt (9682)
+  android_native/MainActivity.kt (16165)
+  android_native/NotifListener.kt (6048)
+  android_native/Notifier.kt (26138)
+  android_native/OcChannel.kt (5029)
+  android_native/OpenCode.kt (14172)
+  android_native/Overlay.kt (20879)
+  android_native/PhoneData.kt (6613)
+  android_native/PushReceiver.kt (3162)
+  android_native/QuickWidget.kt (1246)
+  android_native/ScreenGuard.kt (1097)
+  android_native/Sms.kt (1774)
+  android_native/TaskBubble.kt (31508)
+  android_native/TaskService.kt (7907)
+  android_native/TelesiaA11y.kt (31138)
+  android_native/TelesiaApp.kt (1576)
+  android_native/WaFiles.kt (2294)
+  android_native/WaHands.kt (18843)
+  android_native/WakeService.kt (15038)
+  android_native/WebHands.kt (5694)
+  android_native/WhatsApp.kt (19610)
+  android_native/ocexec.c (1991)
+  android_native/proguard-rules.pro (520)
+  android_native/res/xml/telesia_a11y.xml (586)
+  android_native/res/xml/telesia_widget.xml (444)
+  android_native/res/drawable/ic_stat_telesia.xml (1510)
+  android_native/res/drawable/launch_background.xml (601)
+  android_native/res/drawable/telesia_dot.xml (228)
+  android_native/res/drawable/telesia_hairline.xml (232)
+  android_native/res/drawable/telesia_widget_bg.xml (273)
+  android_native/res/drawable/telesia_widget_pill.xml (215)
+  android_native/res/values-v31/styles.xml (826)
+  android_native/res/drawable-v21/launch_background.xml (601)
+  android_native/res/values/telesia_launch.xml (211)
+  android_native/res/values/telesia_strings.xml (435)
+  android_native/res/raw/keep.xml (270)
+  android_native/res/raw/telesia_chime.wav (45908)
+  android_native/res/raw/telesia_done.wav (97064)
+  android_native/res/raw/telesia_wake.wav (79424)
+  android_native/res/layout/telesia_notif_big.xml (2408)
+  android_native/res/layout/telesia_notif_small.xml (2007)
+  android_native/res/layout/telesia_widget.xml (1587)
+  android_native/res/values-night-v31/styles.xml (826)
+N android_native/AppUpdater.kt:22: import io.flutter.plugin.common.MethodChannel
+N android_native/AppUpdater.kt:30: * user leaves the app, shows its own notification and survives the app being closed. A single file is checked
+N android_native/AppUpdater.kt:41: private var channel: MethodChannel? = null
+N android_native/AppUpdater.kt:46: val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "telesia/update")
+N android_native/AppUpdater.kt:47: channel = ch
+N android_native/AppUpdater.kt:90: if (a is MainActivity && saved == null) main.post { try { channel?.invokeMethod("opened", null) } catch (_: Exception) {} }
+N android_native/AppUpdater.kt:139: .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+N android_native/Bridge.kt:15: import io.flutter.plugin.common.MethodChannel
+N android_native/Bridge.kt:20: /** "telesia/system": wake word, floating Live, phone control, SMS, notifications, permissions. */
+N android_native/Bridge.kt:24: private var channel: MethodChannel? = null
+N android_native/Bridge.kt:33: val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "telesia/system")
+N android_native/Bridge.kt:34: channel = ch
+N android_native/Bridge.kt:104: "chime" -> {
+N android_native/Bridge.kt:105: Chime.play(ctx)
+N android_native/Bridge.kt:136: // ---- notifications ----
+N android_native/Bridge.kt:148: // ---- bots: calls, messages, notification watches ----
+N android_native/Bridge.kt:175: // Who it is from decides the channel and look (docs/notifications.md): agent | bots.
+N android_native/Bridge.kt:180: call.argument<String>("channel") ?: Notifier.BOTS,
+N android_native/Bridge.kt:354: // ---- WhatsApp on this phone (notification access + phone control) ----
+N android_native/Bridge.kt:379: // ---- notifications from other apps ----
+N android_native/Bridge.kt:411: val ch = channel
+N android_native/Bridge.kt:421: // ---------- launch payload (notification taps) ----------
+N android_native/Bridge.kt:428: send("notificationTap", p)
+N android_native/Bridge.kt:450: m["notifications"] = if (Build.VERSION.SDK_INT >= 33) granted("android.permission.POST_NOTIFICATIONS") else true
+N android_native/Bridge.kt:461: private fun a11yAsync(call: io.flutter.plugin.common.MethodCall, result: MethodChannel.Result) {
+N android_native/Bridge.kt:500: private fun waAsync(call: io.flutter.plugin.common.MethodCall, result: MethodChannel.Result) {
+N android_native/Bridge.kt:524: act != "read" && act != "call" && WhatsApp.locked(ctx) -> j(false, "locked", "The phone is locked. Unlock it, or reply from the notification.")
+N android_native/Bridge.kt:625: "notifRead" -> Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+N android_native/Bridge.kt:627: "notifications" -> if (Build.VERSION.SDK_INT >= 26)
+N android_native/Bridge.kt:628: Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+N android_native/Chime.kt:7: /** The soft two-note Telesia wake chime (res/raw/telesia_wake.wav). */
+N android_native/Chime.kt:8: object Chime {
+N android_native/MainActivity.kt:13: import io.flutter.plugin.common.MethodChannel
+N android_native/MainActivity.kt:22: private var channel: MethodChannel? = null
+N android_native/MainActivity.kt:73: // The light/dark icon bits Flutter set for the look are kept (never cleared here).
+N android_native/MainActivity.kt:132: val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "telesia/native")
+N android_native/MainActivity.kt:133: channel = ch
+N android_native/MainActivity.kt:138: // Telesia with no screen (OcChannel, 2026-11-05).
+N android_native/MainActivity.kt:139: "ocStart", "ocToken", "ocStop", "ocStatus" -> OcChannel.handle(applicationContext, call, result)
+N android_native/MainActivity.kt:194: q.addCategory(Intent.CATEGORY_LAUNCHER)
+N android_native/MainActivity.kt:246: q.addCategory(Intent.CATEGORY_LAUNCHER)
+N android_native/MainActivity.kt:268: if (handleShare(intent)) channel?.invokeMethod("shared", null)
+N android_native/NotifListener.kt:6: import android.service.notification.NotificationListenerService
+N android_native/NotifListener.kt:7: import android.service.notification.StatusBarNotification
+N android_native/NotifListener.kt:11: /** Keeps the latest notifications (on the phone only) so Telesia can answer "what did I miss?". */
+N android_native/NotifListener.kt:12: class NotifListener : NotificationListenerService() {
+N android_native/NotifListener.kt:18: val flat = Settings.Secure.getString(ctx.contentResolver, "enabled_notification_listeners") ?: return false
+N android_native/NotifListener.kt:37: // Replace an update of the same notification instead of keeping both.
+N android_native/NotifListener.kt:44: /** A bot asked to be told about notifications like this one (at most once per 10 minutes per watch). */
+N android_native/NotifListener.kt:71: TaskService.start(this, "A bot is looking at a notification")
+N android_native/NotifListener.kt:77: override fun onNotificationPosted(sbn: StatusBarNotification) {
+N android_native/NotifListener.kt:80: val n = sbn.notification ?: return
+N android_native/NotifListener.kt:81: if ((n.flags and android.app.Notification.FLAG_ONGOING_EVENT) != 0) return
+N android_native/NotifListener.kt:83: val title = ex.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString() ?: ""
+N android_native/NotifListener.kt:84: val text = (ex.getCharSequence(android.app.Notification.EXTRA_BIG_TEXT)
+N android_native/NotifListener.kt:85: ?: ex.getCharSequence(android.app.Notification.EXTRA_TEXT))?.toString() ?: ""
+N android_native/NotifListener.kt:112: override fun onNotificationRemoved(sbn: StatusBarNotification) {
+N android_native/Notifier.kt:3: import android.app.Notification
+N android_native/Notifier.kt:4: import android.app.NotificationChannel
+N android_native/Notifier.kt:5: import android.app.NotificationManager
+N android_native/Notifier.kt:14: * Calm system notifications (docs/notifications.md). Who it is from decides the channel and the look:
+N android_native/Notifier.kt:19: /** Agent: Telesia's own results (its chats, its scheduled tasks). v2 of the channels (2026-11-05): the new light
+N android_native/Notifier.kt:20: *  chime (res/raw/telesia_chime.wav). A channel keeps its first sound, so the ids changed and the old ones go. */
+N android_native/Notifier.kt:23: /** Ids from before the chime: deleted on start. */
+N android_native/Notifier.kt:41: /** Telesia red: the agent's accent, so its notifications never look like a bot's. */
+N android_native/Notifier.kt:45: /** The owner's own line in a team conversation (a reply typed in the notification). */
+N android_native/Notifier.kt:48: private fun chimeUri(ctx: Context): Uri = Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.telesia_chime)
+N android_native/Notifier.kt:51: .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+N android_native/Notifier.kt:55: private fun chimed(ctx: Context, id: String, name: String, importance: Int, about: String): NotificationChannel =
+N android_native/Notifier.kt:56: NotificationChannel(id, name, importance).apply {
+N android_native/Notifier.kt:58: setSound(chimeUri(ctx), soundAttrs())
+N android_native/Notifier.kt:64: fun ensureChannels(ctx: Context) {
+N android_native/Notifier.kt:66: val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+N android_native/Notifier.kt:68: try { nm.deleteNotificationChannel(old) } catch (_: Exception) {}
+N android_native/Notifier.kt:70: nm.createNotificationChannel(chimed(ctx, AGENT, "Telesia", NotificationManager.IMPORTANCE_DEFAULT,
+N android_native/Notifier.kt:72: nm.createNotificationChannel(chimed(ctx, BOTS, "Bots", NotificationManager.IMPORTANCE_DEFAULT,
+N android_native/Notifier.kt:74: nm.createNotificationChannel(chimed(ctx, TEAMS, "Teams", NotificationManager.IMPORTANCE_DEFAULT,
+N android_native/Notifier.kt:76: nm.createNotificationChannel(chimed(ctx, TEAMS_NEEDS, "Teams: needs you", NotificationManager.IMPORTANCE_HIGH,
+N android_native/Notifier.kt:78: nm.createNotificationChannel(
+N android_native/Notifier.kt:79: NotificationChannel(WORK, "Background work", NotificationManager.IMPORTANCE_LOW).apply {
+N android_native/Notifier.kt:81: setSound(null, null)
+N android_native/Notifier.kt:86: nm.createNotificationChannel(
+N android_native/Notifier.kt:87: NotificationChannel(QUIET, "Finished tasks", NotificationManager.IMPORTANCE_LOW).apply {
+N android_native/Notifier.kt:89: setSound(null, null)
+N android_native/Notifier.kt:94: nm.createNotificationChannel(
+N android_native/Notifier.kt:95: NotificationChannel(CALLS, "Calls from bots", NotificationManager.IMPORTANCE_HIGH).apply {
+N android_native/Notifier.kt:97: setSound(
+N android_native/Notifier.kt:100: .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+N android_native/Notifier.kt:109: nm.createNotificationChannel(
+N android_native/Notifier.kt:110: NotificationChannel(ASKS, "Needs your OK", NotificationManager.IMPORTANCE_HIGH).apply {
+N android_native/Notifier.kt:112: setSound(
+N android_native/Notifier.kt:121: nm.createNotificationChannel(
+N android_native/Notifier.kt:122: NotificationChannel(WAKE, "Hello Telesia", NotificationManager.IMPORTANCE_MIN).apply {
+N android_native/Notifier.kt:125: setSound(null, null)
+N android_native/Notifier.kt:138: fun builder(ctx: Context, channel: String): Notification.Builder =
+N android_native/Notifier.kt:139: if (Build.VERSION.SDK_INT >= 26) Notification.Builder(ctx, channel) else Notification.Builder(ctx)
+N android_native/Notifier.kt:141: /** A quiet notification: one plain line that says what matters. Never the full reply. */
+N android_native/Notifier.kt:143: ensureChannels(ctx)
+N android_native/Notifier.kt:155: .setSmallIcon(R.drawable.ic_stat_telesia)
+N android_native/Notifier.kt:163: .setCategory(Notification.CATEGORY_STATUS)
+N android_native/Notifier.kt:164: .setVisibility(Notification.VISIBILITY_PRIVATE)
+N android_native/Notifier.kt:169: .setSmallIcon(R.drawable.ic_stat_telesia)
+N android_native/Notifier.kt:176: val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+N android_native/Notifier.kt:185: ensureChannels(ctx)
+N android_native/Notifier.kt:197: .setSmallIcon(R.drawable.ic_stat_telesia)
+N android_native/Notifier.kt:201: .setCategory(Notification.CATEGORY_CALL)
+N android_native/Notifier.kt:202: .setPriority(Notification.PRIORITY_MAX)
+N android_native/Notifier.kt:205: .setVisibility(Notification.VISIBILITY_PUBLIC)
+N android_native/Notifier.kt:207: .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Decline", decline).build())
+N android_native/Notifier.kt:208: .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Answer", answer).build())
+N android_native/Notifier.kt:212: n.flags = n.flags or Notification.FLAG_INSISTENT
+N android_native/Notifier.kt:213: val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+N android_native/Notifier.kt:236: val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+N android_native/Notifier.kt:247: val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+N android_native/Notifier.kt:258: private fun replyAction(ctx: Context, id: Int, payload: String, name: String): Notification.Action {
+N android_native/Notifier.kt:267: return Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Reply", pi)
+N android_native/Notifier.kt:272: private fun face(initial: String, color: Int): android.graphics.drawable.Icon? {
+N android_native/Notifier.kt:289: android.graphics.drawable.Icon.createWithBitmap(bmp)
+N android_native/Notifier.kt:295: private fun post(ctx: Context, id: Int, n: Notification) {
+N android_native/Notifier.kt:296: val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+N android_native/Notifier.kt:304: * A result or a message from the agent ([channel] AGENT: "Telesia", red) or a bot (BOTS: its name, its face).
+N android_native/Notifier.kt:305: * [body] is the short summary Dart made (1 to 3 lines). [high]: it needs the owner (the pop-up channel).
+N android_native/Notifier.kt:308: ctx: Context, id: Int, channel: String, title: String, body: String, payload: String,
+N android_native/Notifier.kt:311: ensureChannels(ctx)
+N android_native/Notifier.kt:312: val agent = channel == AGENT
+N android_native/Notifier.kt:318: val ch = if (high) ASKS else channel
+N android_native/Notifier.kt:322: .setSmallIcon(R.drawable.ic_stat_telesia)
+N android_native/Notifier.kt:326: .setStyle(Notification.BigTextStyle().bigText(text))
+N android_native/Notifier.kt:329: .setCategory(Notification.CATEGORY_MESSAGE)
+N android_native/Notifier.kt:330: .setVisibility(Notification.VISIBILITY_PRIVATE)
+N android_native/Notifier.kt:333: val icon = face(initial, color)
+N android_native/Notifier.kt:334: if (icon != null) b.setLargeIcon(icon)
+N android_native/Notifier.kt:337: builder(ctx, ch).setSmallIcon(R.drawable.ic_stat_telesia).setColor(accent)
+N android_native/Notifier.kt:363: private fun teamStyle(team: String, rows: List<List<String>>): Notification.MessagingStyle {
+N android_native/Notifier.kt:365: Notification.MessagingStyle(android.app.Person.Builder().setName("You").build())
+N android_native/Notifier.kt:367: Notification.MessagingStyle("You")
+N android_native/Notifier.kt:379: if (ic != null) pb.setIcon(ic)
+N android_native/Notifier.kt:382: style.addMessage(Notification.MessagingStyle.Message(r[1], at, person))
+N android_native/Notifier.kt:391: * A team chat post: one notification per team (titled with the team's name), the latest lines as a conversation
+N android_native/Notifier.kt:393: * [own]: the owner's reply from the notification, shown in the conversation without a sound.
+N android_native/Notifier.kt:399: ensureChannels(ctx)
+N android_native/Notifier.kt:408: .setSmallIcon(R.drawable.ic_stat_telesia)
+N android_native/Notifier.kt:416: .setCategory(Notification.CATEGORY_MESSAGE)
+N android_native/Notifier.kt:417: .setVisibility(Notification.VISIBILITY_PRIVATE)
+N android_native/Notifier.kt:422: builder(ctx, TEAMS).setSmallIcon(R.drawable.ic_stat_telesia).setColor(INK)
+N android_native/Notifier.kt:430: ensureChannels(ctx)
+N android_native/Notifier.kt:441: .setSmallIcon(R.drawable.ic_stat_telesia)
+N android_native/Notifier.kt:445: .setStyle(Notification.BigTextStyle().bigText(if (more.isEmpty()) line else "$line\n$more"))
+N android_native/Notifier.kt:448: .setCategory(Notification.CATEGORY_MESSAGE)
+N android_native/Notifier.kt:449: .setVisibility(Notification.VISIBILITY_PRIVATE)
+N android_native/Notifier.kt:451: .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Not now", act(false)).build())
+N android_native/Notifier.kt:452: .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_telesia), "Approve", act(true)).build())
+N android_native/Notifier.kt:454: builder(ctx, BOTS).setSmallIcon(R.drawable.ic_stat_telesia).setColor(0xFF17150F.toInt())
+N android_native/Notifier.kt:457: val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+N android_native/Notifier.kt:466: * A bot or Telesia: the notification shows "You: <text>" for a moment, then goes; the answer comes as a new one.
+N android_native/Notifier.kt:469: ensureChannels(ctx)
+N android_native/Notifier.kt:476: .setSmallIcon(R.drawable.ic_stat_telesia)
+N android_native/Notifier.kt:487: /** Back in the app: clear the result notifications (never the running-task or wake-word ones). */
+N android_native/Notifier.kt:489: val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+N android_native/Notifier.kt:492: for (s in nm.activeNotifications) {
+N android_native/Notifier.kt:493: val ch = s.notification.channelId
+N android_native/OcChannel.kt:8: import io.flutter.plugin.common.MethodChannel
+N android_native/OcChannel.kt:19: object OcChannel {
+N android_native/OcChannel.kt:24: val ch = MethodChannel(engine.dartExecutor.binaryMessenger, NAME)
+N android_native/OcChannel.kt:35: fun handle(ctx: Context, call: MethodCall, result: MethodChannel.Result): Boolean {
+N android_native/OpenCode.kt:17: *   libocrg.so / liboccurl.so / libocexec.so   static rg, curl and the `opencode` launcher for opencode's tools,
+N android_native/PushReceiver.kt:10: * calm notifications bot results use, so no Flutter background isolate is needed.
+N android_native/PushReceiver.kt:22: val notifTitle = x.getString("gcm.notification.title") ?: x.getString("gcm.n.title")
+N android_native/PushReceiver.kt:23: val notifBody = x.getString("gcm.notification.body") ?: x.getString("gcm.n.body")
+N android_native/PushReceiver.kt:24: val hasNotificationBlock = notifTitle != null || notifBody != null || x.getString("gcm.n.e") != null
+N android_native/PushReceiver.kt:25: // A message with a notification block is drawn by Firebase itself while the app is in the
+N android_native/PushReceiver.kt:27: if (hasNotificationBlock && !Bridge.foreground) return
+N android_native/PushReceiver.kt:41: // The same message twice (FCM retry) replaces its notification instead of stacking.
+N android_native/TaskService.kt:4: import android.app.Notification
+N android_native/TaskService.kt:58: private fun note(): Notification {
+N android_native/TaskService.kt:59: Notifier.ensureChannels(this)
+N android_native/TaskService.kt:61: // The result comes as its own notification when the work ends.
+N android_native/TaskService.kt:64: .setSmallIcon(R.drawable.ic_stat_telesia)
+N android_native/TaskService.kt:70: .setCategory(Notification.CATEGORY_PROGRESS)
+N android_native/TaskService.kt:76: /** New line on the running notification, and the wake lock renewed. */
+N android_native/TaskService.kt:79: val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+N android_native/TaskService.kt:149: // A reply typed right in a bot's notification.
+N android_native/TelesiaA11y.kt:469: "notifications" -> GLOBAL_ACTION_NOTIFICATIONS
+N android_native/TelesiaApp.kt:17: Notifier.ensureChannels(this)
+N android_native/TelesiaApp.kt:34: // this handler with its own when the screen opens and forwards these calls to OcChannel.
+N android_native/TelesiaApp.kt:35: OcChannel.attach(ctx.applicationContext, e)
+N android_native/WaHands.kt:140: byId(r, pkg, "menuitem_search", "my_search_bar", "search_bar", "search_icon") != null || byWords(r, SEARCH) != null || inChat(r, pkg)
+N android_native/WaHands.kt:148: val s = byId(r, pkg, "menuitem_search", "my_search_bar", "search_bar", "search_icon") ?: byWords(r, SEARCH)
+N android_native/WakeService.kt:3: import android.app.Notification
+N android_native/WakeService.kt:142: private fun note(): Notification {
+N android_native/WakeService.kt:155: .setSmallIcon(R.drawable.ic_stat_telesia).setColor(0xFFC2361B.toInt())
+N android_native/WakeService.kt:161: .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, applicationInfo.icon), "End call", PendingIntent.getService(this, 7107, end
+N android_native/WakeService.kt:166: .setSmallIcon(R.drawable.ic_stat_telesia).setColor(0xFFC2361B.toInt())
+N android_native/WakeService.kt:172: .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, applicationInfo.icon), if (paused) "Resume" else "Pause", PendingIntent.get
+N android_native/WakeService.kt:173: .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, applicationInfo.icon), "Turn off", PendingIntent.getService(this, 7104, off
+N android_native/WakeService.kt:179: val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+N android_native/WakeService.kt:187: Notifier.ensureChannels(this)
+N android_native/WakeService.kt:229: val minBuf = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+N android_native/WakeService.kt:231: rec = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufBytes * 2)
+N android_native/WakeService.kt:306: Chime.play(this)
+N android_native/WhatsApp.kt:4: import android.app.Notification
+N android_native/WhatsApp.kt:12: import android.service.notification.StatusBarNotification
+N android_native/WhatsApp.kt:22: * - Incoming messages come from WhatsApp's own notifications (notification access) and are kept in a small
+N android_native/WhatsApp.kt:25: * - Quick reply uses the notification's own Reply action (RemoteInput) while that notification is still showing.
+N android_native/WhatsApp.kt:40: /** chat key -> the live notification's Reply action. In memory only: it dies with the notification. */
+N android_native/WhatsApp.kt:41: private val replies = HashMap<String, Notification.Action>()
+N android_native/WhatsApp.kt:124: * Takes one WhatsApp notification into the store. Returns (chat name, newest new incoming text) when it
+N android_native/WhatsApp.kt:127: fun capture(ctx: Context, sbn: StatusBarNotification): Pair<String, String>? {
+N android_native/WhatsApp.kt:128: val n = sbn.notification ?: return null
+N android_native/WhatsApp.kt:129: if ((n.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return null
+N android_native/WhatsApp.kt:132: val rawTitle = ex.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
+N android_native/WhatsApp.kt:133: val conv = ex.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString() ?: ""
+N android_native/WhatsApp.kt:135: var group = jid.endsWith("@g.us") || (Build.VERSION.SDK_INT >= 28 && ex.getBoolean(Notification.EXTRA_IS_GROUP_CONVERSATION))
+N android_native/WhatsApp.kt:137: // WhatsApp's own status notifications ("Checking for new messages", backups) carry no chat.
+N android_native/WhatsApp.kt:140: // The messages in the notification (MessagingStyle), oldest first.
+N android_native/WhatsApp.kt:144: val arr = ex.getParcelableArray(Notification.EXTRA_MESSAGES)
+N android_native/WhatsApp.kt:159: val text = (ex.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: ex.getCharSequence(Notification.EXTRA_TEXT))?.toString() ?: ""
+N android_native/WhatsApp.kt:204: // The Reply action, while this notification lives.
+N android_native/WhatsApp.kt:207: (Build.VERSION.SDK_INT < 28 || a.semanticAction == Notification.Action.SEMANTIC_ACTION_REPLY || a.semanticAction == 0)
+N android_native/WhatsApp.kt:217: /** The user opened or dismissed the chat's notification: nothing is unread there now and the reply action is gone. */
+N android_native/WhatsApp.kt:218: fun removed(ctx: Context, sbn: StatusBarNotification) {
+N android_native/WhatsApp.kt:220: val n = sbn.notification ?: return
+N android_native/WhatsApp.kt:221: if ((n.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
+N android_native/WhatsApp.kt:224: val title = cleanTitle(ex?.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "")
+N android_native/WhatsApp.kt:225: val conv = ex?.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString() ?: ""
+N android_native/WhatsApp.kt:293: * Replies through the chat's live notification (works on a locked screen and without opening WhatsApp).
+N android_native/WhatsApp.kt:294: * Returns "sent:<chat name>", "no-live" (no notification with a Reply button right now), "none" (no such chat)
+N android_native/WhatsApp.kt:298: val found: Pair<JSONObject, Notification.Action> = synchronized(this) {
+N android_native/res/xml/telesia_a11y.xml:9: android:notificationTimeout="200"
+N android_native/res/drawable/ic_stat_telesia.xml:2: <!-- Telesia notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
+N android_native/res/drawable/launch_background.xml:3: from the tap on the launcher icon until Flutter draws its first frame. The mark is the adaptive icon's
+N android_native/res/drawable/launch_background.xml:4: foreground, which flutter_launcher_icons generates in the APK workflow. -->
+N android_native/res/drawable/launch_background.xml:8: <bitmap android:gravity="center" android:src="@drawable/ic_launcher_foreground" />
+N android_native/res/values-v31/styles.xml:2: <!-- Android 12+ draws its own splash from the theme: without these it shows the icon on plain white. The brand sky
+N android_native/res/values-v31/styles.xml:3: behind the adaptive Telesia icon makes the first second of the app look like Telesia, in light and dark. -->
+N android_native/res/values-v31/styles.xml:8: <item name="android:windowSplashScreenIconBackgroundColor">@color/telesia_launch_sky</item>
+N android_native/res/drawable-v21/launch_background.xml:3: from the tap on the launcher icon until Flutter draws its first frame. The mark is the adaptive icon's
+N android_native/res/drawable-v21/launch_background.xml:4: foreground, which flutter_launcher_icons generates in the APK workflow. -->
+N android_native/res/drawable-v21/launch_background.xml:8: <bitmap android:gravity="center" android:src="@drawable/ic_launcher_foreground" />
+N android_native/res/values/telesia_launch.xml:3: <!-- The middle stop of the logo's sky gradient (docs/brand/telesia_logo_master.svg). -->
+N android_native/res/raw/keep.xml:3: tools:keep="@raw/telesia_wake,@raw/telesia_done,@raw/telesia_chime,@layout/telesia_notif_small,@layout/telesia_notif_big,@xml/telesia_a11y,@string/telesia_a11y_desc" />
+N android_native/res/layout/telesia_notif_big.xml:2: <!-- Telesia notification, opened: more air, a larger serif headline, a hairline, one quiet line. -->
+N android_native/res/layout/telesia_notif_big.xml:40: android:textAppearance="@android:style/TextAppearance.Material.Notification.Title"
+N android_native/res/layout/telesia_notif_big.xml:60: android:textAppearance="@android:style/TextAppearance.Material.Notification"
+N android_native/res/layout/telesia_notif_small.xml:2: <!-- Telesia notification, folded: a red-dot kicker, a serif headline, one quiet line. -->
+N android_native/res/layout/telesia_notif_small.xml:31: android:textAppearance="@android:style/TextAppearance.Material.Notification.Title"
+N android_native/res/layout/telesia_notif_small.xml:41: android:textAppearance="@android:style/TextAppearance.Material.Notification"
+N android_native/res/values-night-v31/styles.xml:2: <!-- Android 12+ draws its own splash from the theme: without these it shows the icon on plain white. The brand sky
+N android_native/res/values-night-v31/styles.xml:3: behind the adaptive Telesia icon makes the first second of the app look like Telesia, in light and dark. -->
+N android_native/res/values-night-v31/styles.xml:8: <item name="android:windowSplashScreenIconBackgroundColor">@color/telesia_launch_sky</item>
+N lib/app_state.dart:137: part 'state/notifications.dart';
+N lib/app_state.dart:192: '- Opening an app, WhatsApp, tapping, typing, reading the screen, alarms, texts, contacts, notifications: do it yourself, '
+N lib/app_state.dart:206: 'the chat with a notification. Say the task id when you start one.\n'
+N lib/app_state.dart:378: /// The office the user is looking at (no notifications for it, unread stays 0).
+N lib/app_state.dart:380: /// Opens an office or the approvals inbox from a notification (the home screen listens).
+N lib/app_state.dart:438: // ---------- phone-level features: Live anywhere, notifications, schedules ----------
+N lib/app_state.dart:466: /// Chats answering a reply the owner typed in a notification: the answer comes back as a notification.
+N lib/app_state.dart:472: /// A calm notification: the title names the task, the body says the result in one or two plain sentences.
+N lib/app_state.dart:473: /// A short, elegant notification: the task as a headline and one quiet line. Never the full reply.
+N lib/app_state.dart:477: static (String, String, String) notificationFor(String convTitle, String reply, {String media = ''}) {
+N lib/theme.dart:264: iconColor: p.text,
+N lib/ui/intro_motion.dart:4: /// logo with professional clean intro style", with a "smooth satisfying sound with haptic").
+N lib/ui/intro_motion.dart:11: /// The whole intro: the wordmark draws in, resolves into the logo, the dot lands, a short hold.
+N lib/ui/intro_motion.dart:14: /// With Remove animations: the finished logo fades in and the intro ends.
+N lib/ui/intro_motion.dart:23: /// Ease out, for things coming to rest (the logo, the dot).
+N lib/ui/intro_motion.dart:33: /// The logo scales and fades in as the word leaves (1700 to 2200).
+N lib/ui/intro_motion.dart:34: static const double logoStart = 0.567, logoEnd = 0.733;
+N lib/ui/intro_motion.dart:66: // Brand (the new logo, telesia.site).
+N lib/ui/intro_motion.dart:73: /// The wordmark's size and the logo tile's size (logical pixels).
+N lib/ui/intro_motion.dart:77: /// The dot inside the 1024 logo: centre (752, 310), radius 62.
+N lib/ui/tokens.dart:94: /// Icon sizes, shared by brand glyphs and Material icons.
+N lib/ui/tokens.dart:95: class IconSize {
+N lib/ui/tokens.dart:96: const IconSize._();
+N lib/ui/tokens.dart:138: /// Small round tap targets (icons in the bar and the composer).
+N lib/agent/core.dart:155: /// model adapter: a known name stays, a decorated one is cleaned (gpt-oss `web_search<|channel|>commentary`,
+N lib/agent/core.dart:175: /// The name without channel suffixes, zero-width characters and namespace prefixes.
+N lib/agent/tool_effects.dart:23: 'docs_read', 'office_brief', 'apps_list_tools', 'more_tools', 'read_notifications',
+N lib/screens/auth_screen.dart:7: import 'package:url_launcher/url_launcher.dart' show LaunchMode, launchUrl;
+N lib/screens/auth_screen.dart:15: import '../widgets/logo.dart';
+N lib/screens/auth_screen.dart:16: import '../widgets/sub_icon.dart';
+N lib/screens/auth_screen.dart:164: /// showing only the logo. Only a failure shows anything: try again, or sign out.
+N lib/screens/auth_screen.dart:202: const AppLogo(size: 48),
+N lib/screens/auth_screen.dart:521: const AppLogo(size: 56),
+N lib/screens/auth_screen.dart:557: const Center(child: AppLogo(size: 48)),
+N lib/screens/auth_screen.dart:596: leading: IconButton(icon: const SubIcon('back'), onPressed: () => _go(reset ? _Mode.logIn : _Mode.signUp)),
+N lib/screens/auth_screen.dart:674: leading: IconButton(icon: const SubIcon('back'), onPressed: () => _go(_Mode.welcome)),
+N lib/screens/auth_screen.dart:698: suffixIcon: IconButton(
+N lib/screens/auth_screen.dart:699: icon: SubIcon(_obscure ? 'eye' : 'eye_off'),
+N lib/screens/bot_activity_screen.dart:17: import '../widgets/logo.dart';
+N lib/screens/bot_activity_screen.dart:87: IconButton(
+N lib/screens/bot_activity_screen.dart:89: icon: const Icon(Icons.delete_outline_rounded),
+N lib/screens/bot_activity_screen.dart:134: : Icon(r.failed ? Icons.error_outline_rounded : Icons.check_rounded, size: 20, color: r.failed ? Palette.red : p.text),
+N lib/screens/bot_activity_screen.dart:287: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/bot_activity_screen.dart:299: trailing: e.key == b.tokenBudgetK ? Icon(Icons.check_rounded, color: p.text) : null,
+N lib/screens/bot_job_screen.dart:161: child: FilledButton.icon(
+N lib/screens/bot_job_screen.dart:175: icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+N lib/screens/bot_job_screen.dart:181: OutlinedButton.icon(
+N lib/screens/bot_job_screen.dart:187: icon: const Icon(Icons.call_outlined, size: 18),
+N lib/screens/bot_job_screen.dart:351: leading: const Icon(Icons.check_rounded),
+N lib/screens/bot_job_screen.dart:363: leading: const Icon(Icons.close_rounded),
+N lib/screens/bot_job_screen.dart:397: for (final t in needs) _Line(icon: Icons.hourglass_empty_rounded, text: t.text, sub: t.note.isEmpty ? 'Waiting on you' : t.note, onTap: () => _task(context, b, t)),
+N lib/screens/bot_job_screen.dart:405: icon: t.status == 'doing' ? Icons.play_circle_outline_rounded : Icons.east_rounded,
+N lib/screens/bot_job_screen.dart:414: icon: g.kind == 'call' ? Icons.call_outlined : Icons.schedule_rounded,
+N lib/screens/bot_job_screen.dart:430: icon: Icons.repeat_rounded,
+N lib/screens/bot_job_screen.dart:439: icon: Icons.notifications_none_rounded,
+N lib/screens/bot_job_screen.dart:449: _Line(icon: Icons.event_outlined, text: f.instruction.replaceFirst('(retry) ', ''), sub: 'Promised for ${_when(f.at)}'),
+N lib/screens/bot_job_screen.dart:450: if (b.heartbeatHours > 0) _Line(icon: Icons.favorite_border_rounded, text: 'Checks in', sub: 'Every ${b.heartbeatHours} hours, outside your quiet hours'),
+N lib/screens/bot_job_screen.dart:452: _Line(icon: Icons.edit_note_rounded, text: 'Sends a note', sub: b.report == 'weekly' ? 'Sundays at 19:00' : 'Evenings at 19:00, when there is something to say'),
+N lib/screens/bot_job_screen.dart:455: child: TextButton.icon(
+N lib/screens/bot_job_screen.dart:458: icon: const Icon(Icons.add_rounded, size: 18),
+N lib/screens/bot_job_screen.dart:465: for (final d in done) _Line(icon: Icons.check_circle_outline_rounded, text: d.$1, sub: _when(d.$2), muted: true),
+N lib/screens/bot_job_screen.dart:468: child: TextButton.icon(
+N lib/screens/bot_job_screen.dart:471: icon: const Icon(Icons.timeline_rounded, size: 18),
+N lib/screens/bot_job_screen.dart:538: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/bot_job_screen.dart:573: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/bot_job_screen.dart:622: leading: Icon(Icons.smartphone_rounded, color: p.text),
+N lib/screens/bot_job_screen.dart:637: leading: Icon(Icons.timeline_rounded, color: p.text),
+N lib/screens/bot_job_screen.dart:640: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/bot_job_screen.dart:670: var icon = Icons.cloud_off_rounded;
+N lib/screens/bot_job_screen.dart:679: icon = Icons.cloud_sync_rounded;
+N lib/screens/bot_job_screen.dart:684: icon = Icons.cloud_done_rounded;
+N lib/screens/bot_job_screen.dart:700: leading: Icon(icon, color: color),
+N lib/screens/bot_job_screen.dart:738: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/bot_job_screen.dart:773: const _Line({required this.icon, required this.text, this.sub = '', this.muted = false, this.onDelete, this.onTap});
+N lib/screens/bot_job_screen.dart:774: final IconData icon;
+N lib/screens/bot_job_screen.dart:792: Padding(padding: const EdgeInsets.only(top: 1), child: Icon(icon, size: 18, color: muted ? p.muted : p.text)),
+N lib/screens/bot_job_screen.dart:804: child: Padding(padding: const EdgeInsets.all(4), child: Icon(Icons.close_rounded, size: 16, color: p.muted)),
+N lib/screens/bot_job_screen.dart:829: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/bot_job_screen.dart:840: trailing: e.key == value ? Icon(Icons.check_rounded, color: p.text) : null,
+N lib/screens/bot_setup_screens.dart:16: import '../widgets/brand_logo.dart';
+N lib/screens/bot_setup_screens.dart:40: icon: Icons.apps_rounded,
+N lib/screens/bot_setup_screens.dart:51: icon: Icons.hub_outlined,
+N lib/screens/bot_setup_screens.dart:66: const _Tile({required this.icon, required this.title, required this.sub, required this.onTap, this.warn = false});
+N lib/screens/bot_setup_screens.dart:67: final IconData icon;
+N lib/screens/bot_setup_screens.dart:78: leading: Icon(icon, color: p.text),
+N lib/screens/bot_setup_screens.dart:81: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/bot_setup_screens.dart:226: Widget outlined(IconData i, String t, VoidCallback onTap) => Expanded(
+N lib/screens/bot_setup_screens.dart:227: child: OutlinedButton.icon(
+N lib/screens/bot_setup_screens.dart:230: icon: Icon(i, size: 18),
+N lib/screens/bot_setup_screens.dart:239: outlined(Icons.notes_rounded, 'Add text', () => _addText(context, b)),
+N lib/screens/bot_setup_screens.dart:241: outlined(Icons.attach_file_rounded, 'Add a file', () => _addFile(context, b)),
+N lib/screens/bot_setup_screens.dart:263: leading: Icon(k.kind == 'file' ? Icons.description_outlined : Icons.sticky_note_2_outlined, color: p.text),
+N lib/screens/bot_setup_screens.dart:272: trailing: IconButton(
+N lib/screens/bot_setup_screens.dart:274: icon: Icon(Icons.close_rounded, size: 18, color: p.muted),
+N lib/screens/bot_setup_screens.dart:285: leading: Icon(Icons.lightbulb_outline_rounded, color: p.text),
+N lib/screens/bot_setup_screens.dart:289: trailing: IconButton(
+N lib/screens/bot_setup_screens.dart:291: icon: Icon(Icons.close_rounded, size: 18, color: p.muted),
+N lib/screens/bot_setup_screens.dart:301: child: TextButton.icon(
+N lib/screens/bot_setup_screens.dart:304: icon: const Icon(Icons.add_rounded, size: 18),
+N lib/screens/bot_setup_screens.dart:314: Icon(Icons.bookmark_border_rounded, size: 18, color: p.text),
+N lib/screens/bot_setup_screens.dart:323: child: Padding(padding: const EdgeInsets.all(4), child: Icon(Icons.close_rounded, size: 16, color: p.muted)),
+N lib/screens/bot_setup_screens.dart:425: leading: BrandLogo(BrandLogo.idForApp(app.kind, app.ref, app.name), app.name, size: 36),
+N lib/screens/bot_setup_screens.dart:444: IconButton(tooltip: 'Remove', icon: Icon(Icons.close_rounded, size: 18, color: p.muted), onPressed: onRemove),
+N lib/screens/bot_setup_screens.dart:490: leading: BrandLogo(BrandLogo.idForApp(o.kind, o.ref, o.name), o.name, size: 36),
+N lib/screens/bot_setup_screens.dart:524: icon: const Icon(Icons.add_rounded),
+N lib/screens/bot_store_screen.dart:4: import 'package:url_launcher/url_launcher.dart';
+N lib/screens/bot_store_screen.dart:57: IconButton(
+N lib/screens/bot_store_screen.dart:59: icon: const Icon(Icons.qr_code_2_rounded),
+N lib/screens/bot_store_screen.dart:75: prefixIcon: const Icon(Icons.search_rounded),
+N lib/screens/bot_store_screen.dart:99: OutlinedButton.icon(
+N lib/screens/bot_store_screen.dart:102: icon: const Icon(Icons.card_giftcard_rounded, size: 18),
+N lib/screens/bot_store_screen.dart:123: /// A Bot Store card: icon, name, role, one line, author, hires, and Hire.
+N lib/screens/bot_store_screen.dart:149: child: Icon(botIcon(s.icon), size: 22, color: p.text),
+N lib/screens/bot_store_screen.dart:226: Center(child: Icon(botIcon(s.icon), size: 40, color: p.text)),
+N lib/screens/bot_store_screen.dart:444: leading: const Icon(Icons.link_rounded),
+N lib/screens/bot_store_screen.dart:452: leading: const Icon(Icons.password_rounded),
+N lib/screens/bot_store_screen.dart:458: leading: const Icon(Icons.insert_drive_file_outlined),
+N lib/screens/bots_screen.dart:12: import '../widgets/sub_icon.dart';
+N lib/screens/bots_screen.dart:15: IconData botIcon(String name) => switch (name) {
+N lib/screens/bots_screen.dart:16: 'school' => Icons.school_outlined,
+N lib/screens/bots_screen.dart:17: 'gavel' => Icons.gavel_outlined,
+N lib/screens/bots_screen.dart:18: 'trending_up' => Icons.trending_up_rounded,
+N lib/screens/bots_screen.dart:19: 'travel_explore' => Icons.travel_explore_rounded,
+N lib/screens/bots_screen.dart:20: 'fitness_center' => Icons.fitness_center_rounded,
+N lib/screens/bots_screen.dart:21: 'payments' => Icons.payments_outlined,
+N lib/screens/bots_screen.dart:22: 'edit' => Icons.edit_outlined,
+N lib/screens/bots_screen.dart:23: 'code' => Icons.code_rounded,
+N lib/screens/bots_screen.dart:24: 'work' => Icons.work_outline_rounded,
+N lib/screens/bots_screen.dart:25: 'favorite' => Icons.favorite_border_rounded,
+N lib/screens/bots_screen.dart:26: 'campaign' => Icons.campaign_outlined,
+N lib/screens/bots_screen.dart:27: 'storefront' => Icons.storefront_outlined,
+N lib/screens/bots_screen.dart:28: 'health' => Icons.health_and_safety_outlined,
+N lib/screens/bots_screen.dart:29: _ => Icons.person_outline_rounded,
+N lib/screens/bots_screen.dart:32: /// The bot's face: a calm monochrome disc with its icon, and (with [presence]) a small dot for Working · Free · Off.
+N lib/screens/bots_screen.dart:95: _CallWord(icon: 'close', label: 'Decline', color: p.muted, onTap: () => state.declineBotCall(b.id)),
+N lib/screens/bots_screen.dart:96: _CallWord(icon: 'phone', label: 'Answer', color: p.text, onTap: () => state.answerBotCall(b.id)),
+N lib/screens/bots_screen.dart:125: _CallWord(icon: 'close', label: 'Decline', color: p.muted, small: true, onTap: () => state.declineBotCall(b.id)),
+N lib/screens/bots_screen.dart:127: _CallWord(icon: 'phone', label: 'Answer', color: p.text, small: true, onTap: () => state.answerBotCall(b.id)),
+N lib/screens/bots_screen.dart:138: /// A call answer: Telesia's own icon over one short word. No filled circle, no ring.
+N lib/screens/bots_screen.dart:140: const _CallWord({required this.icon, required this.label, required this.color, required this.onTap, this.small = false});
+N lib/screens/bots_screen.dart:141: final String icon;
+N lib/screens/bots_screen.dart:158: SubIcon(icon, size: small ? 22 : 30, color: color),
+N lib/screens/bots_workspace.dart:25: import '../widgets/logo.dart' show AppLogo;
+N lib/screens/bots_workspace.dart:28: import '../widgets/sub_icon.dart';
+N lib/screens/bots_workspace.dart:32: import 'home_screen.dart' show ChatGreeting, ChatList, FloatIcon, chatTopInset;
+N lib/screens/bots_workspace.dart:114: /// changes from outside the rail (a bot's notification tapped, a share sent to a bot), the workspace follows: another
+N lib/screens/bots_workspace.dart:415: FloatIcon(key: const ValueKey('ws-rail'), icon: 'menu', tooltip: open ? tr('Hide bots') : tr('Show bots'), onTap: _toggle),
+N lib/screens/bots_workspace.dart:419: FloatIcon(key: const ValueKey('ws-call'), icon: 'phone', tooltip: tr('Call {name}', {'name': bot.name}), onTap: () => _state.callBot(bot)),
+N lib/screens/bots_workspace.dart:422: FloatIcon(key: const ValueKey('ws-plus'), icon: 'plus', tooltip: tr('New'), onTap: _plus),
+N lib/screens/bots_workspace.dart:795: child: IconButton(
+N lib/screens/bots_workspace.dart:799: icon: const AppLogo(size: IconSize.lg),
+N lib/screens/bots_workspace.dart:807: RailAction(key: const ValueKey('rail-new-bot'), icon: 'plus', label: tr('New bot'), onTap: onNewBot),
+N lib/screens/bots_workspace.dart:808: RailAction(key: const ValueKey('rail-store'), icon: 'store', label: tr('Bot store'), onTap: onStore),
+N lib/screens/bots_workspace.dart:894: /// An action pinned at the foot of the rail: Telesia's icon over a small label. No border, no fill.
+N lib/screens/bots_workspace.dart:896: const RailAction({super.key, required this.icon, required this.label, required this.onTap});
+N lib/screens/bots_workspace.dart:897: final String icon;
+N lib/screens/bots_workspace.dart:914: SubIcon(icon, size: IconSize.md, color: p.text),
+N lib/screens/bots_workspace.dart:966: /// float in their own small blurred circle ([FloatIcon]), and who you are talking to floats in a light blurred pill
+N lib/screens/connectors_screen.dart:4: import 'package:url_launcher/url_launcher.dart';
+N lib/screens/connectors_screen.dart:19: import '../widgets/brand_logo.dart';
+N lib/screens/connectors_screen.dart:92: leading: BrandLogo(_serverApp(s), s.name),
+N lib/screens/connectors_screen.dart:107: leading: const PhoneAppTile(Icons.key_outlined),
+N lib/screens/connectors_screen.dart:116: _phoneRow('notifRead', 'Notifications', '"What did I miss?" across WhatsApp, your bank and other apps',
+N lib/screens/connectors_screen.dart:120: leading: const BrandLogo('whatsapp', 'WhatsApp'),
+N lib/screens/connectors_screen.dart:146: leading: const PhoneAppTile(Icons.api_rounded),
+N lib/screens/connectors_screen.dart:151: leading: const PhoneAppTile(Icons.add_rounded),
+N lib/screens/connectors_screen.dart:162: leading: const PhoneAppTile(Icons.hub_outlined),
+N lib/screens/connectors_screen.dart:170: leading: BrandLogo(_serverApp(s), s.name),
+N lib/screens/connectors_screen.dart:186: // Speed: rows (and their logos) are built only as they scroll into view.
+N lib/screens/connectors_screen.dart:213: return BrandLogo.idFor(s.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), ''), url: s.url);
+N lib/screens/connectors_screen.dart:219: const icons = {
+N lib/screens/connectors_screen.dart:220: 'calendar': Icons.calendar_month_outlined,
+N lib/screens/connectors_screen.dart:221: 'contacts': Icons.people_outline_rounded,
+N lib/screens/connectors_screen.dart:222: 'sms': Icons.sms_outlined,
+N lib/screens/connectors_screen.dart:223: 'notifRead': Icons.notifications_none_rounded,
+N lib/screens/connectors_screen.dart:227: leading: PhoneAppTile(icons[key] ?? Icons.phone_android_rounded),
+N lib/screens/connectors_screen.dart:329: leading: BrandLogo(pr.id, pr.name),
+N lib/screens/connectors_screen.dart:359: leading: BrandLogo(d.id, d.name),
+N lib/screens/connectors_screen.dart:452: BrandLogo(d.id, d.name, size: 44),
+N lib/screens/feedback_screen.dart:163: leading: const Icon(Icons.photo_library_outlined),
+N lib/screens/feedback_screen.dart:168: leading: const Icon(Icons.photo_camera_outlined),
+N lib/screens/feedback_screen.dart:235: Icon(Icons.check_circle_outline_rounded, size: Space.x8 * 2, color: p.ok),
+N lib/screens/feedback_screen.dart:305: Icon(Icons.error_outline_rounded, size: IconSize.lg, color: p.muted),
+N lib/screens/feedback_screen.dart:359: errorBuilder: (_, _, _) => ColoredBox(color: p.bubble, child: Icon(Icons.image_outlined, color: p.muted)),
+N lib/screens/feedback_screen.dart:378: child: Icon(Icons.close_rounded, size: IconSize.sm, color: p.text),
+N lib/screens/feedback_screen.dart:409: child: Icon(Icons.add_photo_alternate_outlined, color: p.muted),
+N lib/screens/files_screen.dart:15: import '../widgets/logo.dart';
+N lib/screens/files_screen.dart:20: import '../widgets/sub_icon.dart';
+N lib/screens/files_screen.dart:250: leading: SubIcon('back', color: p.muted, size: 18),
+N lib/screens/files_screen.dart:280: ? SubIcon('folder', color: p.text)
+N lib/screens/files_screen.dart:285: errorBuilder: (_, __, ___) => SubIcon('image', color: p.muted)),
+N lib/screens/files_screen.dart:287: : SubIcon('file', color: p.muted),
+N lib/screens/files_screen.dart:298: : IconButton(
+N lib/screens/files_screen.dart:300: icon: SubIcon('more', size: IconSize.md, color: p.muted),
+N lib/screens/hire_screen.dart:187: 'icon': r?.icon ?? 'person',
+N lib/screens/hire_screen.dart:255: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/hire_screen.dart:291: _SuggestionRow(icon: Icons.auto_awesome_outlined, title: tr('Describe your own'), sub: tr('Say the job in a line or two'), onTap: _describe),
+N lib/screens/hire_screen.dart:293: icon: Icons.storefront_outlined,
+N lib/screens/hire_screen.dart:297: _SuggestionRow(icon: Icons.qr_code_2_rounded, title: tr('Add from code or file'), sub: tr('A bot someone shared'), onTap: () => addSharedBot(context)),
+N lib/screens/hire_screen.dart:306: child: Center(child: SizedBox(width: IconSize.xl, height: IconSize.xl, child: CircularProgressIndicator(strokeWidth: 2, color: p.text))),
+N lib/screens/hire_screen.dart:355: dimension: IconSize.xl,
+N lib/screens/hire_screen.dart:413: const _SuggestionRow({this.face, this.icon, required this.title, required this.sub, required this.onTap});
+N lib/screens/hire_screen.dart:415: final IconData? icon;
+N lib/screens/hire_screen.dart:428: SizedBox.square(dimension: 40, child: Center(child: face ?? Icon(icon, color: p.text, size: IconSize.xl))),
+N lib/screens/home_screen.dart:33: import '../widgets/sub_icon.dart';
+N lib/screens/home_screen.dart:78: // After sign-out this screen is gone: a notification tap must not reach it (or open things twice).
+N lib/screens/home_screen.dart:95: /// A notification asked to open an office or the approvals inbox.
+N lib/screens/home_screen.dart:110: // CB-16: a bot's notification opens the Bots workspace on that bot (what you see is where you type).
+N lib/screens/home_screen.dart:306: FloatIcon(key: const ValueKey('top-menu'), icon: 'menu', tooltip: menuLabel, onTap: onMenu, onLongPress: onMenuHold),
+N lib/screens/home_screen.dart:309: FloatIcon(key: const ValueKey('top-call'), icon: 'phone', tooltip: callLabel, onTap: onCall),
+N lib/screens/home_screen.dart:311: FloatIcon(key: const ValueKey('top-new'), icon: 'plus', tooltip: 'New chat', onTap: onNew),
+N lib/screens/home_screen.dart:318: /// One floating control: a small circle of blurred sky with the icon in it. No border, no shadow.
+N lib/screens/home_screen.dart:319: class FloatIcon extends StatelessWidget {
+N lib/screens/home_screen.dart:320: const FloatIcon({super.key, required this.icon, required this.tooltip, required this.onTap, this.onLongPress, this.frosted = true});
+N lib/screens/home_screen.dart:321: final String icon;
+N lib/screens/home_screen.dart:356: child: SizedBox.square(dimension: Lux.tap, child: Center(child: SubIcon(icon, size: IconSize.lg, color: p.text))),
+N lib/screens/home_screen.dart:551: /// A free-floating icon in the top bar: no circle, no border.
+N lib/screens/home_screen.dart:552: class BarIcon extends StatelessWidget {
+N lib/screens/home_screen.dart:553: const BarIcon({super.key, required this.icon, required this.onTap, required this.tooltip});
+N lib/screens/home_screen.dart:554: final String icon;
+N lib/screens/home_screen.dart:574: child: SizedBox(width: Lux.tap + Space.x1, height: Lux.tap + Space.x1, child: Center(child: SubIcon(icon, size: IconSize.xl, color: p.text))),
+N lib/screens/inbox_screen.dart:42: static IconData iconFor(String kind) => switch (kind) {
+N lib/screens/inbox_screen.dart:43: 'reward_grant' => Icons.card_giftcard_rounded,
+N lib/screens/inbox_screen.dart:44: 'reward_earned' => Icons.auto_awesome_rounded,
+N lib/screens/inbox_screen.dart:45: _ => Icons.campaign_rounded,
+N lib/screens/inbox_screen.dart:67: Icon(iconFor(it.kind), size: 18, color: p.text),
+N lib/screens/inbox_screen.dart:81: TextButton.icon(
+N lib/screens/inbox_screen.dart:82: icon: const Icon(Icons.mark_email_unread_outlined, size: 18),
+N lib/screens/inbox_screen.dart:90: TextButton.icon(
+N lib/screens/inbox_screen.dart:91: icon: const Icon(Icons.copy_rounded, size: 18),
+N lib/screens/inbox_screen.dart:138: leading: Icon(iconFor(it.kind), color: it.unread ? p.text : p.muted),
+N lib/screens/inbox_screen.dart:166: builder: (context, n, _) => IconButton(
+N lib/screens/inbox_screen.dart:168: icon: Badge(
+N lib/screens/inbox_screen.dart:171: child: const Icon(Icons.notifications_none_rounded),
+N lib/screens/inbox_screen.dart:223: Icon(Icons.auto_awesome_rounded, size: 18, color: p.text),
+N lib/screens/inbox_screen.dart:242: child: TextButton.icon(onPressed: _share, icon: const Icon(Icons.ios_share_rounded, size: 18), label: const Text('Share my link')),
+N lib/screens/intro_screen.dart:15: /// thin brand-blue pen line, then resolves into the logo (it scales and fades in), and the white dot lands last.
+N lib/screens/intro_screen.dart:17: /// pentatonic notes), then a warm two-note bloom plays as the logo lands, with one soft impact when the dot touches down. About three seconds; a tap anywhere skips
+N lib/screens/intro_screen.dart:18: /// it (sound and ticks stop at once). With Remove animations the finished logo simply fades in, with one light tick.
+N lib/screens/intro_screen.dart:57: // Remove animations: the finished logo fades in quickly, one light tick, no sound.
+N lib/screens/intro_screen.dart:131: child: const IntroLogo(dot: 1),
+N lib/screens/intro_screen.dart:137: final logo = IntroMotion.easeOut.transform(IntroMotion.span(t, IntroMotion.logoStart, IntroMotion.logoEnd));
+N lib/screens/intro_screen.dart:150: if (logo > 0)
+N lib/screens/intro_screen.dart:152: opacity: logo,
+N lib/screens/intro_screen.dart:153: child: Transform.scale(scale: 0.82 + 0.18 * logo, child: IntroLogo(dot: dot)),
+N lib/screens/intro_screen.dart:212: /// The new Telesia logo: the light-blue tile with its blue "S" (assets/intro/telesia_tile.svg), and the white dot drawn
+N lib/screens/intro_screen.dart:214: class IntroLogo extends StatelessWidget {
+N lib/screens/intro_screen.dart:215: const IntroLogo({super.key, this.dot = 1, this.size = IntroMotion.tileSize});
+N lib/screens/library_screen.dart:9: import '../widgets/logo.dart';
+N lib/screens/library_screen.dart:11: import '../widgets/sub_icon.dart';
+N lib/screens/library_screen.dart:139: child: const SubIcon('play', color: Colors.white, size: 15),
+N lib/screens/live_screen.dart:20: import '../widgets/logo.dart';
+N lib/screens/live_screen.dart:21: import '../widgets/sub_icon.dart';
+N lib/screens/live_screen.dart:205: /// no boxes, no rings, no glow, Telesia's own icons, few words, Telesia's motion. Two styles:
+N lib/screens/live_screen.dart:380: // Controls: Telesia's own icons over one short word each. No buttons, no fills, no outlines.
+N lib/screens/live_screen.dart:385: ? _CallControl(key: const ValueKey('call-again'), icon: 'refresh', label: 'Again', onTap: onRetry)
+N lib/screens/live_screen.dart:388: icon: 'mic',
+N lib/screens/live_screen.dart:393: _CallControl(key: const ValueKey('call-end'), icon: 'close', label: endLabel, color: p.accent, onTap: onEnd),
+N lib/screens/live_screen.dart:416: /// A call control: Telesia's own icon over one short word. No circle, no fill, no outline.
+N lib/screens/live_screen.dart:418: const _CallControl({super.key, required this.icon, required this.label, required this.onTap, this.color, this.dim = false});
+N lib/screens/live_screen.dart:419: final String icon;
+N lib/screens/live_screen.dart:439: AnimatedOpacity(duration: SubMotion.quick, opacity: dim ? 0.5 : 1, child: SubIcon(icon, size: 28, color: c)),
+N lib/screens/media_models_screen.dart:9: import '../widgets/brand_logo.dart';
+N lib/screens/media_models_screen.dart:41: child: Icon(Icons.add_rounded, color: p.text, size: IconSize.lg),
+N lib/screens/media_models_screen.dart:80: leading: Opacity(opacity: pr.enabled ? 1 : 0.45, child: BrandLogo(pr.logo, pr.label, size: 36)),
+N lib/screens/media_models_screen.dart:83: trailing: IconButton(
+N lib/screens/media_models_screen.dart:86: icon: Icon(isDefault ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded, color: isDefault ? p.text : p.muted),
+N lib/screens/media_models_screen.dart:106: leading: BrandLogo(x.logo, x.name, size: 36),
+N lib/screens/media_models_screen.dart:262: BrandLogo(pr.logo, pr.label, size: 28),
+N lib/screens/media_models_screen.dart:296: suffixIcon: IconButton(
+N lib/screens/media_models_screen.dart:298: icon: const Icon(Icons.content_paste_rounded),
+N lib/screens/media_models_screen.dart:318: leading: Icon(pr.keyFrom == id ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded, color: p.text),
+N lib/screens/media_models_screen.dart:370: Icon(_statusOk ? Icons.check_circle_rounded : Icons.error_outline_rounded, size: IconSize.md, color: _statusOk ? p.ok : Theme.of(context).colorScheme.error),
+N lib/screens/media_models_screen.dart:387: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/models_screen.dart:9: import '../widgets/brand_logo.dart';
+N lib/screens/models_screen.dart:10: import '../widgets/logo.dart';
+N lib/screens/models_screen.dart:38: leading: chat == null ? const AppLogo(size: 36) : BrandLogo(chat.provider.logo, chat.provider.label, size: 36),
+N lib/screens/models_screen.dart:42: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/models_screen.dart:64: child: Icon(Icons.add_rounded, color: p.text, size: IconSize.lg),
+N lib/screens/models_screen.dart:104: leading: Opacity(opacity: pr.enabled ? 1 : 0.45, child: BrandLogo(pr.logo, pr.label, size: 36)),
+N lib/screens/models_screen.dart:158: leading: BrandLogo(x.logo, x.name, size: 36),
+N lib/screens/models_screen.dart:400: BrandLogo(pr.logo, pr.label, size: 28),
+N lib/screens/models_screen.dart:436: suffixIcon: IconButton(
+N lib/screens/models_screen.dart:438: icon: const Icon(Icons.content_paste_rounded),
+N lib/screens/models_screen.dart:460: leading: Icon(k.id == pr.active?.id ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded, color: p.text),
+N lib/screens/models_screen.dart:463: trailing: IconButton(
+N lib/screens/models_screen.dart:465: icon: Icon(Icons.close_rounded, color: p.muted),
+N lib/screens/models_screen.dart:507: Icon(_statusOk ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+N lib/screens/models_screen.dart:508: size: IconSize.md, color: _statusOk ? p.ok : Theme.of(context).colorScheme.error),
+N lib/screens/models_screen.dart:520: decoration: InputDecoration(prefixIcon: const Icon(Icons.search_rounded), hintText: tr('Search models'), isDense: true),
+N lib/screens/models_screen.dart:545: IconButton(key: const ValueKey('custom-model-add'), tooltip: tr('Add'), icon: const Icon(Icons.add_rounded), onPressed: _addCustomModel),
+N lib/screens/models_screen.dart:572: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/models_screen.dart:619: trailing: onEdit == null ? null : IconButton(tooltip: tr('Model options'), icon: Icon(Icons.tune_rounded, color: p.muted), onPressed: onEdit),
+N lib/screens/offices_screen.dart:85: icon: botIcon(o.icon),
+N lib/screens/offices_screen.dart:92: icon: Icons.groups_2_outlined,
+N lib/screens/offices_screen.dart:113: TeamCard(icon: Icons.tune_rounded, title: 'New team', onTap: () => Navigator.pop(ctx, 'custom')),
+N lib/screens/offices_screen.dart:114: TeamCard(icon: Icons.file_download_outlined, title: 'From a file', onTap: () => Navigator.pop(ctx, 'file')),
+N lib/screens/offices_screen.dart:116: for (final t in OfficeTemplate.all) TeamCard(icon: botIcon(t.icon), title: t.name, sub: t.pitch, onTap: () => Navigator.pop(ctx, t)),
+N lib/screens/offices_screen.dart:204: /// (a notification, a share, a link, the menu) opens the workspace on that team's chat. The name stays so every way in
+N lib/screens/offices_screen.dart:437: icon: Icons.playlist_add_check_rounded,
+N lib/screens/offices_screen.dart:539: IconButton.filled(
+N lib/screens/offices_screen.dart:540: style: IconButton.styleFrom(backgroundColor: p.text, foregroundColor: p.bg),
+N lib/screens/offices_screen.dart:542: icon: const Icon(Icons.arrow_upward_rounded),
+N lib/screens/offices_screen.dart:788: // Progress is one plain line: who, and what they are doing. No icons.
+N lib/screens/offices_screen.dart:960: child: const Icon(Icons.add_rounded),
+N lib/screens/offices_screen.dart:970: leading: Icon(Icons.folder_open_outlined, color: p.text),
+N lib/screens/offices_screen.dart:973: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/offices_screen.dart:979: child: FilledButton.icon(
+N lib/screens/offices_screen.dart:984: icon: const Icon(Icons.done_all_rounded),
+N lib/screens/offices_screen.dart:1080: Icon(
+N lib/screens/offices_screen.dart:1082: 'done' => Icons.check_circle_outline_rounded,
+N lib/screens/offices_screen.dart:1083: 'doing' => Icons.timelapse_rounded,
+N lib/screens/offices_screen.dart:1084: 'blocked' => Icons.block_rounded,
+N lib/screens/offices_screen.dart:1085: 'review' => Icons.rate_review_outlined,
+N lib/screens/offices_screen.dart:1086: 'proposed' => Icons.help_outline_rounded,
+N lib/screens/offices_screen.dart:1087: _ => Icons.radio_button_unchecked_rounded,
+N lib/screens/offices_screen.dart:1168: FilledButton.icon(
+N lib/screens/offices_screen.dart:1175: icon: const Icon(Icons.play_arrow_rounded),
+N lib/screens/offices_screen.dart:1211: ListTile(leading: const Icon(Icons.add_rounded), title: const Text('Describe a new bot'), onTap: () => Navigator.pop(ctx, '+new')),
+N lib/screens/offices_screen.dart:1283: child: TextButton.icon(onPressed: () => _add(context, o), icon: const Icon(Icons.person_add_alt_1_outlined), label: const Text('Add a bot')),
+N lib/screens/offices_screen.dart:1334: leading: Icon(Icons.ios_share_rounded, color: p.text),
+N lib/screens/opencode_lab_screen.dart:93: static const _ch = MethodChannel('telesia/native');
+N lib/screens/preview_screen.dart:18: import '../widgets/logo.dart';
+N lib/screens/projects_screen.dart:12: import '../widgets/sub_icon.dart';
+N lib/screens/projects_screen.dart:248: IconButton(
+N lib/screens/projects_screen.dart:251: icon: SubIcon('more', color: p.muted, size: IconSize.md),
+N lib/screens/settings_screen.dart:6: import 'package:url_launcher/url_launcher.dart';
+N lib/screens/settings_screen.dart:16: import '../widgets/logo.dart';
+N lib/screens/settings_screen.dart:88: row('Notifications', const _NotificationsPage()),
+N lib/screens/settings_screen.dart:167: trailing: Icon(Icons.chevron_right_rounded, color: Palette.of(context).muted),
+N lib/screens/settings_screen.dart:324: /// Public entry so deep links (the wake notification's "settings/wake") can land here directly.
+N lib/screens/settings_screen.dart:391: trailing: Icon(Icons.refresh_rounded, color: p.muted),
+N lib/screens/settings_screen.dart:450: trailing: Icon(Icons.chevron_right_rounded, color: Palette.of(context).muted),
+N lib/screens/settings_screen.dart:501: // ------------------------------------------------------------------ Notifications
+N lib/screens/settings_screen.dart:503: class _NotificationsPage extends StatelessWidget {
+N lib/screens/settings_screen.dart:504: const _NotificationsPage();
+N lib/screens/settings_screen.dart:509: return _Page('Notifications', [
+N lib/screens/settings_screen.dart:535: trailing: state.fullAccess ? null : const Icon(Icons.check_rounded),
+N lib/screens/settings_screen.dart:541: trailing: state.fullAccess ? const Icon(Icons.check_rounded) : null,
+N lib/screens/settings_screen.dart:567: trailing: Icon(Icons.chevron_right_rounded, color: muted),
+N lib/screens/settings_screen.dart:587: trailing: Icon(Icons.chevron_right_rounded, color: muted),
+N lib/screens/settings_screen.dart:608: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/settings_screen.dart:622: const AppLogo(size: 18),
+N lib/screens/settings_screen.dart:661: b('Telesia only uses the permissions you turn on (files, screen control, SMS, notifications), and asks before anything that pays, sends or deletes.'),
+N lib/screens/site_screens.dart:8: import 'package:url_launcher/url_launcher.dart';
+N lib/screens/site_screens.dart:16: import '../widgets/sub_icon.dart';
+N lib/screens/site_screens.dart:60: IconButton(tooltip: 'Reload', icon: const Icon(Icons.refresh_rounded), onPressed: () => _web?.reload()),
+N lib/screens/site_screens.dart:62: IconButton(
+N lib/screens/site_screens.dart:64: icon: SubIcon('share', color: p.text, size: IconSize.lg),
+N lib/screens/site_screens.dart:330: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/screens/site_screens.dart:513: trailing: IconButton(tooltip: 'More', icon: const SubIcon('more', size: IconSize.xl), onPressed: () => _menu(s)),
+N lib/screens/skill_library_screen.dart:187: trailing: SkillLibrary.I.has(b.id, s.id) ? const Icon(Icons.check_rounded) : null,
+N lib/screens/skills_screen.dart:7: import '../widgets/logo.dart';
+N lib/screens/system_screens.dart:165: _row('notifRead', 'Read notifications', '“What did I miss?” Summaries of WhatsApp, bank and other alerts, kept on your phone',
+N lib/screens/system_screens.dart:170: _row('notifications', 'Notifications', 'When a task finishes or a scheduled task runs', () => _runtime(Permission.notification)),
+N lib/screens/system_screens.dart:174: // "Tell me when a task is done" lives only in Settings > Notifications (PLAN.md 3.2).
+N lib/screens/whatsapp_screen.dart:11: /// "WhatsApp on this phone": what Telesia needs (notification access + phone control), why, and the switches.
+N lib/screens/whatsapp_screen.dart:96: title: 'Notification access',
+N lib/screens/whatsapp_screen.dart:97: subtitle: 'To see new WhatsApp messages, list who wrote, reply from the notification, and wake bots that watch a chat',
+N lib/screens/whatsapp_screen.dart:112: if (_st['locked'] == true) note('The phone is locked: only replies from notifications work until it is unlocked.'),
+N lib/screens/billing/billing_notice_sheet.dart:115: Icon(n.isInfo ? Icons.hourglass_top_rounded : Icons.data_usage_rounded, size: IconSize.sm, color: p.muted),
+N lib/screens/billing/billing_widgets.dart:89: leading: Icon(Icons.data_usage_rounded, color: p.text),
+N lib/screens/billing/billing_widgets.dart:92: trailing: const Icon(Icons.chevron_right_rounded),
+N lib/screens/billing/billing_widgets.dart:172: const BillingMessage(this.text, {super.key, this.icon = Icons.info_outline_rounded, this.action, this.onAction, this.warn = false});
+N lib/screens/billing/billing_widgets.dart:174: final IconData icon;
+N lib/screens/billing/billing_widgets.dart:189: Icon(icon, size: 18, color: warn ? p.accent : p.muted),
+N lib/screens/billing/checkout_webview_screen.dart:5: import 'package:url_launcher/url_launcher.dart';
+N lib/screens/billing/checkout_webview_screen.dart:233: leading: IconButton(key: const ValueKey('checkout-close'), tooltip: 'Close', icon: const Icon(Icons.close_rounded), onPressed: _close),
+N lib/screens/billing/checkout_webview_screen.dart:236: Icon(Icons.lock_rounded, size: 18, color: p.text),
+N lib/screens/billing/checkout_webview_screen.dart:257: Icon(Icons.wifi_off_rounded, size: 40, color: p.muted),
+N lib/screens/billing/payment_screen.dart:112: leading: IconButton(
+N lib/screens/billing/payment_screen.dart:114: icon: const Icon(Icons.close_rounded),
+N lib/screens/billing/payment_screen.dart:121: BillingMessage(tr("You're offline. We'll check again when you're back."), icon: Icons.wifi_off_rounded, warn: true),
+N lib/screens/billing/payment_screen.dart:140: Widget _icon(IconData i, Palette p, {Color? color}) => Container(
+N lib/screens/billing/payment_screen.dart:144: child: Icon(i, size: 34, color: color ?? p.text),
+N lib/screens/billing/payment_screen.dart:171: _icon(Icons.phone_iphone_rounded, p),
+N lib/screens/billing/payment_screen.dart:193: _icon(Icons.lock_outline_rounded, p),
+N lib/screens/billing/payment_screen.dart:207: _icon(Icons.hourglass_top_rounded, p),
+N lib/screens/billing/payment_screen.dart:218: _icon(Icons.check_rounded, p),
+N lib/screens/billing/payment_screen.dart:224: _icon(s.reason == 'insufficient_funds' ? Icons.account_balance_wallet_outlined : Icons.block_rounded, p, color: p.accent),
+N lib/screens/billing/payment_screen.dart:231: _icon(Icons.wifi_off_rounded, p),
+N lib/screens/billing/payment_screen.dart:238: _icon(Icons.error_outline_rounded, p),
+N lib/widgets/ask_bar.dart:12: import 'brand_logo.dart';
+N lib/widgets/ask_bar.dart:470: BrandLogo(id, name, size: 44),
+N lib/widgets/audio_card.dart:19: import 'sub_icon.dart';
+N lib/widgets/audio_card.dart:25: final int rate, channels;
+N lib/widgets/audio_card.dart:27: _Wav(this.rate, this.channels, this.samples);
+N lib/widgets/audio_card.dart:28: double get seconds => samples.length / channels / rate;
+N lib/widgets/audio_card.dart:59: final frames = samples.length ~/ channels;
+N lib/widgets/audio_card.dart:67: final v = samples[f * channels].abs();
+N lib/widgets/audio_card.dart:154: await FlutterPcmSound.setup(sampleRate: w.rate, channelCount: w.channels);
+N lib/widgets/audio_card.dart:170: final totalFrames = w.samples.length ~/ w.channels;
+N lib/widgets/audio_card.dart:181: final slice = Int16List.fromList(Int16List.sublistView(w.samples, _fed * w.channels, (_fed + n) * w.channels));
+N lib/widgets/audio_card.dart:246: : Padding(padding: const EdgeInsetsDirectional.only(start: 2), child: SubIcon('play', color: p.bg, size: 16)),
+N lib/widgets/audio_card.dart:270: IconButton(
+N lib/widgets/audio_card.dart:274: icon: Text(tr('Save'), style: TextStyle(color: p.muted, fontSize: AppText.micro, fontWeight: FontWeight.w600)),
+N lib/widgets/audio_card.dart:276: IconButton(
+N lib/widgets/audio_card.dart:280: icon: SubIcon('share', size: 18, color: p.muted),
+N lib/widgets/avatar_picker.dart:10: import 'sub_icon.dart';
+N lib/widgets/avatar_picker.dart:66: child: SubIcon('check', size: 12, color: p.text),
+N lib/widgets/bot_list.dart:20: import 'sub_icon.dart';
+N lib/widgets/bot_list.dart:96: child: Icon(Icons.expand_more_rounded, size: IconSize.sm, color: p.faint),
+N lib/widgets/bot_list.dart:315: child: Center(child: chief != null ? ChiefFace(bot: chief, size: 26) : SubIcon('plus', size: IconSize.md, color: p.muted)),
+N lib/widgets/bot_list.dart:319: SubIcon('chevron_right', size: IconSize.sm, color: p.faint),
+N lib/widgets/bot_list.dart:475: child: Padding(padding: const EdgeInsets.all(2), child: SubIcon('crown', size: c - 4, color: p.text)),
+N lib/widgets/brand_logo.dart:8: /// Real app logos for the Apps screen (plan 4 "Logos", plan 5.5).
+N lib/widgets/brand_logo.dart:9: /// Single-colour marks come from Simple Icons (CC0, assets/logos/<id>.svg) and are
+N lib/widgets/brand_logo.dart:10: /// drawn in the brand's own colour; apps Simple Icons doesn't carry use their own
+N lib/widgets/brand_logo.dart:11: /// icon (assets/logos/<id>.png or a full-colour .svg). Anything else falls back to
+N lib/widgets/brand_logo.dart:13: /// AI providers for BYOK (owner 2026-11-03) use the same tiles: Simple Icons marks for OpenAI, Anthropic, Gemini,
+N lib/widgets/brand_logo.dart:15: class BrandLogo extends StatelessWidget {
+N lib/widgets/brand_logo.dart:16: const BrandLogo(this.id, this.name, {super.key, this.size = 40, this.on = false});
+N lib/widgets/brand_logo.dart:142: /// The logo for an app a bot uses: a key app by its id, a sign-in app by its server link.
+N lib/widgets/brand_logo.dart:164: art = SvgPicture.asset('assets/logos/$key.svg',
+N lib/widgets/brand_logo.dart:167: art = SvgPicture.asset('assets/logos/$key.svg', width: mark, height: mark);
+N lib/widgets/brand_logo.dart:169: // Own icons are often full squares already: give them most of the tile, softly rounded.
+N lib/widgets/brand_logo.dart:173: child: Image.asset('assets/logos/$key.png',
+N lib/widgets/brand_logo.dart:189: // Logos are made for white: the tile stays white in both themes, like an app icon.
+N lib/widgets/brand_logo.dart:215: child: Icon(Icons.check_rounded, size: d * 0.66, color: p.bg),
+N lib/widgets/brand_logo.dart:223: /// A tile for something on the phone itself (Calendar, Contacts...), drawn to match the logos.
+N lib/widgets/brand_logo.dart:225: const PhoneAppTile(this.icon, {super.key, this.size = 40});
+N lib/widgets/brand_logo.dart:226: final IconData icon;
+N lib/widgets/brand_logo.dart:237: child: Icon(icon, size: size * 0.5, color: p.text),
+N lib/widgets/browser_card.dart:7: import 'package:url_launcher/url_launcher.dart';
+N lib/widgets/browser_card.dart:15: import 'sub_icon.dart';
+N lib/widgets/browser_card.dart:18: /// site's icon and domain, and ONE faded status line that changes in place ("Opening amazon.com"). No step list.
+N lib/widgets/browser_card.dart:77: favicon: t?.favicon ?? '',
+N lib/widgets/browser_card.dart:100: const BrowserCardView({super.key, required this.host, required this.status, this.favicon = '', this.frame, this.onOpen, this.form});
+N lib/widgets/browser_card.dart:102: final String favicon;
+N lib/widgets/browser_card.dart:134: _SiteMark(host: host, favicon: favicon),
+N lib/widgets/browser_card.dart:192: /// The site's icon, or its first letter in a soft circle when it has none.
+N lib/widgets/browser_card.dart:194: const _SiteMark({required this.host, required this.favicon});
+N lib/widgets/browser_card.dart:196: final String favicon;
+N lib/widgets/browser_card.dart:201: width: IconSize.sm,
+N lib/widgets/browser_card.dart:202: height: IconSize.sm,
+N lib/widgets/browser_card.dart:207: if (favicon.isEmpty || !favicon.startsWith('http')) return letter;
+N lib/widgets/browser_card.dart:210: child: Image.network(favicon, width: IconSize.sm, height: IconSize.sm, errorBuilder: (_, __, ___) => letter),
+N lib/widgets/browser_card.dart:416: _SiteMark(host: host, favicon: ''),
+N lib/widgets/browser_card.dart:434: child: Semantics(button: true, label: tr('Open page'), child: SubIcon('expand', size: IconSize.sm, color: p.muted)),
+N lib/widgets/browser_layer.dart:9: import 'sub_icon.dart';
+N lib/widgets/browser_layer.dart:126: Widget pill(String label, VoidCallback onTap, {bool strong = false, String? icon}) => Material(
+N lib/widgets/browser_layer.dart:135: if (icon != null) ...[SubIcon(icon, size: IconSize.sm, color: strong ? p.bg : p.text), const SizedBox(width: Space.x2)],
+N lib/widgets/browser_layer.dart:159: child: IconButton(onPressed: b.hideWindow, icon: SubIcon('close', size: IconSize.lg, color: p.text)),
+N lib/widgets/browser_layer.dart:208: if (job != null) pill(tr('Stop'), _stop, icon: 'stop'),
+N lib/widgets/chat_extras.dart:12: import 'sub_icon.dart';
+N lib/widgets/chat_extras.dart:218: child: Icon(
+N lib/widgets/chat_extras.dart:220: ? Icons.check_circle_rounded
+N lib/widgets/chat_extras.dart:221: : (i == current ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded),
+N lib/widgets/chat_extras.dart:285: child: SoftReplyChip(label: options[i], icon: 'reply', onTap: () => onPick(options[i])),
+N lib/widgets/chat_extras.dart:420: ? SubIcon('check', key: const ValueKey('choice-check'), size: IconSize.md, color: p.text)
+N lib/widgets/chat_extras.dart:421: : SizedBox(key: const ValueKey('choice-none'), width: IconSize.md, height: IconSize.md, child: picked == null ? SubIcon('chevron_right', size: IconSize.sm, color: p.faint
+N lib/widgets/chat_extras.dart:473: child: Padding(padding: const EdgeInsets.all(Space.x1), child: SubIcon('send', size: IconSize.lg, color: p.text)),
+N lib/widgets/chat_extras.dart:498: ? SubIcon('check', key: const ValueKey('choice-check'), size: IconSize.md, color: p.text)
+N lib/widgets/chat_extras.dart:499: : SubIcon('edit', size: IconSize.sm, color: p.faint),
+N lib/widgets/chat_extras.dart:511: const SoftReplyChip({super.key, required this.label, required this.onTap, this.strong = false, this.icon});
+N lib/widgets/chat_extras.dart:517: final String? icon;
+N lib/widgets/chat_extras.dart:536: if (icon != null) ...[SubIcon(icon!, size: 14, color: strong ? p.bg : p.muted), const SizedBox(width: 6)],
+N lib/widgets/chat_extras.dart:597: child: Icon(Icons.expand_more_rounded, size: 18, color: p.muted),
+N lib/widgets/chat_extras.dart:660: Icon(Icons.arrow_downward_rounded, size: 18, color: p.text),
+N lib/widgets/composer.dart:28: import 'logo.dart';
+N lib/widgets/composer.dart:31: import 'sub_icon.dart';
+N lib/widgets/composer.dart:498: ? _BareIcon(key: const ValueKey('connect-model'), icon: 'plus', tip: tr('Connect a model'), onTap: _openModels)
+N lib/widgets/composer.dart:500: ? _SendButton(key: const ValueKey('send'), icon: 'send', onTap: _send)
+N lib/widgets/composer.dart:502: ? _BareIcon(key: const ValueKey('listening'), icon: 'stop', tip: 'Stop listening', onTap: _toggleDictation)
+N lib/widgets/composer.dart:505: : _BareIcon(
+N lib/widgets/composer.dart:507: icon: 'mic',
+N lib/widgets/composer.dart:590: child: _BareIcon(icon: 'plus', tip: 'Add files, photos and more', onTap: _plusMenu),
+N lib/widgets/composer.dart:816: /// A plain icon with a round touch area: no outline, no fill.
+N lib/widgets/composer.dart:817: class _BareIcon extends StatelessWidget {
+N lib/widgets/composer.dart:818: const _BareIcon({super.key, required this.icon, required this.tip, required this.onTap});
+N lib/widgets/composer.dart:819: final String icon;
+N lib/widgets/composer.dart:835: child: SizedBox(width: Lux.tap, height: Lux.tap, child: Center(child: SubIcon(icon, size: IconSize.xl - 2, color: p.text))),
+N lib/widgets/composer.dart:860: SubIcon('close', size: 12, color: p.muted),
+N lib/widgets/composer.dart:899: final String icon;
+N lib/widgets/composer.dart:901: const _SendButton({super.key, required this.icon, this.onTap});
+N lib/widgets/composer.dart:918: child: SubIcon(icon, color: p.bg, size: 20),
+N lib/widgets/composer.dart:1195: ? Icon(st.failed ? Icons.error_outline_rounded : Icons.check_rounded, size: 14, color: st.failed ? p.accent : p.muted)
+N lib/widgets/graph_card.dart:10: import 'sub_icon.dart';
+N lib/widgets/graph_card.dart:484: child: SubIcon('expand', size: 17, color: p.text),
+N lib/widgets/hark_cards.dart:8: import 'package:url_launcher/url_launcher.dart';
+N lib/widgets/hark_cards.dart:24: import 'sub_icon.dart';
+N lib/widgets/hark_cards.dart:514: SubIcon('speaker', size: IconSize.md, color: p.bg),
+N lib/widgets/hark_style.dart:6: import 'package:url_launcher/url_launcher.dart';
+N lib/widgets/hark_style.dart:16: import 'sub_icon.dart';
+N lib/widgets/hark_style.dart:69: const HarkCornerButton({super.key, required this.icon, required this.label, required this.onTap});
+N lib/widgets/hark_style.dart:70: final String icon;
+N lib/widgets/hark_style.dart:88: child: SubIcon(icon, size: IconSize.sm, color: p.text),
+N lib/widgets/hark_style.dart:166: action: HarkCornerButton(icon: 'copy', label: 'Copy', onTap: () => harkCopy(context, subject == null ? content : 'Subject: $subject\n\n$content')),
+N lib/widgets/hark_style.dart:223: SubIcon('chevron_down', size: 14, color: p.muted),
+N lib/widgets/hark_style.dart:332: closeIcon: 'chevron_down',
+N lib/widgets/hark_style.dart:360: const HarkOverlay({super.key, required this.title, required this.child, this.actions = const [], this.closeIcon = 'close'});
+N lib/widgets/hark_style.dart:364: final String closeIcon;
+N lib/widgets/hark_style.dart:369: Widget round(String icon, String label, VoidCallback onTap) => Semantics(
+N lib/widgets/hark_style.dart:381: child: SubIcon(icon, size: IconSize.md, color: p.text),
+N lib/widgets/hark_style.dart:399: round(closeIcon, 'Close', () => Navigator.of(context).maybePop()),
+N lib/widgets/hark_style.dart:571: child: SubIcon('plus', size: IconSize.sm, color: p.text),
+N lib/widgets/logo.dart:8: /// Telesia logo (the new mark from telesia.site): a blue "S" and a white dot on a light-blue rounded tile.
+N lib/widgets/logo.dart:11: class AppLogo extends StatelessWidget {
+N lib/widgets/logo.dart:14: const AppLogo({super.key, this.size = 32, this.tile = true});
+N lib/widgets/markdown_view.dart:8: import 'package:url_launcher/url_launcher.dart';
+N lib/widgets/markdown_view.dart:272: HarkCornerButton(icon: 'copy', label: 'Copy', onTap: () => harkCopy(context, code)),
+N lib/widgets/media_cards.dart:18: import 'sub_icon.dart';
+N lib/widgets/media_cards.dart:283: child: SubIcon('more', size: IconSize.sm, color: p.text),
+N lib/widgets/media_cards.dart:316: SubIcon('speaker', size: IconSize.md, color: p.bg),
+N lib/widgets/media_lightbox.dart:12: import 'sub_icon.dart';
+N lib/widgets/media_lightbox.dart:148: child: Center(child: _fade(_Round(icon: rtl ? 'chevron_right' : 'back', label: 'Previous', onTap: () => _go(-1)))),
+N lib/widgets/media_lightbox.dart:155: child: Center(child: _fade(_Round(icon: rtl ? 'back' : 'chevron_right', label: 'Next', onTap: () => _go(1)))),
+N lib/widgets/media_lightbox.dart:161: _Round(icon: 'close', label: 'Close', onTap: () => Navigator.of(context).maybePop()),
+N lib/widgets/media_lightbox.dart:171: _Round(icon: 'share', label: 'Share', onTap: () => shareMedia(context, path)),
+N lib/widgets/media_lightbox.dart:223: const _Round({required this.icon, required this.label, required this.onTap});
+N lib/widgets/media_lightbox.dart:224: final String icon;
+N lib/widgets/media_lightbox.dart:239: child: SubIcon(icon, size: IconSize.md, color: Palette.dark.text),
+N lib/widgets/media_lightbox.dart:260: SubIcon('folder', size: IconSize.sm, color: Palette.dark.text),
+N lib/widgets/meeting_sheet.dart:15: import 'logo.dart';
+N lib/widgets/meeting_sheet.dart:57: const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 32000, sampleRate: 16000, numChannels: 1),
+N lib/widgets/message_view.dart:9: import 'package:url_launcher/url_launcher.dart';
+N lib/widgets/message_view.dart:26: import 'logo.dart';
+N lib/widgets/message_view.dart:37: import 'sub_icon.dart';
+N lib/widgets/message_view.dart:320: child: SubIcon('close', size: 14, color: p.bg),
+N lib/widgets/message_view.dart:618: Icon(Icons.verified_rounded, size: 16, color: p.text),
+N lib/widgets/message_view.dart:912: SubIcon('reply', size: IconSize.lg, color: p.muted),
+N lib/widgets/message_view.dart:1071: Favicon(host: host),
+N lib/widgets/mission_section.dart:70: IconButton(onPressed: runs > 1 ? () => set(() => runs = runs > 4 ? runs - 4 : 1) : null, icon: const Icon(Icons.remove_rounded)),
+N lib/widgets/mission_section.dart:72: IconButton(onPressed: runs < 96 ? () => set(() => runs = runs + 4 > 96 ? 96 : runs + 4) : null, icon: const Icon(Icons.add_rounded)),
+N lib/widgets/mission_section.dart:165: static IconData _icon(String status) => switch (status) {
+N lib/widgets/mission_section.dart:166: 'done' => Icons.check_circle_outline_rounded,
+N lib/widgets/mission_section.dart:167: 'doing' => Icons.play_circle_outline_rounded,
+N lib/widgets/mission_section.dart:168: 'blocked' => Icons.block_rounded,
+N lib/widgets/mission_section.dart:169: _ => Icons.radio_button_unchecked_rounded,
+N lib/widgets/mission_section.dart:243: Icon(_icon(s.status), size: 16, color: s.status == 'done' ? p.muted : p.text),
+N lib/widgets/model_picker.dart:9: import 'brand_logo.dart';
+N lib/widgets/model_picker.dart:11: import 'logo.dart';
+N lib/widgets/model_picker.dart:97: Widget check(bool on) => on ? Icon(Icons.check_rounded, color: p.text, size: IconSize.lg) : const SizedBox(width: IconSize.lg);
+N lib/widgets/model_picker.dart:116: leading: const AppLogo(size: 32),
+N lib/widgets/model_picker.dart:127: BrandLogo(e.key.logo, e.key.label, size: 20),
+N lib/widgets/model_picker.dart:191: Icon(Icons.expand_more_rounded, size: IconSize.sm, color: p.muted),
+N lib/widgets/motion.dart:5: import 'sub_icon.dart';
+N lib/widgets/motion.dart:200: child: SubIcon('chevron_down', size: 15, color: p.muted),
+N lib/widgets/output_cards.dart:9: import 'package:url_launcher/url_launcher.dart';
+N lib/widgets/output_cards.dart:17: import 'sub_icon.dart';
+N lib/widgets/output_cards.dart:225: if (RegExp(r'\.wav$', caseSensitive: false).hasMatch(path)) return AudioCard(path);
+N lib/widgets/output_cards.dart:575: if (host.isNotEmpty) ...[Favicon(host: host), const SizedBox(width: 6)],
+N lib/widgets/output_cards.dart:602: class Favicon extends StatelessWidget {
+N lib/widgets/output_cards.dart:605: const Favicon({super.key, required this.host, this.size = 14});
+N lib/widgets/output_cards.dart:613: 'https://www.google.com/s2/favicons?domain=$host&sz=64',
+N lib/widgets/output_cards.dart:964: child: SubIcon('image_broken', color: Palette.of(c).muted, size: 20),
+N lib/widgets/output_cards.dart:1064: if (pick) SubIcon('chevron_right', color: p.muted, size: 18),
+N lib/widgets/output_cards.dart:1239: child: SubIcon('check', size: 15, color: p.text),
+N lib/widgets/page_cards.dart:14: import 'sub_icon.dart';
+N lib/widgets/page_cards.dart:341: SubIcon('expand', size: IconSize.sm, color: p.bg),
+N lib/widgets/pill_kit.dart:8: /// rounded rows with a monogram tile and one pill button. Paper/ink/red, no stock icons.
+N lib/widgets/pill_kit.dart:88: /// A serif initial on a soft tile: our quiet stand-in for app icons.
+N lib/widgets/rich_cards.dart:11: import 'logo.dart';
+N lib/widgets/save_sheet.dart:44: leading: const Icon(Icons.photo_library_outlined),
+N lib/widgets/save_sheet.dart:50: leading: const Icon(Icons.folder_outlined),
+N lib/widgets/save_sheet.dart:56: leading: const Icon(Icons.download_outlined),
+N lib/widgets/save_sheet.dart:64: leading: const Icon(Icons.work_outline_rounded),
+N lib/widgets/save_sheet.dart:69: leading: const Icon(Icons.add_rounded),
+N lib/widgets/sidebar.dart:19: import 'logo.dart';
+N lib/widgets/sidebar.dart:20: import 'sub_icon.dart';
+N lib/widgets/sidebar.dart:336: SubIcon('folder', size: 18, color: p.muted),
+N lib/widgets/sub_icon.dart:4: /// Telesia's own icon set (assets/icons): fine ink strokes and softly squared corners, no dots. Takes its colour and size from the
+N lib/widgets/sub_icon.dart:5: /// surrounding IconTheme (IconButton, ListTile...) unless given.
+N lib/widgets/sub_icon.dart:6: class SubIcon extends StatelessWidget {
+N lib/widgets/sub_icon.dart:10: const SubIcon(this.name, {super.key, this.size, this.color});
+N lib/widgets/sub_icon.dart:14: final theme = IconTheme.of(context);
+N lib/widgets/sub_icon.dart:21: 'assets/icons/$name.svg',
+N lib/widgets/team_parts.dart:6: import '../screens/bots_screen.dart' show BotAvatar, BotsScreen, botIcon;
+N lib/widgets/team_parts.dart:12: import 'sub_icon.dart';
+N lib/widgets/team_parts.dart:32: leading: CircleAvatar(backgroundColor: p.sheet, child: Icon(Icons.chat_bubble_outline_rounded, color: p.text, size: 20)),
+N lib/widgets/team_parts.dart:38: leading: CircleAvatar(backgroundColor: p.sheet, child: Icon(botIcon(o.icon), color: p.text, size: 20)),
+N lib/widgets/team_parts.dart:67: const TeamCard({super.key, required this.icon, required this.title, this.sub, required this.onTap, this.badge = 0});
+N lib/widgets/team_parts.dart:68: final IconData icon;
+N lib/widgets/team_parts.dart:94: child: Icon(icon, size: 22, color: p.text),
+N lib/widgets/team_parts.dart:113: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/widgets/team_parts.dart:142: trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/widgets/team_parts.dart:154: trailing: e.key == value ? Icon(Icons.check_rounded, color: p.text) : null,
+N lib/widgets/team_parts.dart:180: child: Padding(padding: const EdgeInsets.all(4), child: Icon(Icons.close_rounded, size: 16, color: p.muted)),
+N lib/widgets/team_parts.dart:264: leading: Icon(working.isNotEmpty ? Icons.motion_photos_on_outlined : Icons.groups_2_outlined, size: 20, color: p.text),
+N lib/widgets/team_parts.dart:267: trailing: o.unread > 0 ? Badge(label: Text('${o.unread}')) : Icon(Icons.chevron_right_rounded, color: p.muted),
+N lib/widgets/team_parts.dart:343: SubIcon('chevron_right', size: IconSize.sm, color: p.muted),
+N lib/widgets/update_window.dart:8: import 'logo.dart';
+N lib/widgets/update_window.dart:163: const AppLogo(size: 28),
+N lib/widgets/update_window.dart:272: leading: const Icon(Icons.system_update_outlined),
+N lib/widgets/update_window.dart:282: /// Settings > App update. Styled like the rest of Settings: a header card (logo, this version, one status line),
+N lib/widgets/update_window.dart:396: const AppLogo(size: 44),
+N lib/widgets/video_inline.dart:9: import 'sub_icon.dart';
+N lib/widgets/video_inline.dart:148: child: SubIcon('play', size: IconSize.lg, color: p.text),
+N lib/widgets/video_inline.dart:153: PositionedDirectional(top: Space.x3, end: Space.x3, child: _Corner(icon: 'expand', label: 'Full screen', palette: p, onTap: widget.onExpand!)),
+N lib/widgets/video_inline.dart:173: child: SubIcon(v.isPlaying ? 'stop' : 'play', size: IconSize.lg, color: p.text),
+N lib/widgets/video_inline.dart:192: icon: 'expand',
+N lib/widgets/video_inline.dart:225: const _Corner({required this.icon, required this.label, required this.palette, required this.onTap});
+N lib/widgets/video_inline.dart:226: final String icon;
+N lib/widgets/video_inline.dart:242: child: SubIcon(icon, size: IconSize.sm, color: palette.text),
+N lib/widgets/visual_card.dart:13: /// and floor plans, artworks, posters, icons and mockups, any crisp 2D thing words and charts cannot be.
+N lib/widgets/visual_card.dart:14: /// flutter_svg (already in the app for its own icons) renders the markup, so no new dependency.
+N lib/widgets/chat/activity.dart:12: /// app's chips. No dots, icons or glyphs before it. The word settles in when it changes ([InkText])
+N lib/widgets/chat/activity_panel.dart:130: child: Icon(Icons.expand_more_rounded, size: IconSize.sm, color: Palette.of(context).muted),
+N lib/widgets/chat/long_text.dart:6: import '../sub_icon.dart';
+N lib/widgets/chat/long_text.dart:91: icon: 'chevron_down',
+N lib/widgets/chat/long_text.dart:98: icon: 'expand',
+N lib/widgets/chat/long_text.dart:108: const _Pill({super.key, required this.label, required this.icon, required this.onTap, this.turned = false});
+N lib/widgets/chat/long_text.dart:110: final String icon;
+N lib/widgets/chat/long_text.dart:134: child: SubIcon(icon, size: IconSize.sm, color: p.muted),
+N lib/widgets/chat/message_actions.dart:5: import '../sub_icon.dart';
+N lib/widgets/chat/message_actions.dart:10: const MessageAction(this.label, this.icon, this.onTap, {this.inline = true});
+N lib/widgets/chat/message_actions.dart:13: /// A SubIcon name.
+N lib/widgets/chat/message_actions.dart:14: final String icon;
+N lib/widgets/chat/message_actions.dart:21: /// The row that fades in under a message after a tap: small, muted icons, nothing else.
+N lib/widgets/chat/message_actions.dart:35: Widget icon(String name, String tip, VoidCallback onTap) => Semantics(
+N lib/widgets/chat/message_actions.dart:46: child: SizedBox(width: Lux.tap - Space.x1, height: Lux.tap - Space.x2, child: Center(child: SubIcon(name, size: IconSize.md, color: p.muted))),
+N lib/widgets/chat/message_actions.dart:56: for (final a in actions.where((a) => a.inline)) icon(a.icon, a.label, a.onTap),
+N lib/widgets/chat/message_actions.dart:57: if (onMore != null) icon('more', 'More', onMore!),
+N lib/widgets/chat/message_actions.dart:102: SubIcon(a.icon, size: IconSize.lg, color: p.text),
+N lib/widgets/chat/reply_quote.dart:9: import '../sub_icon.dart';
+N lib/widgets/chat/reply_quote.dart:215: SubIcon('reply', size: IconSize.sm, color: p.muted),
+N lib/widgets/chat/reply_quote.dart:218: IconButton(
+N lib/widgets/chat/reply_quote.dart:223: icon: SubIcon('close', size: IconSize.sm, color: p.muted),
+N lib/widgets/chat/reply_quote.dart:231: /// icon fades in behind it, and past the threshold a light tick fires and it springs back. RTL swipes the other way.
+N lib/widgets/chat/reply_quote.dart:301: child: Opacity(opacity: shown, child: SubIcon('reply', size: IconSize.md, color: p.muted)),
+N lib/services/agent_loop.dart:330: case 'read_notifications':
+N lib/services/apk_build.dart:103: 'Flutter is not set up in the workflow: add subosito/flutter-action@v2 (channel stable) before flutter commands.'
+N lib/services/apk_build.dart:209: channel: stable
+N lib/services/bg_runs.dart:40: /// How long a bot working in the background waits on an approval notification before it moves on (it used to wait
+N lib/services/bg_runs.dart:55: /// The ongoing notification while the bot works: "<Bot name> · <task title>".
+N lib/services/bg_runs.dart:62: /// A short title for the notification: the task's first line, or [fallback] (a check-in has no instruction).
+N lib/services/bg_runs.dart:81: /// The notification that says what the work needed when it could not ask.
+N lib/services/biz_pdf.dart:38: // Logo (optional, a PNG/JPG in the workspace).
+N lib/services/biz_pdf.dart:40: final logo = '${p['logo_path'] ?? ''}';
+N lib/services/biz_pdf.dart:41: if (logo.isNotEmpty && await File(logo).exists()) {
+N lib/services/biz_pdf.dart:43: final img = PdfBitmap(await File(logo).readAsBytes());
+N lib/services/biz_tools.dart:54: 'logo_path': {'type': 'string', 'description': 'Image file in the workspace for the document header'},
+N lib/services/biz_tools.dart:297: for (final k in ['name', 'phone', 'email', 'address', 'tax_id', 'currency', 'tax_label', 'payment_info', 'invoice_note', 'logo_path']) {
+N lib/services/bot_inbox.dart:3: /// Events about the world — a watched notification, and later an email, a price or a page changing — wait in one
+N lib/services/bot_inbox.dart:19: /// Where it came from: 'notification' today; 'email', 'site', ... later.
+N lib/services/bot_package.dart:107: static const _icons = {
+N lib/services/bot_package.dart:153: RegExp(r'(send|forward|upload|post|share|copy|export)\b[^.\n]{0,60}\b(contacts?|address book|sms|text messages|passwords?|codes?|otp|photos|location|notifications)\b[^.\n
+N lib/services/bot_package.dart:228: final icon = '${raw['icon'] ?? 'person'}';
+N lib/services/bot_package.dart:293: 'icon': _icons.contains(icon) ? icon : 'person',
+N lib/services/bot_powers.dart:37: 'phone': 'Read texts and notifications, tap the screen, call or text',
+N lib/services/bot_powers.dart:48: // A message to the owner's own Telegram chat is like a notification: never taken away by a switched-off power.
+N lib/services/bot_status.dart:36: /// Bots workspaces on the navigation stack now (CB-16: a bot notification tapped then opens the bot in place).
+N lib/services/bot_store.dart:18: required this.icon,
+N lib/services/bot_store.dart:29: final String icon;
+N lib/services/bot_store.dart:41: icon: '${r['icon'] ?? 'person'}',
+N lib/services/bot_store.dart:76: static const _cols = 'id, author_id, author_name, name, role, icon, blurb, hires, created_at';
+N lib/services/bot_store.dart:81: StoreBot(id: 'builtin:${t.id}', name: t.name, role: t.role, icon: t.icon, blurb: t.pitch, author: 'Telesia', builtIn: true, package: t.export()),
+N lib/services/bot_store.dart:171: 'icon': pkg['icon'],
+N lib/services/bot_store.dart:228: 'icon': pkg['icon'],
+N lib/services/bot_sync.dart:27: /// - Never sent: phone-only data (texts, contacts, notification contents, screen), logins, keys (setup text passes
+N lib/services/bots.dart:141: /// "When a notification from WhatsApp mentions 'invoice', do X."
+N lib/services/bots.dart:191: this.icon = 'person',
+N lib/services/bots.dart:213: String icon;
+N lib/services/bots.dart:306: r'\b(sms|texts?|text messages?|notifications?|whatsapp|screen|contacts?|phone|call|calls|calling|ring|gallery|camera|photos?|clipboard|battery)\b',
+N lib/services/bots.dart:314: r'upload|download|file|files|pdf|docx?|document|spreadsheet|slides?|excel|image|picture|logo|video|audio|code|script|browser|'
+N lib/services/bots.dart:339: icon = o.icon;
+N lib/services/bots.dart:410: 'name': name, 'role': role, 'persona': persona, 'icon': icon, 'voice': voice,
+N lib/services/bots.dart:430: 'id': id, 'name': name, 'role': role, 'persona': persona, 'mission': mission, 'icon': icon, 'builtIn': builtIn,
+N lib/services/bots.dart:455: icon: '${j['icon'] ?? 'person'}',
+N lib/services/bots.dart:788: /// Posts the bot's daily or weekly note in its chat (set by AppState). [notify] = also a quiet notification.
+N lib/services/bots.dart:1403: /// A phone notification matched one of a bot's watches. It goes into that person's own inbox, which coalesces a burst
+N lib/services/bots.dart:1405: Future<void> notificationEvent(Map<String, dynamic> e) async {
+N lib/services/bots.dart:1416: source: 'notification',
+N lib/services/bots.dart:1417: title: chat.isNotEmpty ? 'a new $app message from $chat' : 'a notification from $app',
+N lib/services/bots.dart:1435: await onWake?.call(b, event.title, '${w.instruction}\nThe notification: "$title: $text"', 'work');
+N lib/services/bots.dart:1485: icon: '${spec['icon'] ?? 'person'}',
+N lib/services/bots.dart:1751: 'jobs (bot_routine at a time, bot_watch when a phone notification arrives) and promised follow-ups (bot_followup).')
+N lib/services/bots.dart:1920: 'brief or a call), bot_watch (react to phone notifications), bot_call (ring the user now for a voice call), '
+N lib/services/bots.dart:2098: _fn('bot_watch', 'React to phone notifications: when one from an app (and/or containing a keyword) arrives, you are woken.', {
+N lib/services/bots.dart:2124: 'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campa
+N lib/services/bots.dart:2135: 'icon': {'type': 'string', 'enum': ['person', 'school', 'gavel', 'trending_up', 'travel_explore', 'fitness_center', 'payments', 'edit', 'code', 'work', 'favorite', 'campa
+N lib/services/bots.dart:2498: 'This needs notification access, which the user turns on in Telesia permissions.';
+N lib/services/bots.dart:2562: 'icon': s('icon').isEmpty ? 'person' : s('icon'),
+N lib/services/bots.dart:2615: 'icon': s('icon').isEmpty ? 'work' : s('icon'),
+N lib/services/bots.dart:2730: icon: 'storefront',
+N lib/services/bots.dart:2762: icon: 'health',
+N lib/services/bots.dart:2797: icon: 'code',
+N lib/services/bots.dart:2828: icon: 'work',
+N lib/services/bots.dart:2844: icon: 'travel_explore',
+N lib/services/bots.dart:2859: icon: 'gavel',
+N lib/services/bots.dart:2878: icon: 'trending_up',
+N lib/services/bots.dart:2895: icon: 'school',
+N lib/services/browser_agent.dart:64: String favicon = '';
+N lib/services/browser_agent.dart:1960: if (snap.favicon.isNotEmpty) t.favicon = snap.favicon;
+N lib/services/browser_jobs.dart:620: - Missed tap: the element may be covered (close the overlay), off screen (scroll), or need its own label/icon; try a different element or the site's search.
+N lib/services/browser_jobs.dart:633: - Keep the result to one plain line a notification can show.
+N lib/services/byok.dart:64: this.logo = '',
+N lib/services/byok.dart:86: /// BrandLogo id (assets/logos/<logo>.svg); empty = initials.
+N lib/services/byok.dart:87: final String logo;
+N lib/services/byok.dart:97: ByokPreset(id: 'openai', name: 'OpenAI', kind: ByokKind.openai, baseUrl: 'https://api.openai.com/v1', keyHint: 'sk-…', keyUrl: 'https://platform.openai.com/api-keys', log
+N lib/services/byok.dart:98: ByokPreset(id: 'anthropic', name: 'Anthropic', kind: ByokKind.anthropic, baseUrl: 'https://api.anthropic.com/v1', keyHint: 'sk-ant-…', keyUrl: 'https://console.anthropic.
+N lib/services/byok.dart:99: ByokPreset(id: 'gemini', name: 'Google Gemini', kind: ByokKind.gemini, baseUrl: 'https://generativelanguage.googleapis.com/v1beta', keyHint: 'AIza…', keyUrl: 'https://ais
+N lib/services/byok.dart:100: ByokPreset(id: 'openrouter', name: 'OpenRouter', kind: ByokKind.openrouter, baseUrl: 'https://openrouter.ai/api/v1', keyHint: 'sk-or-v1-…', keyUrl: 'https://openrouter.ai
+N lib/services/byok.dart:101: ByokPreset(id: 'deepseek', name: 'DeepSeek', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.deepseek.com', keyHint: 'sk-…', keyUrl: 'https://platform.deepseek.com
+N lib/services/byok.dart:102: ByokPreset(id: 'nvidia', name: 'NVIDIA NIM', kind: ByokKind.openaiCompatible, baseUrl: 'https://integrate.api.nvidia.com/v1', keyHint: 'nvapi-…', keyUrl: 'https://build.n
+N lib/services/byok.dart:113: logo: 'opencode'),
+N lib/services/byok.dart:115: ByokPreset(id: 'mistral', name: 'Mistral', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.mistral.ai/v1', keyUrl: 'https://console.mistral.ai/api-keys', logo: 'mi
+N lib/services/byok.dart:116: ByokPreset(id: 'xai', name: 'xAI', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.x.ai/v1', keyHint: 'xai-…', keyUrl: 'https://console.x.ai', logo: 'xai'),
+N lib/services/byok.dart:120: ByokPreset(id: 'moonshot', name: 'Moonshot (Kimi)', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.moonshot.ai/v1', keyHint: 'sk-…', keyUrl: 'https://platform.kim
+N lib/services/byok.dart:129: logo: 'ollama'),
+N lib/services/byok.dart:137: logo: 'lmstudio'),
+N lib/services/byok.dart:303: String get logo => presetDef?.logo ?? '';
+N lib/services/code_git.dart:315: '      - uses: subosito/flutter-action@v2\n        with:\n          channel: stable\n          cache: true\n$_create      - run: flutter pub get\n';
+N lib/services/code_git.dart:322: return pages('      - uses: subosito/flutter-action@v2\n        with:\n          channel: stable\n$_create      - run: flutter pub get\n'
+N lib/services/code_tools.dart:1259: "        floatingActionButton: FloatingActionButton(onPressed: () => setState(() => count++), child: const Icon(Icons.add)),\n      );\n}\n",
+N lib/services/connector_catalog.dart:331: id: 'slack', name: 'Slack', category: 'Messaging', blurb: 'Channels and messages',
+N lib/services/connector_catalog.dart:335: examples: 'GET /conversations.list; GET /conversations.history?channel=C..; POST /chat.postMessage {"channel":"C..","text":"..."}',
+N lib/services/connector_catalog.dart:339: id: 'discord', name: 'Discord bot', category: 'Messaging', blurb: 'Servers and channels',
+N lib/services/connector_catalog.dart:342: examples: 'GET /users/@me/guilds; GET /channels/{id}/messages?limit=20; POST /channels/{id}/messages {"content":"..."}',
+N lib/services/connector_catalog.dart:439: id: 'youtube', name: 'YouTube', category: 'Search and media', blurb: 'Search videos and channels',
+N lib/services/connector_catalog.dart:972: await c.logout();
+N lib/services/connector_catalog.dart:1116: await c.logout();
+N lib/services/design_skills.dart:160: 'error), defined once as CSS variables or theme tokens. Text contrast at least 4.5:1 (3:1 for large text and icons). Never '
+N lib/services/design_skills.dart:168: '- Icons: one consistent set (inline SVG works offline). Never emoji as icons unless the user wants that style.\n'
+N lib/services/design_skills.dart:176: '- Never invent prices, phone numbers, addresses, reviews, team members, logos of clients or statistics. Ask for them, or '
+N lib/services/feedback.dart:84: static const _ch = MethodChannel('telesia/update');
+N lib/services/feedback.dart:86: /// Reads the installed version and the phone model from Android (the update channel's `info`), with safe
+N lib/services/intro_sound.dart:6: /// as the logo resolves and the dot lands (assets/intro/intro_sound.m4a, 3.3 s, about -17.5 LUFS; synthesized for
+N lib/services/live_session.dart:9: import 'package:web_socket_channel/web_socket_channel.dart';
+N lib/services/live_session.dart:96: WebSocketChannel? _ws;
+N lib/services/live_session.dart:129: bool _micOn = false;
+N lib/services/live_session.dart:193: await FlutterPcmSound.setup(sampleRate: 24000, channelCount: 1);
+N lib/services/live_session.dart:220: final ws = WebSocketChannel.connect(uri);
+N lib/services/live_session.dart:255: void _onDrop(WebSocketChannel ws, Object? err) {
+N lib/services/live_session.dart:422: numChannels: 1,
+N lib/services/live_session.dart:485: if (!_micOn) {
+N lib/services/live_session.dart:486: _micOn = true;
+N lib/services/live_session.dart:663: await FlutterPcmSound.setup(sampleRate: 24000, channelCount: 1);
+N lib/services/mcp_client.dart:192: await _rpc('notifications/initialized', null, true);
+N lib/services/mcp_oauth.dart:9: import 'package:url_launcher/url_launcher.dart';
+N lib/services/media_coder.dart:44: 'Use it for drawings, posters, logos, patterns, charts-as-art, generative art, illustrations, icons, wallpapers, '
+N lib/services/media_coder.dart:282: const ch = buf.numberOfChannels, sr = buf.sampleRate, len = buf.length;
+N lib/services/media_coder.dart:288: const data = []; for (let c=0;c<ch;c++) data.push(buf.getChannelData(c));
+N lib/services/media_coder.dart:351: for (let c=0;c<2;c++){ const d=ir.getChannelData(c); for(let i=0;i<irLen;i++){ const x=i/irLen; d[i]=(rand()*2-1)*Math.pow(1-x,3.2)*(i<SR*0.012?0:1); } }
+N lib/services/media_coder.dart:359: const noiseBuf = (sec=1) => { const b=ctx.createBuffer(1, Math.ceil(SR*sec), SR); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rand()*2-1; return b; };
+N lib/services/media_coder.dart:360: const synth = (f) => { const b=ctx.createBuffer(2, Math.ceil(SR*DUR), SR); for(let c=0;c<2;c++){ const d=b.getChannelData(c); for(let i=0;i<d.length;i++) d[i]=f(i/SR, c)|
+N lib/services/media_coder.dart:367: for (let c=0;c<buf.numberOfChannels;c++){ const d=buf.getChannelData(c); for (let i=0;i<d.length;i+=16){ const v=Math.abs(d[i]); if (v>loudest) loudest=v; } }
+N lib/services/media_gen.dart:827: static Uint8List wav(Uint8List pcm, {int rate = 24000, int channels = 1, int bits = 16}) {
+N lib/services/media_gen.dart:842: hdr.setUint16(22, channels, Endian.little);
+N lib/services/media_gen.dart:844: hdr.setUint32(28, rate * channels * bits ~/ 8, Endian.little);
+N lib/services/media_gen.dart:845: hdr.setUint16(32, channels * bits ~/ 8, Endian.little);
+N lib/services/media_providers.dart:155: this.logo = '',
+N lib/services/media_providers.dart:177: final String logo;
+N lib/services/media_providers.dart:199: models: ['gpt-image-1', 'gpt-image-1-mini', 'dall-e-3', 'dall-e-2'], vendor: 'openai', keyHint: 'sk-…', keyUrl: 'https://platform.openai.com/api-keys', logo: 'openai'),
+N lib/services/media_providers.dart:203: keyHint: 'AIza…', keyUrl: 'https://aistudio.google.com/apikey', logo: 'googlegemini'),
+N lib/services/media_providers.dart:207: keyUrl: 'https://aistudio.google.com/apikey', logo: 'googlegemini',
+N lib/services/media_providers.dart:212: keyHint: 'sk-or-v1-…', keyUrl: 'https://openrouter.ai/keys', logo: 'openrouter', note: 'Pick a model whose output includes images.'),
+N lib/services/media_providers.dart:220: keyHint: 'r8_…', keyUrl: 'https://replicate.com/account/api-tokens', logo: 'replicate',
+N lib/services/media_providers.dart:227: model: 'grok-imagine-image-2.0', models: ['grok-imagine-image-2.0'], vendor: 'xai', keyHint: 'xai-…', keyUrl: 'https://console.x.ai', logo: 'xai'),
+N lib/services/media_providers.dart:240: logo: 'googlegemini', note: 'Google’s video model on the Gemini API (Veo preview there was shut down on 2026-10-22).'),
+N lib/services/media_providers.dart:243: models: ['veo-3.1-generate-001', 'veo-3.1-fast-generate-001'], vendor: 'google', keyHint: 'AIza…', logo: 'googlegemini',
+N lib/services/media_providers.dart:247: models: ['sora-2', 'sora-2-pro'], vendor: 'openai', keyHint: 'sk-…', keyUrl: 'https://platform.openai.com/api-keys', logo: 'openai'),
+N lib/services/media_providers.dart:250: model: 'grok-imagine-video-1.5', models: ['grok-imagine-video-1.5', 'grok-imagine-video-1.5-lite'], vendor: 'xai', keyHint: 'xai-…', logo: 'xai'),
+N lib/services/media_providers.dart:256: vendor: 'replicate', keyHint: 'r8_…', logo: 'replicate'),
+N lib/services/media_providers.dart:267: models: ['gpt-4o-mini-tts', 'tts-1', 'tts-1-hd'], vendor: 'openai', keyHint: 'sk-…', logo: 'openai', voice: 'alloy'),
+N lib/services/media_providers.dart:271: logo: 'elevenlabs', voice: 'JBFqnCBsd6RMkjVDRZzb', note: 'The voice is an ElevenLabs voice id.'),
+N lib/services/media_providers.dart:274: model: 'gemini-3.8-flash-tts', models: ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'], vendor: 'google', keyHint: 'AIza…', logo: 'googlegemini',
+N lib/services/media_providers.dart:279: logo: 'googlegemini', voice: 'Kore'),
+N lib/services/media_providers.dart:287: model: 'eleven_text_to_sound_v2', vendor: 'elevenlabs', logo: 'elevenlabs'),
+N lib/services/media_providers.dart:290: vendor: 'elevenlabs', logo: 'elevenlabs'),
+N lib/services/media_providers.dart:295: vendor: 'replicate', keyHint: 'r8_…', logo: 'replicate'),
+N lib/services/media_providers.dart:359: String get logo => presetDef?.logo ?? '';
+N lib/services/meeting_notes.dart:17: final t = await Cloud.transcribe(bytes, mime: path.endsWith('.wav') ? 'audio/wav' : 'audio/mp4');
+N lib/services/missions.dart:105: /// The latest progress summary (the notification text).
+N lib/services/missions.dart:240: /// At most one progress notification per mission in this time (summary only).
+N lib/services/missions.dart:261: /// Show the owner a notification for [m] (a summary line). [needs]: an approval or decision is waiting.
+N lib/services/missions.dart:264: /// The display name of a mission's owner (bot or team), for lines and notifications.
+N lib/services/notif_text.dart:1: // Notifications that say who it is from and what came of the work (owner 2026-11-05: "never 'Running your scheduled
+N lib/services/notif_text.dart:2: // task'; show a short summary of the result"). Plain functions, so the wording, the channel and the reply routing
+N lib/services/notif_text.dart:3: // are tested without a phone. Android draws them (android_native/Notifier.kt); the flow is in docs/notifications.md.
+N lib/services/notif_text.dart:8: /// Who a notification is from. Each has its own Android channel, so the owner can tune them apart.
+N lib/services/notif_text.dart:13: /// One of the owner's bots, in its private chat: titled with the bot's name, its avatar colour as the icon.
+N lib/services/notif_text.dart:23: /// The Android channel ids. A channel keeps the sound it was made with, so the new chime needed new ids; the old
+N lib/services/notif_text.dart:24: /// ones are deleted on start (Notifier.ensureChannels).
+N lib/services/notif_text.dart:25: class NotifChannels {
+N lib/services/notif_text.dart:26: NotifChannels._();
+N lib/services/notif_text.dart:33: /// Channels from before the chime: removed so the phone's settings list only the ones in use.
+N lib/services/notif_text.dart:44: /// The words on a notification.
+N lib/services/notif_text.dart:48: /// The longest summary a result notification carries.
+N lib/services/notif_text.dart:76: /// A short summary of a reply for a notification: its first meaningful sentences, with markdown, code, cards,
+N lib/services/notif_text.dart:85: // The team's "[needs you]" mark (team_floor.dart NeedsYou) is for the chat, not the notification.
+N lib/services/notif_text.dart:135: /// Lines that say nothing on their own in a notification: a greeting, "Here is…:", "Done!".
+N lib/services/notif_text.dart:144: /// The result notification's text for [reply], or '' when it should stay silent (no reply, a watcher's NO_CHANGE).
+N lib/services/notif_text.dart:153: /// Where a reply typed in a notification goes. The payload is the one the notification opens: 'office/<id>' (a team
+N lib/services/notif_text.dart:182: /// A bot's notification icon: its first letter on its avatar colour (Notifier draws it). The agent has none (its
+N lib/services/notif_text.dart:207: /// The calm ink every bot notification used before; kept for teams.
+N lib/services/offices.dart:336: this.icon = 'work',
+N lib/services/offices.dart:353: String icon;
+N lib/services/offices.dart:428: 'id': id, 'name': name, 'goal': goal, 'icon': icon, 'm': members, 'chief': chiefId, 'mode': mode,
+N lib/services/offices.dart:443: icon: '${j['icon'] ?? 'work'}',
+N lib/services/offices.dart:530: /// right from the notification.
+N lib/services/offices.dart:609: const OfficeTemplate(this.id, this.name, this.icon, this.goal, this.pitch, this.chief, this.members, this.rules);
+N lib/services/offices.dart:612: final String icon;
+N lib/services/offices.dart:633: 'Ideas, research, writing and SEO for a blog, channel or page.',
+N lib/services/offices.dart:666: /// Set by AppState: a short notification from a bot in an office (with an inline reply).
+N lib/services/offices.dart:669: /// A post that needs the owner ("[needs you]", the lead's question): the team's notification pops up (high
+N lib/services/offices.dart:670: /// priority, docs/notifications.md). Unset: [notify].
+N lib/services/offices.dart:1001: Future<Office> create({required String name, String goal = '', String icon = 'work', required List<String> members, required String chiefId, String rules = ''}) async {
+N lib/services/offices.dart:1002: final o = Office(id: 'o${DateTime.now().millisecondsSinceEpoch}', name: name.trim().isEmpty ? 'Team' : name.trim(), goal: goal.trim(), icon: icon, rules: rules.trim())
+N lib/services/offices.dart:1027: 'name': o.name, 'goal': o.goal, 'icon': o.icon, 'rules': o.rules, 'mode': o.mode == 'paused' ? 'manual' : o.mode,
+N lib/services/offices.dart:1054: icon: '${j['icon'] ?? 'work'}',
+N lib/services/offices.dart:1317: // A reply job is one per message: the same bot asked the same words twice (a double send, a notification reply
+N lib/services/offices.dart:1743: _fn('office_ask_owner', 'Lead (Chief) only: reach the owner now (a message on their phone they can answer from the notification).', {
+N lib/services/opencode.dart:30: static const _ch = MethodChannel('telesia/native');
+N lib/services/opencode.dart:188: /// lists again on a tools/list_changed notification (Telesia's server has no stream to send one). So when Telesia's
+N lib/services/opencode.dart:813: /// notification saying what was needed.
+N lib/services/outbound_guard.dart:9: /// 2. an approval raised while Telesia is in the background posts a high-priority notification (the router does this);
+N lib/services/outbound_guard.dart:44: /// Posts the "needs your OK" notification (kind "approval": the high-priority channel that pops up over other apps;
+N lib/services/phone_tools.dart:5: import 'package:url_launcher/url_launcher.dart';
+N lib/services/phone_tools.dart:12: static const channel = MethodChannel('telesia/native');
+N lib/services/phone_tools.dart:20: channel.setMethodCallHandler((call) async {
+N lib/services/phone_tools.dart:29: final r = await channel.invokeMethod<dynamic>('takeShared');
+N lib/services/phone_tools.dart:35: static Future<dynamic> call(String method, [Map<String, dynamic>? args]) => channel.invokeMethod<dynamic>(method, args);
+N lib/services/push.dart:17: ///   notifications bots use today), in the foreground, in the background and when the app is closed.
+N lib/services/push.dart:19: /// - A tap carries `conv/<chat_id>` or `botchat/<bot_id>` through the normal notification-tap route.
+N lib/services/push.dart:60: // Foreground: PushReceiver already shows the notification natively; nothing to draw here.
+N lib/services/push.dart:62: // Messages that carried a `notification` block (e.g. a console test) are drawn by Firebase itself
+N lib/services/push.dart:98: if (p != null) SystemBridge.I.onNotificationTap?.call(p);
+N lib/services/push.dart:102: // Ask for notifications politely: once ever, a few seconds after the app opens signed in, and only
+N lib/services/push.dart:118: final now = await fm.getNotificationSettings();
+N lib/services/roles.dart:21: required this.icon,
+N lib/services/roles.dart:42: final String icon;
+N lib/services/roles.dart:70: icon: 'travel_explore',
+N lib/services/roles.dart:92: icon: 'edit',
+N lib/services/roles.dart:114: icon: 'trending_up',
+N lib/services/roles.dart:136: icon: 'school',
+N lib/services/roles.dart:157: icon: 'gavel',
+N lib/services/roles.dart:175: icon: 'payments',
+N lib/services/roles.dart:183: RoleQuestion('channel', 'How do they reach you?', chips: ['WhatsApp', 'Phone calls', 'Email', 'In my shop'], fallback: 'WhatsApp'),
+N lib/services/roles.dart:185: firstTask: 'Write a simple follow-up kit for selling {what} to {who} over {channel}: 3 ready-to-send messages (first '
+N lib/services/roles.dart:195: icon: 'fitness_center',
+N lib/services/roles.dart:214: icon: 'work',
+N lib/services/roles.dart:311: 'icon': r.icon,
+N lib/services/run_status.dart:107: 'Writing it in your notebook', 'Checking your notebook', 'Checking your notifications', 'Running a command',
+N lib/services/session_rules.dart:65: /// After Stop: the "Working on your task" notification goes as soon as no task is left, instead of waiting for the
+N lib/services/sites.dart:98: /// A file going online: its path inside the site ("index.html", "img/logo.png") and its bytes.
+N lib/services/skills_catalog.dart:48: Skill('invoice', 'Invoice', 'Numbered, with totals and your logo name', 'Documents',
+N lib/services/skills_catalog.dart:138: Skill('missed', 'What did I miss?', 'Notifications, summed up', 'Phone',
+N lib/services/skills_catalog.dart:139: 'Use read_notifications. Summarize what matters most first; group the rest.',
+N lib/services/system_bridge.dart:11: /// notifications, scheduled alarms and permission status.
+N lib/services/system_bridge.dart:15: static const _ch = MethodChannel('telesia/system');
+N lib/services/system_bridge.dart:23: void Function(String payload)? onNotificationTap;
+N lib/services/system_bridge.dart:25: /// A bot's ringing call was declined from the notification.
+N lib/services/system_bridge.dart:29: /// Approve / Deny tapped on an approval notification.
+N lib/services/system_bridge.dart:31: /// The user replied from a bot's notification (to = conv/<id> or office/<id>).
+N lib/services/system_bridge.dart:33: /// A phone notification matched a bot's watch.
+N lib/services/system_bridge.dart:93: case 'notificationTap':
+N lib/services/system_bridge.dart:94: onNotificationTap?.call('$a');
+N lib/services/system_bridge.dart:136: /// Sees every call to Android (tests: the foreground line, alarms and notifications a background run asks for).
+N lib/services/system_bridge.dart:176: Future<void> chime() => _call('chime');
+N lib/services/system_bridge.dart:203: // ---- notifications, background, alarms ----
+N lib/services/system_bridge.dart:267: Future<void> clearTaskNotifications() async {
+N lib/services/system_bridge.dart:289: /// [reply] adds a Reply field right in the notification.
+N lib/services/system_bridge.dart:292: /// A result or message from the agent ([channel] NotifChannels.agent: "Telesia", red) or a bot (NotifChannels.bots:
+N lib/services/system_bridge.dart:297: required String channel,
+N lib/services/system_bridge.dart:307: 'channel': channel,
+N lib/services/system_bridge.dart:337: /// A bot asks before doing something risky: Approve / Deny right in the notification.
+N lib/services/system_bridge.dart:340: /// The notification watches the phone should report (JSON list of {bot,id,app,kw}).
+N lib/services/system_tools.dart:35: '(overlay, accessibility, sms, notifications, battery, microphone, app). Passwords cannot be read or changed here.',
+N lib/services/system_tools.dart:88: _fn('phone_nav', 'Press a phone button: back, home, recents, notifications, quick_settings, screenshot or lock.',
+N lib/services/system_tools.dart:89: {'action': _s('Which button', ['back', 'home', 'recents', 'notifications', 'quick_settings', 'screenshot', 'lock'])},
+N lib/services/system_tools.dart:112: 'read_notifications',
+N lib/services/system_tools.dart:113: 'Read the notifications other apps showed recently (WhatsApp, bank, delivery, missed calls...), newest first, kept only on '
+N lib/services/system_tools.dart:175: 'even with the app closed, and sends a notification with the result.',
+N lib/services/system_tools.dart:206: 'read_notifications',
+N lib/services/system_tools.dart:352: case 'read_notifications':
+N lib/services/system_tools.dart:357: ? 'No matching notifications since Telesia was allowed to see them.'
+N lib/services/system_tools.dart:358: : 'Notification reading is off. Ask the user to allow it (app_settings open_permission notifRead).';
+N lib/services/system_tools.dart:422: // Without notification permission the user would never hear back: ask now (Android 13+).
+N lib/services/system_tools.dart:424: final st = await Permission.notification.status;
+N lib/services/system_tools.dart:425: if (!st.isGranted && !st.isPermanentlyDenied) await Permission.notification.request();
+N lib/services/system_tools.dart:451: {'key': 'notify_when_done', 'value': '${app.notifyWhenDone}', 'allowed': 'true, false (notification when a task finishes)'},
+N lib/services/system_tools.dart:742: '${watch ? 'It is a watcher: it is checked each time and notifies only when something new turns up.' : bot.isNotEmpty ? 'You will be woken then to do it yourself and mess
+N lib/services/team_run.dart:277: /// CB-61: a notification for a team post the owner should see while away (the app is in the background or another
+N lib/services/telegram_bridge.dart:223: // Only a one-to-one chat with the bot pairs or gets answered. Groups and channels are ignored, so a code
+N lib/services/telesia_gateway.dart:184: - Visuals: the chat shows pictures, drawings, charts, pages and videos. `generate_image` makes a photo-like picture (when it is listed). For charts, diagrams, icons, post
+N lib/services/telesia_mcp.dart:79: /// One JSON-RPC message: its answer, or null for a notification.
+N lib/services/telesia_mcp.dart:85: if (id == null) return null; // notifications/initialized, cancelled, ...
+N lib/services/tool_scope.dart:88: r'event|meeting|settings|wifi|wi-fi|bluetooth|notifications?|camera|gallery|install|uninstall|battery|volume|brightness|'
+N lib/services/tool_scope.dart:109: r'\b(draw|drawing|poster|logo|icon|image|images|picture|pictures|wallpaper|art|artwork|design|graphic|banner|flyer|sticker|'
+N lib/services/tools.dart:66: 'automatically and saved to their Library; do not repeat its path. For charts, diagrams, icons and anything with '
+N lib/services/tools.dart:75: static const imageOtherWays = 'Other ways that work now: write an .svg file (drawings, icons, charts, diagrams) or an .html '
+N lib/services/trust.dart:70: /// [label] in the app's language (the card); [label] itself stays English for the notification.
+N lib/services/updater.dart:22: static const _ch = MethodChannel('telesia/update');
+N lib/services/whatsapp.dart:14: /// WhatsApp and WhatsApp Business on the user's own phone: read new messages from notifications, quick-reply,
+N lib/services/whatsapp.dart:61: 'inbox: new messages per chat (from notifications). read: open a chat and read it. '
+N lib/services/whatsapp.dart:62: 'reply: answer a chat (instant from its notification when possible). send: message a number (with country code) or a chat name. '
+N lib/services/whatsapp.dart:89: '- Answering someone who just wrote: reply (sends from the notification, no screen needed, works when locked). '
+N lib/services/whatsapp.dart:90: 'Someone new or no notification: send with their full number (+country code) or exact chat name.\n'
+N lib/services/whatsapp.dart:174: 'Notification access: ${st['notifRead'] == true ? 'on (new messages are read)' : 'off (needed for inbox, reply and watches)'}.',
+N lib/services/whatsapp.dart:177: if (st['locked'] == true) 'The phone is locked right now: only quick replies from notifications work.',
+N lib/services/whatsapp.dart:212: return 'Error: the phone is locked, so WhatsApp cannot be opened$what. Ask the user to unlock it (a reply to a chat that just wrote can still go from its notification).';
+N lib/services/whatsapp.dart:272: const needNotif = 'Error: notification access is off, so Telesia cannot see WhatsApp messages. Ask the user to switch it on in Telesia > Apps > WhatsApp.';
+N lib/services/whatsapp.dart:293: return '${WaText.inboxText(list)}\n(Only messages that came in as notifications. Turn on phone control in Telesia > Apps > WhatsApp to read the whole chat.)';
+N lib/services/whatsapp.dart:312: return 'Replied on WhatsApp to ${q.substring(5)} (from the notification, without opening WhatsApp).';
+N lib/services/whatsapp.dart:419: '${st['notifRead'] == true ? '' : ' Notification access is off: ask the owner to turn it on in Telesia > Apps > WhatsApp.'}';
+N lib/services/whatsapp_text.dart:98: ? 'No unread WhatsApp messages since Telesia started reading notifications.'
+N lib/services/whatsapp_text.dart:99: : 'No WhatsApp messages saved yet. New ones appear here as they arrive (notification access must be on).';
+N lib/services/whatsapp_text.dart:128: '(from notifications, kept on this phone for 7 days):\n';
+N lib/services/browser/page_model.dart:81: this.favicon = '',
+N lib/services/browser/page_model.dart:103: final String favicon;
+N lib/services/browser/page_model.dart:163: favicon: '${j['fav'] ?? ''}',
+N lib/services/browser/page_model.dart:347: /// button that moves the flow on ("Continue", "Next") does too, and so does an unlabeled icon button there.
+N lib/services/browser/page_script.dart:478: try { var li = document.querySelector('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]'); if (li && li.href) fav = li.href; } catch (e) {}
+N lib/bot_agent/bot_agent_config.dart:25: /// The bot's name, shown in logs and the notification line.
+N lib/state/agent_runner.dart:106: /// A run nobody is watching could not do something without the owner's OK: one notification says what, and the
+N lib/state/agent_runner.dart:186: // Team work asks in the team (its chat and the approvals inbox, with a notification), never in the member's
+N lib/state/agent_runner.dart:1106: /// chat. A permission becomes the team's approval card (team chat line, approvals inbox, notification); a question
+N lib/state/agent_runner.dart:1180: // The owner is away and waits on this: Telesia's own scheduled task, or an answer to a notification reply. It ends
+N lib/state/agent_runner.dart:1181: // with its own notification: who it is from and a short summary of the result (owner 2026-11-05).
+N lib/state/agent_stream.dart:253: case 'read_notifications':
+N lib/state/agent_stream.dart:254: return ('Checking your notifications', none);
+N lib/state/bots_controller.dart:53: /// every phone). The cloud already sent the notification.
+N lib/state/bots_controller.dart:306: '@note = worth keeping in our chat, not worth a notification\n'
+N lib/state/bots_controller.dart:393: /// A real thing that happened (a watched notification; later an email, a price, a page) for ONE person. It waits a
+N lib/state/bots_controller.dart:502: // CB-17: a silence tag stuck to real words is not silence: the words stay (as a quiet note, no notification).
+N lib/state/bots_controller.dart:524: if (rang.startsWith('Voice calls are not available')) break; // already sent as a notification
+N lib/state/bots_controller.dart:891: // The silent running line: "<Team> · <Bot>: <task>" (the result comes as the team's own notification).
+N lib/state/bots_controller.dart:979: // notification is answered in that notification's conversation). A "[needs you]" post told them already, and a
+N lib/state/bots_controller.dart:1099: /// Edit · Not now) in the app, batched with similar asks, and a notification to answer from.
+N lib/state/bots_controller.dart:1115: // Similar asks already waiting: the notification says "3 emails to send" (the app shows them as one card).
+N lib/state/bots_controller.dart:1120: // on, and one notification says what still needs the owner's OK (2026-11-05).
+N lib/state/bots_controller.dart:1136: /// The owner answered a message right from its notification.
+N lib/state/bots_controller.dart:1137: Future<void> _notificationReply(String to, String text) async {
+N lib/state/bots_controller.dart:1148: // back in the team's notification while the owner is away (_officeRun).
+N lib/state/bots_controller.dart:1192: /// A notification reply that started nothing (an unknown chat, a team message nobody answers) lets the foreground
+N lib/state/bots_controller.dart:1234: final o = await Offices.I.create(name: t.name, goal: goal ?? t.goal, icon: t.icon, members: members, chiefId: chief, rules: t.rules);
+N lib/state/bots_controller.dart:1260: final icon = '${spec['icon'] ?? ''}'.trim();
+N lib/state/bots_controller.dart:1264: icon: icon.isEmpty ? 'work' : icon,
+N lib/state/bots_controller.dart:1329: 'plain and warm, no hype, no emoji, no exclamation marks, no cute or childish wording), "mission": one sentence, "icon": one of '
+N lib/state/chat_controller.dart:330: // The ongoing "Working on your task" notification goes now, not when the stopped step finally returns.
+N lib/state/live_calls.dart:262: // The result also comes as a notification, and the task keeps running after the call (foreground service).
+N lib/state/missions_controller.dart:2: // Wiring of Missions (lib/services/missions.dart) into wakes, team jobs, tools, notifications and the stop switch.
+N lib/state/missions_controller.dart:75: /// A mission's progress or [needs you] notification: the bot's (or the team's) own notification, summary only.
+N lib/state/notifications.dart:1: // Notifications that say who it is from and what came of the work (owner 2026-11-05, docs/notifications.md).
+N lib/state/notifications.dart:3: // own channel, title and look; the line while work runs is on the silent Background work channel (TaskService).
+N lib/state/notifications.dart:6: extension AppStateNotifications on AppState {
+N lib/state/notifications.dart:7: /// The notification slot of a bot's messages (one per bot: a new message replaces the last).
+N lib/state/notifications.dart:24: channel: NotifChannels.bots,
+N lib/state/notifications.dart:41: channel: NotifChannels.agent,
+N lib/state/notifications.dart:69: /// reply typed in a notification (to Telesia or to a bot). Bot wakes report through their own outcome.
+N lib/state/notifications.dart:73: // used to finish in silence). Scheduled tasks and notification replies always report.
+N lib/state/notifications.dart:104: Future<void> notificationReplyForTest(String to, String text) => _notificationReply(to, text);
+N lib/state/system_phone.dart:1: // Phone/system glue: notifications, app visibility, after-task work, phone access.
+N lib/state/system_phone.dart:16: b.onNotificationTap = _onNotificationTap;
+N lib/state/system_phone.dart:25: b.onNotifEvent = (e) => unawaited(Bots.I.notificationEvent(e));
+N lib/state/system_phone.dart:34: // A reply typed in a notification can be what started Telesia (closed): it waits, like an alarm, until the bots,
+N lib/state/system_phone.dart:36: b.onNotifReply = (to, text) => unawaited(_alarmGate.run(() => _notificationReply(to, text)));
+N lib/state/system_phone.dart:67: // A "[needs you]" post or a question from the lead: the team's notification pops up.
+N lib/state/system_phone.dart:157: 'notification bar: no greeting, no title, no "Here is", no cards, no lists. '
+N lib/state/system_phone.dart:238: if (p != null) _onNotificationTap(p);
+N lib/state/system_phone.dart:303: void _onNotificationTap(String payload) {
+N lib/state/system_phone.dart:355: // Back in the app: the results are on screen, so old "done" notifications go away.
+N lib/state/system_phone.dart:356: unawaited(SystemBridge.I.clearTaskNotifications());
+N lib/state/tool_router.dart:87: // Team work's browser jobs report to the team turn that started them, never into a chat or a notification
+N lib/state/tool_router.dart:234: /// Shows the approval for [g] where the user can answer it: a bot working in the background asks from a notification;
+N lib/state/tool_router.dart:243: // A bot working in the background never pulls the app up: it asks from a notification and waits.
+N lib/state/tool_router.dart:249: // at once and one notification says what still needs the owner's OK (same rule as a bot's run, bg_runs.dart).
+N lib/state/tool_router.dart:269: // the screen: bring Telesia up if it's in the background (floating Live), with a notification that opens it.
+N lib/state/tool_router.dart:340: // notification says an OK is waiting and opens Telesia on the sheet, so the ask is never hidden.
+N .github/workflows/analyze-test.yml:31: channel: stable
+N .github/workflows/apk.yml:47: /usr/local/share/boost /opt/hostedtoolcache/CodeQL /usr/local/share/powershell /usr/share/miniconda \
+N .github/workflows/apk.yml:60: channel: stable
+N .github/workflows/apk.yml:153: # The Telesia launcher icon is GENERATED, never tracked: android/ is gitignored and flutter
+N .github/workflows/apk.yml:154: # create stamps the default Flutter logo, so this step is the only thing that replaces it.
+N .github/workflows/apk.yml:155: # Leaving it out shipped an APK with the Flutter logo (v1.13.104-174), hence the hard guard.
+N .github/workflows/apk.yml:156: - name: App icon (the Telesia logo, not the Flutter default)
+N .github/workflows/apk.yml:158: dart run flutter_launcher_icons
+N .github/workflows/apk.yml:161: test -f "$R/mipmap-$d/ic_launcher.png" \
+N .github/workflows/apk.yml:162: || { echo "::error::flutter_launcher_icons wrote no mipmap-$d/ic_launcher.png — this APK would ship the Flutter logo"; exit 1; }
+N .github/workflows/apk.yml:164: # Only an adaptive icon (anydpi-v26) proves the generator ran: the stock Flutter template
+N .github/workflows/apk.yml:166: test -f "$R/mipmap-anydpi-v26/ic_launcher.xml" \
+N .github/workflows/apk.yml:167: || { echo "::error::no mipmap-anydpi-v26/ic_launcher.xml — the Flutter default icon is still in place"; exit 1; }
+N .github/workflows/apk.yml:168: # The launch screen draws the mark from the adaptive foreground, and Android 13 themed icons need the
+N .github/workflows/apk.yml:170: test -f "$R/drawable-xxxhdpi/ic_launcher_foreground.png" \
+N .github/workflows/apk.yml:171: || { echo "::error::no ic_launcher_foreground — the launch screen has no mark to draw"; exit 1; }
+N .github/workflows/apk.yml:172: test -f "$R/drawable-xxxhdpi/ic_launcher_monochrome.png" \
+N .github/workflows/apk.yml:173: || { echo "::error::no ic_launcher_monochrome — Android 13 themed icons would show a blank square"; exit 1; }
+N .github/workflows/apk.yml:174: grep -q monochrome "$R/mipmap-anydpi-v26/ic_launcher.xml" \
+N .github/workflows/apk.yml:175: || { echo "::error::ic_launcher.xml has no monochrome layer"; exit 1; }
+N .github/workflows/apk.yml:176: ls -l "$R"/mipmap-*/ic_launcher.png
+N .github/workflows/apk.yml:177: # The notification chime (Agent, Bots and Teams channels, docs/notifications.md) is copied from
+N .github/workflows/apk.yml:178: # android_native/res by tools/patch_android.py; a missing file would leave those channels on no sound.
+N .github/workflows/apk.yml:179: test -f "$R/raw/telesia_chime.wav" \
+N .github/workflows/apk.yml:180: || { echo "::error::no res/raw/telesia_chime.wav — notifications would have no sound"; exit 1; }
+N .github/workflows/oc-apkfix.yml:25: -e 's/submac_chime/telesia_chime/g' \
+N .github/workflows/oc-apkfix.yml:30: -e 's/The SubMac launcher icon/The Telesia launcher icon/g' \
+N .github/workflows/oc-apkfix.yml:31: -e 's/the SubMac logo/the Telesia logo/g' \
+N .github/workflows/oc-apkfix.yml:44: git commit -m "chore(ci): fixed apk.yml v3 (telesia org, chime, naming)" || true
+N .github/workflows/oc-gradle-dump.yml:20: channel: stable
+N .github/workflows/oc-gradle-dump.yml:41: grep -n -E "com\.(submac|telesia)|android:label|package=" android/app/src/main/AndroidManifest.xml 2>/dev/null || echo "(no match)"
+N .github/workflows/oc-testcheck.yml:20: channel: stable
+N .github/workflows/oc-testrep.yml:20: channel: stable

@@ -1,10 +1,3 @@
-patch fetched: 9502 bytes
-patched lib/services/thinking_level.dart
-patched lib/services/opencode.dart
-patched lib/services/opencode.dart
-patched lib/state/agent_runner.dart
-patched lib/state/agent_runner.dart
-patched lib/widgets/composer.dart
-patched test/thinking_level_test.dart
-DONE: 7 edits
+audit fetched: 3222 bytes
+wrote tools/oc_left.txt (1473 lines)
 python exit=0
