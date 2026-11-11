@@ -1,1 +1,1 @@
-testcheck 5
+testcheck 6
