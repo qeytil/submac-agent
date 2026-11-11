@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/digital_human/person.dart';
 import '../../theme.dart';
 import '../../ui/tokens.dart';
-import '../bots/bots_feed_screen.dart' show _RoleTile;
+
 import 'bot_feed_card.dart';
 
 /// Bottom sheet showing a person's current state: mood, energy, recent activity.
