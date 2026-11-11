@@ -28,4 +28,30 @@ void main() {
     final src = File('lib/widgets/model_picker.dart').readAsStringSync();
     expect(src, contains("Text(tr('Model')"));
   });
+
+  test('the variants come from the engine answer, weakest first', () {
+    final body = {
+      'all': [
+        {'id': 'byok-openai', 'models': <String, dynamic>{}},
+        {
+          'id': 'byok-anthropic',
+          'models': {
+            'claude': {
+              'variants': {'high': {}, 'low': {}, 'medium': {}},
+            },
+          },
+        },
+      ],
+    };
+    expect(Thinking.variantsIn(body, 'byok-anthropic', 'claude'), ['low', 'medium', 'high']);
+    expect(Thinking.variantsIn(body, 'byok-openai', 'gpt'), isEmpty, reason: 'a model that does not think');
+    expect(Thinking.variantsIn(null, 'byok-anthropic', 'claude'), isEmpty);
+  });
+
+  test('Light takes the weakest variant the model has, Deep the strongest; Auto sends none', () {
+    expect(Thinking.pick(['low', 'medium', 'high'], ThinkingLevel.auto), isNull);
+    expect(Thinking.pick(['low', 'medium', 'high'], ThinkingLevel.light), 'low');
+    expect(Thinking.pick(['low', 'medium', 'high'], ThinkingLevel.deep), 'high');
+    expect(Thinking.pick(const [], ThinkingLevel.deep), isNull, reason: 'nothing to send');
+  });
 }

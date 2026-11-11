@@ -735,6 +735,10 @@ Future<void> _pickThinking(BuildContext context) async {
             padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x2),
             child: Text(tr('How hard Telesia thinks'), style: AppText.titleStyle.copyWith(color: p.text)),
           ),
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x2),
+            child: Text(tr('A model that does not think ignores this.'), style: AppText.microStyle.copyWith(color: p.muted)),
+          ),
           for (final l in Thinking.all)
             ListTile(
               key: ValueKey('think-${l.name}'),

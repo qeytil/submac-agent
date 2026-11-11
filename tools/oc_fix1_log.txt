@@ -1,9 +1,10 @@
-patch fetched: 2702 bytes
+patch fetched: 9502 bytes
+patched lib/services/thinking_level.dart
+patched lib/services/opencode.dart
+patched lib/services/opencode.dart
+patched lib/state/agent_runner.dart
+patched lib/state/agent_runner.dart
 patched lib/widgets/composer.dart
-patched lib/widgets/composer.dart
-patched lib/widgets/composer.dart
-patched lib/widgets/composer.dart
-patched lib/widgets/composer.dart
-patched lib/widgets/composer.dart
-DONE: 6 edits
+patched test/thinking_level_test.dart
+DONE: 7 edits
 python exit=0

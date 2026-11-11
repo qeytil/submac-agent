@@ -26,6 +26,44 @@ class Thinking {
         ThinkingLevel.deep => 'high',
       };
 
-  /// The opencode model variant for [level] (its variants carry the same names as the effort).
+  /// The opencode model variant for [level] when the caller already knows the model's variants (tests, callers
+  /// that hold the list).
   static String? variantFor(ThinkingLevel level) => effort(level);
+
+  /// The effort names opencode uses, weakest first: a family may have fewer of them, or more.
+  static const order = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+
+  static int _rank(String effort) {
+    final i = order.indexOf(effort);
+    return i < 0 ? order.length : i;
+  }
+
+  /// The reasoning variants one model really has, out of the engine's own `/provider` answer (pure). Empty when
+  /// the model has none — it does not think, so there is nothing for the pill to change.
+  static List<String> variantsIn(Object? body, String providerID, String modelID) {
+    if (body is! Map) return const [];
+    final all = body['all'] ?? body['providers'];
+    if (all is! List) return const [];
+    for (final p in all) {
+      if (p is! Map || '${p['id']}' != providerID) continue;
+      final models = p['models'];
+      if (models is! Map) return const [];
+      final m = models[modelID];
+      if (m is! Map) return const [];
+      final variants = m['variants'];
+      if (variants is! Map) return const [];
+      final names = [for (final k in variants.keys) '$k'];
+      names.sort((a, b) => _rank(a).compareTo(_rank(b)));
+      return names;
+    }
+    return const [];
+  }
+
+  /// The variant [level] should use out of [variants]: Light the weakest they have, Deep the strongest. Null when
+  /// there is nothing to send (Auto, or a model that does not think).
+  static String? pick(List<String> variants, ThinkingLevel level) => switch (level) {
+        ThinkingLevel.auto => null,
+        ThinkingLevel.light => variants.isEmpty ? null : variants.first,
+        ThinkingLevel.deep => variants.isEmpty ? null : variants.last,
+      };
 }

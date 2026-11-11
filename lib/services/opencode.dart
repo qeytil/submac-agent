@@ -12,6 +12,7 @@ import 'byok_opencode.dart';
 import 'chat_compact.dart';
 import 'cloud.dart';
 import 'oc_lanes.dart';
+import 'thinking_level.dart';
 import 'output_limits.dart';
 import 'telesia_gateway.dart';
 import 'telesia_mcp.dart';
@@ -391,12 +392,23 @@ class OpenCodeEngine {
         if (variant != null && variant.isNotEmpty) 'variant': variant,
       };
 
-  /// The effort hint Telesia's own model takes (`x-telesia-effort`, PLAN 1.5), handed to the phone's proxy.
-  /// Ignored when the installed proxy is older than the app; it never breaks a turn (owner 2026-11-10).
-  Future<void> pushEffort(String? effort) async {
+  /// The reasoning variants the engine has for one model, from its own `/provider` answer (owner 2026-11-11):
+  /// opencode names them by effort (low/medium/high, sometimes minimal/max) per model family. Empty for a model
+  /// that does not think. Cached for the engine's life, which is as long as the model list stays the same.
+  final Map<String, List<String>> _variants = {};
+
+  Future<List<String>> variantsOf(String providerID, String modelID) async {
+    final key = '$providerID/$modelID';
+    final known = _variants[key];
+    if (known != null) return known;
+    if (_port == 0 || providerID.isEmpty || modelID.isEmpty) return const [];
+    var out = const <String>[];
     try {
-      await _ch.invokeMethod('ocEffort', {'effort': effort ?? ''});
+      final r = await _client.get(_u('/provider'), headers: _auth).timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) out = Thinking.variantsIn(jsonDecode(r.body), providerID, modelID);
     } catch (_) {}
+    _variants[key] = out;
+    return out;
   }
 
   /// Stops the reply being written in [session].
