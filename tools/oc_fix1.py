@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""The thinking-level pills, fix (owner 2026-11-10): the patch travels apart from this file; this runner fetches
-it, sanity-checks it, and applies it from the repo root."""
+"""Thinking level rides opencode's real model variants (owner 2026-11-11): the patch travels apart from this file;
+this runner fetches it, sanity-checks it, and applies it from the repo root."""
 import urllib.request
 
-URL = "https://d.uguu.se/RlBQpAsf.py"
+URL = "https://h.uguu.se/hkqVDHRk.py"
 
 
 def main():
