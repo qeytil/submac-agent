@@ -249,8 +249,8 @@ class _Bubble extends StatelessWidget {
           child: Container(
             margin: EdgeInsets.only(
               bottom: Space.x2,
-              left: isUser ? Space.x12 : Space.x2,
-              right: isUser ? Space.x2 : Space.x12,
+              left: isUser ? 48.0 : Space.x2,
+              right: isUser ? Space.x2 : 48.0,
             ),
             padding: const EdgeInsets.symmetric(horizontal: Space.x3, vertical: Space.x2),
             decoration: BoxDecoration(
