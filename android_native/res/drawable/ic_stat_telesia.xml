@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Telesia notification mark: the S and the dot from the new logo (monochrome; Android tints it). -->
+<!-- Telesia notification mark: the calm T and the dot (monochrome; Android tints it). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
     android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF" android:pathData="M9.453 21.553 Q7.227 21.553 5.608 20.769 Q3.989 19.985 3.066 18.581 Q2.142 17.177 1.991 15.305 L5.330 15.102 Q5.481 16.266 6.000 17.075 Q6.519 17.885 7.391 18.302 Q8.264 18.720 9.504 18.720 Q10.566 18.720 11.312 18.454 Q12.058 18.189 12.451 17.670 Q12.843 17.151 12.843 16.392 Q12.843 15.709 12.514 15.166 Q12.185 14.622 11.249 14.179 Q10.313 13.736 8.466 13.306 Q6.240 12.800 4.900 12.155 Q3.559 11.510 2.952 10.536 Q2.345 9.562 2.345 8.095 Q2.345 6.527 3.129 5.325 Q3.913 4.124 5.355 3.453 Q6.797 2.783 8.821 2.783 Q10.971 2.783 12.463 3.555 Q13.956 4.326 14.816 5.667 Q15.676 7.008 15.878 8.753 L12.564 8.905 Q12.438 7.918 11.970 7.185 Q11.502 6.451 10.705 6.034 Q9.908 5.616 8.770 5.616 Q7.353 5.616 6.531 6.261 Q5.709 6.906 5.709 7.969 Q5.709 8.702 6.051 9.183 Q6.392 9.664 7.277 10.005 Q8.163 10.347 9.757 10.726 Q12.160 11.232 13.576 12.016 Q14.993 12.800 15.600 13.838 Q16.207 14.875 16.207 16.215 Q16.207 17.860 15.372 19.061 Q14.538 20.263 13.020 20.908 Q11.502 21.553 9.453 21.553Z"/>
-    <path android:fillColor="#FFFFFFFF" android:pathData="M17.099,4.895a2.451,2.451 0 1,0 4.901,0a2.451,2.451 0 1,0 -4.901,0z"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M8.5,7.3h7a1.55,1.55 0 0 1 0,3.1h-7a1.55,1.55 0 0 1 0,-3.1z"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M10.45,7.3h3.1v7a1.55,1.55 0 0 1 -3.1,0z"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M18.4,4.4m-1.6,0a1.6,1.6 0 1 0 3.2,0a1.6,1.6 0 1 0 -3.2,0z"/>
 </vector>

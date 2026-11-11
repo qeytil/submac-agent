@@ -16,27 +16,30 @@ import android.os.Build
  * conversation per team, "<Bot>: message", inline Reply) and Background work (the silent running line).
  */
 object Notifier {
-    /** Agent: Telesia's own results (its chats, its scheduled tasks). v2 of the channels (2026-11-05): the new light
-     *  chime (res/raw/telesia_chime.wav). A channel keeps its first sound, so the ids changed and the old ones go. */
-    const val TASKS = "telesia_agent_v2"
+    /** Agent: Telesia's own results (its chats, its scheduled tasks). v3 of the channels (2026-11-11): the new calm
+     *  chime (res/raw/telesia_chime.wav). A channel keeps its first sound, so its id has to change again. */
+    const val TASKS = "telesia_agent_v3"
     const val AGENT = TASKS
-    /** Ids from before the chime: deleted on start. */
-    private val RETIRED = arrayOf("telesia_tasks", "telesia_tasks_v2", "telesia_bot_msgs")
+    /** Ids from before the calm chime: deleted on start. */
+    private val RETIRED = arrayOf(
+        "telesia_tasks", "telesia_tasks_v2", "telesia_bot_msgs",
+        "telesia_agent_v2", "telesia_bots_v2", "telesia_teams_v2", "telesia_teams_needs_v2", "telesia_asks"
+    )
     const val WAKE = "telesia_wake"
     /** Everyday "done" results: silent, no pop-up. Only scheduled results and questions make a sound. */
     const val QUIET = "telesia_quiet"
     /** A bot calling: rings with the phone's ringtone, at the top of the screen (or full screen if chosen). */
     const val CALLS = "telesia_bot_calls"
     /** A message from a bot: like a text from a colleague. */
-    const val BOTS = "telesia_bots_v2"
+    const val BOTS = "telesia_bots_v3"
     /** A team chat: one conversation per team. */
-    const val TEAMS = "telesia_teams_v2"
+    const val TEAMS = "telesia_teams_v3"
     /** A team post marked [needs you]: pops up. */
-    const val TEAMS_NEEDS = "telesia_teams_needs_v2"
+    const val TEAMS_NEEDS = "telesia_teams_needs_v3"
     /** Work running with Telesia closed ("Nova · Hourly news"): silent, low, no badge. */
     const val WORK = "telesia_work_v2"
     /** A running task waits for the user's OK while Telesia is behind another app: pops up so the ask is never hidden. */
-    const val ASKS = "telesia_asks"
+    const val ASKS = "telesia_asks_v3"
 
     /** Telesia red: the agent's accent, so its notifications never look like a bot's. */
     val AGENT_RED: Int = 0xFFC2361B.toInt()

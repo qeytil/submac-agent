@@ -5,9 +5,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme.dart';
 
-/// Telesia logo (the new mark from telesia.site): a blue "S" and a white dot on a light-blue rounded tile.
+/// Telesia logo (owner 2026-11-11): a calm blue "T" and a white dot on a light-blue rounded tile.
 /// Drawn from the vector master in assets/brand, so it stays sharp at every size.
-/// [tile] false draws only the S and the dot, for places that already sit on their own surface.
+/// [tile] false draws only the T and the dot, for places that already sit on their own surface.
 class AppLogo extends StatelessWidget {
   final double size;
   final bool tile;
@@ -56,15 +56,38 @@ class RedDot extends StatelessWidget {
   }
 }
 
+/// The calm T of the mark (owner 2026-11-11): one rounded bar over one rounded stem, the same geometry as
+/// assets/brand/telesia_mark.svg and the notification icon, so the mark is one shape everywhere.
+class _CalmT extends CustomPainter {
+  _CalmT({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width;
+    final paint = Paint()..color = color;
+    // The proportions of the vector master, in a 1024 box: bar 296..728 x 312..445, stem 462..595 x 312..744.
+    final bar = RRect.fromRectAndRadius(
+        Rect.fromLTWH(s * 0.289, s * 0.305, s * 0.422, s * 0.130), Radius.circular(s * 0.065));
+    final stem = RRect.fromRectAndRadius(
+        Rect.fromLTWH(s * 0.451, s * 0.305, s * 0.130, s * 0.422), Radius.circular(s * 0.065));
+    canvas.drawRRect(bar, paint);
+    canvas.drawRRect(stem, paint);
+  }
+
+  @override
+  bool shouldRepaint(_CalmT old) => old.color != color;
+}
+
 /// What the agent is doing, shown through the brand mark.
 enum MarkMode { idle, thinking, working, roaming }
 
-/// The Telesia mark (the serif "S") as a living indicator. No dots (owner rule): motion is carried by the letter
+/// The Telesia mark (the calm "T") as a living indicator. No dots (owner rule): motion is carried by the letter
 /// and one fine line.
-/// - idle: the S breathes slowly;
-/// - thinking: the S glows softly while a fine ring opens out around it;
-/// - working: a short fine arc turns around the S;
-/// - roaming (browsing or using the phone): a longer arc sweeps around the S, a little faster.
+/// - idle: the T breathes slowly;
+/// - thinking: the T glows softly while a fine ring opens out around it;
+/// - working: a short fine arc turns around the T;
+/// - roaming (browsing or using the phone): a longer arc sweeps around the T, a little faster.
 class AgentMark extends StatefulWidget {
   const AgentMark({super.key, this.size = 28, this.mode = MarkMode.thinking});
   final double size;
@@ -133,12 +156,10 @@ class _AgentMarkState extends State<AgentMark> with SingleTickerProviderStateMix
             clipBehavior: Clip.none,
             children: [
               Positioned.fill(child: CustomPaint(painter: _MarkLine(mode: widget.mode, t: t, color: p.text))),
-              Positioned(
-                left: s * 0.24,
-                top: s * 0.02,
+              Positioned.fill(
                 child: Opacity(
                   opacity: glow.clamp(0.0, 1.0),
-                  child: Text('S', style: Brand.serif(size: s * 0.86, color: p.text, height: 1.0)),
+                  child: CustomPaint(painter: _CalmT(color: p.text)),
                 ),
               ),
             ],
