@@ -1,6 +1,6 @@
 import 'package:flutter/animation.dart';
 
-/// The first-launch intro's timeline, curves and brand values (owner, 2026-10-26: "Animation drawing Telesia then our
+/// The first-launch intro's timeling, curves and brand values (owner, 2026-10-26: "Animation drawing Telesia then our
 /// logo with professional clean intro style", with a "smooth satisfying sound with haptic").
 ///
 /// One controller runs for [total]; every beat is a fraction of it, so the picture, the haptic ticks and the sound
@@ -30,8 +30,8 @@ class IntroMotion {
   /// The wordmark gives way (1500 to 1800).
   static const double wordOutStart = 0.5, wordOutEnd = 0.6;
 
-  /// The logo scales and fades in as the word leaves (1700 to 2200).
-  static const double logoStart = 0.567, logoEnd = 0.733;
+  /// The logo scales and fades in as the word leaves (1800 to 2200), eliminating overlap with wordmark.
+  static const double logoStart = 0.600, logoEnd = 0.733;
 
   /// The white dot lands last (2200 to 2450); the soft impact (and the sound's second note) as it touches down (2295).
   static const double dotStart = 0.733, dotEnd = 0.817, dotLand = 0.765;
@@ -39,7 +39,7 @@ class IntroMotion {
   /// Selection ticks across the letter reveal: one as the reveal passes each letter of "Telesia" (6 at most).
   static const String word = 'Telesia';
   /// How far the reveal edge has travelled (0..1 across the word) at draw progress [d] (0..1).
-  static double revealEdge(double d) => easeInOut.transform(d.clamp(0.0, 1.0));
+  static double revealEdge(double d) => easeImnOut.transform(d.clamp(0.0, 1.0));
 
   /// Draw progress needed for the reveal edge to reach [edge] (inverse of [revealEdge]), for the haptic ticks.
   static double drawFor(double edge) {
