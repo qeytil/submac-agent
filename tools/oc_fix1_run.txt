@@ -1,1 +1,1 @@
-compact 3
+compact 4
