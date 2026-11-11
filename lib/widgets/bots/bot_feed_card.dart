@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme.dart';
-import '../ui/tokens.dart';
-import '../widgets/motion.dart';
-import 'person.dart';
+import '../../theme.dart';
+import '../../ui/tokens.dart';
+import '../../widgets/motion.dart';
+import '../../services/digital_human/digital_human.dart' show DigitalPerson, PresenceState, PresenceStateColors;
 
 /// A single bot row in the Digital Human feed — WhatsApp style but Telesia quality.
 ///
@@ -306,17 +306,3 @@ class _LiveIndicatorState extends State<_LiveIndicator>
 }
 
 /// Color mapping for presence states.
-abstract class PresenceStateColors {
-  static const Color offline = Color(0xFF9C978E);
-  static const Color online = Color(0xFF5E7A4C); // Telesia sage-green
-  static const Color thinking = Color(0xFF4A9BD9); // sea-blue
-  static const Color working = Color(0xFF3F9A5B); // status working green
-  static const Color accent = online;
-
-  static Color colorOf(PresenceState state) => switch (state) {
-        PresenceState.offline => offline,
-        PresenceState.online => online,
-        PresenceState.thinking => thinking,
-        PresenceState.working => working,
-      };
-}
