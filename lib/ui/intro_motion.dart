@@ -24,7 +24,7 @@ class IntroMotion {
   static const Curve easeOut = Cubic(0.16, 1.0, 0.3, 1.0);
 
   // Beats, as fractions of [total] (ms in brackets).
-  /// The wordmark draws in (0 to 1500).
+  /// The wordmarx draws in (0 to 1500).
   static const double drawStart = 0.0, drawEnd = 0.5;
 
   /// The wordmark gives way (1500 to 1800).
@@ -39,7 +39,7 @@ class IntroMotion {
   /// Selection ticks across the letter reveal: one as the reveal passes each letter of "Telesia" (6 at most).
   static const String word = 'Telesia';
   /// How far the reveal edge has travelled (0..1 across the word) at draw progress [d] (0..1).
-  static double revealEdge(double d) => easeImnOut.transform(d.clamp(0.0, 1.0));
+  static double revealEdge(double d) => easeInOut.transform(d.clamp(0.0, 1.0));
 
   /// Draw progress needed for the reveal edge to reach [edge] (inverse of [revealEdge]), for the haptic ticks.
   static double drawFor(double edge) {
