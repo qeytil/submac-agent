@@ -39,6 +39,7 @@ import 'ui/motion.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'widgets/browser_layer.dart';
 import 'services/session_rules.dart';
+import 'services/digital_human/registry.dart';
 import 'services/tools.dart' show AgentTools;
 import 'widgets/update_window.dart';
 
@@ -92,6 +93,8 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('initLocal failed: $e');
   }
+  // Digital Humans: wake the living layer after local prefs are ready.
+  unawaited(DigitalHumanRegistry.I.init(state.local.prefs).catchError((Object e) => debugPrint('dh init: $e')));
   // "Always on" (owner 2026-11-08): keep the steady foreground service and start the local pulse. It is a no-op until
   // there is an account, and a no-op for a whole run when the owner turned it off.
   unawaited(state.initAlwaysOn().catchError((Object e) => debugPrint('always on: $e')));
@@ -181,9 +184,13 @@ class _AgentAppState extends State<AgentApp> with WidgetsBindingObserver {
         SkillSync.I.resumed();
         Inbox.I.refresh();
         Rewards.I.refresh();
+        // Wake all digital people when the app comes back to foreground.
+        unawaited(DigitalHumanRegistry.I.wakeAll().catchError((Object e) => debugPrint('dh wake: $e')));
       }
     } else if (s == AppLifecycleState.paused) {
       state.setAppVisible(false);
+      // Sleep all digital people when the app goes to background.
+      unawaited(DigitalHumanRegistry.I.sleepAll().catchError((Object e) => debugPrint('dh sleep: $e')));
     }
   }
 
