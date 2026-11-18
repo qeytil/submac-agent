@@ -1,0 +1,60 @@
+name: oc write
+
+# Lets the on-phone agent write files larger than a single API call by uploading them as chunks.
+# Upload .oc-write/<job>/chunk.00, chunk.01, ... and .oc-write/<job>/meta (first line = target path),
+# then upload .oc-write/READY last. This job concatenates the chunks into the target, removes .oc-write,
+# and commits. It never runs on main and never re-triggers ([skip ci]).
+
+on:
+  push:
+    paths:
+      - ".oc-write/**"
+permissions:
+  contents: write
+concurrency:
+  group: oc-write-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  assemble:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Assemble
+        run: |
+          set -euo pipefail
+          if [ ! -f .oc-write/READY ]; then
+            echo "not ready yet (no .oc-write/READY)"
+            exit 0
+          fi
+          shopt -s nullglob
+          for d in .oc-write/*/; do
+            [ -f "$d/meta" ] || continue
+            target="$(head -n1 "$d/meta" | tr -d '\r')"
+            [ -n "$target" ] || { echo "empty meta in $d"; exit 1; }
+            case "$target" in
+              .oc-write/*|.git/*) echo "refusing target $target"; exit 1 ;;
+            esac
+            mkdir -p "$(dirname "$target")"
+            cat "$d"/chunk.* > "$target"
+            echo "assembled $target ($(wc -c < "$target") bytes)"
+          done
+
+      - name: Commit
+        run: |
+          set -euo pipefail
+          git config user.name "oc-bot"
+          git config user.email "oc-bot@users.noreply.github.com"
+          rm -rf .oc-write
+          git add -A
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
+          git commit -m "oc: assemble large files [skip ci]"
+          git push
