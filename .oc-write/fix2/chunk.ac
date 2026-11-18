@@ -1,0 +1,248 @@
+xt, const PrivacyScreen())),
+      ]),
+      _Group([
+        ListTile(
+          title: Text('Delete all chats', style: TextStyle(color: p.accent)),
+          onTap: () async {
+            if (await _confirm(context, 'Delete all chats?', 'This phone and your backup. This cannot be undone.', 'Delete', danger: true)) {
+              await state.deleteAllConversations();
+            }
+          },
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ------------------------------------------------------------------ Notifications
+
+class _NotificationsPage extends StatelessWidget {
+  const _NotificationsPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _watchSettings(context);
+    return _Page('Notifications', [
+      _Group([
+        SwitchListTile(
+          title: const Text('Tell me when a task is done'),
+          value: state.notifyWhenDone,
+          onChanged: state.setNotifyWhenDone,
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ------------------------------------------------------------------ Advanced
+
+class _AdvancedPage extends StatelessWidget {
+  const _AdvancedPage();
+
+  Future<void> _pickTrust(BuildContext context, AppState state) async {
+    final v = await showModalBottomSheet<String>(
+      sheetAnimationStyle: SubMotion.sheet,
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            title: const Text('Ask me first'),
+            trailing: state.fullAccess ? null : const Icon(Icons.check_rounded),
+            onTap: () => Navigator.pop(ctx, 'ask'),
+          ),
+          ListTile(
+            title: const Text('Do routine work alone'),
+            subtitle: const Text('Asks only before paying, sending or deleting.'),
+            trailing: state.fullAccess ? const Icon(Icons.check_rounded) : null,
+            onTap: () => Navigator.pop(ctx, 'full'),
+          ),
+        ]),
+      ),
+    );
+    if (v == null || !context.mounted) return;
+    if (v == 'ask') {
+      state.setApprovalMode('ask');
+      return;
+    }
+    if (await _confirm(context, 'Do routine work alone?', 'Telesia still asks before paying, sending, posting or deleting.', 'Turn on')) {
+      state.setApprovalMode('full');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _watchSettings(context);
+    final muted = Palette.of(context).muted;
+    return _Page('Advanced', [
+      const _Group([FullAccessTile()]),
+      _Group([
+        ListTile(
+          title: Text(tr('Trust level')),
+          subtitle: Text(state.fullAccess ? 'Do routine work alone' : 'Ask me first'),
+          trailing: Icon(Icons.chevron_right_rounded, color: muted),
+          onTap: () => _pickTrust(context, state),
+        ),
+        SwitchListTile(
+          title: const Text('Use phone, apps and websites'),
+          value: state.agentEnabled,
+          onChanged: state.setAgentEnabled,
+        ),
+      ]),
+      _Group([
+        SwitchListTile(
+          title: const Text('Always on'),
+          subtitle: const Text('Your digital people stay active between tasks. Uses more battery.'),
+          value: state.alwaysOn,
+          onChanged: (v) => state.setAlwaysOn(v),
+        ),
+      ]),
+      _Group([
+        ListTile(
+          title: const Text('API & tool servers'),
+          trailing: Icon(Icons.chevron_right_rounded, color: muted),
+          onTap: () => _push(context, const ConnectorsScreen(advanced: true)),
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ------------------------------------------------------------------ Help
+
+class _HelpPage extends StatelessWidget {
+  const _HelpPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    void open(String url) => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    return _Page('Help', [
+      _Group([
+        ListTile(
+          title: Text(ft('Send feedback')),
+          trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+          onTap: () => _push(context, const FeedbackScreen()),
+        ),
+        ListTile(
+          title: Text(ft('Email us')),
+          onTap: () => open('mailto:${AppConfig.supportEmail}?subject=Telesia%20Agent%20${AppConfig.version}'),
+        ),
+        ListTile(title: Text(tr('Terms')), onTap: () => open(AppConfig.termsUrl)),
+        ListTile(title: Text(tr('Privacy policy')), onTap: () => open(AppConfig.privacyUrl)),
+      ]),
+      _Group(title: 'About', [AppUpdateTile()]),
+      const SizedBox(height: Space.x3),
+      Center(
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const AppLogo(size: 18),
+          const SizedBox(width: Space.x2),
+          Text('${AppConfig.appName} · ${AppConfig.version}', style: TextStyle(color: p.muted, fontSize: AppText.micro)),
+        ]),
+      ),
+    ]);
+  }
+}
+
+/// Plain-words privacy summary inside the app.
+class PrivacyScreen extends StatelessWidget {
+  const PrivacyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    Widget h(String t) => Padding(
+          padding: const EdgeInsets.only(top: 18, bottom: 6),
+          child: Text(t, style: TextStyle(color: p.text, fontSize: AppText.body, fontWeight: FontWeight.w600)),
+        );
+    Widget b(String t) => Text(t, style: TextStyle(color: p.text, fontSize: AppText.meta, height: 1.45));
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Privacy'))),
+      body: ListView(padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 20, 32), children: [
+        h('Your chats'),
+        b('Chats live on this phone. A backup is kept in your Telesia account so they come back on a new phone. '
+            'You can delete any chat, all chats, or your whole account at any time.'),
+        h('When Telesia thinks'),
+        b('To answer you, only your message and the context it needs are sent securely through Telesia\'s server to an AI partner that works on our behalf. '
+            'A fair daily allowance is counted per account.'),
+        h('Your data is yours'),
+        b('Telesia never sells your data and never gives it to third parties for their own use. '
+            'Your chats are not used for advertising.'),
+        h('Your logins'),
+        b('Logins you save for websites, and the sign-ins for apps you connect, are encrypted and stay on this phone. '
+            'The AI never sees your saved passwords.'),
+        h('Payments'),
+        b('If you buy a package or pay as you go, a licensed payment partner takes the payment. Telesia never sees your mobile money PIN or card details.'),
+        h('Phone access'),
+        b('Telesia only uses the permissions you turn on (files, screen control, SMS, notifications), and asks before anything that pays, sends or deletes.'),
+        h('Questions'),
+        b('Write to ${AppConfig.supportEmail}.'),
+        const SizedBox(height: 18),
+        Wrap(spacing: 10, runSpacing: 8, children: [
+          OutlinedButton(
+            onPressed: () => launchUrl(Uri.parse(AppConfig.privacyUrl), mode: LaunchMode.externalApplication),
+            child: const Text('Full privacy policy'),
+          ),
+          OutlinedButton(
+            onPressed: () => launchUrl(Uri.parse(AppConfig.termsUrl), mode: LaunchMode.externalApplication),
+            child: const Text('Terms of use'),
+          ),
+        ]),
+      ]),
+    );
+  }
+}
+
+
+/// A group of rows on a soft fill. No border and no lines between rows (PLAN.md 3.1).
+class _Group extends StatelessWidget {
+  final String? title;
+  final List<Widget> children;
+  const _Group(this.children, {this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x2, Space.x4, Space.x3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title != null)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: Space.x1, bottom: Space.x2),
+              child: Text(tr(title!), style: AppText.sectionStyle.copyWith(color: p.muted)),
+            ),
+          Container(
+            decoration: BoxDecoration(color: p.sheet, borderRadius: Radii.rowAll),
+            clipBehavior: Clip.antiAlias,
+            child: Material(color: Colors.transparent, child: Column(children: children)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Files Telesia moved to its Trash, with one-tap restore.
+class TrashScreen extends StatefulWidget {
+  final bool embedded;
+  const TrashScreen({super.key, this.embedded = false});
+
+  @override
+  State<TrashScreen> createState() => _TrashScreenState();
+}
+
+class _TrashScreenState extends State<TrashScreen> {
+  List<FileSystemEntity> _items = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final dir = Directory(await AgentTools.trashDir());
+  
