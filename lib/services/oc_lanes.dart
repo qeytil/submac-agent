@@ -1,4 +1,5 @@
 import 'byok.dart';
+import 'byok_opencode.dart';
 import 'cloud.dart';
 import 'opencode.dart';
 
@@ -102,13 +103,21 @@ class OcLane {
   }
 
   /// The prompt `model` of a BYOK setting, or null when it does not name a usable model of the user's providers.
+  /// The OpenCode free provider picks as opencode's built-in `opencode` (owner 2026-11-18): its free models only
+  /// answer inside opencode's own provider, so the id written in the prompt is `opencode`, not the `byok-...` id.
   static Map<String, String>? byokFor(String? setting, {ByokStore? store}) {
     final pick = (store ?? ByokStore.I).resolve(setting);
-    return pick == null ? null : {'providerID': pick.provider.id, 'modelID': pick.model.id};
+    if (pick == null) return null;
+    final id = ByokOpencode.isBuiltinOpencode(pick.provider) ? ByokOpencode.builtinOpencodeId : pick.provider.id;
+    return {'providerID': id, 'modelID': pick.model.id};
   }
 
-  /// A turn on one of the user's own providers (not billed by Telesia, not stopped by the bots' share).
-  static bool isByok(Map<String, String>? model) => model != null && (model['providerID'] ?? '').startsWith(ByokProvider.prefix);
+  /// A turn on one of the user's own providers (not billed by Telesia, not stopped by the bots' share). The OpenCode
+  /// free provider counts too: it runs on opencode's own engine, never through Telesia's proxy or allowance.
+  static bool isByok(Map<String, String>? model) {
+    final id = model?['providerID'] ?? '';
+    return id.startsWith(ByokProvider.prefix) || id == ByokOpencode.builtinOpencodeId;
+  }
 
   static bool isBackground(Map<String, String>? model) => model != null && bgSources.containsKey(model['providerID']);
 

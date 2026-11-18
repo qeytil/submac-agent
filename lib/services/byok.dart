@@ -63,6 +63,8 @@ class ByokPreset {
     this.note = '',
     this.logo = '',
     this.custom = false,
+    this.models = const [],
+    this.builtinOpencode = false,
   });
 
   final String id;
@@ -88,36 +90,73 @@ class ByokPreset {
 
   /// The user types the base URL (custom OpenAI- or Anthropic-compatible).
   final bool custom;
+
+  /// Models offered straight away when this preset is added (a keyless provider with a known, fixed list; owner
+  /// 2026-11-18: OpenCode's free models, so they show in the picker with no setup).
+  final List<String> models;
+
+  /// This is opencode's own built-in provider (id `opencode`). Its calls must carry opencode's identity, because the
+  /// free models only answer inside opencode's own provider. It is written into opencode's config as `opencode`
+  /// (models only, no key), never as a `byok-...` provider, and its pick routes to `opencode|<model>`.
+  final bool builtinOpencode;
 }
 
 class ByokPresets {
   ByokPresets._();
 
+  /// OpenCode's free chat models (owner 2026-11-18), read from https://opencode.ai/inference/v1/models. They are
+  /// keyless and only answer through opencode's own built-in provider, so the app routes them to `opencode|<id>`.
+  static const _opencodeFreeModels = <String>[
+    'big-pickle',
+    'mimo-v2.6-flash-free',
+    'deepseek-v4.1-flash-free',
+    'longcat-2.5-free',
+    'iceman-free',
+    'inkling-2-small-free',
+    'beam-free',
+    'flint-40b-free',
+    'nemotron-3.5-super-vl-free',
+    'nemotron-3.5-lightning-free',
+    'hy4-flash-free',
+  ];
+
   static const all = <ByokPreset>[
-    ByokPreset(id: 'openai', name: 'OpenAI', kind: ByokKind.openai, baseUrl: 'https://api.openai.com/v1', keyHint: 'sk-…', keyUrl: 'https://platform.openai.com/api-keys', logo: 'openai'),
-    ByokPreset(id: 'anthropic', name: 'Anthropic', kind: ByokKind.anthropic, baseUrl: 'https://api.anthropic.com/v1', keyHint: 'sk-ant-…', keyUrl: 'https://console.anthropic.com/settings/keys', logo: 'anthropic'),
-    ByokPreset(id: 'gemini', name: 'Google Gemini', kind: ByokKind.gemini, baseUrl: 'https://generativelanguage.googleapis.com/v1beta', keyHint: 'AIza…', keyUrl: 'https://aistudio.google.com/apikey', logo: 'googlegemini'),
-    ByokPreset(id: 'openrouter', name: 'OpenRouter', kind: ByokKind.openrouter, baseUrl: 'https://openrouter.ai/api/v1', keyHint: 'sk-or-v1-…', keyUrl: 'https://openrouter.ai/keys', logo: 'openrouter'),
-    ByokPreset(id: 'deepseek', name: 'DeepSeek', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.deepseek.com', keyHint: 'sk-…', keyUrl: 'https://platform.deepseek.com/api_keys', logo: 'deepseek'),
-    ByokPreset(id: 'nvidia', name: 'NVIDIA NIM', kind: ByokKind.openaiCompatible, baseUrl: 'https://integrate.api.nvidia.com/v1', keyHint: 'nvapi-…', keyUrl: 'https://build.nvidia.com', logo: 'nvidia'),
-    ByokPreset(id: 'tokenharbor', name: 'TokenHarbor', kind: ByokKind.openaiCompatible, baseUrl: 'https://tokenharbor.ai/v1', keyHint: 'thk_live_…', keyUrl: 'https://tokenharbor.ai/dashboard/api-keys'),
+    ByokPreset(id: 'openai', name: 'OpenAI', kind: ByokKind.openai, baseUrl: 'https://api.openai.com/v1', keyHint: 'sk-...', keyUrl: 'https://platform.openai.com/api-keys', logo: 'openai'),
+    ByokPreset(id: 'anthropic', name: 'Anthropic', kind: ByokKind.anthropic, baseUrl: 'https://api.anthropic.com/v1', keyHint: 'sk-ant-...', keyUrl: 'https://console.anthropic.com/settings/keys', logo: 'anthropic'),
+    ByokPreset(id: 'gemini', name: 'Google Gemini', kind: ByokKind.gemini, baseUrl: 'https://generativelanguage.googleapis.com/v1beta', keyHint: 'AIza...', keyUrl: 'https://aistudio.google.com/apikey', logo: 'googlegemini'),
+    ByokPreset(id: 'openrouter', name: 'OpenRouter', kind: ByokKind.openrouter, baseUrl: 'https://openrouter.ai/api/v1', keyHint: 'sk-or-v1-...', keyUrl: 'https://openrouter.ai/keys', logo: 'openrouter'),
+    ByokPreset(id: 'deepseek', name: 'DeepSeek', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.deepseek.com', keyHint: 'sk-...', keyUrl: 'https://platform.deepseek.com/api_keys', logo: 'deepseek'),
+    ByokPreset(id: 'nvidia', name: 'NVIDIA NIM', kind: ByokKind.openaiCompatible, baseUrl: 'https://integrate.api.nvidia.com/v1', keyHint: 'nvapi-...', keyUrl: 'https://build.nvidia.com', logo: 'nvidia'),
+    ByokPreset(id: 'tokenharbor', name: 'TokenHarbor', kind: ByokKind.openaiCompatible, baseUrl: 'https://tokenharbor.ai/v1', keyHint: 'thk_live_...', keyUrl: 'https://tokenharbor.ai/dashboard/api-keys'),
     ByokPreset(
         id: 'opencode',
         name: 'OpenCode',
         kind: ByokKind.openaiCompatible,
         baseUrl: 'https://opencode.ai/inference/openai/v1',
         modelsUrl: 'https://opencode.ai/inference/v1/models',
-        keyHint: 'oc_sk_…',
+        keyHint: 'oc_sk_...',
         keyUrl: 'https://opencode.ai/console',
-        note: 'Paid and Go models work with your Console key. Free models only answer inside OpenCode’s own app.',
+        note: 'Paid and Go models work with your Console key. For the free models, add “OpenCode (free)” below.',
         logo: 'opencode'),
-    ByokPreset(id: 'groq', name: 'Groq', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.groq.com/openai/v1', keyHint: 'gsk_…', keyUrl: 'https://console.groq.com/keys'),
+    ByokPreset(
+        id: 'opencode-free',
+        name: 'OpenCode (free)',
+        kind: ByokKind.openaiCompatible,
+        baseUrl: 'https://opencode.ai/inference/openai/v1',
+        modelsUrl: 'https://opencode.ai/inference/v1/models',
+        needsKey: false,
+        builtinOpencode: true,
+        models: _opencodeFreeModels,
+        note: 'Free models, no key. They only answer inside OpenCode, so Telesia runs them on its own engine; '
+            'nothing uses your Telesia allowance.',
+        logo: 'opencode'),
+    ByokPreset(id: 'groq', name: 'Groq', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.groq.com/openai/v1', keyHint: 'gsk_...', keyUrl: 'https://console.groq.com/keys'),
     ByokPreset(id: 'mistral', name: 'Mistral', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.mistral.ai/v1', keyUrl: 'https://console.mistral.ai/api-keys', logo: 'mistralai'),
-    ByokPreset(id: 'xai', name: 'xAI', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.x.ai/v1', keyHint: 'xai-…', keyUrl: 'https://console.x.ai', logo: 'xai'),
+    ByokPreset(id: 'xai', name: 'xAI', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.x.ai/v1', keyHint: 'xai-...', keyUrl: 'https://console.x.ai', logo: 'xai'),
     ByokPreset(id: 'together', name: 'Together AI', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.together.xyz/v1', keyUrl: 'https://api.together.ai/settings/api-keys'),
-    ByokPreset(id: 'fireworks', name: 'Fireworks', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.fireworks.ai/inference/v1', keyHint: 'fw_…', keyUrl: 'https://fireworks.ai/account/api-keys'),
-    ByokPreset(id: 'cerebras', name: 'Cerebras', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.cerebras.ai/v1', keyHint: 'csk-…', keyUrl: 'https://cloud.cerebras.ai'),
-    ByokPreset(id: 'moonshot', name: 'Moonshot (Kimi)', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.moonshot.ai/v1', keyHint: 'sk-…', keyUrl: 'https://platform.kimi.ai', logo: 'moonshotai'),
+    ByokPreset(id: 'fireworks', name: 'Fireworks', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.fireworks.ai/inference/v1', keyHint: 'fw_...', keyUrl: 'https://fireworks.ai/account/api-keys'),
+    ByokPreset(id: 'cerebras', name: 'Cerebras', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.cerebras.ai/v1', keyHint: 'csk-...', keyUrl: 'https://cloud.cerebras.ai'),
+    ByokPreset(id: 'moonshot', name: 'Moonshot (Kimi)', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.moonshot.ai/v1', keyHint: 'sk-...', keyUrl: 'https://platform.kimi.ai', logo: 'moonshotai'),
     ByokPreset(id: 'zai', name: 'Z.ai (GLM)', kind: ByokKind.openaiCompatible, baseUrl: 'https://api.z.ai/api/paas/v4', keyUrl: 'https://z.ai/manage-apikey/apikey-list'),
     ByokPreset(
         id: 'ollama',
@@ -379,7 +418,7 @@ class ByokProvider {
 
   ByokProvider copy() => ByokProvider.fromJson(jsonDecode(jsonEncode(toJson())) as Map);
 
-  /// A fresh provider from a preset.
+  /// A fresh provider from a preset. A preset with a fixed list (OpenCode free) starts with those models chosen.
   factory ByokProvider.fromPreset(ByokPreset p, {String? id}) => ByokProvider(
         id: id ?? newId(),
         kind: p.kind,
@@ -387,6 +426,7 @@ class ByokProvider {
         name: p.name,
         baseUrl: p.baseUrl,
         modelsUrl: p.modelsUrl,
+        models: [for (final m in p.models) ByokModel(id: m)],
       );
 }
 
@@ -428,7 +468,7 @@ class ByokConfig {
 
   final List<ByokProvider> providers;
 
-  /// The owner's chats: `telesia` or `byok-…|model`.
+  /// The owner's chats: `telesia` or `byok-...|model`.
   String chat;
 
   Map<String, dynamic> toJson() => {'v': version, 'chat': chat, 'providers': [for (final p in providers) p.toJson()]};
@@ -588,7 +628,7 @@ class ByokStore extends ChangeNotifier {
 
   // ------------------------------------------------------------------ choosing a model
 
-  /// The owner's chat model setting (`telesia` or `byok-…|model`).
+  /// The owner's chat model setting (`telesia` or `byok-...|model`).
   String get chatModel => _cfg.chat;
 
   Future<void> setChatModel(String setting) async {
