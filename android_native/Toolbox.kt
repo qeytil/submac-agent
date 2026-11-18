@@ -74,6 +74,11 @@ object Toolbox {
         val work = File(ctx.filesDir, "oc/work").apply { mkdirs() }
         val bind = if (cwd.isNotBlank() && File(cwd).exists()) File(cwd) else work
         val tmp = File(ctx.filesDir, "oc/toolbox/tmp").apply { mkdirs() }
+        // Android extracts only lib*.so, so the sonames proot asks Bionic for are linked back here.
+        val sonameDir = File(ctx.filesDir, "oc/lib").apply { mkdirs() }
+        link(sonameDir, lib, "libtalloc.so.2", "libtalloc.so")
+        link(sonameDir, lib, "libandroid-shmem.so", "libandroid-shmem.so")
+        link(sonameDir, lib, "libandroid-shmem.so.0", "libandroid-shmem.so")
         return try {
             val pb = ProcessBuilder(
                 proot.path, "-0", "-r", rootfs(ctx).path,
@@ -85,7 +90,9 @@ object Toolbox {
             val env = pb.environment()
             env["PROOT_TMP_DIR"] = tmp.path
             if (loader.exists()) env["PROOT_LOADER"] = loader.path
-            env["LD_LIBRARY_PATH"] = lib
+            env["LD_LIBRARY_PATH"] = "${sonameDir.path}:$lib"
+            // Android's seccomp filter breaks proot's tracing without this (Termux sets it too).
+            env["PROOT_NO_SECCOMP"] = "1"
             env["HOME"] = "/root"
             env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             env["TERM"] = "xterm-256color"
@@ -102,6 +109,17 @@ object Toolbox {
             Log.w(TAG, "run failed: ${e.javaClass.simpleName}")
             "error: ${e.message ?: e.javaClass.simpleName}"
         }
+    }
+
+    /** Points [name] in [dir] at the bundled [target] in [libDir] (a soname Android cannot extract as such). */
+    private fun link(dir: File, libDir: File, name: String, target: String) {
+        val t = File(libDir, target)
+        if (!t.exists()) return
+        val l = File(dir, name)
+        try {
+            if (l.exists()) l.delete()
+            android.system.Os.symlink(t.path, l.path)
+        } catch (_: Throwable) {}
     }
 
     private fun sha256(f: File): String {
