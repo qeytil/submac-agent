@@ -1,0 +1,39 @@
+name: proot diag
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/toolbox
+          fetch-depth: 0
+      - name: diag
+        run: |
+          set +e
+          exec > /tmp/diag.txt 2>&1
+          set -x
+          base="https://packages.termux.dev/apt/termux-main"
+          IDX_T=$(curl -fsSL "$base/dists/stable/main/binary-aarch64/Packages")
+          echo "idx=${#IDX_T}"
+          for pkg in proot libtalloc libandroid-shmem; do
+            fn=$(printf '%s\n' "$IDX_T" | awk -v pkg="$pkg" 'BEGIN{RS="";FS="\n"}{ok=0;f="";for(i=1;i<=NF;i++){if($i=="Package: "pkg)ok=1;if($i ~ /^Filename: /){sub(/^Filename: /,"",$i);f=$i}}if((ok&&f!=""){print f;exit}}')
+            echo "PKG $pkg fn=$fn"
+            curl -fsSL -o "$pkg.deb" "$base/$fn"
+            echo "curl=$?"
+            ls -l "$pkg.deb"
+            which dpkg-deb
+            dpkg-deb -x "$pkg.deb" "x-$pkg"
+            echo "dpkg=$?"
+            find "x-$pkg" -type f | head -40
+          done
+          set +x
+          cp /tmp/diag.txt diag-proot.txt
+          git config user.name oc-bot
+          git config user.email oc-bot@users.noreply.github.com
+          git add diag-proot.txt
+          git commit -m "diag: proot [skip ci]" || true
+          git push || true
