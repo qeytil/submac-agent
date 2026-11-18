@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../services/bots.dart';
 import '../services/cloud.dart';
 import '../services/live_controller.dart';
+import '../services/live_keys.dart';
 import '../services/live_session.dart';
 import '../services/system_bridge.dart';
 import '../theme.dart';
@@ -36,8 +37,9 @@ Route<void> liveRoute() => PageRouteBuilder(
 Future<void> openLive(BuildContext context, {String mode = ''}) async {
   final state = context.read<AppState>();
   state.liveMode = mode;
-  // Calls have their own daily minutes, apart from the chat allowance.
-  if (!state.liveAvailable || Cloud.calls.value.out) {
+  // Calls have their own daily minutes, apart from the chat allowance; an own key skips both.
+  await LiveKeys.load();
+  if (!LiveKeys.enabled && (!state.liveAvailable || Cloud.calls.value.out)) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(Cloud.calls.value.out
             ? Cloud.calls.value.usedUpMessage
@@ -178,13 +180,13 @@ class _LiveScreenState extends State<LiveScreen> {
           },
           level: _s.level,
           trusted: state.fullAccess,
-          note: _s.error == null ? (_s.notice ?? _s.minutesLeftText) : '',
+          note: _s.error == null ? (LiveKeys.enabled ? (_s.notice ?? '') : (_s.notice ?? _s.minutesLeftText)) : '',
           noteStrong: _s.notice != null,
           error: _s.error,
           errorDetail: _s.closeInfo,
           captions: _captions ? [for (final t in recent) (t.role == 'user', t.shown.trim())] : const [],
           captionsOn: _captions,
-          canRetry: ended && !(_s.secondsLeft == 0 || Cloud.calls.value.out),
+          canRetry: ended && !(!LiveKeys.enabled && (_s.secondsLeft == 0 || Cloud.calls.value.out)),
           endLabel: state.runsHere.any((r) => !r.side) ? 'End, see chat' : 'End',
           onFloat: _float,
           onCaptions: () => setState(() => _captions = !_captions),
