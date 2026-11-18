@@ -151,12 +151,14 @@ jobs:
           # The on-device Linux toolbox (Toolbox.kt): proot plus the Android shmem shim and libtalloc it needs,
           # from Termux's arm64 repo (Bionic-linked, so they run from nativeLibraryDir). Android extracts only
           # lib*.so, so Toolbox.kt re-creates the libtalloc.so.2 / libandroid-shmem sonames at run time.
+          # Best effort: a missing Termux package must never block the APK; the toolbox then reports proot absent.
+          set +e
           IDX_T=$(curl -fsSL "https://packages.termux.dev/apt/termux-main/dists/stable/main/binary-aarch64/Packages")
           for pkg in proot libtalloc libandroid-shmem; do
             fn=$(printf '%s\n' "$IDX_T" | awk -v pkg="$pkg" 'BEGIN{RS="";FS="\n"}{ok=0;f="";for(i=1;i<=NF;i++){if($i=="Package: "pkg)ok=1;if($i ~ /^Filename: /){sub(/^Filename: /,"",$i);f=$i}}if(ok&&f!=""){print f;exit}}')
-            test -n "$fn" || { echo "::error::no Termux package $pkg"; exit 1; }
-            curl -fsSL -o "$pkg.deb" "https://packages.termux.dev/apt/termux-main/$fn"
-            dpkg-deb -x "$pkg.deb" "x-$pkg"
+            test -n "$fn" || { echo "::warning::no Termux package $pkg"; continue; }
+            curl -fsSL -o "$pkg.deb" "https://packages.termux.dev/apt/termux-main/$fn" || { echo "::warning::download failed $pkg"; continue; }
+            dpkg-deb -x "$pkg.deb" "x-$pkg" || { echo "::warning::extract failed $pkg"; continue; }
             echo "termux $pkg: $fn"
           done
           cp "$(find x-proot -type f -name proot | head -1)" "$J/libproot.so"
@@ -165,9 +167,10 @@ jobs:
           cp "$(find x-libandroid-shmem -type f -name 'libandroid-shmem.so*' | head -1)" "$J/libandroid-shmem.so"
           chmod 755 "$J"/libproot.so "$J"/libproot-loader.so "$J"/libtalloc.so "$J"/libandroid-shmem.so
           for f in libproot.so libproot-loader.so libtalloc.so libandroid-shmem.so; do
-            test -s "$J/$f" || { echo "::error::missing $f (proot bundle)"; exit 1; }
+            test -s "$J/$f" || echo "::warning::missing $f (toolbox will say proot is not in this build)"
           done
           ls -l "$J" | grep -E 'proot|talloc|shmem'
+          set -e
           df -h /
 
       # The Telesia launcher icon is GENERATED, never tracked: android/ is gitignored and flutter
