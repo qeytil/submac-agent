@@ -65,34 +65,49 @@ class ByokOpencode {
           if (p.enabled && ByokProvider.idPattern.hasMatch(p.id) && p.enabledModels.isNotEmpty && (!p.needsKey || (secretOf(p) ?? '').isNotEmpty)) p,
       ];
 
+  /// opencode's own built-in provider id, used for the free models (owner 2026-11-18): they only answer inside
+  /// opencode's own provider, so they are written as `opencode` (models only, no npm/options/key) and picked as
+  /// `opencode|<model>`. OpenCode.kt merges this id too (it normally takes only `byok-*`).
+  static const builtinOpencodeId = 'opencode';
+
+  /// Whether [p] is the OpenCode free provider (routed through opencode's built-in provider).
+  static bool isBuiltinOpencode(ByokProvider p) => p.presetDef?.builtinOpencode ?? false;
+
   /// opencode's `provider` entries for [providers] (pure, for tests).
   static Map<String, dynamic> providers(List<ByokProvider> providers, String? Function(ByokProvider) secretOf) {
     final out = <String, dynamic>{};
     for (final p in usable(providers, secretOf)) {
       final hasKey = (secretOf(p) ?? '').isNotEmpty;
-      out[p.id] = {
-        'npm': npmOf(p.kind),
-        'name': p.label,
-        'options': {
-          'baseURL': p.apiBase,
-          if (hasKey) 'apiKey': '{env:${envName(p.id)}}',
-          if (p.headers.isNotEmpty) 'headers': p.headers,
-        },
-        'models': {
-          for (final m in p.enabledModels)
-            m.id: {
-              'name': m.label,
-              // Tool calling is what the agent is: assume it unless the provider said no.
-              'tool_call': m.tools ?? true,
-              if (m.reasoning != null) 'reasoning': m.reasoning,
-              // A model the user brought can take attachments unless the provider said it cannot. Most
-              // providers' model lists do not say, and opencode replaces an image with "cannot read image"
-              // for any model it believes is text-only (owner 2026-11-09).
-              'attachment': m.vision ?? true,
-              'limit': {'context': m.context ?? defaultContext, 'output': outputOf(m)},
-            },
-        },
+      final models = <String, dynamic>{
+        for (final m in p.enabledModels)
+          m.id: {
+            'name': m.label,
+            // Tool calling is what the agent is: assume it unless the provider said no.
+            'tool_call': m.tools ?? true,
+            if (m.reasoning != null) 'reasoning': m.reasoning,
+            // A model the user brought can take attachments unless the provider said it cannot. Most
+            // providers' model lists do not say, and opencode replaces an image with "cannot read image"
+            // for any model it believes is text-only (owner 2026-11-09).
+            'attachment': m.vision ?? true,
+            'limit': {'context': m.context ?? defaultContext, 'output': outputOf(m)},
+          },
       };
+      if (isBuiltinOpencode(p)) {
+        // OpenCode's free models: keep opencode's built-in provider (its package and identity, which the free models
+        // require) and only add the models. No key: the free tier takes none.
+        out[builtinOpencodeId] = {'models': models};
+      } else {
+        out[p.id] = {
+          'npm': npmOf(p.kind),
+          'name': p.label,
+          'options': {
+            'baseURL': p.apiBase,
+            if (hasKey) 'apiKey': '{env:${envName(p.id)}}',
+            if (p.headers.isNotEmpty) 'headers': p.headers,
+          },
+          'models': models,
+        };
+      }
     }
     return out;
   }
