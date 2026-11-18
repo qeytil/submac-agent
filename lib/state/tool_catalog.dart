@@ -35,6 +35,9 @@ extension AppStateToolCatalog on AppState {
           for (final d in SystemTools.definitions())
             if ((d['function'] as Map)['name'] != 'app_settings') d,
           ...AgentTools.definitions,
+          // The on-device Linux toolbox (a proot Alpine rootfs): install and run real CLIs (git, gh, node/npm,
+          // wrangler, ffmpeg...). Opt-in; the tools report when it is not installed (docs/toolbox.md).
+          ...Toolbox.definitions(),
           ...PhoneTools.definitions,
           WhatsAppTools.definition,
           ...DocTools.definitions,
