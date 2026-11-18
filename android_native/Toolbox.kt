@@ -112,7 +112,7 @@ object Toolbox {
     }
 
     /** Points [name] in [dir] at the bundled [target] in [libDir] (a soname Android cannot extract as such). */
-    private fun link(dir: File, libDir: File, name: String, target: String) {
+    private fun link(dir: File, libDir: String, name: String, target: String) {
         val t = File(libDir, target)
         if (!t.exists()) return
         val l = File(dir, name)
