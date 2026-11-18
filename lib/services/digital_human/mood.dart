@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
 
 import 'heartbeat.dart';
@@ -130,7 +131,7 @@ class MoodEngine {
 
 /// Simple energy level that depletes with work and recharges during rest.
 class EnergyLevel {
-  EnergyLevel({this.starting = 1.0});
+  EnergyLevel({double starting = 1.0}) : _level = starting.clamp(0.0, 1.0);
 
   double _level;
   double get level => _level;
