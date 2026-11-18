@@ -22,6 +22,7 @@ import '../widgets/logo.dart';
 import '../widgets/sub_icon.dart';
 import '../widgets/chat/activity.dart';
 import '../widgets/chat/entrance.dart';
+import 'live_key_screen.dart';
 
 Route<void> liveRoute() => PageRouteBuilder(
       opaque: true,
@@ -84,7 +85,7 @@ class _LiveScreenState extends State<LiveScreen> {
     _ctl.screenOpen = true;
     _ctl.addListener(_onCtl);
     if (_ctl.session == null) _ctl.start();
-    if (_ctl.floating) _ctl.unfloat(showScreen: false);
+    if (_ctl.session == null) _ctl.start();
   }
 
   void _onCtl() {
@@ -317,6 +318,7 @@ class CallView extends StatelessWidget {
               if (trusted || FullAccess.I.on)
                 Text(tr(FullAccess.I.on ? 'Full access' : 'Trusted'), style: TextStyle(color: p.faint, fontSize: AppText.micro)),
               const Spacer(),
+              _CallText(label: 'Key', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LiveKeyScreen()))),
               _CallText(label: 'Float', onTap: onFloat),
               _CallText(label: captionsOn ? 'Hide words' : 'Words', onTap: onCaptions),
             ]),
