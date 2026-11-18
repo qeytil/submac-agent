@@ -9,6 +9,7 @@ import 'package:record/record.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'live_audio.dart';
+import 'live_keys.dart';
 import 'live_retranscribe.dart';
 import 'session_rules.dart';
 import 'somali.dart';
@@ -209,14 +210,21 @@ class LiveSession extends ChangeNotifier {
     final gen = ++_gen;
     // A renewed line inside a call that has connected keeps its call id; otherwise it is a new call.
     final resume = _connectedOnce && callId != null;
-    final pass = await Cloud.liveToken(callId: resume ? callId : null, seconds: resume ? _talk.elapsed.inSeconds : null);
-    callId = pass.callId.isEmpty ? callId : pass.callId;
-    _beatEvery = pass.heartbeat.clamp(15, 60).toInt();
-    _setLeft(pass.secondsLeft);
-    if (_closed || gen != _gen) return;
-    // A resumed session must keep its model.
-    if (model.isEmpty || _handle == null) model = pass.model;
-    final uri = Uri.parse('${pass.wsUrl}?access_token=${Uri.encodeQueryComponent(pass.token)}');
+    // The user's own key (Settings -> Voice): straight to Google, no Telesia Cloud pass and no daily minutes.
+    final Uri uri;
+    if (LiveKeys.enabled) {
+      if (model.isEmpty) model = LiveKeys.model;
+      uri = Uri.parse('${LiveKeys.wsUrl}?key=${Uri.encodeQueryComponent(LiveKeys.key)}');
+    } else {
+      final pass = await Cloud.liveToken(callId: resume ? callId : null, seconds: resume ? _talk.elapsed.inSeconds : null);
+      callId = pass.callId.isEmpty ? callId : pass.callId;
+      _beatEvery = pass.heartbeat.clamp(15, 60).toInt();
+      _setLeft(pass.secondsLeft);
+      if (_closed || gen != _gen) return;
+      // A resumed session must keep its model.
+      if (model.isEmpty || _handle == null) model = pass.model;
+      uri = Uri.parse('${pass.wsUrl}?access_token=${Uri.encodeQueryComponent(pass.token)}');
+    }
     final ws = WebSocketChannel.connect(uri);
     await ws.ready.timeout(const Duration(seconds: 15));
     if (_closed || gen != _gen) {
