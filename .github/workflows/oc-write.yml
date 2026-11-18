@@ -44,7 +44,7 @@ jobs:
             raw="$d/assembled.raw"
             cat "$d"/chunk.* > "$raw"
             if [ -f "$d/gz" ]; then
-              gunzip -c "$raw" > "$target"
+              base64 -d "$raw" | gunzip -c > "$target"
               rm -f "$raw"
             else
               mv "$raw" "$target"
