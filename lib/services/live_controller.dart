@@ -222,7 +222,7 @@ class LiveController extends ChangeNotifier {
     String caption = '', you = '';
     for (final t in s.turns.reversed) {
       if (t.role == 'assistant' && caption.isEmpty) caption = t.text.trim();
-      if (t.role == 'user' && you.isEmpty) = t.shown.trim();
+      if (t.role == 'user' && you.isEmpty) you = t.shown.trim();
       if (caption.isNotEmpty && you.isNotEmpty) break;
     }
     final st = s.error ?? statusText(s);
