@@ -39,8 +39,13 @@ class LongTermMemory {
       final list = jsonDecode(raw) as List;
       _episodes = list.map((e) => _MemoryEntry.fromJson(e as Map<String, dynamic>)).toList();
     } catch (_) {}
-    final semRaw = _prefs!.getStringMap(_semKey) ?? {};
-    _semantic.update(_semKey, (v) => v, ifAbsent: () => semRaw);
+    final semRaw = _prefs!.getString(_semKey);
+    if (semRaw != null) {
+      try {
+        final m = jsonDecode(semRaw) as Map<String, dynamic>;
+        _semantic = m.map((k, v) => MapEntry(k, List<String>.from(v as List)));
+      } catch (_) {}
+    }
     final refRaw = _prefs!.getString(_refKey);
     if (refRaw != null) {
       _reflections = List<String>.from(jsonDecode(refRaw) as List);
@@ -50,7 +55,7 @@ class LongTermMemory {
   Future<void> save() async {
     if (_prefs == null) return;
     await _prefs!.setString(_memKey, jsonEncode(_episodes.map((e) => e.toJson()).toList()));
-    await _prefs!.setStringMap(_semKey, Map.from(_semantic));
+    await _prefs!.setString(_semKey, jsonEncode(_semantic));
     await _prefs!.setString(_refKey, jsonEncode(_reflections));
   }
 
