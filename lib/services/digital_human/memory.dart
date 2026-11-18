@@ -95,7 +95,7 @@ class LongTermMemory {
   }
 
   /// Recent episodes for the profile view.
-  List<Map<String, dynamic>> recentEpisodes(int n = 5) =>
+  List<Map<String, dynamic>> recentEpisodes([int n = 5]) =>
       _episodes.take(n).map((e) => e.toJson()).toList();
 
   int get episodeCount => _episodes.length;
