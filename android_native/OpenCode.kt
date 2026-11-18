@@ -206,13 +206,15 @@ object OpenCode {
                     .put("headers", org.json.JSONObject().put("x-telesia-source", p["source"] ?: "opencode")))
                 .put("models", ms))
         }
-        // The user's own providers (BYOK, owner 2026-11-03), built by the app (ByokOpencode): only `byok-*` ids are
-        // taken, so they can never replace a Telesia lane provider. Their packages are bundled in the binary.
+        // The user's own providers (BYOK, owner 2026-11-03), built by the app (ByokOpencode): `byok-*` ids only, so
+        // they can never replace a Telesia lane provider, plus opencode's own built-in `opencode` id (owner 2026-11-18:
+        // the free models, added as models only so opencode keeps its own package and identity). Their packages are
+        // bundled in the binary.
         if (byok.isNotEmpty()) {
             try {
                 val extra = org.json.JSONObject(byok)
                 for (id in extra.keys()) {
-                    if (Regex("byok-[a-z0-9]{4,24}").matches(id)) prov.put(id, extra.getJSONObject(id))
+                    if (Regex("byok-[a-z0-9]{4,24}").matches(id) || id == "opencode") prov.put(id, extra.getJSONObject(id))
                 }
             } catch (e: Throwable) {
                 Log.w(TAG, "byok providers skipped: ${e.javaClass.simpleName}")
