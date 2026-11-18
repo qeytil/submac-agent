@@ -80,6 +80,37 @@ object OcChannel {
             }
             "ocStatus" -> result.success(mapOf("installed" to OpenCode.installed(ctx), "running" to OpenCode.running(),
                 "port" to OpenCode.port, "log" to OpenCode.lastLog()))
+            // A real Linux (Alpine) via proot: install packages (git, gh, node/npm, wrangler...) and run them. Needs
+            // only the app context, so a bot's scheduled task can use it with no screen. All work runs off the UI
+            // thread; installs download, so they can take a while.
+            "toolboxStatus" -> result.success(Toolbox.status(ctx))
+            "toolboxInstall" -> {
+                val url = call.argument<String>("url") ?: ""
+                val sha = call.argument<String>("sha256") ?: ""
+                val main = Handler(Looper.getMainLooper())
+                Thread {
+                    val out = try {
+                        Toolbox.install(ctx, url, sha)
+                    } catch (e: Throwable) {
+                        "error: ${e.message ?: e.toString()}"
+                    }
+                    main.post { result.success(out) }
+                }.start()
+            }
+            "toolboxRun" -> {
+                val command = call.argument<String>("command") ?: ""
+                val cwd = call.argument<String>("cwd") ?: ""
+                val timeout = num(call.argument<Any>("timeout"), 180).toInt()
+                val main = Handler(Looper.getMainLooper())
+                Thread {
+                    val out = try {
+                        Toolbox.run(ctx, command, cwd, timeout)
+                    } catch (e: Throwable) {
+                        "error: ${e.message ?: e.toString()}"
+                    }
+                    main.post { result.success(out) }
+                }.start()
+            }
             else -> return false
         }
         return true
