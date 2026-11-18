@@ -1,0 +1,13 @@
+{
+  "title": "The Walk",
+  "duration": 10,
+  "fps": 24,
+  "cues": {
+    "title": 0.4,
+    "walk-start": 0.6,
+    "throw": 3.4,
+    "ball-lands": 4.6,
+    "roll-end": 6.2,
+    "wave": 7.0
+  }
+}
