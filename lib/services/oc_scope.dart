@@ -1,4 +1,5 @@
 import '../models.dart';
+import 'browser_agent.dart';
 
 /// Which Telesia tools an opencode turn may find and run, by who runs it (bots leak audit, owner 2026-11-03).
 ///
@@ -24,12 +25,34 @@ class OcToolScope {
     bool Function(String name)? allowed,
     Set<String> exclude = const {},
   }) {
+    // The owner's chat drives the in-app browser itself (browser_open/read/click/type...) on opencode's own model,
+    // never through the browser subagent (browser_task*): that subagent runs on Telesia's own model and spends the
+    // user's daily replies (owner 2026-11-18). Bots keep it (a whole unattended job), so the swap is owner-only and
+    // only when the browser is offered at all (agentEnabled).
+    final owner = botOwn.isEmpty && office.isEmpty && team.isEmpty && allowed == null;
+    final browserOn = app.any((t) => _browserTaskTools.contains(nameOf(t)));
+    final appTools = owner && browserOn
+        ? [
+            for (final t in app)
+              if (!_browserTaskTools.contains(nameOf(t))) t,
+            ...BrowserAgent.definitions,
+          ]
+        : app;
     final seen = <String>{};
     return [
-      for (final t in [...office, ...botOwn, ...team, ...app])
+      for (final t in [...office, ...botOwn, ...team, ...appTools])
         if (!exclude.contains(nameOf(t)) && (allowed?.call(nameOf(t)) ?? true) && seen.add(nameOf(t))) t,
     ];
   }
+
+  /// The browser subagent's tools (a whole job it runs itself, on Telesia's model). See [of].
+  static const _browserTaskTools = {
+    'browser_task',
+    'browser_task_reply',
+    'browser_task_wait',
+    'browser_task_status',
+    'browser_task_stop',
+  };
 
   /// The owner's own memory tools. A bot never writes to the owner's memory (known issue 2026-11-06: a bot's
   /// `remember` landed in the main memory): they are not in a bot's list, and a bot's call to one acts on the bot's
