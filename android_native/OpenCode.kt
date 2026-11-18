@@ -76,7 +76,9 @@ object OpenCode {
             File(skillDir, name).apply { mkdirs() }.resolve("SKILL.md").writeText(body)
         }
         val cfg = File(root, "opencode.json")
-        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillDir.path, providers, models, byokProviders, modelOutput))
+        // Both Telesia's own skills folder and the workspace's (the hybrid animation skill is copied there as a folder).
+        val skillPaths = listOf(skillDir.path, File(work, "skills").path)
+        cfg.writeText(config("http://127.0.0.1:$proxyPort${LocalProxy.PREFIX}", skillPaths, providers, models, byokProviders, modelOutput))
         val pb = ProcessBuilder(ld.path, "--library-path", links.path, bin.path, "serve", "--hostname", "127.0.0.1", "--port", "$wantPort")
         pb.directory(work)
         pb.redirectErrorStream(true)
@@ -175,7 +177,7 @@ object OpenCode {
      *  touching files outside the workspace and a step repeating itself ask first, on Telesia's ask card in the chat
      *  (OpenCodeAsks). Telesia's own tools come through Telesia's MCP server (registered by the app after start) and ask
      *  through Telesia's own approval card. */
-    private fun config(baseUrl: String, skills: String, providers: List<Map<String, String>>, models: List<String>,
+    private fun config(baseUrl: String, skills: List<String>, providers: List<Map<String, String>>, models: List<String>,
                        byok: String = "", modelOutput: Int = 0): String {
         val list = providers.filter { Regex("[a-z0-9-]{1,32}").matches(it["id"] ?: "") }
             .ifEmpty { listOf(mapOf("id" to "telesia", "name" to "Telesia", "path" to "", "source" to "opencode")) }
@@ -226,7 +228,7 @@ object OpenCode {
             .put("share", "disabled")
             .put("provider", prov)
             .put("model", "telesia/telesia")
-            .put("skills", org.json.JSONObject().put("paths", org.json.JSONArray().put(skills)))
+            .put("skills", org.json.JSONObject().put("paths", org.json.JSONArray().apply { skills.forEach { put(it) } }))
             .put("permission", org.json.JSONObject().put("edit", "allow").put("bash", "ask").put("webfetch", "allow")
                 .put("external_directory", "ask").put("doom_loop", "ask").put("question", "allow"))
         return root.toString(2)
