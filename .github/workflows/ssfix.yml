@@ -1,0 +1,70 @@
+name: ss fix
+
+# One-off (owner 2026-11-18): lib/screens/settings_screen.dart on the branch is an
+# old, mangled copy of the file ("fromSTEE", "AligmentDirectional", a stray brace).
+# This restores the real screen from main and re-applies only the Live voice key row.
+# Triggered by pushing a file under .ssfix/, removes that folder, commits once.
+
+on:
+  push:
+    paths:
+      - ".ssfix/**"
+permissions:
+  contents: write
+concurrency:
+  group: ssfix-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  fix:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Restore settings and add the Live key row
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          git checkout FETCH_HEAD -- lib/screens/settings_screen.dart
+          python3 - <<'PY'
+          p = 'lib/screens/settings_screen.dart'
+          s = open(p).read()
+          if 'LiveKeys.hasKey' in s:
+              print('already has the row')
+              raise SystemExit(0)
+          a = "import '../services/full_access.dart';\n"
+          assert a in s, 'full_access import'
+          s = s.replace(a, a + "import '../services/live_keys.dart';\n", 1)
+          b = "import 'inbox_screen.dart' show enterInviteCode;\n"
+          assert b in s, 'inbox import'
+          s = s.replace(b, b + "import 'live_key_screen.dart';\n", 1)
+          old = """          enabled: state.liveAvailable,
+                    onTap: () => _pickVoice(context, state),
+                  ),"""
+          new = """          enabled: state.liveAvailable,
+                    onTap: () => _pickVoice(context, state),
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: LiveKeys.hasKey,
+                    builder: (context, has, _) => ListTile(
+                      title: Text(tr('Live voice key')),
+                      subtitle: Text(has ? '${LiveKeys.model} — your Gemini key' : tr('Not set')),
+                      onTap: () => _push(context, const LiveKeyScreen()),
+                    ),
+                  ),"""
+          assert old in s, 'live voice tile'
+          s = s.replace(old, new, 1)
+          open(p, 'w').write(s)
+          print('patched', len(s), 'bytes')
+          PY
+          grep -c "LiveKeys.hasKey" lib/screens/settings_screen.dart
+          ! grep -q "fromSTEE\|AligmentDirectional" lib/screens/settings_screen.dart
+          rm -rf .ssfix
+          git config user.name "oc-bot"
+          git config user.email "oc-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "settings: restore the real screen, add the Live voice key row [skip ci]"
+          git push
