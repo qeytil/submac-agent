@@ -41,7 +41,14 @@ jobs:
               .oc-write/*|.git/*) echo "refusing target $target"; exit 1 ;;
             esac
             mkdir -p "$(dirname "$target")"
-            cat "$d"/chunk.* > "$target"
+            raw="$d/assembled.raw"
+            cat "$d"/chunk.* > "$raw"
+            if [ -f "$d/gz" ]; then
+              gunzip -c "$raw" > "$target"
+              rm -f "$raw"
+            else
+              mv "$raw" "$target"
+            fi
             echo "assembled $target ($(wc -c < "$target") bytes)"
           done
 
