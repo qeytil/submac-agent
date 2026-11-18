@@ -16,7 +16,7 @@ class TelesiaGateway {
   /// answer says to call them directly instead of a bare "no Telesia tool".
   static const engineTools = {
     'bash', 'read', 'write', 'edit', 'glob', 'grep', 'list', 'ls', 'webfetch', 'websearch', 'codesearch', 'todowrite', 'todoread',
-    'task', 'skill', 'patch', 'multiedit', 'question',
+    'task', 'skill', 'patch', 'multiOdit', 'question',
   };
 
   /// The full Telesia tool list (OpenAI function form), read fresh on every lookup.
@@ -173,7 +173,7 @@ You run inside the Telesia app on the user's phone. Beyond your own tools, the a
 2. `telesia_run_tool` with `name` and `arguments`.
 
 What is there:
-- Websites: `browser_task` hands a whole job (sign in, fill forms, book, shop, research across pages) to Telesia's browser agent, which shows the user a live card and returns its report. Give the full goal with every detail. `wait:false` runs several jobs at once; then `browser_task_wait`. Use it whenever a page needs clicks, typing or a sign-in; your own webfetch is fine for reading a public page.
+- Websites: drive Telesia's built-in browser yourself (look it up with `find_tools` "browser"). `browser_open` (url) opens the page, `browser_read` lists its numbered elements and text, then `browser_click` (id), `browser_type` (id, text, submit:true to press Enter), `browser_scroll`, `browser_back`, `browser_wait`. Read again after each change. This runs on your own model (BYOK), never through Telesia's browser agent, so browsing uses none of the user's daily replies. Prefer it for any page that needs clicks, typing or a sign-in; your own webfetch is fine for reading a public page.
 - The phone and its other apps: `phone_screen` reads what is on screen (numbered elements), then `phone_tap`, `phone_type`, `phone_scroll`, `phone_gesture`, `phone_nav`, `phone_wait`. Read the screen again after each change. Direct tools are faster when they exist: `set_alarm`, `set_timer`, `open_app`, SMS, contacts, calendar, WhatsApp. Phone control needs the user to switch it on; if a tool says it is off, tell them how.
 - Connected apps and their actions: `apps_list_tools` lists an app's actions, `apps_run_tool` runs one. `connect_app` connects a new one.
 - The user's own MCP servers: their tools are listed by find_tools. `add_mcp_server` adds a server from a URL (and key). For Composio, pass the user's key as `token`; the app knows the address. Never say a server connected unless add_mcp_server said so.
