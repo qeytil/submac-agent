@@ -213,6 +213,8 @@ extension AppStateTools on AppState {
     if (BrowserAgent.names.contains(name) && BrowserAgent.I.snapFor(BrowserAgent.jobNow).moneyPage) kind = 'money';
     // Telesia's own settings that change how it works always ask (Full access, a trusted team or bot included).
     if (name == 'app_settings') kind = FullAccess.alwaysAskKind;
+    // A command in the Linux toolbox runs as root in its own rootfs: it always asks, even under Full access.
+    if (name == 'pkg_install' || name == 'pkg_run') kind = FullAccess.alwaysAskKind;
     final level = fullAccess ? BotTrust.levelTrusted : BotTrust.levelNew;
     // Full access (Settings) acts without asking; money always asks. Small changes in Telesia's own space never ask.
     final ask = FullAccess.shouldAsk(level: level, kind: kind, tool: name, fullAccess: FullAccess.I.on) &&
@@ -440,6 +442,28 @@ extension AppStateTools on AppState {
     if (name == 'sites') return _sitesTool(args);
     if (name == 'projects') return _projectsTool(args, convId);
     if (name == 'connect_app') return requestConnect('${args['app'] ?? ''}', why: '${args['why'] ?? ''}', convId: convId);
+    // The on-device Linux toolbox (proot Alpine): install packages and run commands (docs/toolbox.md).
+    if (name == 'toolbox_status') {
+      final s = await Toolbox.status();
+      return s['ready'] == true
+          ? 'The Linux toolbox is ready at ${s['path']}. Install packages with pkg_install, run commands with pkg_run.'
+          : 'The Linux toolbox is not installed yet (proot in this build: ${s['installed'] == true}). Ask the user to '
+              'turn it on in Settings > Advanced > Linux toolbox, then use pkg_install.';
+    }
+    if (name == 'pkg_install' || name == 'pkg_run') {
+      final cmd = '${args['command'] ?? ''}'.trim();
+      if (cmd.isEmpty) return 'Error: give a command, e.g. "apk add git".';
+      if (name == 'pkg_install') {
+        final s = await Toolbox.status();
+        if (s['ready'] != true) {
+          final r = await Toolbox.install();
+          if (r != 'installed' && r != 'already installed') return 'Toolbox setup failed: $r';
+        }
+      }
+      final cwd = '${args['cwd'] ?? ''}'.trim();
+      final secs = args['timeout_seconds'] is num ? (args['timeout_seconds'] as num).toInt() : (name == 'pkg_install' ? 300 : 180);
+      return Toolbox.run(cmd, cwd: cwd, timeoutSeconds: secs);
+    }
     if (Missions.names.contains(name)) return _missionTool(name, args, convId);
     if (Bots.names.contains(name)) return Bots.I.execute(name, args, convId);
     if (SkillLibrary.names.contains(name)) {
@@ -803,6 +827,15 @@ extension AppStateTools on AppState {
   }
 
   Future<ActionRequest?> _riskFor(String name, Map<String, dynamic> args) async {
+    if (name == 'pkg_install' || name == 'pkg_run') {
+      return ActionRequest(
+        title: 'Run a command in the Linux toolbox?',
+        body: 'It runs inside the toolbox on your phone (as root in its own rootfs). Only allow commands you trust.',
+        detail: '${args['command'] ?? ''}'.trim(),
+        confirmLabel: 'Run',
+        destructive: name == 'pkg_run',
+      );
+    }
     if (name == 'sites' && args['action'] == 'unpublish') {
       final s = AppState._siteFor('${args['site'] ?? ''}');
       if (s == null || s.host != SiteHost.free || s.isExpired) return null;
