@@ -1142,26 +1142,45 @@ extension AppStateAgentRunner on AppState {
     }
   }
 
-  /// The user's message as opencode parts: its words, then each attachment (a file on the phone as a file part, a
-  /// text pulled from a PDF as text).
+  /// The user's message as opencode parts: its words, then each attachment. A picture (or plain text, which opencode
+  /// reads for the model) goes as a file part. Anything else — a zip, a docx, a PDF, a binary — would reach the provider
+  /// as an unsupported media type and makes opencode fail the whole turn ("file part media type ... not supported", seen
+  /// with `application/octet-stream`), so it stays in the workspace and a text part tells the agent where it is and to
+  /// open it with its own tools.
   Future<List<Map<String, dynamic>>> _partsFor(ChatMessage m) async {
     final ws = await AgentTools.workspaceDir();
     final parts = <Map<String, dynamic>>[];
     if (m.content.trim().isNotEmpty) parts.add({'type': 'text', 'text': m.content});
     for (final a in m.attachments) {
       final local = a.localPath;
-      if (local != null && local.isNotEmpty) {
-        final abs = local.startsWith('/') ? local : '$ws/$local';
+      final abs = local == null || local.isEmpty ? null : (local.startsWith('/') ? local : '$ws/$local');
+      // Only media every provider takes: pictures, and text/plain (opencode turns it into text itself). HEIC/HEIF are
+      // shrunk to JPEG before a send, but if one slips through it goes by path rather than as an unreadable part.
+      final asFile = (a.isImage && a.mime != 'image/heic' && a.mime != 'image/heif') || a.mime == 'text/plain';
+      if (asFile && abs != null) {
         parts.add({'type': 'file', 'mime': a.mime, 'filename': a.name, 'url': Uri.file(abs).toString()});
-      } else if (a.bytes != null) {
+      } else if (asFile && a.bytes != null) {
         parts.add({
           'type': 'file',
           'mime': a.mime,
           'filename': a.name,
           'url': 'data:${a.mime};base64,${base64Encode(a.bytes!)}',
         });
-      } else if (a.extractedText != null) {
+      } else if (a.extractedText != null && a.extractedText!.trim().isNotEmpty) {
         parts.add({'type': 'text', 'text': '${a.name}:\n${a.extractedText}'});
+      } else if (abs != null) {
+        final rel = abs.startsWith('$ws/') ? abs.substring(ws.length + 1) : abs;
+        final size = a.bytes?.length;
+        parts.add({
+          'type': 'text',
+          'text': 'Attached file: ${a.name} (${a.mime}${size == null ? '' : ', $size bytes'}). It is saved in the '
+              'workspace at "$rel". Open it with your read/bash tools if you need what is inside.',
+        });
+      } else {
+        parts.add({
+          'type': 'text',
+          'text': 'Attached file: ${a.name} (${a.mime}); it could not be saved to the workspace.',
+        });
       }
     }
     if (parts.isEmpty) parts.add({'type': 'text', 'text': m.content});
