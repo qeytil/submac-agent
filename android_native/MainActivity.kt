@@ -136,7 +136,8 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     // opencode on the phone: handled with the app context only, so it also works when an alarm starts
                     // Telesia with no screen (OcChannel, 2026-11-05).
-                    "ocStart", "ocToken", "ocStop", "ocStatus" -> OcChannel.handle(applicationContext, call, result)
+                    "ocStart", "ocToken", "ocStop", "ocStatus",
+                    "toolboxStatus", "toolboxInstall", "toolboxRun" -> OcChannel.handle(applicationContext, call, result)
                     "takeShared" -> {
                         val p = pending
                         pending = null
