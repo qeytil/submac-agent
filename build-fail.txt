@@ -111,31 +111,10 @@ Loading local repository...
 [=====================                  ] 55% Unzipping... android-ndk-r28c/CHAN
 [=======================================] 100% Unzipping... android-ndk-r28c/CHA
 
-lib/screens/settings_screen.dart:316:4: Error: Expected a declaration, but got '}'.
-}  }
-   ^
-lib/screens/settings_screen.dart:317:1: Error: Expected a declaration, but got '}'.
-}
-^
 lib/services/digital_human/memory.dart:98:51: Error: Non-optional parameters can't have a default value.
 Try removing the default value or making the parameter optional.
   List<Map<String, dynamic>> recentEpisodes(int n = 5) =>
                                                   ^
-lib/screens/settings_screen.dart:250:48: Error: Couldn't find constructor 'EdgeInsetsDirectional.fromSTEE'.
-          padding: const EdgeInsetsDirectional.fromSTEE(Space.x3, Space.x3, Space.x3, Space.x3),
-                                               ^^^^^^^^
-lib/screens/settings_screen.dart:818:36: Error: The getter 'AligmentDirectional' isn't defined for the type '_TrashScreenState'.
- - '_TrashScreenState' is from 'package:agent/screens/settings_screen.dart' ('lib/screens/settings_screen.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'AligmentDirectional'.
-                        alignment: AligmentDirectional.centerEnd,
-                                   ^^^^^^^^^^^^^^^^^^^
-lib/screens/settings_screen.dart:867:21: Error: Too many positional arguments: 0 allowed, but 1 found.
-Try removing the extra positional arguments.
-      body: ListView((
-                    ^
-/opt/hostedtoolcache/flutter/stable-3.47.8-x64/flutter/packages/flutter/lib/src/widgets/scroll_view.dart:1316:3: Context: Found this candidate, but the arguments don't match.
-  ListView({
-  ^^^^^^^^
 Target kernel_snapshot_program failed: Exception
 
 
@@ -151,6 +130,6 @@ Execution failed for task ':app:compileFlutterBuildRelease'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 3m 9s
-Running Gradle task 'assembleRelease'...                          190.3s
+BUILD FAILED in 3m 39s
+Running Gradle task 'assembleRelease'...                          220.4s
 Gradle task assembleRelease failed with exit code 1
