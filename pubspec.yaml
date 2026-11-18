@@ -84,6 +84,13 @@ flutter:
     - assets/knowledge/somali/
     # First-launch intro: the logo tile (its dot is drawn in code so it can land last) and the intro sound.
     - assets/intro/
+    # The hybrid 2D-in-3D animation skill (a folder, not a single file): copied to <workspace>/skills/hybrid when the
+    # engine starts, where opencode loads it (HybridSkill).
+    - skills/hybrid/
+    - skills/hybrid/scripts/
+    - skills/hybrid/template/
+    - skills/hybrid/template/src/
+    - skills/hybrid/template/audio/
   fonts:
     - family: Geist
       fonts:
