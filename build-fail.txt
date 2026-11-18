@@ -1,47 +1,62 @@
 Upgrading gradle.properties
 Upgrading gradle.properties
 Running Gradle task 'assembleRelease'...                        
+Warning: Flutter support for your project's Gradle version (8.14.3) will soon be dropped. Please upgrade your Gradle version to a version of at least 9.1.0 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's gradle version is typically defined in the gradle wrapper file. By default, this can be found at /home/runner/work/submac-agent/submac-agent/android/gradle/wrapper/gradle-wrapper.properties. 
+For more information, see https://docs.gradle.org/current/userguide/gradle_wrapper.html.
+
+Warning: Flutter support for your project's Android Gradle Plugin version (Android Gradle Plugin version 8.13.0) will soon be dropped. Please upgrade your Android Gradle Plugin version to a version of at least Android Gradle Plugin version 9.0.1 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's AGP version is typically defined in the plugins block of the `settings.gradle` file (/home/runner/work/submac-agent/submac-agent/android/settings.gradle), by a plugin with the id of com.android.application. 
+If you don't see a plugins block, your project was likely created with an older template version. In this case it is most likely defined in the top-level build.gradle file (/home/runner/work/submac-agent/submac-agent/android/build.gradle) by the following line in the dependencies block of the buildscript: "classpath 'com.android.tools.build:gradle:<version>'".
+
+Warning: Flutter support for your project's Kotlin version (2.2.20) will soon be dropped. Please upgrade your Kotlin version to a version of at least 2.3.20 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's KGP version is typically defined in the plugins block of the `settings.gradle` file (/home/runner/work/submac-agent/submac-agent/android/settings.gradle), by a plugin with the id of org.jetbrains.kotlin.android. 
+If you don't see a plugins block, your project was likely created with an older template version, in which case it is most likely defined in the top-level build.gradle file (/home/runner/work/submac-agent/submac-agent/android/build.gradle) by the ext.kotlin_version property.
+
+Loading package information...                                                  
+Loading local repository...                                                     
+[                                       ] 3% Loading local repository...        
+[                                       ] 3% Fetch remote repository...         
+[=                                      ] 3% Fetch remote repository...         
+[=                                      ] 4% Fetch remote repository...         
+[=                                      ] 5% Fetch remote repository...         
+[==                                     ] 5% Fetch remote repository...         
+[==                                     ] 6% Fetch remote repository...         
+[==                                     ] 7% Fetch remote repository...         
+[==                                     ] 7% Computing updates...               
+[===                                    ] 8% Computing updates...               
+[===                                    ] 10% Computing updates...              
+[===                                    ] 10% Installing NDK (Side by side) 28.2
+[===                                    ] 10% Downloading android-ndk-r28c-linux
+[====                                   ] 10% Downloading android-ndk-r28c-linux
+[====                                   ] 11% Downloading android-ndk-r28c-linux
+[====                                   ] 12% Downloading android-ndk-r28c-linux
+[=====                                  ] 13% Downloading android-ndk-r28c-linux
+[=====                                  ] 14% Downloading android-ndk-r28c-linux
+[=====                                  ] 15% Downloading android-ndk-r28c-linux
+[======                                 ] 15% Downloading android-ndk-r28c-linux
+[======                                 ] 16% Downloading android-ndk-r28c-linux
+[======                                 ] 17% Downloading android-ndk-r28c-linux
+[=======                                ] 18% Downloading android-ndk-r28c-linux
+[============                           ] 33% Downloading android-ndk-r28c-linux
+[============                           ] 33% Unzipping...                      
+
+Warning: An error occurred while preparing SDK package NDK (Side by side) 28.2.13676358: Error reading Zip content from a SeekableByteChannel.
 
 FAILURE: Build failed with an exception.
 
 * Where:
-Settings file '/home/runner/work/submac-agent/submac-agent/android/settings.gradle.kts' line: 20
+Build file '/home/runner/work/submac-agent/submac-agent/android/build.gradle.kts' line: 32
 
 * What went wrong:
-Error resolving plugin [id: 'dev.flutter.flutter-plugin-loader', version: '1.0.0']
-> A problem occurred configuring project ':gradle'.
-   > Could not resolve all artifacts for configuration 'classpath'.
-      > Could not resolve org.jetbrains.kotlin:kotlin-stdlib:2.0.21.
-        Required by:
-            project :gradle
-         > Could not resolve org.jetbrains.kotlin:kotlin-stdlib:2.0.21.
-            > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-stdlib/2.0.21/kotlin-stdlib-2.0.21.pom'.
-               > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.0.21/kotlin-stdlib-2.0.21.pom'. Received status code 429 from server: Too Many Requests
-      > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20.
-        Required by:
-            project :gradle > org.jetbrains.kotlin.jvm:org.jetbrains.kotlin.jvm.gradle.plugin:2.2.20
-         > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20.
-            > Could not parse POM https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugin/2.2.20/kotlin-gradle-plugin-2.2.20.pom
-               > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.2.20.
-                  > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.2.20.
-                     > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.2.20/kotlin-gradle-plugins-bom-2.2.20.pom'.
-                        > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.2.20/kotlin-gradle-plugins-bom-2.2.20.pom'. Received status code 429 from server: Too Many Requests
-      > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.0.21.
-        Required by:
-            project :gradle > org.gradle.kotlin.kotlin-dsl:org.gradle.kotlin.kotlin-dsl.gradle.plugin:5.2.0 > org.gradle.kotlin:gradle-kotlin-dsl-plugins:5.2.0
-         > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.0.21.
-            > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugin-api/2.0.21/kotlin-gradle-plugin-api-2.0.21.pom'.
-               > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin-api/2.0.21/kotlin-gradle-plugin-api-2.0.21.pom'. Received status code 429 from server: Too Many Requests
-      > Could not resolve org.jetbrains.kotlin:kotlin-sam-with-receiver:2.0.21.
-        Required by:
-            project :gradle > org.gradle.kotlin.kotlin-dsl:org.gradle.kotlin.kotlin-dsl.gradle.plugin:5.2.0 > org.gradle.kotlin:gradle-kotlin-dsl-plugins:5.2.0
-         > Could not resolve org.jetbrains.kotlin:kotlin-sam-with-receiver:2.0.21.
-            > Could not parse POM https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-sam-with-receiver/2.0.21/kotlin-sam-with-receiver-2.0.21.pom
-               > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.0.21.
-                  > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.0.21.
-                     > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.0.21/kotlin-gradle-plugins-bom-2.0.21.pom'.
-                        > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.0.21/kotlin-gradle-plugins-bom-2.0.21.pom'. Received status code 429 from server: Too Many Requests
-> There are 3 more failures with identical causes.
+A problem occurred configuring project ':app'.
+> Process 'command '/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager'' finished with non-zero exit value 1
 
 * Try:
 > Run with --stacktrace option to get the stack trace.
@@ -49,60 +64,7 @@ Error resolving plugin [id: 'dev.flutter.flutter-plugin-loader', version: '1.0.0
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 35s
-Running Gradle task 'assembleRelease'...                           36.2s
-[!] Gradle threw an error while downloading artifacts from the network.
-Retrying Gradle Build: #1, wait time: 100ms
-Running Gradle task 'assembleRelease'...                        
-
-FAILURE: Build failed with an exception.
-
-* Where:
-Settings file '/home/runner/work/submac-agent/submac-agent/android/settings.gradle.kts' line: 20
-
-* What went wrong:
-Error resolving plugin [id: 'dev.flutter.flutter-plugin-loader', version: '1.0.0']
-> A problem occurred configuring project ':gradle'.
-   > Could not resolve all artifacts for configuration 'classpath'.
-      > Could not resolve org.jetbrains.kotlin:kotlin-stdlib:2.0.21.
-        Required by:
-            project :gradle
-         > Could not resolve org.jetbrains.kotlin:kotlin-stdlib:2.0.21.
-            > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-stdlib/2.0.21/kotlin-stdlib-2.0.21.pom'.
-               > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.0.21/kotlin-stdlib-2.0.21.pom'. Received status code 429 from server: Too Many Requests
-      > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20.
-        Required by:
-            project :gradle > org.jetbrains.kotlin.jvm:org.jetbrains.kotlin.jvm.gradle.plugin:2.2.20
-         > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20.
-            > Could not parse POM https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugin/2.2.20/kotlin-gradle-plugin-2.2.20.pom
-               > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.2.20.
-                  > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.2.20.
-                     > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.2.20/kotlin-gradle-plugins-bom-2.2.20.pom'.
-                        > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.2.20/kotlin-gradle-plugins-bom-2.2.20.pom'. Received status code 429 from server: Too Many Requests
-      > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.0.21.
-        Required by:
-            project :gradle > org.gradle.kotlin.kotlin-dsl:org.gradle.kotlin.kotlin-dsl.gradle.plugin:5.2.0 > org.gradle.kotlin:gradle-kotlin-dsl-plugins:5.2.0
-         > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugin-api:2.0.21.
-            > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugin-api/2.0.21/kotlin-gradle-plugin-api-2.0.21.pom'.
-               > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin-api/2.0.21/kotlin-gradle-plugin-api-2.0.21.pom'. Received status code 429 from server: Too Many Requests
-      > Could not resolve org.jetbrains.kotlin:kotlin-sam-with-receiver:2.0.21.
-        Required by:
-            project :gradle > org.gradle.kotlin.kotlin-dsl:org.gradle.kotlin.kotlin-dsl.gradle.plugin:5.2.0 > org.gradle.kotlin:gradle-kotlin-dsl-plugins:5.2.0
-         > Could not resolve org.jetbrains.kotlin:kotlin-sam-with-receiver:2.0.21.
-            > Could not parse POM https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-sam-with-receiver/2.0.21/kotlin-sam-with-receiver-2.0.21.pom
-               > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.0.21.
-                  > Could not resolve org.jetbrains.kotlin:kotlin-gradle-plugins-bom:2.0.21.
-                     > Could not get resource 'https://plugins.gradle.org/m2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.0.21/kotlin-gradle-plugins-bom-2.0.21.pom'.
-                        > Could not GET 'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.0.21/kotlin-gradle-plugins-bom-2.0.21.pom'. Received status code 429 from server: Too Many Requests
-> There are 3 more failures with identical causes.
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-BUILD FAILED in 15s
-Running Gradle task 'assembleRelease'...                           15.9s
-[!] Gradle threw an error while downloading artifacts from the network.
+BUILD FAILED in 1m 46s
+[============                           ] 33% Unzipping...                      
+Running Gradle task 'assembleRelease'...                          107.1s
 Gradle task assembleRelease failed with exit code 1
