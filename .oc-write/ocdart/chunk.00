@@ -1,1 +1,303 @@
-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
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../config.dart';
+import 'byok.dart';
+import 'byok_opencode.dart';
+import 'chat_compact.dart';
+import 'cloud.dart';
+import 'oc_lanes.dart';
+import 'thinking_level.dart';
+import 'output_limits.dart';
+import 'telesia_gateway.dart';
+import 'telesia_mcp.dart';
+import 'tools.dart';
+import 'hybrid_skill.dart';
+
+/// The opencode engine on the phone (owner, 2026-11-02): Telesia's chat runs on opencode, unchanged (its own prompts,
+/// tools and behaviour). The server is started by the Android side (OpenCode.kt) on 127.0.0.1 behind a password;
+/// model calls go to the app's local proxy, which forwards them to ai-chat with a fresh access token (LocalProxy.kt).
+///
+/// One opencode session per Telesia chat. Events come from one shared `/event` stream.
+class OpenCodeEngine {
+  OpenCodeEngine._();
+  static final OpenCodeEngine I = OpenCodeEngine._();
+
+  static const _ch = MethodChannel('telesia/native');
+  static const _prefsKey = 'opencode.sessions.v1';
+
+  final _client = http.Client();
+  int _port = 0;
+  String _pass = '';
+  Future<void>? _starting;
+  final _events = StreamController<Map<String, dynamic>>.broadcast();
+  StreamSubscription<String>? _sse;
+  Map<String, String>? _sessions;
+
+  /// Telesia's own tools, offered to opencode as an MCP server (set by the app before the first prompt).
+  TelesiaMcp? mcp;
+
+  /// The MCP server's state as opencode last reported it (connected | failed | ...), for the status line.
+  String mcpStatus = '';
+
+  /// Every event from the engine, decoded (`{type, properties}`).
+  Stream<Map<String, dynamic>> get events => _events.stream;
+
+  Map<String, String> get _auth => {'Authorization': 'Basic ${base64Encode(utf8.encode('opencode:$_pass'))}'};
+  Uri _u(String path) => Uri.parse('http://127.0.0.1:$_port$path');
+
+  /// Whether any opencode turn is running now (set by the app). The engine is only restarted for new BYOK settings
+  /// while this is false, since a restart would cut a running turn off.
+  bool Function()? busy;
+
+  /// The BYOK setup the running engine was started with (owner 2026-11-03, docs/byok.md): its fingerprint and the
+  /// provider ids it knows.
+  String _byokSig = '';
+  Set<String> _byokIds = const {};
+
+  /// Starts the engine (once) and keeps the event stream open. When the user's own providers, models or active keys
+  /// changed since the engine started, it is restarted (between turns only): opencode reads its config at start.
+  ///
+  /// [turn]: the caller is about to run a turn. It is counted from the moment the engine is known to stay up (in the
+  /// same synchronous step as the restart check), so a second turn starting at the same time can never restart the
+  /// engine under it. Every `ensure(turn: true)` that returns must be paired with one [endTurn].
+  Future<void> ensure({bool turn = false}) async {
+    if (_port != 0) {
+      final st = await _ch.invokeMethod('ocStatus');
+      if (st is Map && st['running'] == true) {
+        final stale = ByokOpencode.signatureOf(ByokStore.I) != _byokSig;
+        if (!shouldRestart(stale: stale, turnsInFlight: _turns, appBusy: busy?.call() ?? false)) {
+          if (turn) _turns++;
+          try {
+            await _pushToken();
+            if (_sse == null) await _listen();
+          } catch (e) {
+            if (turn) _turns--;
+            rethrow;
+          }
+          return;
+        }
+      }
+      _port = 0;
+    }
+    await (_starting ??= _start().whenComplete(() => _starting = null));
+    if (turn) _turns++;
+  }
+
+  /// Turns running on the engine now (owner chats, bot chats, team members, office jobs), each in its own session.
+  /// opencode's server runs sessions side by side; Telesia only has to keep from restarting the engine or re-adding
+  /// its MCP server under a turn that is working (bots team audit 2026-11-04: nothing here allows only one turn).
+  int _turns = 0;
+  int get turnsInFlight => _turns;
+
+  /// One turn started with `ensure(turn: true)` ended.
+  void endTurn() {
+    if (_turns > 0) _turns--;
+  }
+
+  /// Restart for new BYOK settings only when no turn is working (a restart would cut every running session off).
+  static bool shouldRestart({required bool stale, required int turnsInFlight, required bool appBusy}) =>
+      stale && turnsInFlight == 0 && !appBusy;
+
+  /// Telesia's MCP server may be re-added (to refresh its tool list) only when the caller's own turn is the only one:
+  /// re-adding replaces opencode's MCP client, which would cut a call another turn has in flight.
+  static bool mayResync(int turnsInFlight) => turnsInFlight <= 1;
+
+  Future<void> _start() async {
+    final r = Random.secure();
+    _pass = List.generate(32, (_) => r.nextInt(16).toRadixString(16)).join();
+    final byok = ByokOpencode.providersOf(ByokStore.I);
+    final byokSig = ByokOpencode.signatureOf(ByokStore.I);
+    // An engine started elsewhere (the opencode test screen) has another password: start our own.
+    await _ch.invokeMethod('ocStop');
+    await _pushToken();
+    // The hybrid animation skill is a folder (template + scripts), so it ships as assets and is copied into the
+    // workspace; OpenCode.kt gives opencode both its own skills folder and <cwd>/skills.
+    final cwd = await AgentTools.workspaceDir();
+    await HybridSkill.install(cwd);
+    final res = await _ch.invokeMethod('ocStart', {
+      'password': _pass,
+      'port': 4096 + r.nextInt(2000),
+      // opencode works in Telesia's own workspace, so its files show in the Files screen.
+      'cwd': cwd,
+      // The `telesia` skill: opencode sees its name and loads it when a task needs the phone's apps (owner, 2026-11-03).
+      'skills': const {'telesia': TelesiaGateway.skill},
+      // One provider per allowance lane, each on its own proxy path (owner 2026-11-03, see OcLane).
+      'providers': OcLane.providers(),
+      'models': OcLane.models,
+      // The user's own providers (BYOK, owner 2026-11-03): opencode provider entries as JSON, and their active keys,
+      // which go only into the engine's environment (the config names them as {env:…}), never into a file.
+      'byokProviders': jsonEncode(byok),
+      'byokEnv': ByokOpencode.envOf(ByokStore.I),
+      // How long a reply may be (owner 2026-11-06, see OutputLimits): Telesia's models get an explicit output limit
+      // (the server clamps it per route), and opencode's own ceiling (32,000 unless set) is raised to the largest
+      // limit of any configured model, so no reply is cut at 32,000 or at a flat default.
+      ...startLimits(ByokOpencode.maxOutputOf(ByokStore.I)),
+    });
+    final m = res is Map ? res : const {};
+    if (m['ok'] != true) {
+      throw OpenCodeError('The engine did not start: ${m['error'] ?? 'no answer in 60 s'}\n${m['log'] ?? ''}'.trim());
+    }
+    _port = (m['port'] as num).toInt();
+    _byokSig = byokSig;
+    _byokIds = byok.keys.toSet();
+    await _sse?.cancel();
+    _sse = null;
+    await _listen();
+    await _addMcp();
+  }
+
+  /// The output-limit arguments of `ocStart` (pure, for tests): Telesia's models' limit and opencode's ceiling.
+  static Map<String, int> startLimits(int byokMax) => {
+        'modelOutput': OutputLimits.telesia,
+        'outputTokenMax': OutputLimits.engineMax([byokMax]),
+      };
+
+  /// Registers Telesia's MCP server with the engine. The long timeout covers a call that waits on the user's OK or
+  /// a browser task (opencode's default of 60 s cut such calls off: "MCP error -32001: Request timed out").
+  Future<void> _addMcp() async {
+    final s = mcp;
+    if (s == null) return;
+    final sig = _sigOf(s);
+    try {
+      await s.start();
+      final r = await _client.post(_u('/mcp'),
+          headers: {..._auth, 'content-type': 'application/json'},
+          body: jsonEncode({
+            'name': s.name,
+            'config': {
+              'type': 'remote',
+              'url': s.url,
+              'headers': {'Authorization': 'Bearer ${s.token}'},
+              'oauth': false,
+              'timeout': mcpTimeoutMs,
+            },
+          }));
+      final j = r.statusCode == 200 ? jsonDecode(r.body) : null;
+      final st = j is Map ? j[s.name] : null;
+      if (r.statusCode == 200) _mcpSig = sig;
+      mcpStatus = st is Map ? '${st['status']}${st['error'] == null ? '' : ': ${st['error']}'}' : 'HTTP ${r.statusCode}';
+    } catch (e) {
+      mcpStatus = 'failed: $e';
+    }
+  }
+
+  static const mcpTimeoutMs = 30 * 60 * 1000;
+
+  /// The tool names opencode was last given. opencode lists an MCP server's tools once, when it is added, and only
+  /// lists again on a tools/list_changed notification (Telesia's server has no stream to send one). So when Telesia's
+  /// tools change (an app connected or signed out, its tools loaded, the image model turned on), the server is added
+  /// again before the next prompt, which makes opencode list it afresh.
+  String _mcpSig = '';
+  static String _sigOf(TelesiaMcp s) => (s.listed().map((t) => '${t['name']}').toList()..sort()).join(',');
+
+  /// Re-adds Telesia's MCP server when its tool list changed since opencode last listed it. Call between turns only:
+  /// re-adding replaces opencode's client, which would cut off a call in flight.
+  Future<void> syncMcp() async {
+    final s = mcp;
+    if (s == null || _port == 0) return;
+    if (_sigOf(s) == _mcpSig) return;
+    // Other turns are working side by side: the new tool list waits for a turn that runs alone. The gateway still
+    // finds and runs every current Telesia tool (find_tools / run_tool read the live list), so nothing is cut off.
+    if (!mayResync(_turns)) return;
+    await _addMcp();
+  }
+
+  /// The Telesia chat a session belongs to, or null.
+  String? convOf(String session) {
+    final side = _side[session];
+    if (side != null) return side;
+    for (final e in (_sessions ?? const <String, String>{}).entries) {
+      if (e.value == session) return e.key;
+    }
+    return null;
+  }
+
+  /// Answers a permission request: once | always | reject.
+  Future<void> replyPermission(String id, String reply) async {
+    await _client.post(_u('/permission/$id/reply'),
+        headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode({'reply': reply}));
+  }
+
+  /// Answers a question request (one list of chosen labels per question), or rejects it when [answers] is null.
+  Future<void> replyQuestion(String id, List<List<String>>? answers) async {
+    if (answers == null) {
+      await _client.post(_u('/question/$id/reject'), headers: _auth);
+      return;
+    }
+    await _client.post(_u('/question/$id/reply'),
+        headers: {..._auth, 'content-type': 'application/json'}, body: jsonEncode({'answers': answers}));
+  }
+
+  /// The proxy adds the user's access token to every model call; refreshed before each prompt.
+  Future<void> _pushToken() async {
+    final t = await Cloud.token();
+    await _ch.invokeMethod('ocToken', {'baseUrl': '${AppConfig.supabaseUrl}/functions/v1/ai-chat', 'token': t});
+  }
+
+  Future<void> _listen() async {
+    final req = http.Request('GET', _u('/event'))..headers.addAll({..._auth, 'accept': 'text/event-stream'});
+    final resp = await _client.send(req);
+    if (resp.statusCode != 200) throw OpenCodeError('Event stream: HTTP ${resp.statusCode}');
+    _sse = resp.stream.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
+      if (!line.startsWith('data:')) return;
+      try {
+        final j = jsonDecode(line.substring(5).trim());
+        if (j is Map<String, dynamic>) _events.add(j);
+      } catch (_) {}
+    }, onDone: _streamLost, onError: (_) => _streamLost(), cancelOnError: true);
+  }
+
+  /// How many times the event stream dropped since the app started (bug hunt 2026-11-06). A turn waiting on events
+  /// that never come (the socket closed while the phone slept, the engine restarted) notices it by this count and
+  /// recovers with [recover] instead of showing "Working" forever.
+  int streamDrops = 0;
+
+  void _streamLost() {
+    _sse = null;
+    streamDrops++;
+  }
+
+  /// Opens the event stream again when it dropped (no-op while it is up or the engine never started).
+  Future<void> relisten() async {
+    if (_port == 0 || _sse != null) return;
+    try {
+      await _listen();
+    } catch (_) {}
+  }
+
+  /// The session's state as the engine reports it now: idle | busy | retry, or null when the engine did not answer.
+  /// opencode lists only sessions that are not idle.
+  Future<String?> statusOf(String session) async {
+    if (_port == 0) return null;
+    try {
+      final r = await _client.get(_u('/session/status'), headers: _auth).timeout(const Duration(seconds: 5));
+      if (r.statusCode != 200) return null;
+      return OpenCodeTurn.statusIn(jsonDecode(r.body), session);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// A turn whose events stopped coming: reconnects the stream, then asks the engine itself. When the session is
+  /// idle its messages are read back into [turn] (so the answer shows) and the turn ends; when the engine is gone the
+  /// turn ends with an error. Returns true when [turn] ended.
+  Future<bool> recover(OpenCodeTurn turn, {required DateTime since}) async {
+    await relisten();
+    final st = await statusOf(turn.session);
+    if (st == null) {
+      try {
+        final run = await _ch.invokeMethod('ocStatus');
+        if (run is Map && run['running'] == true) return false;
+      } catch (_) {}
+      turn.error ??= 'The engine stopped while it was working. Send your message again to retry.';
+      return true;
+    }
+    if (st != 'idle') return false;
+    try {
+      final r = await _client.get(_u('/session/${turn.session}/message'), headers: _auth).timeout(const Duration(seconds: 10));

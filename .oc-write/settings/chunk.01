@@ -1,0 +1,318 @@
+  }
+}
+
+// ------------------------------------------------------------------ Voice
+
+/// The Voice page (PLAN.md 5.4): Live voice and the "Hello Telesia" wake word in one place.
+///
+/// Public entry so deep links (the wake notification's "settings/wake") can land here directly.
+class VoiceScreen extends StatelessWidget {
+  const VoiceScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => const _VoicePage();
+}
+
+class _VoicePage extends StatelessWidget {
+  const _VoicePage();
+
+  Future<void> _pickVoice(BuildContext context, AppState state) async {
+    final voices = Cloud.features.value.voices;
+    await showModalBottomSheet<void>(
+      sheetAnimationStyle: SubMotion.sheet,
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x5),
+          child: Wrap(spacing: Space.x2, runSpacing: Space.x2, children: [
+            for (final v in voices)
+              ChoiceChip(
+                label: Text(v),
+                selected: state.liveVoice == v,
+                onSelected: (_) {
+                  state.setLiveVoice(v);
+                  Navigator.pop(ctx);
+                },
+              ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  /// The "Hello Telesia" rows: one switch, the live status underneath, and the
+  /// sensitivity slider once the voice pack is on the phone.
+  List<Widget> _wakeRows(WakeWord w, Palette p) {
+    String subtitle;
+    if (!w.enabled && (w.setup == WakeSetup.off || w.setup == WakeSetup.ready)) {
+      subtitle = tr('Say “Hello Telesia” and Telesia wakes up to listen');
+    } else {
+      subtitle = w.statusLine;
+    }
+    return [
+      SwitchListTile(
+        title: const Text('Hello Telesia'),
+        subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+        value: w.enabled,
+        onChanged: (v) => w.setEnabled(v),
+      ),
+      if (w.enabled && w.setup == WakeSetup.ready)
+        ListTile(
+          title: Text(tr('Sensitivity')),
+          subtitle: Slider(
+            value: w.sensitivity.clamp(0.1, 0.95).toDouble(),
+            min: 0.1,
+            max: 0.95,
+            divisions: 8,
+            label: '${(w.sensitivity * 100).round()}%',
+            onChanged: (v) => w.setSensitivity(v),
+          ),
+        ),
+      if (w.setup == WakeSetup.paused || w.setup == WakeSetup.error)
+        ListTile(
+          title: Text(tr('Resume the voice pack')),
+          trailing: Icon(Icons.refresh_rounded, color: p.muted),
+          onTap: () => w.download(),
+        ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _watchSettings(context);
+    return _Page('Voice', [
+      _Group([
+        ListTile(
+          title: Text(tr('Live voice')),
+          subtitle: Text(state.liveAvailable ? state.liveVoice : tr('Not available right now')),
+          enabled: state.liveAvailable,
+          onTap: () => _pickVoice(context, state),
+        ),
+        ValueListenableBuilder<bool>(
+          valueListenable: LiveKeys.hasKey,
+          builder: (context, hasKey, _) => ListTile(
+            leading: const Icon(Icons.vpn_key_outlined),
+            title: Text(tr('Live voice key')),
+            subtitle: Text(hasKey
+                ? '${LiveKeys.model} — your Gemini key'
+                : tr('Use your own Gemini key: no call minutes and no cloud pass')),
+            onTap: () => _push(context, const LiveKeyScreen()),
+          ),
+        ),
+      ]),
+      _Group([
+        ListenableBuilder(
+          listenable: WakeWord.I,
+          builder: (context, _) => Column(children: _wakeRows(WakeWord.I, Palette.of(context))),
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ------------------------------------------------------------------ Phone access
+
+/// The one place for phone permissions (PLAN.md 3.2).
+class _PhonePage extends StatelessWidget {
+  const _PhonePage();
+
+  Future<void> _setFiles(BuildContext context, AppState state, bool on) async {
+    if (!on) {
+      if (await _confirm(context, 'Turn off phone files?', 'Switch off "All files access" in Android settings.', 'Open settings')) {
+        DeviceAccess.openSettings();
+      }
+      return;
+    }
+    final granted = await state.requestPhoneAccess();
+    if (!granted && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Allow "All files access", then come back.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _watchSettings(context);
+    return _Page('Phone access', [
+      _Group([
+        SwitchListTile(
+          title: const Text('Phone files'),
+          value: state.phoneAccess,
+          onChanged: (v) => _setFiles(context, state, v),
+        ),
+        ListTile(
+          title: const Text('Calendar, contacts, SMS and screen'),
+          trailing: Icon(Icons.chevron_right_rounded, color: Palette.of(context).muted),
+          onTap: () => _push(context, const SystemPermissionsScreen()),
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ------------------------------------------------------------------ Privacy
+
+class _PrivacyPage extends StatelessWidget {
+  const _PrivacyPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _watchSettings(context);
+    final p = Palette.of(context);
+    return _Page('Privacy', [
+      _Group([
+        ListTile(
+          title: const Text('What Telesia knows about you'),
+          subtitle: Text(!state.memoryEnabled ? 'Off' : '${state.memory.facts.length} remembered'),
+          onTap: () => _push(context, const MemoryScreen()),
+        ),
+        ListTile(title: Text(tr('About you')), onTap: () => _push(context, const CustomInstructionsScreen())),
+        ListTile(title: Text(tr('Saved logins')), onTap: () => _push(context, const LoginsScreen())),
+        if (Platform.isAndroid)
+          ListTile(
+              title: const Text('opencode test'),
+              subtitle: const Text('Run the opencode engine on this phone'),
+              onTap: () => _push(context, const OpenCodeLabScreen())),
+      ]),
+      _Group([
+        ListTile(title: Text(tr('Archived chats')), onTap: () => _push(context, const ArchivedChatsScreen())),
+        ListTile(title: Text(tr('Trash')), onTap: () => _push(context, const FilesScreen(view: FilesView.trash))),
+        ListTile(title: Text(tr('How your data is kept')), onTap: () => _push(context, const PrivacyScreen())),
+      ]),
+      _Group([
+        ListTile(
+          title: Text('Delete all chats', style: TextStyle(color: p.accent)),
+          onTap: () async {
+            if (await _confirm(context, 'Delete all chats?', 'This phone and your backup. This cannot be undone.', 'Delete', danger: true)) {
+              await state.deleteAllConversations();
+            }
+          },
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ------------------------------------------------------------------ Notifications
+
+class _NotificationsPage extends StatelessWidget {
+  const _NotificationsPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _watchSettings(context);
+    return _Page('Notifications', [
+      _Group([
+        SwitchListTile(
+          title: const Text('Tell me when a task is done'),
+          value: state.notifyWhenDone,
+          onChanged: state.setNotifyWhenDone,
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ------------------------------------------------------------------ Advanced
+
+class _AdvancedPage extends StatelessWidget {
+  const _AdvancedPage();
+
+  Future<void> _pickTrust(BuildContext context, AppState state) async {
+    final v = await showModalBottomSheet<String>(
+      sheetAnimationStyle: SubMotion.sheet,
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            title: const Text('Ask me first'),
+            trailing: state.fullAccess ? null : const Icon(Icons.check_rounded),
+            onTap: () => Navigator.pop(ctx, 'ask'),
+          ),
+          ListTile(
+            title: const Text('Do routine work alone'),
+            subtitle: const Text('Asks only before paying, sending or deleting.'),
+            trailing: state.fullAccess ? const Icon(Icons.check_rounded) : null,
+            onTap: () => Navigator.pop(ctx, 'full'),
+          ),
+        ]),
+      ),
+    );
+    if (v == null || !context.mounted) return;
+    if (v == 'ask') {
+      state.setApprovalMode('ask');
+      return;
+    }
+    if (await _confirm(context, 'Do routine work alone?', 'Telesia still asks before paying, sending, posting or deleting.', 'Turn on')) {
+      state.setApprovalMode('full');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _watchSettings(context);
+    final muted = Palette.of(context).muted;
+    return _Page('Advanced', [
+      const _Group([FullAccessTile()]),
+      _Group([
+        ListTile(
+          title: Text(tr('Trust level')),
+          subtitle: Text(state.fullAccess ? 'Do routine work alone' : 'Ask me first'),
+          trailing: Icon(Icons.chevron_right_rounded, color: muted),
+          onTap: () => _pickTrust(context, state),
+        ),
+        SwitchListTile(
+          title: const Text('Use phone, apps and websites'),
+          value: state.agentEnabled,
+          onChanged: state.setAgentEnabled,
+        ),
+      ]),
+      _Group([
+        SwitchListTile(
+          title: const Text('Always on'),
+          subtitle: const Text('Your digital people stay active between tasks. Uses more battery.'),
+          value: state.alwaysOn,
+          onChanged: (v) => state.setAlwaysOn(v),
+        ),
+      ]),
+      _Group([
+        ListTile(
+          title: const Text('API & tool servers'),
+          trailing: Icon(Icons.chevron_right_rounded, color: muted),
+          onTap: () => _push(context, const ConnectorsScreen(advanced: true)),
+        ),
+      ]),
+    ]);
+  }
+}
+
+// ------------------------------------------------------------------ Help
+
+class _HelpPage extends StatelessWidget {
+  const _HelpPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    void open(String url) => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    return _Page('Help', [
+      _Group([
+        ListTile(
+          title: Text(ft('Send feedback')),
+          trailing: Icon(Icons.chevron_right_rounded, color: p.muted),
+          onTap: () => _push(context, const FeedbackScreen()),
+        ),
+        ListTile(
+          title: Text(ft('Email us')),
+          onTap: () => open('mailto:${AppConfig.supportEmail}?subject=Telesia%20Agent%20${AppConfig.version}'),
+        ),
+        ListTile(title: Text(tr('Terms')), onTap: () => open(AppConfig.termsUrl)),
+        ListTile(title: Text(tr('Privacy policy')), onTap: () => open(AppConfig.privacyUrl)),
+      ]),
+      _Group(title: 'About', [AppUpdateTile()]),
+      const SizedBox(height: Space.x3),
+      Center(
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const AppLogo(size: 18),
+          const SizedBox(width: Space.x2),
