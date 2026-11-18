@@ -15,5 +15,7 @@
 
 export 'heartbeat.dart';
 export 'awareness.dart';
+export 'person.dart';
+export 'presence.dart';
 export 'memory.dart';
 export 'mood.dart';
