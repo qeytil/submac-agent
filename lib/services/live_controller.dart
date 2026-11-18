@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../app_state.dart';
 import 'cloud.dart';
+import 'live_keys.dart';
 import 'live_session.dart';
 import 'live_tasks.dart';
 import 'screen_control.dart';
@@ -55,7 +56,8 @@ class LiveController extends ChangeNotifier {
       if (floating && !this.floating) await float(mode: mode);
       return null;
     }
-    if (!app.liveAvailable) return 'needs_key';
+    await LiveKeys.load();
+    if (!app.liveAvailable && !LiveKeys.enabled) return 'needs_key';
     _again = () => start(mode: mode, persona: persona, voice: voice, opening: opening, convId: convId, bot: bot);
     botId = bot;
     final s = LiveSession(
@@ -220,7 +222,7 @@ class LiveController extends ChangeNotifier {
     String caption = '', you = '';
     for (final t in s.turns.reversed) {
       if (t.role == 'assistant' && caption.isEmpty) caption = t.text.trim();
-      if (t.role == 'user' && you.isEmpty) you = t.shown.trim();
+      if (t.role == 'user' && you.isEmpty) = t.shown.trim();
       if (caption.isNotEmpty && you.isNotEmpty) break;
     }
     final st = s.error ?? statusText(s);
