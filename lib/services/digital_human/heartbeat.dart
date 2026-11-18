@@ -8,7 +8,7 @@ import 'package:flutter/foundation.dart';
 /// drives the sleep/wake cycle, and emits pulses the awareness layer can react
 /// to without being a busy cron.
 class Heartbeat {
-  Heartbeat({this.idleThreshold = const Duration(minutes: 15)});
+  Heartbeat({required this.id, this.idleThreshold = const Duration(minutes: 15)});
 
   final String id;
   final Duration idleThreshold;
@@ -35,7 +35,7 @@ class Heartbeat {
 
   void markActive() {
     _lastActivity = DateTime.now();
-    if (_asleep) _wake('active');
+    if (_asleep) wake('active');
   }
 
   void wake([String reason = 'schedule']) {
