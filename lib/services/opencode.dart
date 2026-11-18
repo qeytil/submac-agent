@@ -17,6 +17,7 @@ import 'output_limits.dart';
 import 'telesia_gateway.dart';
 import 'telesia_mcp.dart';
 import 'tools.dart';
+import 'hybrid_skill.dart';
 
 /// The opencode engine on the phone (owner, 2026-11-02): Telesia's chat runs on opencode, unchanged (its own prompts,
 /// tools and behaviour). The server is started by the Android side (OpenCode.kt) on 127.0.0.1 behind a password;
@@ -115,11 +116,15 @@ class OpenCodeEngine {
     // An engine started elsewhere (the opencode test screen) has another password: start our own.
     await _ch.invokeMethod('ocStop');
     await _pushToken();
+    // The hybrid animation skill is a folder (template + scripts), so it ships as assets and is copied into the
+    // workspace; OpenCode.kt gives opencode both its own skills folder and <cwd>/skills.
+    final cwd = await AgentTools.workspaceDir();
+    await HybridSkill.install(cwd);
     final res = await _ch.invokeMethod('ocStart', {
       'password': _pass,
       'port': 4096 + r.nextInt(2000),
       // opencode works in Telesia's own workspace, so its files show in the Files screen.
-      'cwd': await AgentTools.workspaceDir(),
+      'cwd': cwd,
       // The `telesia` skill: opencode sees its name and loads it when a task needs the phone's apps (owner, 2026-11-03).
       'skills': const {'telesia': TelesiaGateway.skill},
       // One provider per allowance lane, each on its own proxy path (owner 2026-11-03, see OcLane).

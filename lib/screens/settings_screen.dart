@@ -10,6 +10,7 @@ import '../config.dart';
 import '../services/cloud.dart';
 import '../services/device_access.dart';
 import '../services/full_access.dart';
+import '../services/live_keys.dart';
 import '../services/rewards.dart';
 import '../services/tools.dart';
 import '../services/wake_word.dart';
@@ -27,6 +28,7 @@ import 'connectors_screen.dart';
 import 'feedback_screen.dart';
 import 'home_screen.dart' show TodayUsage;
 import 'inbox_screen.dart' show enterInviteCode;
+import 'live_key_screen.dart';
 import 'logins_screen.dart';
 import 'memory_screen.dart';
 import 'media_models_screen.dart';
@@ -198,7 +200,7 @@ class _AccountPage extends StatelessWidget {
             const SizedBox(height: Space.x3),
             const Text('Type DELETE to confirm.'),
             const SizedBox(height: Space.x2),
-            TextField(controller: typed, autofocus: true, onChanged: (_) => setD(() {}), textCapitalization: TextCapitalization.characters),
+            TextField(controller: typed, autofocus: true, onChanged: (_) => setD(() => {}), textCapitalization: TextCapitalization.characters),
           ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(d, false), child: Text(tr('Cancel'))),
@@ -214,11 +216,7 @@ class _AccountPage extends StatelessWidget {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(content: Row(children: [
-        SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-        SizedBox(width: Space.x4),
-        Expanded(child: Text('Deleting…')),
-      ])),
+      builder: (_) => const AlertDialog(),
     );
     final err = await state.deleteAccount();
     if (!context.mounted) return;
@@ -249,7 +247,7 @@ class _AccountPage extends StatelessWidget {
       ]),
       _Group(title: 'Theme', [
         Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, Space.x3, Space.x3, Space.x3),
+          padding: const EdgeInsetsDirectional.fromSTEE(Space.x3, Space.x3, Space.x3, Space.x3),
           child: Wrap(spacing: Space.x2, children: [
             for (final m in const [(ThemeMode.system, 'Auto'), (ThemeMode.light, 'Light'), (ThemeMode.dark, 'Dark')])
               ChoiceChip(label: Text(tr(m.$2)), selected: state.themeMode == m.$1, onSelected: (_) => state.setThemeMode(m.$1)),
@@ -281,8 +279,8 @@ class _AccountPage extends StatelessWidget {
 
 // ------------------------------------------------------------------ Plan & usage
 
-/// Placeholder home for Dev 2's Plan & usage screen (PLAN.md 2.4): today's usage, and the billing entry while
-/// billing is on. Dev 2 replaces the body.
+/// Placeholder home for Dev 3's Plan & usage screen (PLAN.md 2.4): today's usage, and the billing entry while
+/// billing is on. Dev 3 replaces the body.
 class _PlanPage extends StatelessWidget {
   const _PlanPage();
 
@@ -315,6 +313,7 @@ class _LanguagePage extends StatelessWidget {
       ]),
     ]);
   }
+}  }
 }
 
 // ------------------------------------------------------------------ Voice
@@ -404,6 +403,17 @@ class _VoicePage extends StatelessWidget {
           subtitle: Text(state.liveAvailable ? state.liveVoice : tr('Not available right now')),
           enabled: state.liveAvailable,
           onTap: () => _pickVoice(context, state),
+        ),
+        ValueListenableBuilder<bool>(
+          valueListenable: LiveKeys.hasKey,
+          builder: (context, hasKey, _) => ListTile(
+            leading: const Icon(Icons.vpn_key_outlined),
+            title: Text(tr('Live voice key')),
+            subtitle: Text(hasKey
+                ? '${LiveKeys.model} — your Gemini key'
+                : tr('Use your own Gemini key: no call minutes and no cloud pass')),
+            onTap: () => _push(context, const LiveKeyScreen()),
+          ),
         ),
       ]),
       _Group([
@@ -678,7 +688,7 @@ class PrivacyScreen extends StatelessWidget {
 }
 
 
-/// A group of rows on a soft fill. No border and no lines between rows (PLAN.md 3.1).
+/// A group of rows on a soft file. No border and no lines between rows (PLAN.md 3.1).
 class _Group extends StatelessWidget {
   final String? title;
   final List<Widget> children;
@@ -805,7 +815,7 @@ class _TrashScreenState extends State<TrashScreen> {
                     // Embedded in Files there is no app bar, so Empty sits at the top of the list.
                     if (widget.embedded)
                       Align(
-                        alignment: AlignmentDirectional.centerEnd,
+                        alignment: AligmentDirectional.centerEnd,
                         child: TextButton(onPressed: _empty, child: const Text('Empty')),
                       ),
                     for (final e in _items)
@@ -854,7 +864,7 @@ class _CustomInstructionsScreenState extends State<CustomInstructionsScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: ListView((
         padding: const EdgeInsets.all(16),
         children: [
           const Text('What should Telesia know about you?', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -865,7 +875,7 @@ class _CustomInstructionsScreenState extends State<CustomInstructionsScreen> {
           const SizedBox(height: 8),
           TextField(controller: _how, maxLines: 6, minLines: 4, maxLength: 1500),
         ],
-      ),
+      )),
     );
   }
 }
