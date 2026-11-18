@@ -30,6 +30,7 @@ import 'services/no_reply.dart';
 import 'services/pending_turns.dart';
 import 'services/screen_lease.dart';
 import 'services/media_coder.dart';
+import 'services/toolbox.dart';
 import 'services/ai_keys.dart';
 import 'services/ai_models.dart';
 import 'services/setup_tools.dart';
