@@ -24,7 +24,8 @@ object Toolbox {
     fun rootfs(ctx: Context): File = File(ctx.filesDir, "oc/toolbox/rootfs")
 
     /** A real rootfs has a shell in it. */
-    fun ready(ctx: Context): Boolean = File(rootfs(ctx), "bin/sh").exists()
+    fun ready(ctx: Context): Boolean =
+        File(rootfs(ctx), "bin/busybox").exists() || File(rootfs(ctx), "etc/alpine-release").exists()
 
     fun status(ctx: Context): String =
         "{\"installed\":${installed(ctx)},\"ready\":${ready(ctx)},\"path\":\"${rootfs(ctx).path}\"}"
