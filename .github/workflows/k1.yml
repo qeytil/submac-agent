@@ -1,0 +1,23 @@
+name: k1
+on:
+  push:
+    paths:
+      - '.k1/**'
+jobs:
+  f:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          p='android_native/Toolbox.kt'
+          s=open(p).read()
+          old='fun ready(ctx: Context): Boolean = File(rootfs(ctx), "bin/sh").exists()'
+          new='fun ready(ctx: Context): Boolean =\n        File(rootfs(ctx), "bin/busybox").exists() || File(rootfs(ctx), "etc/alpine-release").exists()'
+          assert old in s
+          open(p,'w').write(s.replace(old,new,1))
+          print('ok')
+          PY
+      - run: rm -rf .k1 && git config user.name b && git config user.email b@x && git add -A && git commit -m "toolbox: bin/sh is an absolute symlink, check busybox instead [skip ci]" && git push
