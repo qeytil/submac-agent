@@ -75,9 +75,60 @@ class _ToolboxScreenState extends State<ToolboxScreen> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final status = _ready
-        ? const String('')
+        ? tr('Installed and ready.')
         : _installed
-            ? const String('')
-            : const String('');
+            ? tr('The toolbox binary is in this build, but Linux is not installed yet.')
+            : tr('This build does not include the toolbox binary.');
+    return Scaffold(
+      appBar: AppBar(title: Text(tr('Linux toolbox'))),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(Space.x5, Space.x3, Space.x5, Space.x8),
+        children: [
+          Text(
+            tr('A small Linux on your phone. Install it once and the agent can use git, gh, node, ffmpeg and other '
+                'command-line tools. Your workspace is mounted at /work.'),
+            style: AppText.metaStyle.copyWith(color: p.muted),
+          ),
+          const SizedBox(height: Space.x4),
+          Text(status, style: AppText.bodyStyle),
+          const SizedBox(height: Space.x3),
+          FilledButton(
+            onPressed: _busy || _ready ? null : _install,
+            child: Text(_ready
+                ? tr('Installed')
+                : _busy
+                    ? tr('Installing...')
+                    : tr('Install Linux toolbox')),
+          ),
+          const SizedBox(height: Space.x6),
+          TextField(
+            controller: _cmd,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: InputDecoration(
+              labelText: tr('Run a command'),
+              hintText: 'git --version',
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _busy || !_ready ? null : _run,
+              child: Text(tr('Run')),
+            ),
+          ),
+          if (_out.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(Space.x3),
+              decoration: BoxDecoration(color: p.code, borderRadius: Radii.fieldAll),
+              child: SelectableText(
+                _out,
+                style: AppText.microStyle.copyWith(color: p.text, fontFamily: 'monospace'),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
