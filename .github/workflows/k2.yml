@@ -1,0 +1,34 @@
+name: k2
+on:
+  push:
+    paths:
+      - '.k2/**'
+jobs:
+  f:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          data='big-pickle:200000,mimo-v2.6-flash-free:200000,deepseek-v4.1-flash-free:200000,longcat-2.5-free:1000000,iceman-free:262144,inkling-2-small-free:1048576,beam-free:1048576,flint-40b-free:262144,nemotron-3.5-super-vl-free:1048576,nemotron-3.5-lightning-free:262144,hy4-flash-free:1048576'
+          rows=''.join("    '%s': %s,\n"%(a,b) for a,b in (x.split(':') for x in data.split(',')))
+          blk=("  /// Real context windows of OpenCode's free models (opencode.ai/inference/v1/models).\n"
+               "  static const _knownContext = <String, int>{\n"+rows+"  };\n\n"
+               "  /// The window written for [m]: the provider's figure, else a known one, else the default.\n"
+               "  static int contextOf(ByokModel m) => m.context ?? _knownContext[m.id] ?? defaultContext;\n")
+          p='lib/services/byok_opencode.dart'
+          s=open(p).read()
+          a='  static const defaultContext = 128000;\n'
+          assert a in s
+          s=s.replace(a,a+'\n'+blk,1)
+          for old,new in [('    final half = (m.context ?? defaultContext) ~/ 2;','    final half = contextOf(m) ~/ 2;'),
+                          ("            'limit': {'context': m.context ?? defaultContext, 'output': outputOf(m)},",
+                           "            'limit': {'context': contextOf(m), 'output': outputOf(m)},")]:
+              assert old in s
+              s=s.replace(old,new,1)
+          open(p,'w').write(s)
+          print('ok')
+          PY
+      - run: rm -rf .k2 && git config user.name b && git config user.email b@x && git add -A && git commit -m "models: real context windows for the OpenCode free set [skip ci]" && git push
