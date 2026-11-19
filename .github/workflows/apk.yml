@@ -162,7 +162,7 @@ jobs:
             echo "termux $pkg: $fn"
           done
           cp "$(find x-proot -type f -name proot | head -1)" "$J/libproot.so"
-          cp "$(find x-proot -type f -name 'libproot-loader.so' | head -1)" "$J/libproot-loader.so"
+          LOADER=$(find x-proot -type f \( -name 'libproot-loader.so' -o -name 'loader' \) | head -1); cp "$LOADER" "$J/libproot-loader.so"
           cp "$(find x-libtalloc -type f -name 'libtalloc.so*' | head -1)" "$J/libtalloc.so"
           cp "$(find x-libandroid-shmem -type f -name 'libandroid-shmem.so*' | head -1)" "$J/libandroid-shmem.so"
           chmod 755 "$J"/libproot.so "$J"/libproot-loader.so "$J"/libtalloc.so "$J"/libandroid-shmem.so
