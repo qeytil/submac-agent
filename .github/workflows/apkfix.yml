@@ -18,13 +18,11 @@ jobs:
           python3 - <<'PY'
           p = '.github/workflows/apk.yml'
           s = open(p).read()
-          old = """cp "$(find x-proot -type f -name 'libproot-loader.so' | head -1)" "$J/libproot-loader.so"\n"""
-          new = """# Termux calls the loader usr/libexec/proot/loader (not lib*), so it must be renamed to ride in jniLibs.
-          LOADER=$(find x-proot -type f \\( -name 'libproot-loader.so' -o -name 'loader' \\) | head -1)
-          test -n "$LOADER" || echo "::warning::proot loader not found in the Termux package"
-          cp "$LOADER" "$J/libproot-loader.so"\n"""
-          assert old in s or 'LOADER=$(find x-proot' in s, 'proot loader line not found'
+          name = 'libproot-loader.so'
           if 'LOADER=$(find x-proot' not in s:
+              old = 'cp "$(find x-proot -type f -name \'' + name + '\' | head -1)" "$J/' + name + '"'
+              new = 'LOADER=$(find x-proot -type f \\( -name \'' + name + '\' -o -name \'loader\' \\) | head -1); cp "$LOADER" "$J/' + name + '"'
+              assert old in s, 'proot loader line not found'
               s = s.replace(old, new, 1)
           open(p, 'w').write(s)
           print('patched')
