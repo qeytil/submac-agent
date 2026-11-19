@@ -35,6 +35,24 @@ class ByokOpencode {
   /// [OutputLimits.fallback] (it was a flat 8,192 before 2026-11-06, which cut long replies short: OpenAI's model list
   /// carries no limits at all).
   static const defaultContext = 128000;
+
+  /// Real context windows of OpenCode's free models (opencode.ai/inference/v1/models).
+  static const _knownContext = <String, int>{
+    'big-pickle': 200000,
+    'mimo-v2.6-flash-free': 200000,
+    'deepseek-v4.1-flash-free': 200000,
+    'longcat-2.5-free': 1000000,
+    'iceman-free': 262144,
+    'inkling-2-small-free': 1048576,
+    'beam-free': 1048576,
+    'flint-40b-free': 262144,
+    'nemotron-3.5-super-vl-free': 1048576,
+    'nemotron-3.5-lightning-free': 262144,
+    'hy4-flash-free': 1048576,
+  };
+
+  /// The window written for [m]: the provider's figure, else a known one, else the default.
+  static int contextOf(ByokModel m) => m.context ?? _knownContext[m.id] ?? defaultContext;
   static const defaultOutput = OutputLimits.fallback;
 
   /// The output limit written for [m]: the provider's own figure, else the family's maximum, else the fallback; never
@@ -43,7 +61,7 @@ class ByokOpencode {
   /// default) would make it compact on every step.
   static int outputOf(ByokModel m) {
     final out = OutputLimits.forModel(m.id, known: m.output);
-    final half = (m.context ?? defaultContext) ~/ 2;
+    final half = contextOf(m) ~/ 2;
     return out > half && half > 0 ? half : out;
   }
 
@@ -89,7 +107,7 @@ class ByokOpencode {
             // providers' model lists do not say, and opencode replaces an image with "cannot read image"
             // for any model it believes is text-only (owner 2026-11-09).
             'attachment': m.vision ?? true,
-            'limit': {'context': m.context ?? defaultContext, 'output': outputOf(m)},
+            'limit': {'context': contextOf(m), 'output': outputOf(m)},
           },
       };
       if (isBuiltinOpencode(p)) {
