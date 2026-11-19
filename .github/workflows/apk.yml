@@ -5,7 +5,8 @@ name: APK (build on demand)
 # Run it from Actions → "APK (build on demand)" → Run workflow, or:
 #   gh workflow run apk.yml --ref main
 #
-# The APK is published as a RELEASE ASSET, never through actions/upload-artifact: this account's artifact storage quota is full, and an upload there fails the run *after* a good build
+# The APK is published as a RELEASE ASSET, never through actions/upload-artifact: this account's
+# artifact storage quota is full, and an upload there fails the run *after* a good build
 # ("Failed to CreateArtifact: Artifact storage quota has been hit"). A release asset also gives a
 # plain download link that can be opened on the phone, which is what an APK is for.
 
@@ -34,4 +35,245 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@proot -type f -name 'libproot-loader.so' | head -1)" "$J/libproot-loader.so"
+      - uses: actions/checkout@v4
+
+      # The opencode runtime is ~220 MB unpacked and Gradle copies native libs several times; the stock runner ran
+      # out of disk ("No space left on device", run 41428610744). Drop toolchains this build never uses.
+      - name: Free disk (opencode builds)
+        if: ${{ inputs.opencode }}
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/node_modules /opt/ghc /usr/local/.ghcup /usr/share/swift \
+            /usr/local/share/boost /opt/hostedtoolcache/CodeQL /usr/local/share/powershell /usr/share/miniconda \
+            /usr/local/julia* /opt/az /usr/share/az_* /usr/local/share/chromium /opt/microsoft || true
+          sudo docker image prune -af >/dev/null 2>&1 || true
+          df -h /
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+
+      # A new signing key silently breaks every future update (Android refuses a cross-key
+      # install), so refuse to build if the keystore is not the pinned Telesia key.
+      - name: Pinned signing key (never regenerate — a new key breaks updates)
+        run: |
+          test -f keys/debug.keystore || { echo "::error::keys/debug.keystore missing — refusing to sign with a new key"; exit 1; }
+          keytool -list -v -keystore keys/debug.keystore -storepass android | grep -E "SHA256" | tee /tmp/k.txt
+          grep -qi "4D:6D:11:6E" /tmp/k.txt || { echo "::error::keystore is not the pinned Telesia key"; exit 1; }
+
+      # android/ and ios/ are gitignored; the tracked native code lives in android_native/ and is
+      # stamped in by tools/patch_android.py (same as analyze-test.yml).
+      - name: Generate platform folders
+        run: |
+          flutter create --org com.telesia --project-name agent --platforms android,ios .
+          rm -f test/widget_test.dart
+
+      - name: Make it Telesia (manifest, native code, resources, gradle, signing)
+        run: python3 tools/patch_android.py
+
+      - run: flutter pub get
+
+      # opencode on the phone (2026-11-02): the linux-arm64-musl server, musl's loader and the two C++ runtime libs,
+      # renamed lib*.so so Android extracts them to nativeLibraryDir (the only place an app may execute from).
+      # android_native/OpenCode.kt starts libocld.so (the loader) with libopencode.so. arm64 only.
+      - name: Bundle opencode (the app's engine)
+        if: ${{ inputs.opencode }}
+        run: |
+          set -e
+          OC=1.19.5; ALP=v3.22
+          J=android/app/src/main/jniLibs/arm64-v8a; mkdir -p "$J" /tmp/oc && cd /tmp/oc
+          curl -fsSL -o oc.tgz "https://github.com/anomalyco/opencode/releases/download/v$OC/opencode-linux-arm64-musl.tar.gz"
+          tar xzf oc.tgz
+          # Pinned Alpine packages (musl's loader, libgcc, libstdc++); if a revision is gone, find the current one.
+          base="https://dl-cdn.alpinelinux.org/alpine/$ALP/main/aarch64"
+          IDX=$(curl -fsSL "$base/")
+          for want in musl-1.2.5-r13 libgcc-14.2.0-r6 libstdc++-14.2.0-r6; do
+            name="$want.apk"
+            if ! curl -fsSL -o pkg.apk "$base/$(echo "$name" | sed 's/+/%2B/g')"; then
+              stem="${want%%-[0-9]*}"
+              name=$(python3 -c "import re,sys;s=sys.stdin.read();m=sorted(set(re.findall(r'(?:href=\")(%s-[0-9][^\"/]*\\.apk)'%re.escape(sys.argv[1]),s.replace('%2B','+'))));print(m[-1] if m else '')" "$stem" <<< "$IDX")
+              test -n "$name" || { echo "::error::no Alpine package for $stem"; exit 1; }
+              curl -fsSL -o pkg.apk "$base/$(echo "$name" | sed 's/+/%2B/g')"
+            fi
+            echo "package $name"
+            tar xzf pkg.apk 2>/dev/null || true
+          done
+          ls -l lib usr/lib
+          cd -
+          cp /tmp/oc/opencode "$J/libopencode.so"
+          cp /tmp/oc/lib/ld-musl-aarch64.so.1 "$J/libocld.so"
+          cp -L "$(ls /tmp/oc/usr/lib/libstdc++.so.6* | head -1)" "$J/libocstdcpp.so"
+          cp /tmp/oc/usr/lib/libgcc_s.so.1 "$J/libocgcc.so"
+          chmod 755 "$J"/lib*.so
+          ls -l "$J"
+          for f in libopencode.so libocld.so libocstdcpp.so libocgcc.so; do test -s "$J/$f" || { echo "::error::missing $f"; exit 1; }; done
+          rm -rf /tmp/oc
+          # Programs opencode's own tools run on the phone (owner, 2026-11-03: "make every opencode tool work"). Android
+          # has neither: glob/grep/skill failed with "ripgrep execution failed" (opencode downloads a glibc rg into its
+          # data dir, which Android may not execute) and bash with "curl: inaccessible or not found". Static aarch64
+          # builds, pinned with sha256; OpenCode.kt links them into filesDir/oc/bin as rg / curl / opencode on PATH.
+          mkdir -p /tmp/ocx && cd /tmp/ocx
+          RG_URL=https://github.com/microsoft/ripgrep-prebuilt/releases/download/v15.0.1/ripgrep-v15.0.1-aarch64-unknown-linux-musl.tar.gz
+          RG_SHA=dd3738a4b6e8df0fb3bc3edc5af352c4c39e0d97ad118a23e5176bdc5d48ba08
+          CURL_URL=https://github.com/stunnel/static-curl/releases/download/8.23.0-1/curl-linux-aarch64-musl-8.23.0-1.tar.xz
+          CURL_SHA=e20f26e5b87c1883608f286f86bdabf39d3b8556e8a8e75dfe205e14bd206199
+          curl -fsSL -o rg.tgz "$RG_URL"; echo "$RG_SHA  rg.tgz" | sha256sum -c -
+          curl -fsSL -o curl.txz "$CURL_URL"; echo "$CURL_SHA  curl.txz" | sha256sum -c -
+          tar xzf rg.tgz; tar xJf curl.txz
+          # ocexec: the `opencode` command for the bash tool. opencode is dynamic musl and only starts through libocld.so,
+          # and a wrapper script cannot run (Android executes nothing written to app data), so it is a tiny static program.
+          sudo apt-get update -qq && sudo apt-get install -y -qq gcc-aarch64-linux-gnu >/dev/null
+          aarch64-linux-gnu-gcc -static -Os -s -o ocexec "$GITHUB_WORKSPACE/android_native/ocexec.c"
+          cd -
+          cp "$(find /tmp/ocx -type f -name rg | head -1)" "$J/libocrg.so"
+          cp "$(find /tmp/ocx -type f -name curl | head -1)" "$J/liboccurl.so"
+          cp /tmp/ocx/ocexec "$J/libocexec.so"
+          chmod 755 "$J/libocrg.so" "$J/liboccurl.so" "$J/libocexec.so"
+          for f in libocrg.so liboccurl.so libocexec.so; do
+            file "$J/$f" | tee /dev/stderr | grep -q 'ARM aarch64.*static' || { echo "::error::$f is not a static aarch64 binary"; exit 1; }
+          done
+          # Size check: rg ~5 MB, curl ~10 MB, ocexec well under 1 MB; a tiny rg/curl means a bad download.
+          test "$(stat -c%s "$J/libocrg.so")" -gt 1000000 && test "$(stat -c%s "$J/liboccurl.so")" -gt 1000000 \
+            || { echo "::error::rg or curl too small"; exit 1; }
+          rm -rf /tmp/ocx
+          # Never strip these: the opencode binary carries its app inside the ELF, and stripping can drop it.
+          G=android/app/build.gradle.kts
+          test -f "$G" || { echo "::error::no $G"; exit 1; }
+          printf '\nandroid {\n    packaging {\n        jniLibs {\n            keepDebugSymbols += setOf("**/libopencode.so", "**/libocld.so", "**/libocstdcpp.so", "**/libocgcc.so", "**/libocrg.so", "**/liboccurl.so", "**/libocexec.so", "**/libproot.so", "**/libproot-loader.so", "**/libtalloc.so", "**/libandroid-shmem.so")\n        }\n    }\n}\n' >> "$G"
+          tail -8 "$G"
+          # The on-device Linux toolbox (Toolbox.kt): proot plus the Android shmem shim and libtalloc it needs,
+          # from Termux's arm64 repo (Bionic-linked, so they run from nativeLibraryDir). Android extracts only
+          # lib*.so, so Toolbox.kt re-creates the libtalloc.so.2 / libandroid-shmem sonames at run time.
+          # Best effort: a missing Termux package must never block the APK; the toolbox then reports proot absent.
+          set +e
+          IDX_T=$(curl -fsSL "https://packages.termux.dev/apt/termux-main/dists/stable/main/binary-aarch64/Packages")
+          for pkg in proot libtalloc libandroid-shmem; do
+            fn=$(printf '%s\n' "$IDX_T" | awk -v pkg="$pkg" 'BEGIN{RS="";FS="\n"}{ok=0;f="";for(i=1;i<=NF;i++){if($i=="Package: "pkg)ok=1;if($i ~ /^Filename: /){sub(/^Filename: /,"",$i);f=$i}}if(ok&&f!=""){print f;exit}}')
+            test -n "$fn" || { echo "::warning::no Termux package $pkg"; continue; }
+            curl -fsSL -o "$pkg.deb" "https://packages.termux.dev/apt/termux-main/$fn" || { echo "::warning::download failed $pkg"; continue; }
+            dpkg-deb -x "$pkg.deb" "x-$pkg" || { echo "::warning::extract failed $pkg"; continue; }
+            echo "termux $pkg: $fn"
+          done
+          cp "$(find x-proot -type f -name proot | head -1)" "$J/libproot.so"
+          cp "$(find x-proot -type f -name 'libproot-loader.so' | head -1)" "$J/libproot-loader.so"
+          cp "$(find x-libtalloc -type f -name 'libtalloc.so*' | head -1)" "$J/libtalloc.so"
+          cp "$(find x-libandroid-shmem -type f -name 'libandroid-shmem.so*' | head -1)" "$J/libandroid-shmem.so"
+          chmod 755 "$J"/libproot.so "$J"/libproot-loader.so "$J"/libtalloc.so "$J"/libandroid-shmem.so
+          for f in libproot.so libproot-loader.so libtalloc.so libandroid-shmem.so; do
+            test -s "$J/$f" || echo "::warning::missing $f (toolbox will say proot is not in this build)"
+          done
+          ls -l "$J" | grep -E 'proot|talloc|shmem'
+          set -e
+          df -h /
+
+      # The Telesia launcher icon is GENERATED, never tracked: android/ is gitignored and flutter
+      # create stamps the default Flutter logo, so this step is the only thing that replaces it.
+      # Leaving it out shipped an APK with the Flutter logo (v1.13.104-174), hence the hard guard.
+      - name: App icon (the Telesia logo, not the Flutter default)
+        run: |
+          dart run flutter_launcher_icons
+          R=android/app/src/main/res
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            test -f "$R/mipmap-$d/ic_launcher.png" \
+              || { echo "::error::flutter_launcher_icons wrote no mipmap-$d/ic_launcher.png — this APK would ship the Flutter logo"; exit 1; }
+          done
+          # Only an adaptive icon (anydpi-v26) proves the generator ran: the stock Flutter template
+          # has no anydpi-v26 at all, only five legacy PNGs.
+          test -f "$R/mipmap-anydpi-v26/ic_launcher.xml" \
+            || { echo "::error::no mipmap-anydpi-v26/ic_launcher.xml — the Flutter default icon is still in place"; exit 1; }
+          # The launch screen draws the mark from the adaptive foreground, and Android 13 themed icons need the
+          # monochrome layer: both must exist or the build would fail (or theme a blank square).
+          test -f "$R/drawable-xxxhdpi/ic_launcher_foreground.png" \
+            || { echo "::error::no ic_launcher_foreground — the launch screen has no mark to draw"; exit 1; }
+          test -f "$R/drawable-xxxhdpi/ic_launcher_monochrome.png" \
+            || { echo "::error::no ic_launcher_monochrome — Android 13 themed icons would show a blank square"; exit 1; }
+          grep -q monochrome "$R/mipmap-anydpi-v26/ic_launcher.xml" \
+            || { echo "::error::ic_launcher.xml has no monochrome layer"; exit 1; }
+          ls -l "$R"/mipmap-*/ic_launcher.png
+          # The notification chime (Agent, Bots and Teams channels, docs/notifications.md) is copied from
+          # android_native/res by tools/patch_android.py; a missing file would leave those channels on no sound.
+          test -f "$R/raw/telesia_chime.wav" \
+            || { echo "::error::no res/raw/telesia_chime.wav — notifications would have no sound"; exit 1; }
+
+      - name: Build ${{ inputs.variant }} APK
+        run: |
+          set +e
+          flutter build apk --${{ inputs.variant }} > /tmp/build.log 2>&1
+          st=$?
+          tail -n 120 /tmp/build.log
+          if [ $st -ne 0 ]; then
+            cp /tmp/build.log build-fail.txt
+            git config user.name oc-bot
+            git config user.email oc-bot@users.noreply.github.com
+            git add build-fail.txt
+            git commit -m "ci: build failure log [skip ci]" || true
+            git push || true
+          fi
+          exit $st
+
+      - name: Name it with the version, and checksum it
+        id: name
+        run: |
+          # Do not write `${{ inputs.opencode && '' || '-noopencode' }}`: an empty string is falsy in a GitHub
+          # expression, so a true input fell through to -noopencode and the engine APK was published under the
+          # -noopencode tag (run 42378306603, 2026-11-07). The input renders as true/false in the shell.
+          if [ "${{ inputs.opencode }}" = "true" ]; then SUF=""; else SUF="-noopencode"; fi
+          VER=$(awk '/^version:/{print $2}' pubspec.yaml | tr '+' '-')$SUF
+          OUT="telesia-${VER}-${{ inputs.variant }}.apk"
+          cp "build/app/outputs/flutter-apk/app-${{ inputs.variant }}.apk" "$OUT"
+          sha256sum "$OUT" | cut -d' ' -f1 > "$OUT.sha256"
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
+          echo "file=$OUT" >> "$GITHUB_OUTPUT"
+          echo "sha=$(cat "$OUT.sha256")" >> "$GITHUB_OUTPUT"
+          ls -l "$OUT"
+
+      # Fails the run if the APK is malformed: testOnly, no v2 signature, wrong key, 4 KB-aligned
+      # native libs on a 16 KB-page device, missing ABIs. STRICT=1 is what makes it exit non-zero —
+      # without it the script only reports (that is how it is used by hand).
+      - name: Verify the APK
+        run: STRICT=1 bash tools/verify_apk.sh "${{ steps.name.outputs.file }}"
+
+      - name: Publish the release (the download link)
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="apk-${{ steps.name.outputs.ver }}${{ inputs.variant == 'debug' && '-debug' || '' }}"
+          # Same trap as the name step: `inputs.opencode && '' || '--prerelease'` marks the engine build as a
+          # pre-release. A diagnostic (-noopencode) build is the one that may be pre-release.
+          if [ "${{ inputs.opencode }}" = "true" ]; then PRE=""; else PRE="--prerelease"; fi
+          NOTES="$(mktemp)"
+          {
+            echo "Telesia ${{ steps.name.outputs.ver }}${{ inputs.variant == 'debug' && ' (debug)' || '' }} — automated build from \`${GITHUB_SHA}\`."
+            echo
+            echo "- sha256: \`${{ steps.name.outputs.sha }}\`"
+            echo
+            echo "**If SubMac Agent 1.3.0 or 1.4.0 is on your phone, uninstall it first.** Those builds were signed with a different key, and Android refuses to update an app across keys (many phones show this as \"App not installed as package appears to be invalid\"). From 1.4.1 on every build uses the same key, so later updates install over this one."
+          } > "$NOTES"
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" $PRE --title "Telesia ${{ steps.name.outputs.ver }}${{ inputs.variant == 'debug' && ' (debug)' || '' }}" --notes-file "$NOTES"
+          gh release upload "$TAG" "${{ steps.name.outputs.file }}" "${{ steps.name.outputs.file }}.sha256" --clobber
+          # --clobber replaces the asset, so the notes must be refreshed too: the sha256 in them
+          # would otherwise describe the previous file.
+          gh release edit "$TAG" --notes-file "$NOTES"
+          echo "url=$(gh release view "$TAG" -json url -q .url)" >> "$GITHUB_OUTPUT"
+          echo "dl=https://github.com/${{ github.repository }}/releases/download/$TAG/${{ steps.name.outputs.file }}" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Telesia ${{ inputs.variant }} APK"
+            echo ""
+            echo "- download: ${{ steps.rel.outputs.dl }}"
+            echo "- release: ${{ steps.rel.outputs.url }}"
+            echo "- file: \`${{ steps.name.outputs.file }}\`"
+            echo "- sha256: \`${{ steps.name.outputs.sha }}\`"
+            echo "- commit: \`${GITHUB_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
