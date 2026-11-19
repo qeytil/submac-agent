@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 
+import 'toolbox_devtools.dart';
+
 /// The on-device Linux toolbox (a proot rootfs). Opt-in; see docs/toolbox.md. The heavy lifting is native
 /// (Toolbox.kt): this only exposes it to the agent as tools and to Settings as status/install/run.
 class Toolbox {
@@ -25,11 +27,15 @@ class Toolbox {
   }
 
   static Future<String> install({String url = rootfsUrl, String sha256 = rootfsSha256}) async {
+    String out;
     try {
-      return await _ch.invokeMethod<String>('toolboxInstall', {'url': url, 'sha256': sha256}) ?? '';
+      out = await _ch.invokeMethod<String>('toolboxInstall', {'url': url, 'sha256': sha256}) ?? '';
     } catch (e) {
       return 'error: $e';
     }
+    if (out.trim() != 'installed' && out.trim() != 'already installed') return out;
+    // A fresh rootfs is only a shell: bring in the developer set (node, python, JDK, compilers...) straight away.
+    return '$out\n${await toolboxInstallDevTools()}';
   }
 
   static Future<String> run(String command, {String cwd = '', int timeoutSeconds = 120}) async {
