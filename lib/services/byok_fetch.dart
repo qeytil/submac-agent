@@ -212,6 +212,7 @@ class ByokFetch {
       final params = [for (final x in (e['supported_parameters'] is List ? e['supported_parameters'] as List : const [])) '$x'];
       final caps = e['capabilities'] is Map ? e['capabilities'] as Map : const {};
       final top = e['top_provider'] is Map ? e['top_provider'] as Map : const {};
+      final lim = e['limit'] is Map ? e['limit'] as Map : const {};
       final m = ByokModel(
         id: id,
         name: '${e['name'] is String && e['name'] != id ? e['name'] : (e['display_name'] ?? '')}',
@@ -220,8 +221,9 @@ class ByokFetch {
             _int(e['max_context_length']) ??
             _int(e['max_model_len']) ??
             _int(e['context']) ??
+            _int(lim['context']) ??
             _int(top['context_length']),
-        output: _int(top['max_completion_tokens']) ?? _int(e['max_completion_tokens']) ?? _int(e['max_output_tokens']),
+        output: _int(lim['output']) ?? _int(top['max_completion_tokens']) ?? _int(e['max_completion_tokens']) ?? _int(e['max_output_tokens']),
         vision: inputs.isNotEmpty ? inputs.contains('image') : (caps['vision'] is bool ? caps['vision'] as bool : null),
         tools: params.isNotEmpty ? params.contains('tools') : (caps['function_calling'] is bool ? caps['function_calling'] as bool : null),
         reasoning: params.isNotEmpty ? (params.contains('reasoning') || params.contains('include_reasoning')) : null,
