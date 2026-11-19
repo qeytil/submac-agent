@@ -20,4 +20,4 @@ jobs:
           open(p,'w').write(s.replace(old,new,1))
           print('ok')
           PY
-      - run: rm -rf .k1 && git config user.name b && git config user.email b@x && git add -A && git commit -m "toolbox: bin/sh is an absolute symlink, check busybox instead [skip ci]" && git push
+      - run: rm -rf .k1 && git config user.name b && git config user.email b@x && git add -A && git commit -m "toolbox check busybox for the rootfs instead of bin-sh [skip ci]" && git push
