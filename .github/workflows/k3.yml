@@ -1,0 +1,29 @@
+name: k3
+on:
+  push:
+    paths:
+      - '.k3/**'
+jobs:
+  f:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          p='lib/services/byok_fetch.dart'
+          s=open(p).read()
+          a="      final top = e['top_provider'] is Map ? e['top_provider'] as Map : const {};"
+          assert a in s
+          s=s.replace(a,a+"\n      final lim = e['limit'] is Map ? e['limit'] as Map : const {};",1)
+          b="            _int(e['context']) ??"
+          assert b in s
+          s=s.replace(b,"            _int(e['context']) ??\n            _int(lim['context']) ??",1)
+          c="        output: _int(top['max_completion_tokens']) ?? _int(e['max_completion_tokens']) ?? _int(e['max_output_tokens']),"
+          assert c in s
+          s=s.replace(c,"        output: _int(lim['output']) ?? _int(top['max_completion_tokens']) ?? _int(e['max_completion_tokens']) ?? _int(e['max_output_tokens']),",1)
+          open(p,'w').write(s)
+          print('ok')
+          PY
+      - run: rm -rf .k3 && git config user.name b && git config user.email b@x && git add -A && git commit -m "models read limit-context and limit-output from model lists [skip ci]" && git push
