@@ -35,6 +35,7 @@ import 'media_models_screen.dart';
 import 'models_screen.dart';
 import 'opencode_lab_screen.dart';
 import 'system_screens.dart';
+import 'toolbox_screen.dart';
 import '../ui/tokens.dart';
 
 /// Settings (PLAN.md 3.2): the top level is a short list of sections and nothing else.
@@ -589,6 +590,14 @@ class _AdvancedPage extends StatelessWidget {
           subtitle: const Text('Your digital people stay active between tasks. Uses more battery.'),
           value: state.alwaysOn,
           onChanged: (v) => state.setAlwaysOn(v),
+        ),
+      ]),
+      _Group([
+        ListTile(
+          title: const Text('Linux toolbox'),
+          subtitle: const Text('Install git, gh, node and other command-line tools on this phone.'),
+          trailing: Icon(Icons.chevron_right_rounded, color: muted),
+          onTap: () => _push(context, const ToolboxScreen()),
         ),
       ]),
       _Group([
