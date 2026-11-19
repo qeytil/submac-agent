@@ -1,12 +1,12 @@
 import 'toolbox.dart';
 
 /// The preinstalled developer set for the Linux toolbox (owner, 2026-11-19: "include python, node, android/flutter
-/// tools, so opencode has the full set"): git/gh, node/npm, python/pip, compilers, JDK, cmake/ninja, go, rust,
+/// tools, so opencode has the full set"): git/gh, node/npm, python/pip, compilers, JDK, cmake/ninja, clang,
 /// ffmpeg, imagemagick. Alpine ships no arm64 Android SDK and no official Flutter build, so those are downloaded
 /// by the agent on request; everything here is what a Linux build box needs. Two calls stay under the 10 min cap.
 const _base = 'git gh curl wget bash jq ripgrep unzip tar less nano openssh-client ca-certificates';
 const _dev = 'nodejs npm python3 py3-pip py3-virtualenv ffmpeg imagemagick build-base cmake ninja pkgconf '
-    'openjdk17-jdk go rust cargo clang lld gdb sqlite zip';
+    'openjdk17-jdk clang lld gdb sqlite zip qemu-img';
 
 /// Installs the set into an existing rootfs. Safe to re-run: apk skips what is already there.
 Future<String> toolboxInstallDevTools() async {
