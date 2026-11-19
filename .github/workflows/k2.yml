@@ -31,4 +31,4 @@ jobs:
           open(p,'w').write(s)
           print('ok')
           PY
-      - run: rm -rf .k2 && git config user.name b && git config user.email b@x && git add -A && git commit -m "models: real context windows for the OpenCode free set [skip ci]" && git push
+      - run: rm -rf .k2 && git config user.name b && git config user.email b@x && git add -A && git commit -m "models real context windows for the opencode free set [skip ci]" && git push
