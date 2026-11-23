@@ -35,6 +35,8 @@ object OcChannel {
     fun handle(ctx: Context, call: MethodCall, result: MethodChannel.Result): Boolean {
         when (call.method) {
             "ocStart" -> {
+                // An engine can also be (re)started by a background run, after the hold was let go. Reassert it.
+                TaskService.start(ctx, "Working on your task")
                 val base = call.argument<String>("baseUrl") ?: ""
                 val token = call.argument<String>("token") ?: ""
                 val pass = call.argument<String>("password") ?: ""
