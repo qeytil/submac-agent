@@ -172,8 +172,10 @@ class AlarmReceiver : BroadcastReceiver() {
         // Stop from the ongoing "Telesia is active" notification. Works with the app minimized or cleared from
         // recents: the broadcast wakes the headless engine and Dart stops the runs, which releases the hold.
         if (intent.getStringExtra("stop_all") != null) {
-            TelesiaApp.engine(ctx)
-            Bridge.send("stopAll")
+            // End both halves of the work: the engine (so the turn stops at once) and the hold that kept Telesia
+            // alive. Dart sees the engine is gone and ends the turn with a plain "send again to retry" note.
+            OpenCode.stop()
+            TaskService.stop(ctx)
             return
         }
         // "Decline" on a bot's ringing call: stop ringing and tell the bot (it sends a text instead).
