@@ -35,6 +35,8 @@ object OcChannel {
     fun handle(ctx: Context, call: MethodCall, result: MethodChannel.Result): Boolean {
         when (call.method) {
             "ocStart" -> {
+                // An engine can also be (re)started by a background run, after the hold was let go. Reassert it.
+                TaskService.start(ctx, "Working on your task")
                 val base = call.argument<String>("baseUrl") ?: ""
                 val token = call.argument<String>("token") ?: ""
                 val pass = call.argument<String>("password") ?: ""
@@ -72,6 +74,12 @@ object OcChannel {
             "ocToken" -> {
                 call.argument<String>("baseUrl")?.let { if (it.isNotEmpty()) LocalProxy.upstream = it }
                 call.argument<String>("token")?.let { if (it.isNotEmpty()) LocalProxy.token = it }
+                // Every prompt pushes the token just before it is sent. That is the earliest reliable moment a turn
+                // exists, and Dart is still on screen then: raise the foreground service here, not in the lifecycle's
+                // paused callback. From Android 14 a dataSync FGS started from the background is refused, which used to
+                // leave a minimized Telesia with no service and no wake lock — Android froze it and the opencode child
+                // process died with it, so the task stopped. A start here is idempotent (a running service only refreshes).
+                TaskService.start(ctx, "Working on your task")
                 result.success(true)
             }
             "ocStop" -> {

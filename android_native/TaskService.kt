@@ -9,8 +9,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
+import android.util.Log
 
 /**
  * Keeps Telesia alive while a task runs with the app closed, showing one calm line.
@@ -20,8 +23,9 @@ import android.os.PowerManager
 class TaskService : Service() {
     companion object {
         private const val NOTE_ID = 7201
-        /** The longest a single hold lasts; every new start or update renews it. */
+        /** The longest a single hold lasts; a timer in the service renews it even when nothing else calls in. */
         private const val HOLD_MS = 30L * 60L * 1000L
+        private const val RENEW_MS = 10L * 60L * 1000L
         @Volatile var text = "Telesia is active"
         @Volatile private var running = false
 
@@ -36,7 +40,11 @@ class TaskService : Service() {
             val i = Intent(ctx, TaskService::class.java)
             try {
                 if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i) else ctx.startService(i)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                // Never fail in silence: on Android 14+ a dataSync foreground service may be refused if this is
+                // called from the background. Callers now start the hold while Telesia is still on screen, but a
+                // refusal must still be visible in logcat rather than leaving a task to die with no explanation.
+                Log.w("TelesiaTask", "could not start the keep-alive service: $e")
             }
         }
 
@@ -51,7 +59,22 @@ class TaskService : Service() {
         @Volatile private var instance: TaskService? = null
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        // If Android restarts this service after a process kill (START_STICKY), bring Dart back with it: an active
+        // task is otherwise a notification with nobody behind it, and the Stop button has no runner to reach.
+        TelesiaApp.engine(applicationContext)
+    }
+
     private var wakeLock: PowerManager.WakeLock? = null
+    private val handler = Handler(Looper.getMainLooper())
+    /** A long opencode turn can go quiet for a long time; keep the CPU awake without relying on Dart to renew. */
+    private val renew = object : Runnable {
+        override fun run() {
+            hold()
+            handler.postDelayed(this, RENEW_MS)
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -70,6 +93,14 @@ class TaskService : Service() {
             .setCategory(Notification.CATEGORY_PROGRESS)
             .setContentIntent(Notifier.openIntent(this, "tasks", 7202))
         if (line.isNotEmpty() && !line.equals("Telesia is active", ignoreCase = true)) b.setContentText(line)
+        // Stop without hunting for the app or a chat: the broadcast reaches Dart even after recents were cleared.
+        val stop = PendingIntent.getBroadcast(
+            this, NOTE_ID + 1,
+            Intent(this, AlarmReceiver::class.java).putExtra("stop_all", "1"),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        b.addAction(Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_media_stop), "Stop", stop).build())
+        if (Build.VERSION.SDK_INT >= 31) b.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         return b.build()
     }
 
@@ -101,14 +132,30 @@ class TaskService : Service() {
             instance = this
             running = true
             hold()
-        } catch (_: Exception) {
+            handler.removeCallbacks(renew)
+            handler.postDelayed(renew, RENEW_MS)
+        } catch (e: Exception) {
+            Log.w("TelesiaTask", "could not go foreground: $e")
             stopSelf()
         }
-        return START_NOT_STICKY
+        // A task outlives the service being recycled by Android; a restart must reassert the hold, not vanish.
+        return START_STICKY
+    }
+
+    /** Swiping Telesia away from recents must not take a running task with it. */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            nm.notify(NOTE_ID, note())
+            hold()
+        } catch (_: Exception) {
+        }
     }
 
     override fun onDestroy() {
         running = false
+        handler.removeCallbacks(renew)
         if (instance === this) instance = null
         try {
             if (wakeLock?.isHeld == true) wakeLock?.release()
@@ -122,6 +169,15 @@ class TaskService : Service() {
 /** Fires a scheduled task: wakes Telesia (even if closed) and hands the task id to Dart. */
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
+        // Stop from the ongoing "Telesia is active" notification. Works with the app minimized or cleared from
+        // recents: the broadcast wakes the headless engine and Dart stops the runs, which releases the hold.
+        if (intent.getStringExtra("stop_all") != null) {
+            // End both halves of the work: the engine (so the turn stops at once) and the hold that kept Telesia
+            // alive. Dart sees the engine is gone and ends the turn with a plain "send again to retry" note.
+            OpenCode.stop()
+            TaskService.stop(ctx)
+            return
+        }
         // "Decline" on a bot's ringing call: stop ringing and tell the bot (it sends a text instead).
         val declined = intent.getStringExtra("decline")
         if (declined != null) {
