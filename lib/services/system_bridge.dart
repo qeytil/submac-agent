@@ -36,6 +36,8 @@ class SystemBridge {
   void Function(String value)? onBackgroundShare;
   /// The user tapped Stop on the "Telesia is using your phone" badge.
   void Function()? onPhoneStop;
+  /// The user tapped Stop on the ongoing "Telesia is active" notification: stop every running task.
+  void Function()? onStopAll;
   Future<void> phoneBadge(bool on) async {
     try {
       await _call<bool>('a11yBadge', {'on': on});
@@ -117,6 +119,9 @@ class SystemBridge {
           break;
         case 'phoneStop':
           onPhoneStop?.call();
+          break;
+        case 'stopAll':
+          onStopAll?.call();
           break;
         case 'bgShare':
           onBackgroundShare?.call('$a');
