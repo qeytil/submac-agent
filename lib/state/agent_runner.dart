@@ -447,6 +447,22 @@ extension AppStateAgentRunner on AppState {
                 if (!done.isCompleted) done.complete();
               }
             }
+            // A message the owner sends while this turn works steers it: opencode queues it and the reply
+            // carries on with it (owner 2026-11). Without this it only ran as a whole separate turn afterwards.
+            if (run.inbox.isNotEmpty) {
+              final queued = List<String>.of(run.inbox);
+              run.inbox.clear();
+              var sentQ = false;
+              for (final q in queued) {
+                if (q.trim().isEmpty) continue;
+                await oc.prompt(session, [{'type': 'text', 'text': q}], system: layer, model: laneModel);
+                sentQ = true;
+              }
+              if (sentQ) {
+                done = Completer<void>();
+                seen = DateTime.now();
+              }
+            }
           }
           // The reply stopped because it ran out of room (finish "length"): opencode ends the turn quietly there, so
           // the reply used to stop mid-sentence. It is continued in the same session (owner 2026-11-06).
@@ -535,9 +551,11 @@ extension AppStateAgentRunner on AppState {
       if (!run.cancelled && !blockedByAllowance) unawaited(PendingTurns.I.drain());
     }
     // A message the user sent while this turn ran gets its own turn now.
-    if (!run.cancelled && sentId != null && chain < 3) {
+    if (!run.cancelled && sentId != null && chain < 12) {
       final newest = list.lastWhere((m) => m.role == 'user', orElse: () => list.first);
-      if (newest.role == 'user' && newest.id != sentId) unawaited(_runAgent(convId, chain: chain + 1));
+      if (newest.role == 'user' && newest.id != sentId && !run.steered.contains(newest.id)) {
+        unawaited(_runAgent(convId, chain: chain + 1));
+      }
     }
   }
 

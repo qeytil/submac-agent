@@ -1195,6 +1195,8 @@ class AgentRun {
   final DateTime started = DateTime.now();
   /// What the user said while this task was working; read at the next step.
   final List<String> inbox = [];
+  /// Ids of user messages already steered into the running turn (the follow-up chain skips them).
+  final Set<String> steered = {};
   /// True while waiting on the model (false while a tool runs).
   bool inModel = false;
   /// A quick reply already answered the user's newest message; the task only has to act on it.

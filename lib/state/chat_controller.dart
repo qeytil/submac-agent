@@ -426,6 +426,7 @@ extension AppStateChat on AppState {
       }
     }
     if (task != null && !task.cancelled && runs.contains(task)) {
+      task.steered.add(userMsg.id);
       task.inbox.add(text.trim().isEmpty ? '(sent an attachment)' : content);
       if (text.trim().isNotEmpty) BrowserJobs.I.userSaid(convId, text.trim());
       // R2 item 1: only a step that restarts to hear it is "reading"; a tool still running keeps its own line.

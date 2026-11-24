@@ -992,6 +992,12 @@ class _ChatListState extends State<ChatList> {
                         ? UserMessageView(key: ValueKey(visible[k].id), message: visible[k])
                         : assistant(k, inTurn: true),
               ),
+            if (live && turn.isNotEmpty && turn.last.role == 'user')
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: Lux.gutter, bottom: Space.x1),
+                child: Text(tr('Queued · it will read this next'),
+                    textAlign: TextAlign.end, style: AppText.microStyle.copyWith(color: Palette.of(context).muted)),
+              ),
           ],
         ),
       );
