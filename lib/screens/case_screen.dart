@@ -13,6 +13,7 @@ import '../widgets/chat/activity.dart';
 import '../widgets/chat/edge_fade.dart';
 import '../widgets/composer.dart';
 import '../widgets/message_view.dart' show selectedReply;
+import 'case_file_screen.dart';
 import 'home_screen.dart' show ChatList, FloatIcon, chatTopInset;
 
 /// The Case Room: the normal chat, bound to one case, plus a Case File affordance and the Mode / Abilities pills
@@ -55,36 +56,8 @@ class _CaseScreenState extends State<CaseScreen> {
     await _state.openConversation(from);
   }
 
-  Future<void> _caseFile(Case c) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      sheetAnimationStyle: SubMotion.sheet,
-      builder: (ctx) {
-        final p = Palette.of(ctx);
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(Space.x5, 0, Space.x5, Space.x4),
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(c.numberLabel, style: AppText.microStyle.copyWith(color: p.muted)),
-              const SizedBox(height: 2),
-              Text(c.title, style: AppText.titleStyle.copyWith(color: p.text)),
-              if (c.brief.isNotEmpty) ...[
-                const SizedBox(height: Space.x2),
-                Text(c.brief, style: AppText.bodyStyle.copyWith(color: p.text)),
-              ],
-              const SizedBox(height: Space.x3),
-              Text(
-                '${c.statusWord} · ${c.exhibits.length} exhibits · ${c.openQuestions} open questions · ${c.timeline.length} events · ${c.persons.length} people',
-                style: AppText.metaStyle.copyWith(color: p.muted),
-              ),
-            ]),
-          ),
-        );
-      },
-    );
-  }
+  Future<void> _caseFile(Case c) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => CaseFileScreen(caseId: c.id)));
 
   @override
   Widget build(BuildContext context) {
