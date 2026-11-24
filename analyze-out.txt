@@ -22,7 +22,8 @@ warning • The declaration '_showProfile' isn't referenced. Try removing the de
   error • The method 'BotFeedCard' isn't defined for the type 'BotsFeedScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'BotFeedCard' • lib/screens/bots/bots_feed_screen.dart:103:28 • undefined_method
   error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bots_feed_screen.dart:146:41 • undefined_identifier
   error • A value of type 'String?' can't be assigned to a variable of type 'String'. Try changing the type of the variable, or casting the right-hand type to 'String' • lib/screens/bots/bots_feed_screen.dart:351:63 • invalid_assignment
-warning • Unused import: '../widgets/motion.dart'. Try removing the import directive • lib/screens/caseboard_screen.dart:9:8 • unused_import
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext • lib/screens/caseboard_screen.dart:116:18 • use_build_context_synchronously
+  error • The property 'id' can't be unconditionally accessed because the receiver can be 'null'. Try making the access conditional (using '?.') or adding a null check to the target ('!') • lib/screens/caseboard_screen.dart:116:98 • unchecked_use_of_nullable_value
 warning • The declaration '_PlanPage' isn't referenced. Try removing the declaration of '_PlanPage' • lib/screens/settings_screen.dart:286:7 • unused_element
    info • Dangling library doc comment. Add a 'library' directive after the library comment • lib/services/digital_human/digital_human.dart:1:1 • dangling_library_doc_comments
   error • All final variables must be initialized, but 'id' isn't. Try adding an initializer for the field • lib/services/digital_human/heartbeat.dart:11:3 • final_not_initialized_constructor
@@ -73,7 +74,8 @@ warning • The library 'package:agent/services/digital_human/digital_human.dart
   error • Undefined name 'PresenceState'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:169:35 • undefined_identifier
    info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/bots/bot_feed_card.dart:171:21 • curly_braces_in_flow_control_structures
    info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/bots/bot_feed_card.dart:172:12 • curly_braces_in_flow_control_structures
-warning • The receiver can't be null, so the null-aware operator '?.' is unnecessary. Try replacing the operator '?.' with '.' • lib/widgets/composer.dart:1182:59 • invalid_null_aware_operator
+  error • The name 'ActivityChevron' isn't a class. Try correcting the name to match an existing class • lib/widgets/case_pills.dart:42:19 • creation_with_non_type
+warning • The receiver can't be null, so the null-aware operator '?.' is unnecessary. Try replacing the operator '?.' with '.' • lib/widgets/composer.dart:1189:59 • invalid_null_aware_operator
    info • Unnecessary braces in a string interpolation. Try removing the braces • lib/widgets/model_picker.dart:62:13 • unnecessary_brace_in_string_interps
    info • The import of 'package:agent/services/browser/page_model.dart' is unnecessary because all of the used elements are also provided by the import of 'package:agent/services/browser_agent.dart'. Try removing the import directive • test/browser_speed_test.dart:3:8 • unnecessary_import
   error • The named parameter 'id' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'id' • test/digital_human_test.dart:17:22 • undefined_named_parameter
@@ -81,4 +83,4 @@ warning • The receiver can't be null, so the null-aware operator '?.' is unnec
   error • The name 'Color' isn't a class. Try correcting the name to match an existing class • test/digital_human_test.dart:69:62 • creation_with_non_type
   error • Expected an identifier • test/digital_human_test.dart:98:47 • missing_identifier
 
-80 issues found. (ran in 27.7s)
+82 issues found. (ran in 17.7s)
