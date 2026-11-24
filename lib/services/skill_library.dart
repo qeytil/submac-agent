@@ -3,12 +3,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 import 'apk_build.dart';
+import 'case_skills.dart';
 import 'design_skills.dart';
 
 /// One entry of the shared skill library (the index line; the full instructions download on install or use).
@@ -81,11 +83,12 @@ class SkillLibrary extends ChangeNotifier {
     'writing': 'Writing',
     'life': 'Everyday life',
     'somalia': 'Somalia',
+    'investigation': 'Investigation',
     'mine': 'Your own skills',
   };
 
   /// Skills that ship inside the app: always listed and readable, even offline or before the library index loads.
-  static final List<LibSkill> builtIn = [for (final m in [...ApkBuild.skills, ...DesignSkills.skills]) LibSkill.fromJson(m)];
+  static final List<LibSkill> builtIn = [for (final m in [...ApkBuild.skills, ...DesignSkills.skills, ...CaseSkills.skills]) LibSkill.fromJson(m)];
 
   /// The full instructions of a built-in skill, or null.
   static String? builtInBody(String id) => ApkBuild.bodyOf(id) ?? DesignSkills.bodyOf(id);
@@ -204,6 +207,13 @@ class SkillLibrary extends ChangeNotifier {
   Future<String?> body(String id) async {
     final own = builtInBody(id);
     if (own != null) return own;
+    final asset = CaseSkills.assetOf(id);
+    if (asset != null) {
+      try {
+        final text = await rootBundle.loadString(asset);
+        if (text.trim().isNotEmpty) return text;
+      } catch (_) {}
+    }
     final f = _file(id);
     try {
       if (f != null && f.existsSync()) return '${(jsonDecode(await f.readAsString()) as Map)['body'] ?? ''}';

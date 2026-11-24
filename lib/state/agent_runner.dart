@@ -418,7 +418,7 @@ extension AppStateAgentRunner on AppState {
       try {
         run.show(RunPhase.waiting, RunStatus.waiting);
         _notify();
-        final layer = TelesiaStyle.identity;
+        final layer = [TelesiaStyle.identity, Cases.I.promptFor(convId)].where((s) => s.trim().isNotEmpty).join('\n\n');
         // The window is nearly full: fold the older part first, so the user never has to start a new chat
         // (owner 2026-11-10). opencode compacts by itself too; this is the early, visible one.
         await _ocCompactIfFull(convId: convId, run: run, session: session, list: list, model: laneModel);

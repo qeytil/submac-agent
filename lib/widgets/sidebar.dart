@@ -21,8 +21,10 @@ import 'sub_icon.dart';
 import 'bot_list.dart';
 import '../services/bots.dart';
 import '../services/offices.dart';
+import '../services/cases.dart';
 import '../services/inbox.dart';
 import '../screens/inbox_screen.dart';
+import '../screens/caseboard_screen.dart';
 import 'chat/entrance.dart';
 import '../services/reply_text.dart' show cleanGlyphs;
 
@@ -53,7 +55,7 @@ class _SidebarState extends State<Sidebar> {
       final state = context.read<AppState>();
       final store = state.repo.store;
       final botChats = state.botConvIds;
-      final ids = (state.conversations.where((c) => !c.archived && !c.packedAway && !botChats.contains(c.id)).toList()
+      final ids = (state.conversations.where((c) => !c.archived && !c.packedAway && !botChats.contains(c.id) && !state.caseConvIds.contains(c.id)).toList()
             ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
           .map((c) => c.id);
       final hits = await ChatSearch(store.rowsForSearch).search(ids, v);
@@ -116,6 +118,8 @@ class _SidebarState extends State<Sidebar> {
         s.currentProject?.id,
         s.repo.email,
         s.botConvIds.length,
+        s.caseConvIds.length,
+        Cases.I.list.length,
         for (final c in s.conversations) Object.hash(c.id, c.title, c.pinned, c.archived, c.packedAway, c.updatedAt),
       ]);
 
@@ -129,8 +133,9 @@ class _SidebarState extends State<Sidebar> {
     // Chats inside a project live in that project; search still finds them.
     // Each bot's chat lives under Bots, not in the chat list.
     final botChats = state.botConvIds;
+    final caseChats = state.caseConvIds;
     final visible = state.conversations
-        .where((c) => !c.archived && !botChats.contains(c.id) && (q.isEmpty ? !inProject.containsKey(c.id) : c.title.toLowerCase().contains(q) || _bodyHits.containsKey(c.id)))
+        .where((c) => !c.archived && !botChats.contains(c.id) && !caseChats.contains(c.id) && (q.isEmpty ? !inProject.containsKey(c.id) : c.title.toLowerCase().contains(q) || _bodyHits.containsKey(c.id)))
         .toList();
     final groups = _group(visible);
     final email = state.repo.email ?? '';
@@ -177,6 +182,13 @@ class _SidebarState extends State<Sidebar> {
                 },
               ),
             _NavTile(
+              title: 'Investigation',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CaseboardScreen()));
+              },
+            ),
+            _NavTile(
               title: 'Apps',
               onTap: () {
                 Navigator.pop(context);
@@ -221,6 +233,19 @@ class _SidebarState extends State<Sidebar> {
                               selectedConv: state.currentId,
                               onOpen: () => Navigator.pop(context),
                             ),
+                          ),
+                          AnimatedBuilder(
+                            animation: Cases.I,
+                            builder: (context, _) => q.isNotEmpty || Cases.I.list.isEmpty
+                                ? const SizedBox.shrink()
+                                : DrawerSection(
+                                    id: 'drawer-cases',
+                                    title: 'Cases',
+                                    count: Cases.I.openCount,
+                                    children: [
+                                      for (final c in Cases.I.list.take(8)) _CaseTile(item: c, selected: state.currentId == c.convId),
+                                    ],
+                                  ),
                           ),
                           if (q.isEmpty) ...[
                             Padding(
@@ -337,6 +362,38 @@ class _ProjectTile extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(child: Text(project.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text))),
             if (n > 0) Text('$n', style: AppText.microStyle.copyWith(color: p.muted)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _CaseTile extends StatelessWidget {
+  final Case item;
+  final bool selected;
+  const _CaseTile({required this.item, required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final state = context.read<AppState>();
+    return Material(
+      color: selected ? p.bubble : Colors.transparent,
+      borderRadius: Radii.fieldAll,
+      child: InkWell(
+        borderRadius: Radii.fieldAll,
+        onTap: () {
+          state.openCase(item.id);
+          Navigator.pop(context);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.bodyStyle.copyWith(color: p.text)),
+            const SizedBox(height: 2),
+            Text('${item.numberLabel} · ${item.statusWord}',
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.captionStyle.copyWith(color: p.muted)),
           ]),
         ),
       ),
