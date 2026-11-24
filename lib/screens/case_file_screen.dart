@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../services/case_report.dart';
 import '../services/cases.dart';
+import '../services/case_engine.dart';
+import '../services/case_jobs.dart';
 import '../theme.dart';
 import '../ui/i18n.dart';
 import '../ui/tokens.dart';
@@ -32,7 +34,7 @@ class _CaseFileScreenState extends State<CaseFileScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(tr('Case file'))),
       body: AnimatedBuilder(
-        animation: Cases.I,
+        animation: Listenable.merge([Cases.I, CaseJobs.I]),
         builder: (context, _) {
           final c = _case;
           if (c == null) return const SizedBox.shrink();
@@ -50,6 +52,7 @@ class _CaseFileScreenState extends State<CaseFileScreen> {
               _timeline(c),
               _persons(c),
               _findings(c),
+              _work(c),
               _report(c),
             ],
           );
@@ -139,6 +142,21 @@ class _CaseFileScreenState extends State<CaseFileScreen> {
           },
         ),
       _action(tr('Add finding'), () => sheets.addFindingSheet(context, c)),
+    ]);
+  }
+
+  Widget _work(Case c) {
+    final p = Palette.of(context);
+    final jobs = CaseJobs.I.of(c.id);
+    return _Section(title: tr('Work'), children: [
+      Text(CaseEngine.note(), style: AppText.microStyle.copyWith(color: p.muted)),
+      if (jobs.isEmpty) Text(tr('No jobs yet.'), style: AppText.bodyStyle.copyWith(color: p.muted)),
+      for (final j in jobs)
+        _Line(
+          title: j.title,
+          subtitle: '${j.status} · ${CaseEngine.word(j.lane)}${j.output.isNotEmpty ? ' · ${j.output}' : ''}',
+        ),
+      _action(tr('Clear finished'), () => CaseJobs.I.clearFinished(c.id)),
     ]);
   }
 

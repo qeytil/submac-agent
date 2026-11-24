@@ -472,6 +472,7 @@ extension AppStateTools on AppState {
 
   Future<String> _runToolAfterChecksInner(String name, Map<String, dynamic> args, {String? callId, String? convId}) async {
     if (AppState.liveTaskToolNames.contains(name)) return _liveTaskTool(name, args);
+    if (CaseTools.names.contains(name)) return CaseTools.execute(name, args, convId);
     if (AppState._screenActs.contains(name) && BrowserAgent.I.windowOpen && BrowserJobs.I.running.isNotEmpty && args['outside_browser'] != true) {
       // The web page lives in the in-app browser; phone_* acts on the user's real screen.
       return 'Not done: a browser task is working in the browser on screen, and $name would touch the user\'s real screen, '

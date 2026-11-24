@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'case_abilities.dart';
+import 'case_engine.dart';
 import 'tools.dart';
 
 /// The Investigation section (private detective): a Case is a long-lived unit with a brief, a status, a mode, a
@@ -448,6 +449,8 @@ class Cases extends ChangeNotifier {
         sb.writeln('- ${f.text} (${f.confidence})');
       }
     }
+    sb.writeln(CaseEngine.note());
+    sb.writeln('Long jobs: record them with case_job (add, then update to running/done/failed) so they survive restarts.');
     sb.writeln('Case folder: $dir. Save exhibits and reports there. Public sources only; rate every finding and give sources.');
     return sb.toString();
   }
