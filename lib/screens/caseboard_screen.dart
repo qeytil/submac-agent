@@ -111,9 +111,10 @@ class _CaseboardScreenState extends State<CaseboardScreen> {
     brief.dispose();
     reportedTo.dispose();
     if (ok != true || t.isEmpty || !context.mounted) return;
+    final nav = Navigator.of(context);
     final c = await context.read<AppState>().createCase(title: t, brief: b, reportedTo: r);
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => CaseScreen(caseId: c.id)));
+    if (c == null) return;
+    nav.pushReplacement(MaterialPageRoute(builder: (_) => CaseScreen(caseId: c.id)));
   }
 }
 
