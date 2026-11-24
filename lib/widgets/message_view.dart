@@ -85,7 +85,7 @@ class UserMessageView extends StatelessWidget {
       mine: true,
       onDone: () => message.animateIn = false,
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(Lux.promptInset, Lux.turnGap / 2, Lux.gutter, Space.x3),
+        padding: const EdgeInsetsDirectional.fromSTEB(Space.x8, Space.x3, Space.x4, Space.x2),
         child: ValueListenableBuilder<String?>(
           valueListenable: selectedReply,
           builder: (context, sel, _) {
@@ -116,17 +116,17 @@ class UserMessageView extends StatelessWidget {
                     // Your words sit in a soft filled bubble on the end side; Telesia's answers stay free-standing type,
                     // so who said what reads at a glance.
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: (MediaQuery.sizeOf(context).width * 0.82).clamp(0, 560).toDouble()),
+                      constraints: BoxConstraints(maxWidth: (MediaQuery.sizeOf(context).width * 0.84).clamp(0, 560).toDouble()),
                       child: Container(
                         key: ValueKey('user-bubble-${message.id}'),
-                        padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x3 - 2, Space.x4, Space.x3 - 2),
+                        padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, Space.x2, Space.x3, Space.x2),
                         decoration: BoxDecoration(
                           color: p.bubble,
                           borderRadius: const BorderRadiusDirectional.only(
-                            topStart: Radius.circular(20),
-                            topEnd: Radius.circular(20),
-                            bottomStart: Radius.circular(20),
-                            bottomEnd: Radius.circular(6),
+                            topStart: Radius.circular(Radii.field),
+                            topEnd: Radius.circular(Radii.field),
+                            bottomStart: Radius.circular(Radii.field),
+                            bottomEnd: Radius.circular(Space.x1),
                           ).resolve(Directionality.of(context)),
                         ),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
@@ -452,7 +452,7 @@ class AssistantMessageView extends StatelessWidget {
               : null,
           onLongPress: finished ? () => _sheet(context, text) : null,
           child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(Lux.gutter, Space.x2, Lux.gutter, Space.x2),
+            padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x1, Space.x4, Space.x1),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

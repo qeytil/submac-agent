@@ -132,8 +132,9 @@ class Lux {
   /// The quiet label over a document, table or plan.
   static const double label = 12;
 
-  /// The activity dot.
-  static const double pulse = 7;
+  /// The activity dot: 8 so the status text sits 12 inside the line (dot + [Space.x1]), the same
+  /// inset the finished "Worked for ..." line takes, so the handover never shifts the words.
+  static const double pulse = 8;
 
   /// Small round tap targets (icons in the bar and the composer).
   static const double tap = 40;

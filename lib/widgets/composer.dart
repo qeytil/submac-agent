@@ -82,6 +82,7 @@ class _ComposerState extends State<Composer> {
   /// The chat the text in the box belongs to (per-chat drafts only).
   String _draftFor = '';
   bool _hadFocus = false;
+  bool _swappingDraft = false;
 
   void _onFocusChange() {
     final has = _focus.hasFocus;
@@ -102,6 +103,7 @@ class _ComposerState extends State<Composer> {
     if (now == _draftFor) return;
     if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
     _keepDraft();
+    _swappingDraft = true;
     _draftFor = now;
     final t = Composer.drafts[now] ?? '';
     _ctrl.value = TextEditingValue(text: t, selection: TextSelection.collapsed(offset: t.length));
@@ -110,9 +112,17 @@ class _ComposerState extends State<Composer> {
         ..clear()
         ..addAll(Composer.attachmentDrafts[now] ?? const []);
     });
+    _swappingDraft = false;
+    _keepDraft();
+  }
+
+  void _onDraftChanged() {
+    _keepDraft();
+    if (mounted) setState(() {});
   }
 
   void _keepDraft() {
+    if (_swappingDraft) return;
     if (_ctrl.text.trim().isEmpty) {
       Composer.drafts.remove(_draftFor);
     } else {
@@ -128,7 +138,7 @@ class _ComposerState extends State<Composer> {
   @override
   void initState() {
     super.initState();
-    _ctrl.addListener(() => setState(() {}));
+    _ctrl.addListener(_onDraftChanged);
     _focus.addListener(_onFocusChange);
     if (widget.perChatDrafts) {
       _draftFor = _state.currentId ?? '';
@@ -291,6 +301,7 @@ class _ComposerState extends State<Composer> {
         pauseFor: const Duration(seconds: 4),
       ),
       onResult: (r) {
+        if (!mounted) return;
         final words = r.recognizedWords;
         final text = _beforeDictation.isEmpty ? words : '$_beforeDictation $words';
         _ctrl.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
@@ -300,6 +311,7 @@ class _ComposerState extends State<Composer> {
 
   @override
   void dispose() {
+    _ctrl.removeListener(_onDraftChanged);
     if (widget.perChatDrafts) {
       _state.removeListener(_swapDraft);
       _keepDraft();
@@ -445,9 +457,9 @@ class _ComposerState extends State<Composer> {
     );
   }
 
-  /// Stops every task working in this chat (the send button is Stop while Telesia works).
+  /// Stops every active run in this chat, including a quick side reply.
   void _stop() {
-    for (final r in _state.runsHere.where((r) => !r.side).toList()) {
+    for (final r in List<AgentRun>.of(_state.runsHere)) {
       _state.stopRun(r);
     }
   }
@@ -467,6 +479,7 @@ class _ComposerState extends State<Composer> {
       _stt.stop();
       _listening = false;
     }
+    _keepDraft();
     _ctrl.clear();
     setState(() => _attachments.clear());
     if (widget.perChatDrafts) {
@@ -500,8 +513,8 @@ class _ComposerState extends State<Composer> {
         ? _SendButton(key: const ValueKey('send'), icon: 'send', onTap: _send)
         : _listening
             ? _BareIcon(key: const ValueKey('listening'), icon: 'stop', tip: 'Stop listening', onTap: _toggleDictation)
-            : state.busy
-                ? _StopButton(key: const ValueKey('stop'), onTap: _stop)
+            : state.anyRunHere
+                 ? _StopButton(key: const ValueKey('stop'), onTap: _stop)
                 : _BareIcon(
                     key: const ValueKey('mic'),
                     icon: 'mic',
@@ -520,7 +533,7 @@ class _ComposerState extends State<Composer> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x1, Space.x4, Space.x3),
+        padding: const EdgeInsetsDirectional.fromSTEB(Space.x3, Space.x1, Space.x3, Space.x2),
         // No strip behind the composer (owner 2026-10-24): "+", the words and the mic float as three separate frosted
         // pieces over the chat, which scrolls behind them, blurred.
         child: Padding(
@@ -536,7 +549,7 @@ class _ComposerState extends State<Composer> {
                 child: _attachments.isEmpty
                     ? const SizedBox(width: double.infinity)
                     : SizedBox(
-                        height: 132,
+                        height: 96,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsetsDirectional.fromSTEB(Space.x2, Space.x3, Space.x2, Space.x1),
@@ -600,11 +613,12 @@ class _ComposerState extends State<Composer> {
                       controller: _ctrl,
                       focusNode: _focus,
                       minLines: 1,
-                      maxLines: 6,
+                      maxLines: 5,
                       textCapitalization: TextCapitalization.sentences,
                       // Arabic typing flows right to left; Somali and English left to right.
                       textDirection: textDirOf(_ctrl.text),
-                      style: TextStyle(fontSize: Lux.read, height: 1.4, color: p.text),
+                      // The same reading size as the reply, so the composer and the answer sit on one scale (Claude).
+                      style: TextStyle(fontSize: Lux.read, height: 1.45, color: p.text),
                       decoration: InputDecoration(
                         // While a task works, the box says plainly that a message can steer it.
                         hintText: needsModel ? tr('Connect a model to start') : _listening ? 'Speak now…' : (state.busy ? tr('Add to the task, or ask anything') : tr('Ask Telesia anything')),
@@ -644,15 +658,17 @@ class _ComposerState extends State<Composer> {
               // These two are the OWNER's chat controls and never follow into a digital person's own chat: a bot has
               // its own permission and model in its profile, not under this composer (owner 2026-11-10).
               if (!needsModel && Bots.I.byConv(state.currentId) == null)
-                const Padding(
-                  padding: EdgeInsetsDirectional.only(top: Space.x2),
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Wrap(spacing: Space.x2, runSpacing: Space.x1, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(top: Space.x1, start: Space.x1),
+                  child: Wrap(
+                    spacing: Space.x1,
+                    runSpacing: Space.x1,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: const [
                       ModelPill(),
                       ThinkingPill(),
                       PermissionPill(),
-                    ]),
+                    ],
                   ),
                 ),
             ],
@@ -951,13 +967,13 @@ class TaskBar extends StatelessWidget {
 
 /// Geometry shared by the live task line and the finished "Worked for ..." line, so one turns into the
 /// other in place (same left edge, same height): the reply below never moves when a task ends.
-const turnHeadPad = EdgeInsetsDirectional.fromSTEB(18, 4, 14, 4);
-const turnHeadHeight = 30.0;
-const turnMarkSize = 22.0;
+const turnHeadPad = EdgeInsetsDirectional.fromSTEB(Space.x4, Space.x1, Space.x3, Space.x1);
+const turnHeadHeight = 28.0;
+const turnMarkSize = 18.0;
 
 /// The live line at the top of Telesia's reply, in the chat right under your message (like ChatGPT, Kimi, Hark):
 /// the living mark, the status with a soft shimmer, steps so far and the time it has been working. Tap it for
-/// the step list. It scrolls with the chat; Stop lives in the composer (the send button turns into Stop).
+/// the step list. It scrolls with the chat; Stop lives in the composer (the trailing control turns into Stop while any run is active).
 /// [run] is null for the moment between sending and the task starting (saving the chat, uploading files).
 /// A plain reply with no steps hands over to the answer: once the answer has been streaming for a moment
 /// with no step taken, the line folds away and the text takes its place.
@@ -1047,12 +1063,16 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
   Timer? _hand;
   bool _open = false;
   DateTime? _textSince;
+  String? _elapsed;
 
   @override
   void initState() {
     super.initState();
+    _elapsed = _elapsedNow();
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      final next = _elapsedNow();
+      if (next != _elapsed) setState(() => _elapsed = next);
     });
     _noteText();
   }
@@ -1060,6 +1080,9 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
   @override
   void didUpdateWidget(covariant WorkingLine old) {
     super.didUpdateWidget(old);
+    if (!identical(old.run, widget.run) || old.run?.started != widget.run?.started) {
+      _elapsed = _elapsedNow();
+    }
     _noteText();
   }
 
@@ -1072,6 +1095,8 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
       });
     } else if (!widget.answerShowing) {
       _textSince = null;
+      _hand?.cancel();
+      _hand = null;
     }
   }
 
@@ -1082,7 +1107,7 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
     super.dispose();
   }
 
-  String _elapsed() {
+  String _elapsedNow() {
     final t = widget.run;
     if (t == null) return '';
     final d = DateTime.now().difference(t.started);
@@ -1095,7 +1120,11 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final t = widget.run;
-    final gone = WorkingLine.yields(answerShowing: false, hasSteps: WorkingLine.stepsOf(t), textSince: _textSince);
+    final gone = WorkingLine.yields(
+      answerShowing: widget.answerShowing,
+      hasSteps: WorkingLine.stepsOf(t),
+      textSince: _textSince,
+    );
     // The line folds away with the shared fold (it vanished at once, then its space closed).
     return SubFold(open: !gone, child: _line(context, p, t));
   }
@@ -1119,7 +1148,7 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
             ? RunStatus.compacting
             : WorkingLine.lineFor(t, writing: widget.writing, more: widget.more,
                 person: t == null ? null : Bots.I.byConv(t.convId)?.name);
-        final el = _elapsed();
+        final el = _elapsed ?? '';
         final trail = t?.trail ?? const <RunStep>[];
         final act = widget.activity;
         final hasActivity = act != null && !act.isEmpty;
@@ -1130,19 +1159,19 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
         final row = SizedBox(
           height: turnHeadHeight,
           child: Row(children: [
-            // Plain text only (owner rule): the status word, breathing calmly while Telesia works. No mark,
-            // no dots, no glyph before it; tap it to see the steps.
+            // A compact activity mark anchors the status without making it look like another message.
             Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: !openable
-                    ? null
-                    : () {
-                        setState(() => _open = !_open);
-                      },
-                child: Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: StatusWord(status, kind: kind, color: p.text),
+              child: Semantics(
+                button: openable,
+                label: openable ? '${tr(status)}. ${_open ? tr('Hide activity') : tr('Show activity')}' : tr(status),
+                excludeSemantics: true,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: !openable ? null : () => setState(() => _open = !_open),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: StatusWord(status, kind: kind, live: true),
+                  ),
                 ),
               ),
             ),
@@ -1152,10 +1181,14 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
                 child: Text(el, style: TextStyle(color: p.muted, fontSize: AppText.micro, fontFeatures: const [FontFeature.tabularFigures()])),
               ),
             if (openable)
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _open = !_open),
-                child: ActivityChevron(open: _open),
+              Semantics(
+                button: true,
+                label: _open ? tr('Hide activity') : tr('Show activity'),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _open = !_open),
+                  child: ActivityChevron(open: _open),
+                ),
               ),
           ]),
         );
@@ -1179,7 +1212,7 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
                     ? Padding(
                         padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),
                         child: ActivityPanel(groups: act ?? ActivityGroups.of(const []), results: widget.results,
-                            compacting: compacting ? (live?.summary ?? '') : null),
+                            compacting: compacting ? (live.summary ?? '') : null),
                       )
                     : Padding(
                       padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),
@@ -1198,9 +1231,9 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(st.failed ? '${st.label} (didn\'t work)' : st.label,
-                                    style: TextStyle(fontSize: AppText.micro, color: st.done ? p.muted : p.text, height: 1.35)),
+                                    style: AppText.metaStyle.copyWith(color: st.done ? p.muted : p.text)),
                               ),
-                              if (st.done && st.ended!.difference(st.started).inSeconds >= 2)
+                              if (st.done && st.ended != null && st.ended!.difference(st.started).inSeconds >= 2)
                                 Text('${st.ended!.difference(st.started).inSeconds}s',
                                     style: TextStyle(color: p.muted, fontSize: AppText.caption, fontFeatures: const [FontFeature.tabularFigures()])),
                             ]),

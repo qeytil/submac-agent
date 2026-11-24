@@ -848,7 +848,8 @@ class _ChatListState extends State<ChatList> {
     // The user just sent something: bring the newest message into view. Something else arrived while
     // they read further up: leave them where they are and light up "New".
     final newestId = lastMsg?.id;
-    if (newestId != _lastId || visible.length != _lastLen) {
+    final newestChanged = newestId != _lastId || visible.length != _lastLen;
+    if (newestChanged) {
       final mine = lastMsg?.role == 'user' && lastMsg?.animateIn == true;
       final grew = _lastId != null && visible.length > _lastLen;
       _lastId = newestId;
@@ -863,8 +864,6 @@ class _ChatListState extends State<ChatList> {
     }
 
     // Chat content reads a touch smaller than the rest of the app: calm and roomy, not shouty.
-    final mq = MediaQuery.of(context);
-
     Widget assistantView(ChatMessage m, int idx, {bool inTurn = false}) {
       // A reply held on screen while the work is still checked is progress, not the answer: while the task runs only
       // the status line shows (the checked final reply replaces it), unless the user asked to see the steps.
@@ -920,7 +919,8 @@ class _ChatListState extends State<ChatList> {
       return ValueListenableBuilder<ConfirmAsk?>(
         valueListenable: state.confirmNow,
         builder: (context, ask, _) {
-          if (ask == null || (ask.convId != null && ask.convId != state.currentId)) return const SizedBox.shrink();
+          final owner = widget.convId ?? state.currentId;
+          if (ask == null || (ask.convId != null && ask.convId != owner)) return const SizedBox.shrink();
           return ConfirmInline(key: ValueKey('ask-${ask.req.hashCode}'), request: ask.req, onAnswer: ask.answer);
         },
       );
@@ -980,11 +980,9 @@ class _ChatListState extends State<ChatList> {
       );
     }
 
-    final list = MediaQuery(
-      data: mq.copyWith(textScaler: TextScaler.linear(mq.textScaler.scale(1.0) * 0.93)),
-      child: ChatScrollScope(
-        controller: _scroll,
-        child: ListView.builder(
+    final list = ChatScrollScope(
+      controller: _scroll,
+      child: ListView.builder(
           controller: _scroll,
           reverse: true,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -1021,7 +1019,6 @@ class _ChatListState extends State<ChatList> {
               child: m.role == 'user' ? UserMessageView(message: m) : assistant(idx),
             );
           },
-        ),
       ),
     );
     // Soft edges (owner 2026-10-24): older messages fade out under the floating top controls, the newest ones fade

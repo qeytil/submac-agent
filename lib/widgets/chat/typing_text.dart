@@ -47,7 +47,16 @@ class _TypingTextState extends State<TypingText> with SingleTickerProviderStateM
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (still != _still) {
+      _still = still;
+      if (_still) {
+        _c.value = 1;
+      } else if (_c.value < 1) {
+        _started = true;
+        _c.forward();
+      }
+    }
     if (_still) {
       _c.value = 1;
     } else if (!_started) {

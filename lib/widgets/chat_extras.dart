@@ -31,6 +31,7 @@ class StreamingMarkdown extends StatefulWidget {
 class _StreamingMarkdownState extends State<StreamingMarkdown> {
   final List<String> _texts = [];
   final List<Widget> _widgets = [];
+  String _lastData = '';
   DateTime _lastLive = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _later;
 
@@ -48,7 +49,12 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
 
   @override
   Widget build(BuildContext context) {
-    final chunks = splitMarkdownChunks(widget.data);
+    // The text hasn't grown since the last build (a parent rebuild, the status line's clock, a scroll):
+    // the split is pure work over the whole reply, so reuse the blocks instead of re-running it. While the
+    // text does grow, only the changed tail is re-processed below, as before.
+    final data = widget.data;
+    final chunks = data == _lastData && _texts.isNotEmpty ? _texts : splitMarkdownChunks(data);
+    _lastData = data;
     for (var i = 0; i < chunks.length; i++) {
       final c = chunks[i];
       if (i < _texts.length && _texts[i] == c) continue;
