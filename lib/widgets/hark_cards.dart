@@ -432,7 +432,7 @@ class _PageCardState extends State<PageCard> {
                       child: SizedBox(
                         height: 180,
                         child: ready
-                            ? AbsorbPointer(child: WebPageView(fileUrl: 'file://$path', interactive: false))
+                            ? _PageThumb(p)
                             : ColoredBox(color: p.sheet),
                       ),
                     ),
@@ -607,4 +607,47 @@ String? repairJson(String text) {
     buf.write(closer);
   }
   return buf.toString();
+}
+
+
+/// A page's card thumbnail: a still, browser-shaped tile drawn from the theme, with no web view — a chat full of
+/// pages stays fast (owner 2026-11-24: a live view per card rendered before the page was even opened and lagged the
+/// chat). Tapping the card opens the live page.
+class _PageThumb extends StatelessWidget {
+  const _PageThumb(this.p);
+  final Palette p;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget line(double w) => Container(
+          height: 7,
+          width: w,
+          decoration: BoxDecoration(color: p.muted.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(4)),
+        );
+    return DecoratedBox(
+      decoration: BoxDecoration(color: p.sheet),
+      child: Padding(
+        padding: const EdgeInsets.all(Space.x3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              for (var i = 0; i < 3; i++) ...[
+                Container(width: 6, height: 6, decoration: BoxDecoration(color: p.muted.withValues(alpha: 0.35), shape: BoxShape.circle)),
+                const SizedBox(width: 4),
+              ],
+              const SizedBox(width: 2),
+              Expanded(child: Container(height: 9, decoration: BoxDecoration(color: p.bubble, borderRadius: BorderRadius.circular(5)))),
+            ]),
+            const SizedBox(height: Space.x4),
+            line(double.infinity),
+            const SizedBox(height: 7),
+            line(double.infinity),
+            const SizedBox(height: 7),
+            line(120),
+          ],
+        ),
+      ),
+    );
+  }
 }
