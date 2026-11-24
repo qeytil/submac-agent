@@ -6,7 +6,6 @@ import '../services/cases.dart';
 import '../theme.dart';
 import '../ui/i18n.dart';
 import '../ui/tokens.dart';
-import '../widgets/motion.dart';
 
 /// The Investigation board: every case as a quiet, text-first row. No cards (ui-rules.md). A case opens the
 /// case room; a new case is three fields.
