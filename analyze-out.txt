@@ -49,7 +49,7 @@ warning • Unused import: 'package:flutter/foundation.dart'. Try removing the i
 warning • The value of the local variable 'j' isn't used. Try removing the variable or using it • lib/services/digital_human/person.dart:72:13 • unused_local_variable
 warning • Unused import: 'package:flutter/foundation.dart'. Try removing the import directive • lib/services/digital_human/registry.dart:10:8 • unused_import
    info • Unnecessary constructor invocation. Try using a collection literal • lib/services/web_tools.dart:324:18 • prefer_collection_literals
-warning • The operand can't be 'null', so the condition is always 'true'. Remove the condition • lib/state/agent_runner.dart:507:40 • unnecessary_null_comparison
+warning • The operand can't be 'null', so the condition is always 'true'. Remove the condition • lib/state/agent_runner.dart:508:40 • unnecessary_null_comparison
 warning • The library 'package:agent/services/digital_human/digital_human.dart' doesn't export a member with the shown name 'DigitalPerson'. Try removing the name from the list of shown members • lib/widgets/bots/bot_feed_card.dart:5:63 • undefined_shown_name
 warning • The library 'package:agent/services/digital_human/digital_human.dart' doesn't export a member with the shown name 'PresenceState'. Try removing the name from the list of shown members • lib/widgets/bots/bot_feed_card.dart:5:78 • undefined_shown_name
 warning • The library 'package:agent/services/digital_human/digital_human.dart' doesn't export a member with the shown name 'PresenceStateColors'. Try removing the name from the list of shown members • lib/widgets/bots/bot_feed_card.dart:5:93 • undefined_shown_name
@@ -80,4 +80,4 @@ warning • The receiver can't be null, so the null-aware operator '?.' is unnec
   error • The name 'Color' isn't a class. Try correcting the name to match an existing class • test/digital_human_test.dart:69:62 • creation_with_non_type
   error • Expected an identifier • test/digital_human_test.dart:98:47 • missing_identifier
 
-79 issues found. (ran in 24.9s)
+79 issues found. (ran in 18.7s)
