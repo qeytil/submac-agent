@@ -13,6 +13,8 @@
 ///
 /// See docs/digital-human.md for the full vision.
 
+library;
+
 export 'heartbeat.dart';
 export 'awareness.dart';
 export 'memory.dart';

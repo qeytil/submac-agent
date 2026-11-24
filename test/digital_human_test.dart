@@ -1,3 +1,5 @@
+import 'dart:ui' show Color;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -95,7 +97,7 @@ void main() {
     });
 
     test('recalls by topic', () {
-      mem.remember('message', 'The budget is $500', topic: 'finance');
+      mem.remember('message', 'The budget is \$500', topic: 'finance');
       final results = mem.recall('budget');
       expect(results.isNotEmpty, true);
     });

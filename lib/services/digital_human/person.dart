@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'heartbeat.dart';
@@ -20,7 +19,12 @@ class DigitalPerson {
     this.role = '',
     this.avatarSeed = '',
     this.personaDescription = '',
-  });
+  }) {
+    heartbeat = Heartbeat(id: id);
+    awareness = SituationalAwareness(id: id, heartbeat: heartbeat);
+    memory = LongTermMemory(id: id);
+    mood = MoodEngine(id: id);
+  }
 
   // --- Identity ---
   final String id;
@@ -56,10 +60,6 @@ class DigitalPerson {
 
   /// Initialize all subsystems. Call once at app start.
   Future<void> init(SharedPreferences prefs) async {
-    heartbeat = Heartbeat(id: id);
-    awareness = SituationalAwareness(id: id, heartbeat: heartbeat);
-    memory = LongTermMemory(id: id);
-    mood = MoodEngine(id: id);
     createdAt = createdAt ?? DateTime.now();
     await memory.init(prefs);
     _loadFromPrefs(prefs);
@@ -68,10 +68,7 @@ class DigitalPerson {
   void _loadFromPrefs(SharedPreferences prefs) {
     final raw = prefs.getString('dh_${id}_state');
     if (raw == null) return;
-    try {
-      final j = {'mood': 'idle', 'energy': 1.0};
-      // minimal restoration for now
-    } catch (_) {}
+    // Mood/energy restoration is added with the bots persistence pass.
   }
 
   Future<void> save(SharedPreferences prefs) async {
