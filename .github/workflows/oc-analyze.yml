@@ -1,6 +1,8 @@
 name: oc analyze
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/oc_analyze_run.txt'
 permissions:
   contents: write
 jobs:
@@ -28,7 +30,7 @@ jobs:
       - name: Analyze to file
         run: |
           flutter analyze --no-fatal-infos --no-fatal-warnings > analyze-out.txt 2>&1 || true
-          head -100 analyze-out.txt
+          head -120 analyze-out.txt
       - name: Commit output
         run: |
           git config user.name telesia-agent
