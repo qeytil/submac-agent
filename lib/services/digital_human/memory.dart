@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'heartbeat.dart';
 export 'heartbeat.dart';
 
 /// Long-term memory for one digital person (owner 2026-11).
@@ -96,7 +94,7 @@ class LongTermMemory {
   }
 
   /// Recent episodes for the profile view.
-  List<Map<String, dynamic>> recentEpisodes(int n = 5) =>
+  List<Map<String, dynamic>> recentEpisodes([int n = 5]) =>
       _episodes.take(n).map((e) => e.toJson()).toList();
 
   int get episodeCount => _episodes.length;
