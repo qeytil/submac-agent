@@ -120,7 +120,9 @@ class TurnVisuals {
     final out = <String>[];
     for (final raw in [...named(answer), ...written(calls), ...made]) {
       final p = resolve(raw, workspace);
-      if (seen.contains(p) || out.contains(p) || !isVisual(p) || !has(p)) continue;
+      // The user's own file (staged in uploads/) is never shown again as a card of the reply, even if the answer
+      // names it.
+      if (p.contains('/uploads/') || seen.contains(p) || out.contains(p) || !isVisual(p) || !has(p)) continue;
       out.add(p);
       if (out.length >= maxCards) break;
     }
@@ -136,7 +138,7 @@ class TurnVisuals {
 
   /// Folders a turn's new files are never looked for in: tools, caches, the app's own media (its tools show what they
   /// make there themselves) and hidden folders.
-  static const _skipDirs = {'node_modules', '.git', 'build', 'dist', '.dart_tool', 'media', '__pycache__', '.cache', 'venv', '.venv'};
+  static const _skipDirs = {'node_modules', '.git', 'build', 'dist', '.dart_tool', 'media', '__pycache__', '.cache', 'venv', '.venv', 'uploads'};
 
   /// Visual files under [root] changed at or after [since] (a script's chart.png, a page opencode built with bash),
   /// newest last. Bounded: at most [maxEntries] entries are looked at, [maxDepth] folders deep.
