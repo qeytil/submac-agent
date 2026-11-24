@@ -1,9 +1,7 @@
 import 'dart:ui' show Color;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:agent/services/digital_human/heartbeat.dart';
 import 'package:agent/services/digital_human/awareness.dart';
 import 'package:agent/services/digital_human/memory.dart';
 import 'package:agent/services/digital_human/mood.dart';

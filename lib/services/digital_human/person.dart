@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'heartbeat.dart';
 import 'awareness.dart';
 import 'memory.dart';
 import 'mood.dart';

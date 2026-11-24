@@ -1186,7 +1186,7 @@ class _WorkingLineState extends State<WorkingLine> with SingleTickerProviderStat
                     ? Padding(
                         padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),
                         child: ActivityPanel(groups: act ?? ActivityGroups.of(const []), results: widget.results,
-                            compacting: compacting ? (live?.summary ?? '') : null),
+                            compacting: compacting ? (live.summary ?? '') : null),
                       )
                     : Padding(
                       padding: const EdgeInsetsDirectional.only(top: 4, bottom: 6),

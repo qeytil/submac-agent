@@ -285,6 +285,7 @@ class _AccountPage extends StatelessWidget {
 
 /// Placeholder home for Dev 2's Plan & usage screen (PLAN.md 2.4): today's usage, and the billing entry while
 /// billing is on. Dev 2 replaces the body.
+// ignore: unused_element
 class _PlanPage extends StatelessWidget {
   const _PlanPage();
 

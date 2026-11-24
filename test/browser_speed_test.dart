@@ -1,6 +1,5 @@
 // Speed (P4, browser-godmode): the view is a patch after a step, waits follow the network, and a
 // read-only open answers from a same-session fetch with no render.
-import 'package:agent/services/browser/page_model.dart';
 import 'package:agent/services/browser/read_page.dart';
 import 'package:agent/services/browser_agent.dart';
 import 'package:flutter_test/flutter_test.dart';

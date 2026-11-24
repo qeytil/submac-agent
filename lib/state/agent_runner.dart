@@ -505,7 +505,7 @@ extension AppStateAgentRunner on AppState {
         // the intent vanishing (owner 2026-11-07). A bot's background work keeps waiting for its own next wake.
         if (OcLane.isAllowanceText(turn.error)) {
           blockedByAllowance = true; // no point draining right after hitting the wall
-          if (!side && !bg && lastUser != null) {
+          if (!side && !bg) {
             err.error = '${turn.error}\n\n_Saved. I will run this as soon as your allowance refreshes._';
             await PendingTurns.I.add(convId, lastUser.id);
           }

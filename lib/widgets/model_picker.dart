@@ -58,7 +58,7 @@ class ModelInfo {
   /// The quiet line under a model's name: its id when it differs, its window and its longest reply.
   static String rowOf(ByokModel m) {
     final window = m.context ?? ByokOpencode.defaultContext;
-    final id = m.label == m.id ? '' : '${m.id} · ';
+    final id = m.label == m.id ? '' : '$m.id · ';
     return '${id}${size(window)} window · ${size(ByokOpencode.outputOf(m))} reply';
   }
 
