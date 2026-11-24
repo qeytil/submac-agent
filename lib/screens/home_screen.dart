@@ -757,10 +757,19 @@ class _ChatListState extends State<ChatList> {
     };
     // Messages Telesia wrote to wake a bot never show; a compact note is a quiet landmark, not a bubble, so it
     // stays in the turn here and shows inside the turn's activity (owner 2026-11-10).
-    final visible = all
+    var visible = all
         .where((m) =>
             (m.role == 'user' && !m.content.startsWith(botWakeMark)) || m.role == 'assistant' || AppState.isCompactMark(m))
         .toList();
+    // Never show the same file message twice (a repeated send used to show the same photo as a second bubble).
+    {
+      final seenFiles = <String>{};
+      visible = visible.where((m) {
+        if (m.role != 'user' || m.attachments.isEmpty) return true;
+        final sig = '${m.content}|${m.attachments.map((a) => a.name).join(',')}';
+        return seenFiles.add(sig);
+      }).toList();
+    }
     // Neighbours for the action row (system notes never show).
     ChatMessage? near(int i, int dir) {
       for (var k = i + dir; k >= 0 && k < visible.length; k += dir) {

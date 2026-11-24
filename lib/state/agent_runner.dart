@@ -54,7 +54,8 @@ extension AppStateAgentRunner on AppState {
         // Layer 2 and 3 (owner, 2026-11-03): the browser agent for websites, and control of the phone and its apps.
         // Behind "Let it take action", as in the old chat.
         if (agentEnabled) ...[
-          ...BrowserJobs.definitions,
+          // opencode drives the in-app browser directly (owner 2026-11): it owns browser use.
+          ...BrowserAgent.definitions,
           for (final d in SystemTools.definitions())
             if ((d['function'] as Map)['name'] != 'app_settings') d,
           ...PhoneTools.definitions,

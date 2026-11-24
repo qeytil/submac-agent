@@ -32,8 +32,8 @@ extension AppStateToolCatalog on AppState {
         if (memoryEnabled) ...MemoryStore.definitions,
         SystemTools.settingsTool,
         if (agentEnabled) ...[
-          // The browser is driven by its own subagent; the chat agent manages it. Early, so caps never drop it.
-          ...BrowserJobs.definitions,
+          // opencode drives the in-app browser directly (owner 2026-11): it owns browser use. Early, so caps never drop it.
+          ...BrowserAgent.definitions,
           for (final d in SystemTools.definitions())
             if ((d['function'] as Map)['name'] != 'app_settings') d,
           ...AgentTools.definitions,
