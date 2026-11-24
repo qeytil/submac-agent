@@ -492,6 +492,17 @@ class OpenCodeTurn {
 
   /// Parts in the order they first appeared: id -> part.
   final parts = <String, OcPart>{};
+
+  /// Child sessions this turn started (opencode's own subagents, the `task` tool): their tool steps are folded
+  /// in too, so a subagent's work is not hidden (owner 2026-11-24). id -> the subagent's name.
+  final children = <String, String>{};
+
+  /// True for this turn's own session and for any subagent session it started.
+  bool _mine(Object? sid) => sid == session || children.containsKey('$sid');
+
+  /// The name of the subagent a part came from, or '' for the turn's own parts.
+  String childName(OcPart p) => p.child == null ? '' : (children[p.child!] ?? 'subagent');
+
   bool done = false;
   String? error;
   String? retry;
@@ -546,7 +557,7 @@ class OpenCodeTurn {
     done = false;
     _awaitingNext = true;
     final last = parts.values.isEmpty ? null : parts.values.last;
-    _glueTo = last != null && last.kind == 'text' ? last.id : null;
+    _glueTo = last != null && last.kind == 'text' && last.child == null ? last.id : null;
   }
 
   /// The first text part of a chain of continued parts ([OcPart.continues]).
@@ -579,7 +590,7 @@ class OpenCodeTurn {
     final list = parts.values.toList();
     final lastTool = list.lastIndexWhere((p) => p.kind == 'tool');
     String textOf(OcPart p) => chainText(p).trim();
-    bool head(OcPart p) => p.kind == 'text' && p.continues == null && textOf(p).isNotEmpty;
+    bool head(OcPart p) => p.kind == 'text' && p.child == null && p.continues == null && textOf(p).isNotEmpty;
     final after = [for (final p in list.skip(lastTool + 1)) if (head(p)) textOf(p)];
     if (after.isNotEmpty) return after.join('\n\n');
     final all = [for (final p in list) if (head(p)) textOf(p)];
@@ -654,10 +665,28 @@ class OpenCodeTurn {
     final props = j['properties'];
     if (props is! Map) return false;
     switch (j['type']) {
+      case 'session.created':
+      case 'session.updated':
+        // A subagent's own session: remember it (and its name) so its steps fold into this turn.
+        final sinfo = props['info'];
+        if (sinfo is Map && sinfo['id'] != null) {
+          final sid = '${sinfo['id']}';
+          final pid = '${sinfo['parentID'] ?? ''}';
+          if (sid != session && (pid == session || children.containsKey(pid))) {
+            final name = '${sinfo['title'] ?? ''}'.trim();
+            if (!children.containsKey(sid) || (name.isNotEmpty && children[sid] != name)) {
+              children[sid] = name.isEmpty ? 'subagent' : name;
+              return true;
+            }
+          }
+        }
+        return false;
       case 'message.updated':
         final info = props['info'];
-        if (info is Map && info['sessionID'] == session) {
+        if (info is Map && _mine(info['sessionID'])) {
           if (info['role'] == 'user') _userMsgs.add('${info['id']}');
+          // A subagent's messages only mark their own user prompts; the finish and tokens counted are this turn's.
+          if (info['sessionID'] != session) return false;
           if (info['role'] == 'assistant') {
             _noteFinish(info);
             // The engine's own summary of the folded part: the message it marks `summary: true`. Its words become
@@ -682,9 +711,10 @@ class OpenCodeTurn {
         return false;
       case 'message.part.updated':
         final p = props['part'];
-        if (p is! Map || p['sessionID'] != session) return false;
+        if (p is! Map || !_mine(p['sessionID'])) return false;
         final id = '${p['id']}';
         final type = '${p['type']}';
+        final child = p['sessionID'] == session ? null : '${p['sessionID']}';
         // The engine folded the older part of this chat: the marker part says so, even though it rides inside a
         // user message (owner 2026-11-10).
         if (type == 'compaction') {
@@ -694,7 +724,7 @@ class OpenCodeTurn {
         if (_userMsgs.contains('${p['messageID']}')) return false;
         if (type == 'reasoning') {
           // opencode's thinking: shown as it streams, like opencode's own desktop chat (owner, 2026-11-03).
-          final part = parts[id] ??= OcPart(id, 'reasoning');
+          final part = parts[id] ??= (OcPart(id, 'reasoning')..child = child);
           if (p['text'] is String && (p['text'] as String).length >= part.text.length) part.text = p['text'] as String;
           final t = p['time'];
           if (t is Map && t['end'] != null) part.status = 'completed';
@@ -708,7 +738,7 @@ class OpenCodeTurn {
             summary = '${p['text'] ?? ''}';
             return true;
           }
-          final part = parts[id] ??= _newText(id);
+          final part = parts[id] ??= (child == null ? _newText(id) : (OcPart(id, 'text')..child = child));
           part.text = '${p['text'] ?? ''}';
           final t = p['time'];
           if (t is Map && t['end'] != null) part.status = 'completed';
@@ -726,7 +756,7 @@ class OpenCodeTurn {
           final st = p['state'] is Map ? p['state'] as Map : const {};
           // A step after a continue: the next text is a new paragraph, not the cut text going on.
           if (!parts.containsKey(id)) _glueTo = null;
-          final part = parts[id] ??= OcPart(id, 'tool');
+          final part = parts[id] ??= (OcPart(id, 'tool')..child = child);
           part.tool = '${p['tool'] ?? ''}';
           part.callId = '${p['callID'] ?? id}';
           part.status = '${st['status'] ?? ''}';
@@ -739,9 +769,12 @@ class OpenCodeTurn {
         }
         return false;
       case 'message.part.delta':
-        if (props['sessionID'] != session || props['field'] != 'text' || _userMsgs.contains('${props['messageID']}')) return false;
+        if (!_mine(props['sessionID']) || props['field'] != 'text' || _userMsgs.contains('${props['messageID']}')) return false;
         final id = '${props['partID']}';
-        final part = parts[id] ??= (reasoning ? OcPart(id, 'reasoning') : _newText(id));
+        final child = props['sessionID'] == session ? null : '${props['sessionID']}';
+        final part = parts[id] ??= (child != null
+            ? (OcPart(id, 'text')..child = child)
+            : (reasoning ? OcPart(id, 'reasoning') : _newText(id)));
         if (part.kind == 'tool') return false;
         part.text += '${props['delta'] ?? ''}';
         return true;
@@ -790,6 +823,9 @@ class OcPart {
   String? title;
   Map<String, dynamic> input = const {};
   String? output;
+
+  /// The subagent session this part came from (null for the turn's own parts).
+  String? child;
 
   /// A text part that goes on from where a cut reply stopped ([OpenCodeTurn.beginContinue]): the id of the text part
   /// it continues. Shown and read as one text with it.

@@ -299,6 +299,8 @@ extension AppStateAgentRunner on AppState {
 
       void sync() {
         for (final p in turn.parts.values) {
+          // A subagent's words are not the reply: only its steps fold in (the parent `task` step carries its answer).
+          if (p.child != null && p.kind != 'tool') continue;
           if (p.kind == 'text' || p.kind == 'reasoning') {
             // The rest of a reply that was cut and continued (owner 2026-11-06): it goes on in the cut reply's row.
             if (p.kind == 'text' && p.continues != null) {
@@ -343,7 +345,9 @@ extension AppStateAgentRunner on AppState {
               shown[p.id] = m;
               list.add(m);
               run.wrote.add(m.id);
-              run.trail.add(RunStep(p.title ?? stepLabel(tool, input)));
+              final who = turn.childName(p);
+              final what = p.title ?? stepLabel(tool, input);
+              run.trail.add(RunStep(who.isEmpty ? what : '$who: $what'));
             } else {
               m.toolCalls = [ToolCall(id: p.callId, name: tool, arguments: jsonEncode(input))];
             }
@@ -361,12 +365,17 @@ extension AppStateAgentRunner on AppState {
             }
           }
         }
-        // The live line: what opencode is doing now.
-        final last = turn.parts.values.isEmpty ? null : turn.parts.values.last;
+        // The live line: what opencode is doing now (a subagent's step counts as doing).
+        OcPart? last;
+        for (final p in turn.parts.values) {
+          if (p.child == null || p.kind == 'tool') last = p;
+        }
         if (turn.retry != null && turn.retry!.isNotEmpty) {
           run.show(RunPhase.retrying, turn.retry!);
         } else if (last != null && last.kind == 'tool' && !last.finished) {
-          run.show(RunPhase.tool, last.title ?? stepLabel(last.tool.replaceFirst('telesia_', ''), last.input));
+          final who = turn.childName(last);
+          final what = last.title ?? stepLabel(last.tool.replaceFirst('telesia_', ''), last.input);
+          run.show(RunPhase.tool, who.isEmpty ? what : '$who: $what');
         } else if (turn.reasoning) {
           run.show(RunPhase.thinking, RunStatus.thinking);
         } else if (last != null && last.kind == 'text') {
