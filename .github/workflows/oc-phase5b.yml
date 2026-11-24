@@ -1,0 +1,25 @@
+name: oc phase5b
+on:
+  push:
+    paths:
+      - 'tools/oc_phase5b_run.txt'
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Apply phase 5 fix
+        run: python3 tools/oc_phase5b.py
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Investigation phase 5 fix: cases import in home_screen" || true
+          git push || true
