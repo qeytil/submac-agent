@@ -6,6 +6,7 @@ import '../services/cases.dart';
 import '../theme.dart';
 import '../ui/i18n.dart';
 import '../ui/tokens.dart';
+import 'case_screen.dart';
 
 /// The Investigation board: every case as a quiet, text-first row. No cards (ui-rules.md). A case opens the
 /// case room; a new case is three fields.
@@ -110,9 +111,9 @@ class _CaseboardScreenState extends State<CaseboardScreen> {
     brief.dispose();
     reportedTo.dispose();
     if (ok != true || t.isEmpty || !context.mounted) return;
-    final nav = Navigator.of(context);
-    await context.read<AppState>().createCase(title: t, brief: b, reportedTo: r);
-    if (nav.canPop()) nav.pop();
+    final c = await context.read<AppState>().createCase(title: t, brief: b, reportedTo: r);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => CaseScreen(caseId: c.id)));
   }
 }
 
@@ -146,7 +147,6 @@ class _CaseRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final state = context.read<AppState>();
     final bits = [
       item.numberLabel,
       item.statusWord,
@@ -155,10 +155,8 @@ class _CaseRow extends StatelessWidget {
     ];
     return InkWell(
       key: ValueKey('case-${item.id}'),
-      onTap: () async {
-        final nav = Navigator.of(context);
-        await state.openCase(item.id);
-        if (nav.canPop()) nav.pop();
+      onTap: () {
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => CaseScreen(caseId: item.id)));
       },
       child: Padding(
         padding: const EdgeInsetsDirectional.symmetric(vertical: Space.x3),

@@ -15,8 +15,10 @@ import '../app_state.dart';
 import '../services/browser_agent.dart';
 import '../services/browser_jobs.dart';
 import '../services/bots.dart';
+import '../services/cases.dart';
 import '../services/byok.dart';
 import 'browser_card.dart';
+import 'case_pills.dart';
 import '../models.dart';
 import '../screens/live_screen.dart';
 import '../services/attach_limits.dart';
@@ -644,14 +646,19 @@ class _ComposerState extends State<Composer> {
               // These two are the OWNER's chat controls and never follow into a digital person's own chat: a bot has
               // its own permission and model in its profile, not under this composer (owner 2026-11-10).
               if (!needsModel && Bots.I.byConv(state.currentId) == null)
-                const Padding(
-                  padding: EdgeInsetsDirectional.only(top: Space.x2),
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(top: Space.x2),
                   child: Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: Wrap(spacing: Space.x2, runSpacing: Space.x1, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                      ModelPill(),
-                      ThinkingPill(),
-                      PermissionPill(),
+                      const ModelPill(),
+                      const ThinkingPill(),
+                      const PermissionPill(),
+                      // In a case's chat: how we work this case and what the detective may use (§8).
+                      if (Cases.I.byConv(state.currentId) != null) ...[
+                        const ModePill(),
+                        const AbilitiesPill(),
+                      ],
                     ]),
                   ),
                 ),

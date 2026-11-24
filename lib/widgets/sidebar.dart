@@ -25,6 +25,7 @@ import '../services/cases.dart';
 import '../services/inbox.dart';
 import '../screens/inbox_screen.dart';
 import '../screens/caseboard_screen.dart';
+import '../screens/case_screen.dart';
 import 'chat/entrance.dart';
 import '../services/reply_text.dart' show cleanGlyphs;
 
@@ -377,15 +378,14 @@ class _CaseTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final state = context.read<AppState>();
     return Material(
       color: selected ? p.bubble : Colors.transparent,
       borderRadius: Radii.fieldAll,
       child: InkWell(
         borderRadius: Radii.fieldAll,
         onTap: () {
-          state.openCase(item.id);
           Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => CaseScreen(caseId: item.id)));
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
