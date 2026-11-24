@@ -67,6 +67,7 @@ extension AppStateAgentRunner on AppState {
         ...DocMaker.definitions,
         ...CaseTools.definitions,
         ...BotAssign.definitions,
+        ...ModelBridge.definitions,
         ...MediaCoder.definitions,
         // Always findable (owner 2026-11-04, visuals): with no picture model on the server it says so and names the
         // ways that work (an .svg/.html file, code_media, the user's own model).
