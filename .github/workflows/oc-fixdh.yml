@@ -1,0 +1,25 @@
+name: oc fixdh
+on:
+  push:
+    paths:
+      - 'tools/oc_fixdh_run.txt'
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Apply postponed-task fixes
+        run: python3 tools/oc_fixdh.py
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Postponed task: repair digital_human, drop dead bots-feed files" || true
+          git push || true
