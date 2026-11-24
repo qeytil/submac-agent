@@ -80,4 +80,4 @@ warning • The receiver can't be null, so the null-aware operator '?.' is unnec
   error • The name 'Color' isn't a class. Try correcting the name to match an existing class • test/digital_human_test.dart:69:62 • creation_with_non_type
   error • Expected an identifier • test/digital_human_test.dart:98:47 • missing_identifier
 
-79 issues found. (ran in 21.7s)
+79 issues found. (ran in 25.8s)
