@@ -22,7 +22,7 @@ warning • The declaration '_showProfile' isn't referenced. Try removing the de
   error • The method 'BotFeedCard' isn't defined for the type 'BotsFeedScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'BotFeedCard' • lib/screens/bots/bots_feed_screen.dart:103:28 • undefined_method
   error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bots_feed_screen.dart:146:41 • undefined_identifier
   error • A value of type 'String?' can't be assigned to a variable of type 'String'. Try changing the type of the variable, or casting the right-hand type to 'String' • lib/screens/bots/bots_feed_screen.dart:351:63 • invalid_assignment
-warning • The declaration '_PlanPage' isn't referenced. Try removing the declaration of '_PlanPage' • lib/screens/settings_screen.dart:286:7 • unused_element
+warning • The declaration '_PlanPage' isn't referenced. Try removing the declaration of '_PlanPage' • lib/screens/settings_screen.dart:288:7 • unused_element
    info • Dangling library doc comment. Add a 'library' directive after the library comment • lib/services/digital_human/digital_human.dart:1:1 • dangling_library_doc_comments
   error • All final variables must be initialized, but 'id' isn't. Try adding an initializer for the field • lib/services/digital_human/heartbeat.dart:11:3 • final_not_initialized_constructor
   error • The method '_wake' isn't defined for the type 'Heartbeat'. Try correcting the name to the name of an existing method, or defining a method named '_wake' • lib/services/digital_human/heartbeat.dart:38:18 • undefined_method
@@ -80,4 +80,4 @@ warning • The receiver can't be null, so the null-aware operator '?.' is unnec
   error • The name 'Color' isn't a class. Try correcting the name to match an existing class • test/digital_human_test.dart:69:62 • creation_with_non_type
   error • Expected an identifier • test/digital_human_test.dart:98:47 • missing_identifier
 
-79 issues found. (ran in 25.8s)
+79 issues found. (ran in 30.6s)
