@@ -1,0 +1,34 @@
+name: oc investigation
+
+# Lets the on-phone agent apply the Investigation phase 1 edits on the branch, then commits.
+on:
+  push:
+    paths:
+      - 'tools/oc_investigation_run.txt'
+permissions:
+  contents: write
+concurrency:
+  group: oc-investigation-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Apply edits
+        run: python3 tools/oc_investigation.py
+
+      - name: Commit
+        run: |
+          set -e
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          rm -f tools/oc_investigation_run.txt
+          git add -A
+          if git diff --cached --quiet; then echo 'nothing to commit'; else git commit -m 'Investigation phase 1: wire the Cases section into the app'; git push; fi
