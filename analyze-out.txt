@@ -3,4 +3,4 @@ Analyzing submac-agent...
    info • Unnecessary constructor invocation. Try using a collection literal • lib/services/web_tools.dart:324:18 • prefer_collection_literals
    info • Unnecessary braces in a string interpolation. Try removing the braces • lib/widgets/model_picker.dart:62:13 • unnecessary_brace_in_string_interps
 
-2 issues found. (ran in 31.0s)
+2 issues found. (ran in 29.4s)
