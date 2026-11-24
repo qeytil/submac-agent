@@ -1,0 +1,25 @@
+name: oc browser
+on:
+  push:
+    paths:
+      - 'tools/oc_browser_run.txt'
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Apply browser handover
+        run: python3 tools/oc_browser.py
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "opencode owns browser use (direct tools, subagent retired) + dedupe duplicate file messages" || true
+          git push || true
