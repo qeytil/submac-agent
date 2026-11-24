@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'awareness.dart';
@@ -67,11 +68,30 @@ class DigitalPerson {
   void _loadFromPrefs(SharedPreferences prefs) {
     final raw = prefs.getString('dh_${id}_state');
     if (raw == null) return;
-    // Mood/energy restoration is added with the bots persistence pass.
+    try {
+      final j = jsonDecode(raw) as Map;
+      final e = (j['energy'] as num?)?.toDouble();
+      if (e != null) energy.set(e);
+      final m = '${j['mood'] ?? ''}';
+      if (m.isNotEmpty) mood.restore(m, (j['moodIntensity'] as num?)?.toDouble() ?? 0.5);
+      final ls = DateTime.tryParse('${j['lastSpokeAt'] ?? ''}');
+      if (ls != null) lastSpokeAt = ls;
+      final ca = DateTime.tryParse('${j['createdAt'] ?? ''}');
+      if (ca != null) createdAt = ca;
+    } catch (_) {}
   }
 
   Future<void> save(SharedPreferences prefs) async {
     await memory.save();
+    try {
+      await prefs.setString('dh_${id}_state', jsonEncode({
+        'mood': mood.mood.name,
+        'moodIntensity': mood.intensity,
+        'energy': energy.level,
+        'lastSpokeAt': lastSpokeAt?.toIso8601String(),
+        'createdAt': createdAt?.toIso8601String(),
+      }));
+    } catch (_) {}
   }
 
   /// Mark that we just said or did something.

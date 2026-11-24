@@ -107,6 +107,7 @@ import 'services/case_notify.dart';
 import 'services/case_engine.dart';
 import 'services/case_jobs.dart';
 import 'services/case_tools.dart';
+import 'services/digital_human/bot_minds.dart';
 import 'services/missions.dart';
 import 'services/bot_status.dart';
 import 'services/bot_manner.dart';

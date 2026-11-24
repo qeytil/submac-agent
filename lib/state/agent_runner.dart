@@ -570,6 +570,12 @@ extension AppStateAgentRunner on AppState {
     await ensureMcpTools().catchError((Object _) {});
     final tools = AppState._capTools(_mcpTools(convId)) ?? const <Map<String, dynamic>>[];
     final brief = Bots.I.agentBriefOf(b);
+    // Digital human: this turn is the bot living a moment — mark it and keep the owner's message in its memory.
+    BotMinds.I.spoke(b.id, name: b.name, role: b.role);
+    if (ownerSaid != null && ownerSaid.content.trim().isNotEmpty) {
+      BotMinds.I.remember(b.id, ownerSaid.content.trim(), type: 'message', topic: 'chat');
+    }
+    unawaited(BotMinds.I.save(b.id));
     // A compacted chat keeps its summary plus the messages after the cut.
     final cut = _compactCut(list);
     final system = cut == null ? brief : '$brief\n\n# Earlier in this conversation\n${cut.$1}';

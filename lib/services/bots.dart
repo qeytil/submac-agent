@@ -18,6 +18,7 @@ import 'bot_runtime.dart';
 import 'bot_inbox.dart';
 import 'no_reply.dart';
 import 'house_rules.dart';
+import 'digital_human/bot_minds.dart';
 import 'skill_library.dart';
 
 import 'missions.dart';
@@ -1840,6 +1841,7 @@ class Bots extends ChangeNotifier {
             '${team ? '' : 'To ask the owner a question with answers to pick, call your question tool (the app shows it as a tap card); '
                 'never write the question as JSON or code.\n'}'
             'Your own folder for notes, drafts and files: ${botFolder(b)}/ (relative to your working directory). Keep long work there.\n\n'
+            '${BotMinds.I.selfLine(b.id, name: b.name, role: b.role)}\n\n'
             'Your name is ${b.name}. Never say you are an AI model or Telesia; you are ${b.name}.'
         .trim();
   }

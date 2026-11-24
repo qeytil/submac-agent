@@ -124,6 +124,16 @@ class MoodEngine {
         BotMood.worried => const Color(0xFFE07B3D),
       };
 
+  /// Restore a saved mood (the bots' persistence pass): the matching mood with its intensity.
+  void restore(String moodName, double intensity) {
+    for (final m in BotMood.values) {
+      if (m.name == moodName) {
+        _current = MoodState(m, intensity: intensity.clamp(0.0, 1.0));
+        return;
+      }
+    }
+  }
+
   Map<String, dynamic> snapshot() => _current.toJson();
 
   Future<void> save(dynamic prefs) async {} // future persistence
@@ -138,6 +148,7 @@ class EnergyLevel {
 
   void spend(double amount) => _level = (_level - amount).clamp(0.0, 1.0);
   void recharge(double amount) => _level = (_level + amount).clamp(0.0, 1.0);
+  void set(double v) => _level = v.clamp(0.0, 1.0);
 
   bool get isLow => _level < 0.3;
   bool get isDepleted => _level <= 0.0;

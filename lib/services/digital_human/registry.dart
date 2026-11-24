@@ -29,6 +29,16 @@ class DigitalHumanRegistry {
   /// Get or create a person. Not thread-safe — called from the main isolate only.
   DigitalPerson byId(String id) => _byId.putIfAbsent(id, () => DigitalPerson(id: id, name: id));
 
+  /// Get the person for [id], creating it with the nicer [name]/[role] when it is not there yet (a bot knows its own
+  /// name; the lazy [byId] would call it by its id).
+  DigitalPerson ensure(String id, {String name = '', String role = ''}) {
+    final existing = _byId[id];
+    if (existing != null) return existing;
+    final p = DigitalPerson(id: id, name: name.trim().isEmpty ? id : name.trim(), role: role);
+    _byId[id] = p;
+    return p;
+  }
+
   /// Register a fully defined person (from config or store).
   void register(DigitalPerson person) {
     _byId[person.id] = person;
