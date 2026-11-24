@@ -65,6 +65,7 @@ extension AppStateAgentRunner on AppState {
         ...DocTools.definitions,
         ...DocMaker.definitions,
         ...CaseTools.definitions,
+        ...BotAssign.definitions,
         ...MediaCoder.definitions,
         // Always findable (owner 2026-11-04, visuals): with no picture model on the server it says so and names the
         // ways that work (an .svg/.html file, code_media, the user's own model).
@@ -1184,6 +1185,13 @@ extension AppStateAgentRunner on AppState {
     final scheduled = _scheduledConvs.remove(convId);
     final fromNote = _notifReplyConvs.remove(convId);
     _notifyConvs.remove(convId);
+    // A task the agent handed to a bot reports back in the chat that asked (BotAssign): "<Bot> finished: ...".
+    final assignedBotId = Bots.I.byConv(convId)?.id;
+    final assigned = assignedBotId == null ? null : BotAssign.back.remove(assignedBotId);
+    if (assigned != null && !run.cancelled) {
+      final botReply = OcRunEnd.replyOf(list, run.wrote).trim();
+      unawaited(_sayIn(assigned.owner, '${assigned.name} finished: ${botReply.isEmpty ? 'done.' : botReply}'));
+    }
     // The owner is away and waits on this: Telesia's own scheduled task, or an answer to a notification reply. It ends
     // with its own notification: who it is from and a short summary of the result (owner 2026-11-05).
     try {

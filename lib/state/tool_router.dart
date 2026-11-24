@@ -473,6 +473,7 @@ extension AppStateTools on AppState {
   Future<String> _runToolAfterChecksInner(String name, Map<String, dynamic> args, {String? callId, String? convId}) async {
     if (AppState.liveTaskToolNames.contains(name)) return _liveTaskTool(name, args);
     if (CaseTools.names.contains(name)) return CaseTools.execute(name, args, convId);
+    if (BotAssign.names.contains(name)) return _assignBot(args, convId);
     if (AppState._screenActs.contains(name) && BrowserAgent.I.windowOpen && BrowserJobs.I.running.isNotEmpty && args['outside_browser'] != true) {
       // The web page lives in the in-app browser; phone_* acts on the user's real screen.
       return 'Not done: a browser task is working in the browser on screen, and $name would touch the user\'s real screen, '
@@ -856,6 +857,28 @@ extension AppStateTools on AppState {
     if (t == null || !t.server.readOnly || AppState._readOnlyTool.hasMatch(t.name)) return null;
     return 'Not allowed: ${t.server.name} is set to read only, so Telesia can look things up there but not change anything. '
         'Do not try it another way. Tell the user in one line, and that they can turn off "Read only" in Apps > ${t.server.name}.';
+  }
+
+  /// assign_bot: hand a task to one of the owner's bots and show it in this chat (like spinning off a teammate).
+  /// The bot works it in its own chat; when its turn ends, _ocRunEnded reports the result back here.
+  Future<String> _assignBot(Map<String, dynamic> a, String? convId) async {
+    final who = '${a['bot'] ?? ''}'.trim();
+    final task = '${a['task'] ?? ''}'.trim();
+    if (who.isEmpty || task.isEmpty) return 'Error: give both "bot" (the name) and "task".';
+    final b = Bots.I.byName(who) ?? Bots.I.byId(who);
+    if (b == null) {
+      final names = Bots.I.bots.map((x) => x.name).where((n) => n.trim().isNotEmpty).join(', ');
+      return names.isEmpty ? 'The owner has no bots yet.' : 'No bot named "$who". Their bots: $names.';
+    }
+    if (!b.active) return '${b.name} is not active yet; ask the owner to start it, or do the task yourself.';
+    final owner = convId ?? currentId ?? '';
+    if (owner.isNotEmpty) {
+      BotAssign.back[b.id] = (owner: owner, name: b.name);
+      unawaited(_sayIn(owner, 'Assigned to ${b.name}: $task'));
+    }
+    await _botWake(b, 'a task from the owner through the agent', task, 'work');
+    return 'Assigned to ${b.name}. It works the task in its own chat and reports back here when done. Do not do the task '
+        'yourself; tell the owner it is in ${b.name}\'s hands.';
   }
 
   Future<ActionRequest?> _riskFor(String name, Map<String, dynamic> args) async {

@@ -14,6 +14,7 @@ extension AppStateToolCatalog on AppState {
         ...HealthTools.definitions,
         ...CodeTools.definitions,
         ...CaseTools.definitions,
+        ...BotAssign.definitions,
         // Core loop v3: the agent's own tools (tool_make) and the door to make more.
         ...ForgedTools.definitions,
         ...ForgedTools.userDefinitions(),
