@@ -23,6 +23,7 @@ import 'files_screen.dart' show FilesScreen, FilesView;
 import '../widgets/sidebar.dart';
 import '../widgets/update_window.dart';
 import 'billing/billing_widgets.dart';
+import 'case_settings_screen.dart';
 import 'connectors_screen.dart';
 import 'feedback_screen.dart';
 import 'home_screen.dart' show TodayUsage;
@@ -84,6 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
           ]),
           _Group([
             row('Phone access', const _PhonePage()),
+            row('Investigation', const CaseSettingsScreen()),
             row('Privacy', const _PrivacyPage()),
             row('Notifications', const _NotificationsPage()),
           ]),

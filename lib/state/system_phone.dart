@@ -10,6 +10,9 @@ extension AppStateSystem on AppState {
     try {
       await Cases.I.init();
     } catch (_) {}
+    try {
+      await CaseAbilityDefaults.I.init();
+    } catch (_) {}
     notifyWhenDone = local.prefs.getBool('notifyWhenDone') ?? true;
     // Easy mode was removed (plan 5.3): the normal app is the simple one.
     replyLanguage = local.prefs.getString('replyLanguage') ?? 'auto';

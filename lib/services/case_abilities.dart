@@ -36,6 +36,12 @@ class CaseAbilities {
   /// Never in the default set; turned on per case.
   static const optIn = {'phone-records'};
 
+  /// The editable default set (Settings → Investigation). Seeded from [initialDefaults]; the store keeps changes.
+  static Map<String, String> defaults = initialDefaults();
+
+  /// The broad seed the owner asked for: the phone's sensors, location and everything it offers on their behalf.
+  static Map<String, String> initialDefaults() => {for (final a in all) a.id: defaultOn.contains(a.id) ? on : off};
+
   static Ability? byId(String id) {
     for (final a in all) {
       if (a.id == id) return a;
@@ -48,12 +54,12 @@ class CaseAbilities {
   /// The level of an ability in a set of levels (defaults to off when absent).
   static String levelOf(Map<String, String> levels, String id) => levels[id] ?? off;
 
-  static Map<String, String> defaultLevels() => {for (final a in all) a.id: defaultOn.contains(a.id) ? on : off};
+  static Map<String, String> defaultLevels() => Map.of(defaults);
 
   /// Fills in any abilities a stored case predates, so new abilities appear (off) instead of vanishing.
   static Map<String, String> missingDefaults(Object? existing) {
     final have = existing is Map ? existing.keys.map((e) => '$e').toSet() : <String>{};
-    return {for (final a in all) if (!have.contains(a.id)) a.id: defaultOn.contains(a.id) ? on : off};
+    return {for (final a in all) if (!have.contains(a.id)) a.id: defaults[a.id] ?? off};
   }
 
   /// A stored ability map with any new abilities added (off), ready to keep on a [Case].

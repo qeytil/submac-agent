@@ -101,6 +101,8 @@ import 'services/doc_maker.dart';
 import 'services/life_tools.dart';
 import 'services/offices.dart';
 import 'services/cases.dart';
+import 'services/case_abilities.dart';
+import 'services/case_ability_defaults.dart';
 import 'services/missions.dart';
 import 'services/bot_status.dart';
 import 'services/bot_manner.dart';
