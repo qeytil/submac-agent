@@ -30,6 +30,9 @@ class NotifChannels {
   static const teams = 'telesia_teams_v2';
   static const work = 'telesia_work_v2';
 
+  /// The Investigation section's own channel (docs/investigation.md §20): its own sound and importance.
+  static const cases = 'telesia_cases_v2';
+
   /// Channels from before the chime: removed so the phone's settings list only the ones in use.
   static const retired = ['telesia_tasks', 'telesia_tasks_v2', 'telesia_bot_msgs'];
 

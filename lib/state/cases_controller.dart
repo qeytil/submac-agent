@@ -35,4 +35,27 @@ extension AppStateCases on AppState {
     await openCase(c.id);
     return c;
   }
+
+  /// Starts a Solo pass: the case works on its own inside this session. The kickoff goes through the normal chat
+  /// pipeline (the mode is already in the case prompt), so the agent plans with a todo, works what it can and reports
+  /// at milestones. Nothing new is forked: it is the same run, steered by this message.
+  Future<void> startSolo(String caseId) async {
+    final c = Cases.I.byId(caseId);
+    if (c == null) return;
+    if (c.mode != CaseMode.solo) await Cases.I.update(c, mode: CaseMode.solo);
+    if (currentId != c.convId) await openCase(caseId);
+    await send(_soloKickoff, const []);
+  }
+
+  /// The user takes the case back mid-run: Partner again, no thread lost.
+  Future<void> takeOver(String caseId) async {
+    final c = Cases.I.byId(caseId);
+    if (c == null) return;
+    if (c.mode != CaseMode.partner) await Cases.I.update(c, mode: CaseMode.partner);
+  }
+
+  static const _soloKickoff =
+      'Work this case now in Solo. Plan the next steps with a todo, use the evidence and the abilities you have, and '
+      'advance what you can on your own; save anything you find into the case. Report only at milestones — a strong '
+      'lead, a finished job, or a decision you need from me. Pause for money, danger or a real fork.';
 }

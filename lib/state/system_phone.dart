@@ -332,6 +332,12 @@ extension AppStateSystem on AppState {
       if (b != null && _ringing == b.id) incomingCall.value = b;
       return;
     }
+    // An Investigation milestone opens the case room (docs/investigation.md §20).
+    if (payload.startsWith('case/')) {
+      openRequest.value = null;
+      openRequest.value = payload;
+      return;
+    }
     if (payload.startsWith('office/') || payload == 'approvals' || payload == 'inbox' || payload.startsWith('inbox/')) {
       if (payload.startsWith('inbox')) unawaited(Inbox.I.refresh());
       openRequest.value = null;

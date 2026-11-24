@@ -104,10 +104,11 @@ class _CaseScreenState extends State<CaseScreen> {
                             : const ChatList(key: ValueKey('m')),
                   ),
                 ),
-                footer: const Column(mainAxisSize: MainAxisSize.min, children: [
-                  AskBar(),
-                  TaskBar(),
-                  Composer(perChatDrafts: true),
+                footer: Column(mainAxisSize: MainAxisSize.min, children: [
+                  _SoloStrip(item: c, onStart: () => state.startSolo(c.id), onTakeOver: () => state.takeOver(c.id)),
+                  const AskBar(),
+                  const TaskBar(),
+                  const Composer(perChatDrafts: true),
                 ]),
               ),
               Positioned(
@@ -210,6 +211,45 @@ class CaseGreeting extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A quiet line above the composer while a case is Solo or a run is going: what the detective is doing now, and the
+/// way to take the case back (docs/investigation.md §9, §20). Hidden in Partner mode when nothing is running.
+class _SoloStrip extends StatelessWidget {
+  const _SoloStrip({required this.item, required this.onStart, required this.onTakeOver});
+  final Case item;
+  final VoidCallback onStart;
+  final VoidCallback onTakeOver;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final state = context.watch<AppState>();
+    AgentRun? run;
+    for (final r in state.runs) {
+      if (r.convId == item.convId && !r.side) {
+        run = r;
+        break;
+      }
+    }
+    final solo = item.mode == CaseMode.solo;
+    if (!solo && run == null) return const SizedBox.shrink();
+    final line = run != null ? run.statusText : tr('Solo — ready when you are');
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(Lux.gutter, 0, Lux.gutter, Space.x1),
+      child: Row(children: [
+        Expanded(
+          child: Text(line, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.microStyle.copyWith(color: p.muted)),
+        ),
+        TextButton(
+          style: TextButton.styleFrom(minimumSize: const Size(0, 30), padding: const EdgeInsets.symmetric(horizontal: Space.x2)),
+          onPressed: run != null ? onTakeOver : onStart,
+          child: Text(run != null ? tr('Take over') : tr('Work it'),
+              style: AppText.microStyle.copyWith(color: p.text, fontWeight: FontWeight.w600)),
+        ),
+      ]),
     );
   }
 }

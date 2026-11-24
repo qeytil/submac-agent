@@ -103,6 +103,7 @@ import 'services/offices.dart';
 import 'services/cases.dart';
 import 'services/case_abilities.dart';
 import 'services/case_ability_defaults.dart';
+import 'services/case_notify.dart';
 import 'services/missions.dart';
 import 'services/bot_status.dart';
 import 'services/bot_manner.dart';

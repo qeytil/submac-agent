@@ -69,6 +69,15 @@ extension AppStateNotifications on AppState {
   /// reply typed in a notification (to Telesia or to a bot). Bot wakes report through their own outcome.
   void _notifyRunEnd(String convId, List<ChatMessage> list, AgentRun run, {required bool scheduled, required bool fromNote}) {
     if (run.cancelled) return;
+    // The Investigation section reports through its own channel (docs/investigation.md §20): a Solo pass that ends
+    // away from the screen leaves a milestone alert that opens the case room, never an ordinary "Telesia" result.
+    final caseFor = Cases.I.byConv(convId);
+    if (caseFor != null) {
+      if (appVisible && currentId == convId) return;
+      final caseReply = OcRunEnd.replyOf(list, run.wrote);
+      if (caseReply.trim().isNotEmpty) unawaited(CaseNotify.milestone(caseFor, caseReply));
+      return;
+    }
     // A task the user started also says it is done, when "Notify when done" is on (owner 2026-11-09: long tasks
     // used to finish in silence). Scheduled tasks and notification replies always report.
     if (!scheduled && !fromNote && !notifyWhenDone) return;

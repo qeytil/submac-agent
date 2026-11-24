@@ -39,6 +39,7 @@ import '../widgets/chat/activity_panel.dart';
 import '../widgets/chat/edge_fade.dart';
 import '../widgets/chat/entrance.dart';
 import '../widgets/chat/typing_text.dart';
+import 'case_screen.dart' show CaseScreen;
 import 'inbox_screen.dart';
 import 'live_screen.dart';
 import '../services/inbox.dart';
@@ -110,6 +111,12 @@ class _HomeScreenState extends State<HomeScreen> {
       // CB-16: a bot's notification opens the Bots workspace on that bot (what you see is where you type).
       final b = Bots.I.byId(r.substring(8));
       if (b != null) unawaited(openBotChat(context, b));
+    } else if (r.startsWith('case/')) {
+      // An Investigation milestone opens the case room (docs/investigation.md §20).
+      final id = r.substring(5);
+      if (Cases.I.byId(id) != null) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => CaseScreen(caseId: id)));
+      }
     }
   }
 
