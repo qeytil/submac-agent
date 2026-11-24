@@ -1,0 +1,21 @@
+name: oc subs
+on:
+  push:
+    paths:
+      - tools/oc_subs_run.txt
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: investigation/phase-1
+      - run: python3 tools/oc_subs.py
+      - run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Chat: surface opencode subagent (task) steps" || echo "no change"
+          git push
