@@ -1,9 +1,6 @@
 Analyzing submac-agent...                                       
 
 warning • The declaration '_PlanPage' isn't referenced. Try removing the declaration of '_PlanPage' • lib/screens/settings_screen.dart:288:7 • unused_element
-warning • Unused import: 'package:flutter/foundation.dart'. Try removing the import directive • lib/services/digital_human/memory.dart:2:8 • unused_import
-warning • Unused import: 'heartbeat.dart'. Try removing the import directive • lib/services/digital_human/memory.dart:5:8 • unused_import
-  error • Named parameters must be enclosed in curly braces ('{' and '}'). Try surrounding the named parameters in curly braces • lib/services/digital_human/memory.dart:99:51 • named_parameter_outside_group
 warning • Unused import: 'heartbeat.dart'. Try removing the import directive • lib/services/digital_human/mood.dart:6:8 • unused_import
    info • The import of 'heartbeat.dart' is unnecessary because all of the used elements are also provided by the import of 'awareness.dart'. Try removing the import directive • lib/services/digital_human/person.dart:4:8 • unnecessary_import
    info • Unnecessary constructor invocation. Try using a collection literal • lib/services/web_tools.dart:324:18 • prefer_collection_literals
@@ -14,4 +11,4 @@ warning • The receiver can't be null, so the null-aware operator '?.' is unnec
 warning • Unused import: 'package:shared_preferences/shared_preferences.dart'. Try removing the import directive • test/digital_human_test.dart:4:8 • unused_import
    info • The import of 'package:agent/services/digital_human/heartbeat.dart' is unnecessary because all of the used elements are also provided by the import of 'package:agent/services/digital_human/awareness.dart'. Try removing the import directive • test/digital_human_test.dart:6:8 • unnecessary_import
 
-13 issues found. (ran in 26.8s)
+10 issues found. (ran in 22.4s)
