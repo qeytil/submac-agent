@@ -12,9 +12,10 @@ extension AppStateChat on AppState {
 
   bool _hasRun(String convId) => runs.any((r) => r.convId == convId);
 
-  /// How often streamed words reach the screen (v1.13.101). The reply lets out its words in batches every 90 ms
-  /// (revealEvery), so the old 40 ms notify rebuilt the chat twice for every batch it could show: pure jank.
-  static const streamNotifyEvery = Duration(milliseconds: 80);
+  /// How often streamed words reach the screen (v1.13.101). The reply lets out its words in batches every 72 ms
+  /// (revealEvery), so a notify any faster than that rebuilt the chat twice for every batch it could show: pure
+  /// jank. 64 ms keeps one notify per batch and never lets a ready batch wait.
+  static const streamNotifyEvery = Duration(milliseconds: 64);
 
   void _throttledNotify() {
     if (_notifyTimer?.isActive ?? false) return;

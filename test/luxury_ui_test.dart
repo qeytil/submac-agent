@@ -148,6 +148,21 @@ void main() {
       expect(find.descendant(of: find.byType(StatusWord), matching: find.byType(Icon)), findsNothing);
       await t.pumpWidget(const SizedBox());
     });
+
+    testWidgets('the live mark on a task line breathes, and rests under reduced motion', (t) async {
+      // Claude-style progress: only the chat's task line asks for the living mark, and only the dot's
+      // opacity moves (no Breath widget, no icon, no repaint of the word).
+      await t.pumpWidget(_host(const StatusWord('Working', kind: ActivityKind.working, live: true)));
+      await t.pump(const Duration(milliseconds: 400));
+      expect(find.text('Working'), findsOneWidget);
+      expect(find.descendant(of: find.byType(StatusWord), matching: find.byType(Breath)), findsNothing);
+      expect(find.descendant(of: find.byType(StatusWord), matching: find.byType(Icon)), findsNothing);
+      // Remove animations: the mark stands still (this settles; a breathing mark would time out).
+      await t.pumpWidget(_host(const StatusWord('Working', kind: ActivityKind.working, live: true), still: true));
+      await t.pumpAndSettle();
+      expect(find.text('Working'), findsOneWidget);
+      await t.pumpWidget(const SizedBox());
+    });
   });
 
   group('messages', () {

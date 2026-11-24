@@ -103,7 +103,9 @@ List<String> splitMarkdownChunks(String text) {
 }
 
 /// How often a streaming reply lets out its next batch of words (each batch then fades in where it lands).
-const revealEvery = Duration(milliseconds: 90);
+/// 72 ms: snappier than the old 90 while each batch still has room to fade; never below the 60 ms floor
+/// the feel test allows (batches any faster rebuild the chat more often than they can show words).
+const revealEvery = Duration(milliseconds: 72);
 
 /// How much of a streaming reply to show (owner 2026-10-24: fade in, not letter by letter): every whole word that
 /// has arrived. While it streams, a word still being written (no space or line break after it yet) waits, so text
