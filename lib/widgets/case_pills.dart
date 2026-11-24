@@ -7,7 +7,7 @@ import '../services/cases.dart';
 import '../theme.dart';
 import '../ui/i18n.dart';
 import '../ui/tokens.dart';
-import 'chat/activity.dart';
+import 'chat/activity_panel.dart';
 import 'chat/edge_fade.dart';
 
 /// The Investigation pills under the composer: the case's Mode (Solo / Partner) and its Abilities.
