@@ -1,0 +1,25 @@
+name: oc phase6
+on:
+  push:
+    paths:
+      - 'tools/oc_phase6_run.txt'
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Apply phase 6 edits
+        run: python3 tools/oc_phase6.py
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Investigation phase 6: job queue + phone/cloud engine" || true
+          git push || true
