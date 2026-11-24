@@ -1,0 +1,84 @@
+Analyzing submac-agent...                                       
+
+  error • The method 'BotProfileSheet' isn't defined for the type 'BotChatScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'BotProfileSheet' • lib/screens/bots/bot_chat_screen.dart:142:31 • undefined_method
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bot_chat_screen.dart:165:19 • undefined_identifier
+  error • The method 'BotProfileSheet' isn't defined for the type '_HeaderAvatar'. Try correcting the name to the name of an existing method, or defining a method named 'BotProfileSheet' • lib/screens/bots/bot_chat_screen.dart:170:25 • undefined_method
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bot_chat_screen.dart:210:21 • undefined_identifier
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bot_chat_screen.dart:211:21 • undefined_identifier
+  error • Target of URI doesn't exist: 'bot_feed_card.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist • lib/screens/bots/bot_profile_sheet.dart:6:8 • uri_does_not_exist
+warning • The value of the local variable 'isDark' isn't used. Try removing the variable or using it • lib/screens/bots/bot_profile_sheet.dart:16:11 • unused_local_variable
+  error • Undefined name 'MoodEngine'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bot_profile_sheet.dart:65:24 • undefined_identifier
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bot_profile_sheet.dart:71:72 • undefined_identifier
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bot_profile_sheet.dart:143:19 • undefined_identifier
+warning • The value of the local variable 'p' isn't used. Try removing the variable or using it • lib/screens/bots/bot_profile_sheet.dart:170:11 • unused_local_variable
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bot_profile_sheet.dart:174:16 • undefined_identifier
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bot_profile_sheet.dart:184:22 • undefined_identifier
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bot_profile_sheet.dart:196:54 • undefined_identifier
+  error • Target of URI doesn't exist: 'bot_feed_card.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist • lib/screens/bots/bots_feed_screen.dart:10:8 • uri_does_not_exist
+  error • The name 'ListViewState' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a type named 'ListViewState' • lib/screens/bots/bots_feed_screen.dart:28:30 • non_type_as_type_argument
+  error • The method 'BotChatScreen' isn't defined for the type 'BotsFeedScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'BotChatScreen' • lib/screens/bots/bots_feed_screen.dart:64:25 • undefined_method
+warning • The declaration '_showProfile' isn't referenced. Try removing the declaration of '_showProfile' • lib/screens/bots/bots_feed_screen.dart:69:8 • unused_element
+  error • The method 'BotProfileSheet' isn't defined for the type 'BotsFeedScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'BotProfileSheet' • lib/screens/bots/bots_feed_screen.dart:74:25 • undefined_method
+  error • The method 'BotFeedCard' isn't defined for the type 'BotsFeedScreenState'. Try correcting the name to the name of an existing method, or defining a method named 'BotFeedCard' • lib/screens/bots/bots_feed_screen.dart:103:28 • undefined_method
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/screens/bots/bots_feed_screen.dart:146:41 • undefined_identifier
+  error • A value of type 'String?' can't be assigned to a variable of type 'String'. Try changing the type of the variable, or casting the right-hand type to 'String' • lib/screens/bots/bots_feed_screen.dart:351:63 • invalid_assignment
+warning • Unused import: '../widgets/motion.dart'. Try removing the import directive • lib/screens/caseboard_screen.dart:9:8 • unused_import
+warning • The declaration '_PlanPage' isn't referenced. Try removing the declaration of '_PlanPage' • lib/screens/settings_screen.dart:286:7 • unused_element
+   info • Dangling library doc comment. Add a 'library' directive after the library comment • lib/services/digital_human/digital_human.dart:1:1 • dangling_library_doc_comments
+  error • All final variables must be initialized, but 'id' isn't. Try adding an initializer for the field • lib/services/digital_human/heartbeat.dart:11:3 • final_not_initialized_constructor
+  error • The method '_wake' isn't defined for the type 'Heartbeat'. Try correcting the name to the name of an existing method, or defining a method named '_wake' • lib/services/digital_human/heartbeat.dart:38:18 • undefined_method
+warning • Unused import: 'package:flutter/foundation.dart'. Try removing the import directive • lib/services/digital_human/memory.dart:2:8 • unused_import
+warning • Unused import: 'heartbeat.dart'. Try removing the import directive • lib/services/digital_human/memory.dart:5:8 • unused_import
+   info • The private field _semantic could be 'final'. Try making the field 'final' • lib/services/digital_human/memory.dart:24:29 • prefer_final_fields
+  error • The method 'getStringMap' isn't defined for the type 'SharedPreferences'. Try correcting the name to the name of an existing method, or defining a method named 'getStringMap' • lib/services/digital_human/memory.dart:42:28 • undefined_method
+  error • The method 'setStringMap' isn't defined for the type 'SharedPreferences'. Try correcting the name to the name of an existing method, or defining a method named 'setStringMap' • lib/services/digital_human/memory.dart:53:19 • undefined_method
+  error • Named parameters must be enclosed in curly braces ('{' and '}'). Try surrounding the named parameters in curly braces • lib/services/digital_human/memory.dart:93:51 • named_parameter_outside_group
+  error • Undefined class 'Color'. Try changing the name to the name of an existing class, or creating a class with the name 'Color' • lib/services/digital_human/mood.dart:115:10 • undefined_class
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • lib/services/digital_human/mood.dart:116:31 • creation_with_non_type
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • lib/services/digital_human/mood.dart:117:34 • creation_with_non_type
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • lib/services/digital_human/mood.dart:118:34 • creation_with_non_type
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • lib/services/digital_human/mood.dart:119:32 • creation_with_non_type
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • lib/services/digital_human/mood.dart:120:32 • creation_with_non_type
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • lib/services/digital_human/mood.dart:121:37 • creation_with_non_type
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • lib/services/digital_human/mood.dart:122:34 • creation_with_non_type
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • lib/services/digital_human/mood.dart:123:34 • creation_with_non_type
+  error • Non-nullable instance field '_level' must be initialized. Try adding an initializer expression, or add a field initializer in this constructor, or mark it 'late' • lib/services/digital_human/mood.dart:133:3 • not_initialized_non_nullable_instance_field
+  error • 'starting' isn't a field in the enclosing class. Try correcting the name to match an existing field, or defining a field named 'starting' • lib/services/digital_human/mood.dart:133:16 • initializing_formal_for_non_existent_field
+warning • Unused import: 'package:flutter/foundation.dart'. Try removing the import directive • lib/services/digital_human/person.dart:2:8 • unused_import
+   info • The import of 'heartbeat.dart' is unnecessary because all of the used elements are also provided by the import of 'awareness.dart'. Try removing the import directive • lib/services/digital_human/person.dart:5:8 • unnecessary_import
+  error • The named parameter 'id' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'id' • lib/services/digital_human/person.dart:59:27 • undefined_named_parameter
+warning • The value of the local variable 'j' isn't used. Try removing the variable or using it • lib/services/digital_human/person.dart:72:13 • unused_local_variable
+warning • Unused import: 'package:flutter/foundation.dart'. Try removing the import directive • lib/services/digital_human/registry.dart:10:8 • unused_import
+   info • Unnecessary constructor invocation. Try using a collection literal • lib/services/web_tools.dart:324:18 • prefer_collection_literals
+warning • The operand can't be 'null', so the condition is always 'true'. Remove the condition • lib/state/agent_runner.dart:507:40 • unnecessary_null_comparison
+warning • The library 'package:agent/services/digital_human/digital_human.dart' doesn't export a member with the shown name 'DigitalPerson'. Try removing the name from the list of shown members • lib/widgets/bots/bot_feed_card.dart:5:63 • undefined_shown_name
+warning • The library 'package:agent/services/digital_human/digital_human.dart' doesn't export a member with the shown name 'PresenceState'. Try removing the name from the list of shown members • lib/widgets/bots/bot_feed_card.dart:5:78 • undefined_shown_name
+warning • The library 'package:agent/services/digital_human/digital_human.dart' doesn't export a member with the shown name 'PresenceStateColors'. Try removing the name from the list of shown members • lib/widgets/bots/bot_feed_card.dart:5:93 • undefined_shown_name
+  error • Undefined class 'DigitalPerson'. Try changing the name to the name of an existing class, or creating a class with the name 'DigitalPerson' • lib/widgets/bots/bot_feed_card.dart:22:9 • undefined_class
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:32:27 • undefined_identifier
+  error • The argument type 'bool' can't be assigned to the parameter type 'Color?'.  • lib/widgets/bots/bot_feed_card.dart:72:73 • argument_type_not_assignable
+  error • Undefined name 'PresenceState'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:90:50 • undefined_identifier
+  error • Undefined name 'PresenceState'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:90:94 • undefined_identifier
+  error • The named parameter 'minWidth' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'minWidth' • lib/widgets/bots/bot_feed_card.dart:103:21 • undefined_named_parameter
+  error • Undefined name 'PresenceStateColors'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:128:50 • undefined_identifier
+  error • The getter 'faint' isn't defined for the type 'Color'. Try importing the library that defines 'faint', correcting the name to the name of an existing getter, or defining a getter or field named 'faint' • lib/widgets/bots/bot_feed_card.dart:128:81 • undefined_getter
+  error • A value of type 'Palette' can't be returned from the function 'p' because it has a return type of 'Color' • lib/widgets/bots/bot_feed_card.dart:129:18 • return_of_invalid_type
+  error • Undefined name 'context'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:129:29 • undefined_identifier
+  error • Undefined class 'DigitalPerson'. Try changing the name to the name of an existing class, or creating a class with the name 'DigitalPerson' • lib/widgets/bots/bot_feed_card.dart:135:9 • undefined_class
+  error • Undefined name 'PresenceState'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:157:35 • undefined_identifier
+  error • Undefined name 'PresenceState'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:158:35 • undefined_identifier
+  error • Undefined name 'PresenceState'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:166:52 • undefined_identifier
+  error • Undefined name 'PresenceState'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:167:38 • undefined_identifier
+  error • Undefined name 'PresenceState'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:168:48 • undefined_identifier
+  error • Undefined name 'PresenceState'. Try correcting the name to one that is defined, or defining the name • lib/widgets/bots/bot_feed_card.dart:169:35 • undefined_identifier
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/bots/bot_feed_card.dart:171:21 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/bots/bot_feed_card.dart:172:12 • curly_braces_in_flow_control_structures
+warning • The receiver can't be null, so the null-aware operator '?.' is unnecessary. Try replacing the operator '?.' with '.' • lib/widgets/composer.dart:1182:59 • invalid_null_aware_operator
+   info • Unnecessary braces in a string interpolation. Try removing the braces • lib/widgets/model_picker.dart:62:13 • unnecessary_brace_in_string_interps
+   info • The import of 'package:agent/services/browser/page_model.dart' is unnecessary because all of the used elements are also provided by the import of 'package:agent/services/browser_agent.dart'. Try removing the import directive • test/browser_speed_test.dart:3:8 • unnecessary_import
+  error • The named parameter 'id' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'id' • test/digital_human_test.dart:17:22 • undefined_named_parameter
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • test/digital_human_test.dart:68:57 • creation_with_non_type
+  error • The name 'Color' isn't a class. Try correcting the name to match an existing class • test/digital_human_test.dart:69:62 • creation_with_non_type
+  error • Expected an identifier • test/digital_human_test.dart:98:47 • missing_identifier
+
+80 issues found. (ran in 27.7s)
