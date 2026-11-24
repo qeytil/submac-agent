@@ -1,0 +1,25 @@
+name: oc model
+on:
+  push:
+    paths:
+      - 'tools/oc_model_run.txt'
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Apply model bridge wiring
+        run: python3 tools/oc_model.py
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Borrow another model: ask_model/list_models + built-in skill" || true
+          git push || true
