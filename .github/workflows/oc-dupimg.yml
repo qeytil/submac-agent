@@ -1,0 +1,21 @@
+name: oc dupimg
+on:
+  push:
+    paths:
+      - tools/oc_dupimg_run.txt
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: investigation/phase-1
+      - run: python3 tools/oc_dupimg.py
+      - run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Chat: no repeated image bubble under the reply" || echo "no change"
+          git push
