@@ -1,0 +1,25 @@
+name: oc phase2
+on:
+  push:
+    paths:
+      - 'tools/oc_phase2_run.txt'
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Apply phase 2 edits
+        run: python3 tools/oc_phase2.py
+      - name: Commit
+        run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Investigation phase 2: case room + mode/abilities pills" || true
+          git push || true
