@@ -33,7 +33,7 @@ OLD = """  Future<String> _botConsult(Bot asker, Bot expert, String question) as
         {'role': 'system', 'content': '${Bots.I.chatPromptOf(expert)}\\n\\nYour colleague ${asker.name} (${asker.role}) asks for your expert view. Answer concisely and concretely.'},
         {'role': 'user', 'content': question},
       ], maxTokens: OutputLimits.answer, continues: ReplyContinuation.maxContinues, source: 'bot', background: _backgroundLane(asker.convId), route: route, provider: telesiaRef.provider);
-      expert.log('work', 'Helped ${asker.name}: ${question.length > 80 ? '${question.substring(0, 80)}...' : question}');
+      expert.log('work', 'Helped ${asker.name}: ${question.length > 80 ? '${question.substring(0, 80)}…' : question}');
       unawaited(Bots.I.save());
       return t.trim();
     } catch (e) {
@@ -54,7 +54,7 @@ NEW = """  Future<String> _botConsult(Bot asker, Bot expert, String question) as
         {'role': 'system', 'content': '${Bots.I.chatPromptOf(expert)}\\n\\nYour colleague ${asker.name} (${asker.role}) asks for your expert view. Answer concisely and concretely.'},
         {'role': 'user', 'content': question},
       ], maxTokens: OutputLimits.answer, continues: ReplyContinuation.maxContinues, source: 'bot', background: _backgroundLane(asker.convId), route: route, provider: telesiaRef.provider);
-      expert.log('work', 'Helped ${asker.name}: ${question.length > 80 ? '${question.substring(0, 80)}...' : question}');
+      expert.log('work', 'Helped ${asker.name}: ${question.length > 80 ? '${question.substring(0, 80)}…' : question}');
       unawaited(Bots.I.save());
       final answer = t.trim();
       await _recordBotAsk(asker, expert, question, answer);
