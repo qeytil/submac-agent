@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
+import '../services/always_on.dart';
+import '../services/bots.dart';
 import '../services/missions.dart';
 import '../theme.dart';
 import '../ui/tokens.dart';
@@ -20,10 +23,18 @@ class MissionSection extends StatefulWidget {
 }
 
 class _MissionSectionState extends State<MissionSection> {
+  /// Android's own notification switch (off means no brief ever reaches the phone).
+  bool? _notifOk;
+
   @override
   void initState() {
     super.initState();
     Missions.I.init();
+    Permission.notification.status
+        .then((s) {
+          if (mounted) setState(() => _notifOk = s.isGranted);
+        })
+        .catchError((Object _) {});
   }
 
   static String _status(Mission m) {
@@ -169,6 +180,22 @@ class _MissionSectionState extends State<MissionSection> {
         _ => Icons.radio_button_unchecked_rounded,
       };
 
+  /// One honest line: will this really wake and reach the owner, or is something switched off? The usual silent
+  /// failures (no notification permission, "Always on" off, a paused bot) are named here instead of being found
+  /// weeks later.
+  Widget _healthLine(BuildContext context, Palette p) {
+    final warn = <String>[];
+    if (_notifOk == false) warn.add('notifications are off');
+    if (!AlwaysOn.I.on) warn.add('"Always on" is off');
+    if (widget.kind == 'bot' && Bots.I.byId(widget.ownerId)?.active == false) warn.add('the bot is paused');
+    if (warn.isEmpty) {
+      return Text('Wakes and reports by itself, also with Telesia closed.',
+          style: TextStyle(color: p.muted, fontSize: AppText.meta, height: 1.35));
+    }
+    return Text('Will not run reliably: ${warn.join(', ')}. Fix in Settings.',
+        style: TextStyle(color: Palette.red, fontSize: AppText.meta, height: 1.35));
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -223,6 +250,10 @@ class _MissionSectionState extends State<MissionSection> {
                   Switch(key: const ValueKey('mission-on'), value: m.on, onChanged: (v) => Missions.I.setOn(m, v)),
                 ]),
                 Text(_status(m), style: TextStyle(color: p.muted, fontSize: AppText.meta)),
+                if (m.on) ...[
+                  const SizedBox(height: Space.x1),
+                  Builder(builder: (c) => _healthLine(c, p)),
+                ],
                 if (m.needs.isNotEmpty) ...[
                   const SizedBox(height: Space.x2),
                   Text('Needs you: ${m.needs}', style: const TextStyle(fontWeight: FontWeight.w600)),

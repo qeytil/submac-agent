@@ -1210,6 +1210,13 @@ extension AppStateBots on AppState {
     _notifyConvs.add(convId);
     _notifReplyConvs.add(convId);
     final bot = Bots.I.byConv(convId);
+    // A reply to a mission's "[needs you]" is the owner's answer: clear it so the mission goes on (these same
+    // words reach the bot in the chat below). No extra wake: this reply's own turn carries it.
+    final waiting = bot == null ? null : Missions.I.liveOf('bot', bot.id);
+    if (waiting != null && waiting.status == 'waiting' && waiting.needs.isNotEmpty) {
+      final no = RegExp(r"^(no|nope|dont|stop|cancel|decline|later|wait)( |$)", caseSensitive: false).hasMatch(text);
+      unawaited(Missions.I.answer(waiting, !no, words: text.trim(), wake: false));
+    }
     await SystemBridge.I.keepAlive(true, text: NotifText.running(bot?.name ?? 'Telesia', 'Your reply'));
     _notify();
     unawaited(_runAgent(convId));

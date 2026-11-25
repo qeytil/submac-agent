@@ -437,13 +437,13 @@ class Missions extends ChangeNotifier {
   }
 
   /// The owner answered a [needs you]: approved (or not), with optional words. The mission wakes soon to act on it.
-  Future<void> answer(Mission m, bool approved, {String words = ''}) async {
+  Future<void> answer(Mission m, bool approved, {String words = '', bool wake = true}) async {
     if (m.needs.isEmpty && words.trim().isEmpty) return;
     final asked = m.needs;
     m.needs = '';
     if (m.status == 'waiting') m.status = 'active';
     m.add('answer', '${approved ? 'Approved' : 'Declined'}${asked.isEmpty ? '' : ': $asked'}${words.trim().isEmpty ? '' : ' — "${words.trim()}"'}', who: 'owner');
-    if (m.on && !m.finished) await setNext(m, clock().add(const Duration(minutes: 1)), 'the owner answered', by: 'app');
+    if (wake && m.on && !m.finished) await setNext(m, clock().add(const Duration(minutes: 1)), 'the owner answered', by: 'app');
     await save(m);
   }
 
@@ -529,6 +529,9 @@ class Missions extends ChangeNotifier {
     if (!ok) {
       m.runningSince = null;
       m.runsToday = (m.runsToday - 1).clamp(0, 1 << 30).toInt();
+      // Say why nothing started, so a paused bot or an exhausted budget is visible instead of a silent retry loop.
+      m.add('skip', 'Could not start (the bot may be paused, busy or out of its daily budget). Again at '
+          '${when(now.add(const Duration(minutes: 20)))}.');
       await setNext(m, now.add(const Duration(minutes: 20)), 'retry', by: 'app');
       await save(m);
     }
