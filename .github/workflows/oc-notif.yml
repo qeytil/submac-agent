@@ -1,0 +1,21 @@
+name: oc notif
+on:
+  push:
+    paths:
+      - tools/oc_notif_run.txt
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: investigation/phase-1
+      - run: python3 tools/oc_notif.py
+      - run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Notifications: ask Android on our own + Settings status/test" || echo "no change"
+          git push
