@@ -1,7 +1,7 @@
 name: agent
 description: Telesia - an agentic chat app.
 publish_to: 'none'
-version: 1.13.153+223
+version: 1.13.154+224
 
 environment:
   sdk: '>=3.12.0 <4.0.0'
@@ -57,7 +57,7 @@ dependencies:
   video_player: ^2.14.1
   # v1.14: the agent loop runs on Genkit Dart (stable core only: generate, tools, interrupts, middleware).
   genkit: ^1.0.1
-  schemantic: ^1.0.0
+  schemantic: ^1.1.0
   # v1.13.104: the first-launch intro's short sound (ambient session: mixes with music, silent when the phone is muted).
   audioplayers: ^6.8.1
 
