@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../agent/core.dart';
 import '../models.dart';
+import 'bot_llm.dart';
 import 'bot_manner.dart';
 import 'llm_client.dart';
 import 'bots.dart';
@@ -949,6 +950,14 @@ class TeamRun extends ChangeNotifier {
   /// One member's turn: a short note to the lead for the chat, and the full result (kept with the post, opened on tap).
   Future<({String note, String result})> _part(Office o, Bot lead, Bot b, String part, TeamPlan plan, List<({Bot bot, String text})> before) async {
     try {
+      // A member whose own daily budget is spent cannot do a real part: say so plainly, so the lead's answer explains
+      // the missing part instead of the turn just stopping empty. A bot on its own provider is not billed by Telesia,
+      // so it is never stopped by this.
+      if (b.overBudget && BotModelRoute.of(b).byok == null) {
+        TeamStatus.I.flag(o.id, b.id, TeamStatus.outOfBudget);
+        final f = '${b.name} is out of budget for today, so their part of the job was not done.';
+        return (note: f, result: f);
+      }
       final notes = before.isEmpty
           ? ''
           : '\n\nWhat teammates already reported:\n${[for (final d in before) '- ${d.bot.name}: ${_short(d.text, 600)}'].join('\n')}';
