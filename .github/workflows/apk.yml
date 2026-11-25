@@ -87,7 +87,7 @@ jobs:
         if: ${{ inputs.opencode }}
         run: |
           set -e
-          OC=1.19.5; ALP=v3.22
+          OC=1.19.6; ALP=v3.22
           J=android/app/src/main/jniLibs/arm64-v8a; mkdir -p "$J" /tmp/oc && cd /tmp/oc
           curl -fsSL -o oc.tgz "https://github.com/anomalyco/opencode/releases/download/v$OC/opencode-linux-arm64-musl.tar.gz"
           tar xzf oc.tgz
