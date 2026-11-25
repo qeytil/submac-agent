@@ -792,12 +792,18 @@ class Bots extends ChangeNotifier {
   /// Is this bot working right now (set by AppState: a run in its chat or in a team)?
   bool Function(Bot b)? working;
 
+  /// Bots answering a colleague's question right now (bot_ask): the ring shows them working.
+  final Set<String> consulting = {};
+
+  /// Tells the ring (BotStatus) the working set changed (a colleague consult started or ended).
+  void ping() => notifyListeners();
+
   /// Presence for the avatar and the job page: working | free | off.
   String presenceOf(Bot b) {
     if (!b.active) return 'off';
     final rt = RuntimeHost.I.of(b.id);
     if (rt.phase == BotPhase.thinking) return 'thinking';
-    if (rt.phase == BotPhase.working || (working?.call(b) ?? false)) return 'working';
+    if (rt.phase == BotPhase.working || (working?.call(b) ?? false) || consulting.contains(b.id)) return 'working';
     // It put something on its desk for the owner: say so, not "Free".
     if (rt.phase == BotPhase.waiting || b.desk.any((t) => t.status == 'waiting')) return 'waiting';
     return b.quietNow() ? 'off' : 'free';
