@@ -11,6 +11,7 @@ import '../config.dart';
 import '../services/cloud.dart';
 import '../services/device_access.dart';
 import '../services/notif_text.dart';
+import '../services/oc_engine.dart';
 import '../services/system_bridge.dart';
 import '../services/full_access.dart';
 import '../services/rewards.dart';
@@ -93,6 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             row('Notifications', const _NotificationsPage()),
           ]),
           _Group([
+            row('Engine', const _EnginePage()),
             row('Advanced', const _AdvancedPage()),
             row('Help', const _HelpPage()),
           ]),
@@ -603,6 +605,81 @@ class _NotifHealthState extends State<_NotifHealth> {
         trailing: Icon(Icons.notifications_active_outlined, color: muted),
         onTap: _test,
       ),
+    ]);
+  }
+}
+
+/// The opencode engine: which version Telesia runs, and how it is updated. The engine is a native binary that only
+/// runs from inside the Telesia APK (Android runs no code from app data), so a newer engine arrives with a Telesia
+/// update; this page checks what is out and points the owner at that update.
+class _EnginePage extends StatefulWidget {
+  const _EnginePage();
+  @override
+  State<_EnginePage> createState() => _EnginePageState();
+}
+
+class _EnginePageState extends State<_EnginePage> {
+  String? _latest;
+  bool _checking = false;
+  bool _failed = false;
+
+  Future<void> _check() async {
+    setState(() {
+      _checking = true;
+      _failed = false;
+    });
+    final v = await OcEngine.latest();
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _failed = v == null;
+      if (v != null) _latest = v;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Palette.of(context).muted;
+    final newer = _latest != null && OcEngine.newer(_latest!, OcEngine.version);
+    final sub = _checking
+        ? 'Checking...'
+        : _failed
+            ? 'Could not check. Try again.'
+            : _latest == null
+                ? 'See if a newer engine is out'
+                : newer
+                    ? 'opencode $_latest is out'
+                    : 'You have the newest engine';
+    return _Page('Engine', [
+      _Group([
+        ListTile(
+          title: const Text('opencode engine'),
+          subtitle: Text('Version ${OcEngine.version} (built into Telesia)'),
+        ),
+        ListTile(
+          title: const Text('Check for updates'),
+          subtitle: Text(sub),
+          trailing: _checking
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : Icon(Icons.refresh_rounded, color: muted),
+          onTap: _checking ? null : _check,
+        ),
+      ]),
+      if (newer)
+        _Group([
+          ListTile(
+            title: const Text('Update Telesia'),
+            subtitle: const Text('The engine ships inside Telesia, so the newest app carries the newest engine.'),
+            trailing: Icon(Icons.system_update_alt_rounded, color: muted),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AppUpdateScreen())),
+          ),
+          ListTile(
+            title: const Text('What is new in opencode'),
+            subtitle: Text('opencode $_latest release notes'),
+            trailing: Icon(Icons.open_in_new_rounded, color: muted),
+            onTap: () => launchUrl(Uri.parse('https://github.com/anomalyco/opencode/releases/tag/v$_latest'), mode: LaunchMode.externalApplication),
+          ),
+        ]),
     ]);
   }
 }

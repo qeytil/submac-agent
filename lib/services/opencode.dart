@@ -715,6 +715,9 @@ class OpenCodeTurn {
         final id = '${p['id']}';
         final type = '${p['type']}';
         final child = p['sessionID'] == session ? null : '${p['sessionID']}';
+        // Parts that carry no words or steps (snapshots, patches, step markers opencode added): one compare and
+        // out, so a busier event stream never costs the chat.
+        if (type == 'snapshot' || type == 'patch' || type == 'step-start' || type == 'step-finish') return false;
         // The engine folded the older part of this chat: the marker part says so, even though it rides inside a
         // user message (owner 2026-11-10).
         if (type == 'compaction') {
