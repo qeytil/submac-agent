@@ -1,0 +1,21 @@
+name: oc longrun
+on:
+  push:
+    paths:
+      - tools/oc_longrun_run.txt
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: investigation/phase-1
+      - run: python3 tools/oc_longrun.py
+      - run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Bots: long-horizon runs - 40 steps, handoff checkpoint, continuations, 60-min team parts" || echo "no change"
+          git push
