@@ -13,7 +13,7 @@ class BotAgentConfig {
     required this.botId,
     required this.name,
     required this.folder,
-    this.maxSteps = 24,
+    this.maxSteps = 40,
     this.maxContinues = 4,
     this.maxToolChars = 16000,
     this.parallelTools = false,

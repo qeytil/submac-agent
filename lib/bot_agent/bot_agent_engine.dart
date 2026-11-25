@@ -96,6 +96,7 @@ class BotAgentEngine {
     var tokens = 0;
     var stopped = '';
     var nudged = false;
+    var checkpointed = false;
 
     for (var i = 0; i < config.maxSteps; i++) {
       if (cancelled()) {
@@ -105,6 +106,18 @@ class BotAgentEngine {
       if (stop?.call() ?? false) {
         stopped = 'stopped';
         break;
+      }
+      // A long task would otherwise be cut at the step cap mid-flight (the bot just stops). Close to the cap the
+      // model is told to book its handoff: what is done, what is left, the exact next step, so the next run
+      // continues from there instead of starting blind (owner 2026-11-25: long-horizon tasks stopped).
+      if (!checkpointed && i >= config.maxSteps - 4) {
+        checkpointed = true;
+        messages.add({
+          'role': 'user',
+          'content': 'You are close to the step limit for this run. If the task is not finished: write a short '
+              'progress note (what is done, what is left) and the exact next step, then end this run cleanly. Do '
+              'not start anything new that you cannot finish in the few steps you have left.',
+        });
       }
       final r = await step(messages, tools);
       steps++;

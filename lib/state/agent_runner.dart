@@ -43,6 +43,10 @@ extension AppStateAgentRunner on AppState {
   /// The lead of a team job hands parts to members with team_assign: its handler, by the lead's route key.
   static final Map<String, Future<String> Function(String member, String ask)> _teamAssign = {};
 
+  /// Continuations of a chat whose run hit its step limit, by conversation: bounded, so a task that never
+  /// finishes stops continuing instead of waking for ever.
+  static final Map<String, int> _contRuns = {};
+
   /// Telesia's tools offered to opencode through Telesia's MCP server. Layer 1 (owner, 2026-11-02): memory and the
   /// everyday helpers; the browser, the phone and Live come in the next layers. Each call runs through Telesia's own
   /// gate, so a risky one shows Telesia's approval card first.
@@ -685,7 +689,11 @@ extension AppStateAgentRunner on AppState {
       },
     );
     final result = await engine.run(system: system, history: history, tools: tools);
-    if (result.stopped == 'stopped') {
+    if (result.stopped == 'steps' || result.stopped == 'continues') {
+      // It hit the step cap (or kept being cut): it used to end right there, silently, and the long task just
+      // stopped. Now the task books its own handoff: the next run picks up where this one left off.
+      await _continueTask(convId, b, run, list, result.stopped);
+    } else if (result.stopped == 'stopped') {
       final note = ChatMessage(
         id: _uuid.v4(),
         role: 'assistant',
@@ -694,7 +702,43 @@ extension AppStateAgentRunner on AppState {
       list.add(note);
       run.wrote.add(note.id);
       await _save(convId, note);
+    } else {
+      // Finished on its own: the next task starts its own continuation count.
+      _contRuns.remove(convId);
     }
+  }
+
+  /// A run stopped at its step limit (or kept being cut): say so in the chat and arrange the next run, so a long
+  /// task continues instead of stopping mid-flight. A mission continues by itself within minutes (its plan and
+  /// log are on disk); a plain chat task gets one follow-up wake, a few at most per task.
+  Future<void> _continueTask(String convId, Bot b, AgentRun run, List<ChatMessage> list, String why) async {
+    final m = Missions.I.liveOf('bot', b.id);
+    if (m != null && m.on && !m.finished) {
+      m.add('schedule', 'This run hit the step limit; continuing shortly from where it stopped.', who: b.name);
+      await Missions.I.setNext(m, DateTime.now().add(const Duration(minutes: 2)), 'continuing after the step limit', by: 'app');
+      await Missions.I.save(m);
+      return;
+    }
+    final note = ChatMessage(
+      id: _uuid.v4(),
+      role: 'assistant',
+      error: why == 'continues'
+          ? 'My reply hit its length limit. I will go on from where it stopped.'
+          : 'I hit the step limit for this run. I will pick this task up where I left off.',
+    )..animateIn = true;
+    list.add(note);
+    run.wrote.add(note.id);
+    await _save(convId, note);
+    _notify();
+    final n = (_contRuns[convId] ?? 0) + 1;
+    _contRuns[convId] = n;
+    if (n > 3) return;
+    const next = 'Continue the task you were working on in this chat: read your own last messages, then go on from the exact point you stopped. Do not restart it from the beginning.';
+    if (Bots.hasPendingFollowup(b, next, 'work')) return;
+    b.followups.add(BotFollowup('f${DateTime.now().millisecondsSinceEpoch % 1000000}',
+        DateTime.now().add(const Duration(minutes: 3)), next, 'work', local: true));
+    await Bots.I.save();
+    await Bots.I.arm(b);
   }
 
   /// The conversation as model messages (OpenAI shape) for a bot turn: the user's lines, the bot's replies, and the
@@ -1014,7 +1058,8 @@ extension AppStateAgentRunner on AppState {
     // Answering the owner in the team chat is the owner's own conversation; the rest is office work on the bots'
     // share (the same lane opencode's office provider billed to).
     final source = background ? UsageSource.office : UsageSource.agent;
-    final until = DateTime.now().add(const Duration(minutes: 30));
+    // Long work (a build, a research pass) needs room: an hour, and a mission's own 90-minute window bounds it.
+    final until = DateTime.now().add(const Duration(minutes: 60));
     var over = false;
     var timedOut = false;
     // The turn is over: the owner stopped the team, or it ran out of time. Also the predicate a browser or media job
@@ -1105,7 +1150,7 @@ extension AppStateAgentRunner on AppState {
         final result = await engine.run(system: system, history: [
           {'role': 'user', 'content': task},
         ], tools: tools);
-        if (timedOut) throw OpenCodeError('${b.name} ran out of time (30 min).');
+        if (timedOut) throw OpenCodeError('${b.name} ran out of time (60 min).');
         if (result.stopped == 'cancelled' || (stopped?.call() ?? false)) return '';
         if (result.stopped == 'stopped') {
           // Stopped mid-turn by the bot's own daily budget: it keeps what it wrote, and the team chat says why.
@@ -1120,6 +1165,7 @@ extension AppStateAgentRunner on AppState {
         // Still cut after every continuation: the team chat says so instead of the part looking finished.
         var answer = result.reply;
         if (lastCut && answer.isNotEmpty) answer = '$answer\n\n_(${ReplyContinuation.cutNote})_';
+        if (result.stopped == 'steps' && answer.isNotEmpty) answer = '$answer\n\n_(Stopped at this run step limit: the next run continues from here.)_';
         return TurnVisuals.attach(answer.trim(), made);
       } catch (e) {
         // A BYOK key refused or out of quota: the provider's next key takes over for the next turn.
