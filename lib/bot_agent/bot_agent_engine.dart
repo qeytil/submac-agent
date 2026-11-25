@@ -56,6 +56,7 @@ class BotAgentEngine {
     required this.cancelled,
     this.stop,
     this.onStep,
+    this.mustAct = false,
   });
 
   final BotAgentConfig config;
@@ -68,6 +69,14 @@ class BotAgentEngine {
 
   /// Called after every model step with what it used, so the app can bill the bot as the turn goes.
   final void Function(LlmResult r)? onStep;
+
+  /// This turn is background work the owner is waiting on: the bot must actually act, never just say it will.
+  final bool mustAct;
+
+  /// Words that mean the model intends to act ("Let me do this", "I'll now...") but has not called a tool yet.
+  static final _intent = RegExp(
+      r"\b(i'?ll|i will|i am going to|i'?m going to|let me|now i|i'?m now|starting to|going to|will now|next,? i|first,? i|i'?m on it|on it now)\b",
+      caseSensitive: false);
 
   /// One turn. [history] and [tools] are in the OpenAI shape; [system] is the bot's brief.
   Future<BotTurnResult> run({
@@ -86,6 +95,7 @@ class BotAgentEngine {
     var calls = 0;
     var tokens = 0;
     var stopped = '';
+    var nudged = false;
 
     for (var i = 0; i < config.maxSteps; i++) {
       if (cancelled()) {
@@ -142,6 +152,20 @@ class BotAgentEngine {
           stopped = 'cancelled';
           break;
         }
+        continue;
+      }
+      // A step that only talks (no tool call) used to end the turn there, so a narrating model just said "let me do
+      // this" and did nothing, and the bot looked broken. When nothing has run yet and it clearly means to act (or
+      // this is background work that must deliver), ask it once to actually use its tools, then take the next reply
+      // as final (one nudge only; a model that truly cannot call tools still ends here).
+      if (!nudged && calls == 0 && !continuing && r.content.trim().isNotEmpty && (mustAct || _intent.hasMatch(r.content))) {
+        nudged = true;
+        messages.add({'role': 'assistant', 'content': r.content});
+        messages.add({
+          'role': 'user',
+          'content': 'You have not used any tool yet. Do the task NOW with your tools: run the tool, do not describe or '
+              'promise it. When it is truly finished, reply with only the final result for the user.',
+        });
         continue;
       }
       // A reply that ran out of room goes on in the same turn instead of ending mid-sentence.

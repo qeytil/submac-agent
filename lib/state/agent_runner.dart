@@ -613,6 +613,7 @@ extension AppStateAgentRunner on AppState {
     final history = _botHistory(cut?.$2 ?? list);
     final engine = BotAgentEngine(
       config: cfg,
+      mustAct: bg,
       cancelled: () => run.cancelled,
       // Background work stops at the bot's own allowance (or its mission's). A bot on its own key is not billed by
       // Telesia, so that allowance never cuts its own-model work (owner 2026-11-07: it must not fight BYOK).
@@ -1047,6 +1048,7 @@ extension AppStateAgentRunner on AppState {
       final tools = AppState._capTools(_mcpTools(key)) ?? const <Map<String, dynamic>>[];
       final engine = BotAgentEngine(
         config: cfg,
+        mustAct: true,
         cancelled: dead,
         // Nobody is watching: the bot's own allowance (and its team mission's) stops office work between steps. A
         // bot on its own key is not billed by Telesia, so that allowance never cuts its own-model work.
