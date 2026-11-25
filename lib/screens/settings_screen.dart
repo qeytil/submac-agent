@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../app_state.dart';
 import '../config.dart';
 import '../services/cloud.dart';
 import '../services/device_access.dart';
+import '../services/notif_text.dart';
+import '../services/system_bridge.dart';
 import '../services/full_access.dart';
 import '../services/rewards.dart';
 import '../services/tools.dart';
@@ -517,6 +520,89 @@ class _NotificationsPage extends StatelessWidget {
           onChanged: state.setNotifyWhenDone,
         ),
       ]),
+      const _Group([_NotifHealth()]),
+    ]);
+  }
+}
+
+/// Shows whether Android itself allows Telesia's notifications (it decides whether any "done" notice is seen at
+/// all), lets the owner ask again, and sends a test so a silent phone can be checked.
+class _NotifHealth extends StatefulWidget {
+  const _NotifHealth();
+  @override
+  State<_NotifHealth> createState() => _NotifHealthState();
+}
+
+class _NotifHealthState extends State<_NotifHealth> {
+  PermissionStatus? _st;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final s = await Permission.notification.status;
+      if (mounted) setState(() => _st = s);
+    } catch (_) {}
+  }
+
+  Future<PermissionStatus> _ask() async {
+    var s = _st ?? await Permission.notification.status;
+    if (!s.isGranted && !s.isPermanentlyDenied) s = await Permission.notification.request();
+    if (mounted) setState(() => _st = s);
+    return s;
+  }
+
+  Future<void> _test() async {
+    final s = await _ask();
+    if (!mounted) return;
+    if (!s.isGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Notifications are off for Telesia. Turn them on in your phone settings.')));
+      if (s.isPermanentlyDenied) await openAppSettings();
+      return;
+    }
+    await SystemBridge.I.notifyFrom(
+        id: 999001,
+        channel: NotifChannels.agent,
+        title: 'Telesia',
+        body: 'This is a test notification. Task notices will look like this.',
+        payload: '',
+        initial: '',
+        color: NotifFace.agentAccent);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sent a test notification.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _st;
+    final on = s?.isGranted ?? false;
+    final muted = Palette.of(context).muted;
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(
+        title: const Text('Android notifications'),
+        subtitle: Text(s == null ? 'Checking...' : (on ? 'On' : 'Off - Telesia cannot show any notice while this is off')),
+        trailing: on
+            ? null
+            : TextButton(
+                onPressed: () async {
+                  final r = await _ask();
+                  if (!r.isGranted && r.isPermanentlyDenied) await openAppSettings();
+                },
+                child: const Text('Allow'),
+              ),
+      ),
+      ListTile(
+        title: const Text('Send a test notification'),
+        subtitle: const Text('Checks that notices reach your phone'),
+        trailing: Icon(Icons.notifications_active_outlined, color: muted),
+        onTap: _test,
+      ),
     ]);
   }
 }

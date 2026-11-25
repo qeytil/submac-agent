@@ -237,6 +237,9 @@ extension AppStateSystem on AppState {
       await Missions.I.armAll();
     } catch (_) {}
     await sideInits;
+    // Ask for Android's notification permission once, on our own (not through Firebase, which may never start):
+    // every "done" notice is dropped silently without it.
+    unawaited(_ensureNotifPermission());
     TelegramBridge.I.onMessage = _telegramAsk;
     // Awaited (it only reads the saved token; polling runs on its own) so a bot's first background task can already
     // message the owner on Telegram (bot_telegram).
@@ -384,6 +387,20 @@ extension AppStateSystem on AppState {
     }
   }
 
+
+  /// Asks for Android's notification permission once (Android 13+) when it is off but still askable, a moment after
+  /// the app opens. Without it Android drops every notification silently; this no longer depends on Firebase.
+  Future<void> _ensureNotifPermission() async {
+    try {
+      final st = await Permission.notification.status;
+      if (st.isGranted || st.isPermanentlyDenied) return;
+      if (local.prefs.getBool('notif_perm_asked_v1') == true) return;
+      await Future.delayed(const Duration(seconds: 3));
+      if (!appVisible) return;
+      await local.prefs.setBool('notif_perm_asked_v1', true);
+      await Permission.notification.request();
+    } catch (_) {}
+  }
 
   Future<void> refreshPhoneAccess() async {
     phoneAccess = await DeviceAccess.isGranted();
