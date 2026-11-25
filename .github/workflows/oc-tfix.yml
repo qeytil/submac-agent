@@ -1,0 +1,21 @@
+name: oc tfix
+on:
+  push:
+    paths:
+      - tools/oc_tfix_run.txt
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: investigation/phase-1
+      - run: python3 tools/oc_teamfix.py
+      - run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Teams: an out-of-budget member says so instead of missing their part" || echo "no change"
+          git push
