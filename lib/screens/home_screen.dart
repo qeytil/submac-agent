@@ -992,7 +992,9 @@ class _ChatListState extends State<ChatList> {
                         ? UserMessageView(key: ValueKey(visible[k].id), message: visible[k])
                         : assistant(k, inTurn: true),
               ),
-            if (live && turn.isNotEmpty && turn.last.role == 'user')
+            // Only a message handed to a task that is already working is "queued": a normal send starts the run
+            // itself, so it must not claim it is waiting behind one (owner 2026-11-25: misleading text).
+            if (turn.isNotEmpty && turn.last.role == 'user' && working.any((r) => r.steered.contains(turn.last.id)))
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: Lux.gutter, bottom: Space.x1),
                 child: Text(tr('Queued · it will read this next'),
