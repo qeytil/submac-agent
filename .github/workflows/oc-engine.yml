@@ -1,0 +1,21 @@
+name: oc engine
+on:
+  push:
+    paths:
+      - tools/oc_engine_run.txt
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: investigation/phase-1
+      - run: python3 tools/oc_engine.py
+      - run: |
+          git config user.name telesia-agent
+          git config user.email agent@telesia.site
+          git add -A
+          git commit -m "Engine: opencode 1.19.6 + Settings > Engine update page" || echo "no change"
+          git push
