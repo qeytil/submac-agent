@@ -15,6 +15,7 @@ extension AppStateToolCatalog on AppState {
         ...CodeTools.definitions,
         ...CaseTools.definitions,
         ...BotAssign.definitions,
+        ...BotAdmin.definitions,
         ...ModelBridge.definitions,
         // Core loop v3: the agent's own tools (tool_make) and the door to make more.
         ...ForgedTools.definitions,

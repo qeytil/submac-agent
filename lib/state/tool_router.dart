@@ -474,6 +474,7 @@ extension AppStateTools on AppState {
     if (AppState.liveTaskToolNames.contains(name)) return _liveTaskTool(name, args);
     if (CaseTools.names.contains(name)) return CaseTools.execute(name, args, convId);
     if (BotAssign.names.contains(name)) return _assignBot(args, convId);
+    if (BotAdmin.names.contains(name)) return _manageBots(args, convId);
     if (ModelBridge.names.contains(name)) return ModelBridge.execute(name, args);
     if (AppState._screenActs.contains(name) && BrowserAgent.I.windowOpen && BrowserJobs.I.running.isNotEmpty && args['outside_browser'] != true) {
       // The web page lives in the in-app browser; phone_* acts on the user's real screen.
@@ -880,6 +881,75 @@ extension AppStateTools on AppState {
     await _botWake(b, 'a task from the owner through the agent', task, 'work');
     return 'Assigned to ${b.name}. It works the task in its own chat and reports back here when done. Do not do the task '
         'yourself; tell the owner it is in ${b.name}\'s hands.';
+  }
+
+  /// manage_bots: the owner's agent makes and runs the owner's bots (their digital humans) - list, create, update,
+  /// remove. Handing one a task is assign_bot.
+  Future<String> _manageBots(Map<String, dynamic> a, String? convId) async {
+    String str(String k) => '${a[k] ?? ''}'.trim();
+    final action = str('action').toLowerCase();
+    Bot? find() {
+      final who = str('bot');
+      if (who.isEmpty) return null;
+      return Bots.I.byName(who) ?? Bots.I.byId(who);
+    }
+
+    String noBot() {
+      final names = Bots.I.bots.map((x) => x.name).where((n) => n.trim().isNotEmpty).join(', ');
+      return names.isEmpty ? 'The owner has no bots yet.' : 'No bot named "${str('bot')}". Their bots: $names.';
+    }
+
+    if (action == 'list') {
+      if (Bots.I.bots.isEmpty) return 'The owner has no bots yet.';
+      return Bots.I.bots
+          .map((b) => '- ${b.name}${b.role.isEmpty ? '' : ' - ${b.role}'}'
+              '${b.active ? ' (working)' : ' (not started)'}, model ${b.model}, ${b.proactivity}')
+          .join('\n');
+    }
+    if (action == 'create') {
+      final name = str('name');
+      final role = str('role');
+      if (name.isEmpty || role.isEmpty) return 'Error: give at least a name and a role.';
+      if (Bots.I.byName(name) != null) return 'Error: a bot named "$name" already exists.';
+      final b = await Bots.I.create(<String, dynamic>{
+        'name': name,
+        'role': role,
+        'persona': str('persona'),
+        'mission': str('mission'),
+        'proactivity': str('proactivity').isEmpty ? 'free' : str('proactivity'),
+        if (a['heartbeat_hours'] is num) 'heartbeat_hours': a['heartbeat_hours'],
+      });
+      if (str('model').isNotEmpty) await Bots.I.setModel(b, str('model'));
+      final start = a['start'] != false;
+      var started = false;
+      if (start && await _ensureBotConv(b)) {
+        await Bots.I.hire(b, b.convId);
+        started = true;
+      }
+      return 'Created ${b.name}${b.role.isEmpty ? '' : ', ${b.role}'}${started ? ' and started it' : ''}. '
+          'It is in Bots: the Bots row in the menu, then its face in the side rail. Give it a task with assign_bot.';
+    }
+    if (action == 'update') {
+      final b = find();
+      if (b == null) return noBot();
+      if (str('name').isNotEmpty) b.name = str('name');
+      if (str('role').isNotEmpty) b.role = str('role');
+      if (str('persona').isNotEmpty) b.persona = str('persona');
+      if (str('mission').isNotEmpty) b.mission = str('mission');
+      if (str('proactivity').isNotEmpty) b.proactivity = str('proactivity');
+      if (a['heartbeat_hours'] is num) b.heartbeatHours = (a['heartbeat_hours'] as num).toInt().clamp(0, 48).toInt();
+      if (str('model').isNotEmpty) await Bots.I.setModel(b, str('model'));
+      await Bots.I.save();
+      return 'Updated ${b.name}.';
+    }
+    if (action == 'remove') {
+      final b = find();
+      if (b == null) return noBot();
+      final name = b.name;
+      await Bots.I.remove(b);
+      return 'Removed $name.';
+    }
+    return 'Error: action must be list, create, update or remove.';
   }
 
   Future<ActionRequest?> _riskFor(String name, Map<String, dynamic> args) async {

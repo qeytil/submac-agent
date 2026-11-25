@@ -67,6 +67,7 @@ extension AppStateAgentRunner on AppState {
         ...DocMaker.definitions,
         ...CaseTools.definitions,
         ...BotAssign.definitions,
+        ...BotAdmin.definitions,
         ...ModelBridge.definitions,
         ...MediaCoder.definitions,
         // Always findable (owner 2026-11-04, visuals): with no picture model on the server it says so and names the
