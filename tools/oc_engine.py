@@ -8,11 +8,7 @@ def sub(path, old, new):
     io.open(path, 'w', encoding='utf-8').write(s.replace(old, new))
 
 
-# 1) The engine itself: latest opencode (was 1.19.5). Its notes are core fixes only (oversized image sessions, a
-#    too-large body now compacts and retries) - no API change for us.
-sub('.github/workflows/apk.yml',
-    "          OC=1.19.5; ALP=v3.22",
-    "          OC=1.19.6; ALP=v3.22")
+# 1) The engine pin (apk.yml) is updated through the API, not here: GITHUB_TOKEN may not modify workflow files.
 
 # 2) Performance: newer engines emit parts that carry no words or steps (snapshots, patches, step markers). Ignore
 #    them with one compare so a busier event stream never costs the chat.
